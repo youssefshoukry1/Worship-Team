@@ -14,7 +14,7 @@ export default function Navbar() {
   const navItems: NavItem[] = [
     { name: "Home", path: "/", id: "home-section" },
     { name: "Setlist", path: "/", id: "setlist-section" },
-    { name: "Training", path: "/", id: "training-section" },
+    { name: "Training", path: "/Trainings", id: "training-section" },
     { name: "Resources", path: "/", id: "resources-section" },
     { name: "Contact", path: "/", id: "contact-section" },
   ];
