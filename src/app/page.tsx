@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, easeOut } from "framer-motion";
 import Image from "next/image";
 
 type TimeLeft = {
@@ -17,7 +17,6 @@ export default function Home() {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // ⬅️ هنا بنعمل التاريخ جوه الـ effect مرة واحدة بس
     const eventDate: Date = new Date("2025-10-03T16:00:00+02:00");
 
     const timer = setInterval(() => {
@@ -42,7 +41,7 @@ export default function Home() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []); // فاضية عشان تشتغل مرة واحدة بس
+  }, []);
 
   return (
     <section className="relative w-full h-screen flex items-center justify-center text-white overflow-hidden">
@@ -62,28 +61,37 @@ export default function Home() {
           className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold leading-tight"
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, ease: "easeOut" }}
+          transition={{ duration: 1, ease: easeOut }}
         >
           ! اهلا بيك في فريق التسبيح
         </motion.h1>
-        <h1 className=" tex-lg sm:text-xl md:text-3xl lg:text-4xl font-semibold text-cyan-300">:  حفلتنا الجاية بعد </h1>
+
+        {/* 👇 هنا عملنا fade in */}
+        <motion.h2
+          className="text-lg sm:text-xl md:text-3xl lg:text-4xl font-semibold text-cyan-300"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1, delay: 0.5, ease: easeOut }}
+        >
+          : حفلتنا الجاية بعد
+        </motion.h2>
+
         <motion.div
           className="time-out text-lg sm:text-xl md:text-3xl lg:text-4xl font-semibold bg-white/10 px-4 sm:px-6 py-2 sm:py-4 rounded-2xl backdrop-blur-md inline-block shadow-lg"
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
+          transition={{ delay: 1, duration: 0.8, ease: easeOut }}
         >
           {timeLeft.finished ? (
             <span>الحفلة بدأت 🎉</span>
           ) : timeLeft.days ? (
             <span>
-                {timeLeft.days} days {timeLeft.hours} hours {timeLeft.minutes} minuts
-                
+              {timeLeft.days} يوم {timeLeft.hours} ساعة {timeLeft.minutes} دقيقة
             </span>
           ) : (
             <span>
-                {timeLeft.hours} ساعة {timeLeft.minutes} دقيقة{" "}
-              {timeLeft.seconds} ثانية
+              {timeLeft.hours} ساعة {timeLeft.minutes} دقيقة {timeLeft.seconds}{" "}
+              ثانية
             </span>
           )}
         </motion.div>

@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, easeOut } from "framer-motion"; // ✅ استدعينا easeOut
 import { useRouter, usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 
@@ -63,7 +63,7 @@ export default function Navbar() {
     visible: {
       y: 0,
       opacity: 1,
-      transition: { duration: 0.6, ease: "easeOut" },
+      transition: { duration: 0.6, ease: easeOut }, // ✅ استخدمنا easeOut
     },
   };
 
