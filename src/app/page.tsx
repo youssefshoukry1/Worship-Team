@@ -86,7 +86,7 @@ export default function Home() {
             <span>الحفلة بدأت 🎉</span>
           ) : timeLeft.days ? (
             <span>
-              {timeLeft.days} يوم {timeLeft.hours} ساعة {timeLeft.minutes} دقيقة
+              {timeLeft.days} day {timeLeft.hours} hour {timeLeft.minutes} minuts
             </span>
           ) : (
             <span>
