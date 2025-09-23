@@ -44,7 +44,7 @@ export default function Home() {
   }, []);
 
   return (
-    <section className="relative w-full h-screen flex items-center justify-center text-white overflow-hidden">
+    <section className="relative w-full h-screen flex items-start justify-center text-white overflow-hidden">
       {loading && <div className="absolute inset-0 bg-gray-800 animate-pulse" />}
 
       <Image
@@ -56,7 +56,9 @@ export default function Home() {
         onLoadingComplete={() => setLoading(false)}
       />
       <div className="absolute inset-0 bg-black/50" />
-      <div className="relative z-10 text-center space-y-6 px-4">
+
+      {/* ✨ النصوص كلها مرفوعة لفوق */}
+      <div className="relative z-10 text-center space-y-6 px-4 mt-50">
         <motion.h1
           className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold leading-tight"
           initial={{ opacity: 0, y: 40 }}
@@ -66,7 +68,6 @@ export default function Home() {
           ! اهلا بيك في فريق التسبيح
         </motion.h1>
 
-        {/* 👇 هنا عملنا fade in */}
         <motion.h2
           className="text-lg sm:text-xl md:text-3xl lg:text-4xl font-semibold text-cyan-300"
           initial={{ opacity: 0 }}
