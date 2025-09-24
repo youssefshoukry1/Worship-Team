@@ -1,116 +1,135 @@
 "use client";
 
 import React from "react";
-import { motion } from "framer-motion";
-import { PlayCircle, Mic, Guitar } from "lucide-react";
+import { PlayCircle, Mic, Guitar, Music2, Drum, Piano } from "lucide-react"; // أيقونات
+
+type Performance = {
+  song: string;
+  scale?: string; // vocal
+  solo?: string; // instrument
+};
 
 type Member = {
   name: string;
   role: "vocal" | "instrument";
   youtube: string[];
-  performance: string;
+  performances: Performance[];
 };
 
 const members: Member[] = [
-  { name: "Joyce Becket", role: "vocal", youtube: ["#"], performance: "Solo hymn" },
-  { name: "Shery Adel", role: "vocal", youtube: ["#", "#"], performance: "Choir" },
-  { name: "Marly Milad", role: "vocal", youtube: ["#"], performance: "Solo hymn" },
-  { name: "Tota Email", role: "vocal", youtube: ["#"], performance: "Choir" },
-  { name: "Yara Milad", role: "vocal", youtube: ["#"], performance: "Choir" },
-  { name: "Akram Ashraf", role: "vocal", youtube: ["#"], performance: "Solo hymn" },
-  { name: "Koko Nader", role: "vocal", youtube: ["#"], performance: "Choir" },
-  { name: "Ofaa", role: "instrument", youtube: ["#"], performance: "Guitar" },
-  { name: "Jason", role: "instrument", youtube: ["#"], performance: "Drums" },
-  { name: "Youssef Saper", role: "instrument", youtube: ["#"], performance: "Keyboard" },
-  { name: "Youssef Adel", role: "instrument", youtube: ["#"], performance: "Violin" },
+  { name: "Joyce Becket", role: "vocal", youtube: ["#"], performances: [{ song: "انت تقول اسمي ايه", scale: "A" }] },
+  { name: "Shery Adel", role: "vocal", youtube: ["#", "#"], performances: [{ song: "اسندني في ضعفي", scale: "Gm" }] },
+  { name: "Marly Milad", role: "vocal", youtube: ["#"], performances: [{ song: "انت تقول اسمي ايه", scale: "A" }, { song: "بتحبني", scale: "unknow!" }] },
+  { name: "Tota Email", role: "vocal", youtube: ["#"], performances: [{ song: "من لاصير من شعبك", scale: "unknow!" }] },
+  { name: "Yara Milad", role: "vocal", youtube: ["#"], performances: [{ song: "من لاصير من شعبك", scale: "unknow!" }, { song: "انا الرب قد دعوتك", scale: "A" }] },
+  { name: "Akram Ashraf", role: "vocal", youtube: ["#"], performances: [{ song: "أحاط بي", scale: "Cm" }] },
+  { name: "Koko Nader", role: "vocal", youtube: ["#"], performances: [{ song: "انا الرب قد دعوتك", scale: "A" }] },
+
+  // Instruments
+  { name: "Ofaa", role: "instrument", youtube: ["#"], performances: [{ solo: "Acoustic Guitar", song: "انت تقول اسمي ايه" }] },
+  { name: "Jason", role: "instrument", youtube: ["#"], performances: [{ solo: "Electric Guitar", song: "اسندني في ضعفي" }] },
+  { name: "Youssef Saper", role: "instrument", youtube: ["#"], performances: [{ solo: "Drums", song: "بتحبني" }] },
+  { name: "Youssef Adel", role: "instrument", youtube: ["#"], performances: [{ solo: "Piano", song: "انا الرب قد دعوتك" }] },
 ];
 
-const letterVariants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0 },
-};
-
 export default function Trainings() {
+  // أيقونات لكل Instrument
+  const getInstrumentIcon = (solo?: string) => {
+    if (!solo) return <Music2 className="w-4 h-4 text-indigo-300" />;
+    if (solo.toLowerCase().includes("acoustic")) return <Guitar className="w-4 h-4 text-amber-400" />;
+    if (solo.toLowerCase().includes("electric")) return <Guitar className="w-4 h-4  text-amber-400" />;
+    if (solo.toLowerCase().includes("drum")) return <Drum className="w-4 h-4 text-red-400" />;
+    if (solo.toLowerCase().includes("piano")) return <Piano className="w-4 h-4 text-emerald-400" />;
+    return <Music2 className="w-4 h-4 text-indigo-300" />;
+  };
+
   return (
-    <section className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white px-4 sm:px-6 py-12">
-      <motion.h1
-        className="text-3xl sm:text-4xl font-bold mb-10 text-center"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
+    <section className="min-h-screen bg-gradient-to-br from-[#050510] via-[#0a0a1a] to-[#141432] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
+      {/* خلفية Glow */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_70%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(167,139,250,0.1),transparent_70%)]" />
+
+      {/* العنوان */}
+      <h1 className="text-4xl sm:text-5xl font-extrabold mb-14 text-center bg-gradient-to-r from-sky-300 via-indigo-300 to-purple-400 text-transparent bg-clip-text drop-shadow-lg">
         🎶 Training Schedule
-      </motion.h1>
+      </h1>
 
-      <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
+      {/* Cards */}
+      <div className="grid gap-8 sm:gap-10 md:grid-cols-2 lg:grid-cols-3 relative z-10">
         {members.map((m, i) => (
-          <motion.div
+          <div
             key={i}
-            className="bg-gray-800/60 rounded-2xl p-4 sm:p-6 shadow-lg flex flex-col justify-between cursor-pointer"
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileHover={{ scale: 1.03, boxShadow: "0 15px 25px rgba(0,0,0,0.5)" }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ delay: 0.1 * i, duration: 0.6 }}
+            className="relative bg-white/5 backdrop-blur-md rounded-2xl p-6 sm:p-7 shadow-xl hover:shadow-sky-500/20 border border-white/10 transition"
           >
-            {/* Name & Role with typing effect */}
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <motion.h2
-                className="text-lg sm:text-xl font-semibold flex gap-[1px]"
-                initial="hidden"
-                animate="visible"
-                variants={{
-                  visible: { transition: { staggerChildren: 0.07 } },
-                }}
-              >
-                {m.name.split("").map((char, idx) => (
-                  <motion.span key={idx} variants={letterVariants}>
-                    {char}
-                  </motion.span>
-                ))}
-              </motion.h2>
-
+            {/* Badge */}
+            <div className="absolute top-4 right-4">
               {m.role === "vocal" ? (
-                <div className="flex items-center gap-1 text-pink-400 text-sm sm:text-base">
-                  <Mic className="w-4 h-4 sm:w-5 sm:h-5" /> Vocal
-                </div>
+                <span className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium 
+                                bg-sky-500/20 text-sky-300 border border-sky-400/40 shadow-sm shadow-sky-500/30">
+                  <Mic className="w-4 h-4" /> Vocal
+                </span>
               ) : (
-                <div className="flex items-center gap-1 text-green-400 text-sm sm:text-base">
-                  <Guitar className="w-4 h-4 sm:w-5 sm:h-5" /> Instrument
-                </div>
+                <span className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium shadow-sm
+                  ${
+                    m.performances[0]?.solo?.toLowerCase().includes("acoustic")
+                      ? "bg-gray-200/10 text-gray-100 border border-gray-300/30 shadow-gray-400/20"
+                    : m.performances[0]?.solo?.toLowerCase().includes("electric")
+                      ? "bg-gray-200/10 text-gray-100 border border-gray-300/30 shadow-gray-400/20"
+                    : m.performances[0]?.solo?.toLowerCase().includes("drum")
+                      ? "bg-gray-200/10 text-gray-100 border border-gray-300/30 shadow-gray-400/20"
+                    : m.performances[0]?.solo?.toLowerCase().includes("piano")
+                      ? "bg-gray-200/10 text-gray-100 border border-gray-300/30 shadow-gray-400/20"
+                    : "bg-violet-500/20 text-violet-300 border border-violet-400/40 shadow-violet-500/30"
+                  }`}>
+                  Instrument
+                </span>
               )}
             </div>
 
-            {/* Performance */}
-            <p className="text-gray-300 mb-4 sm:mb-6 text-sm sm:text-base">{m.performance}</p>
+            {/* Member name */}
+            <h2 className="text-xl sm:text-2xl font-semibold mb-6 bg-gradient-to-r from-gray-100 to-gray-300 bg-clip-text text-transparent">
+              {m.name}
+            </h2>
 
-            {/* YouTube links flying in dramatic */}
-            <motion.div
-              className="flex flex-wrap gap-2"
-              initial="hidden"
-              animate="visible"
-              variants={{
-                visible: { transition: { staggerChildren: 0.15 } },
-              }}
-            >
-              {m.youtube.map((link, idx) => (
-                <motion.a
+            {/* Performances */}
+            <div className="mb-6 flex flex-wrap gap-2">
+              {m.performances.map((p, idx) => (
+                <div
                   key={idx}
+                  className={`px-3 py-2 rounded-full flex items-center gap-2 text-sm sm:text-base border backdrop-blur-md shadow-sm
+                    ${m.role === "instrument" 
+                      ? "bg-white/5 border-white/10 hover:shadow-md" 
+                      : "bg-gradient-to-r from-indigo-900/40 to-sky-900/30 border border-indigo-500/20"
+                    }`}
+                >
+                  {m.role === "instrument" ? (
+                    <span className="flex items-center gap-2 text-gray-200">
+                      {getInstrumentIcon(p.solo)} {p.solo} على "{p.song}"
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-sky-300">🎼 {p.song}</span>
+                      <span className="text-purple-300">🎵 {p.scale}</span>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* YouTube Links */}
+            <div className="flex flex-wrap gap-2 mt-auto">
+              {m.youtube.map((link, j) => (
+                <a
+                  key={j}
                   href={link}
                   target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-2 sm:p-3 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center"
-                  variants={{
-                    hidden: { opacity: 0, x: idx % 2 === 0 ? -20 : 20, scale: 0.5 },
-                    visible: { opacity: 1, x: 0, scale: 1 },
-                  }}
-                  transition={{ duration: 0.5, type: "spring", stiffness: 100 }}
+                  className="flex items-center gap-2 bg-red-600/10 hover:bg-red-600/20 text-red-400 px-3 py-1.5 rounded-lg text-xs sm:text-sm transition border border-red-500/20"
                 >
-                  <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                </motion.a>
+                  <PlayCircle className="w-4 h-4" /> Play {j + 1}
+                </a>
               ))}
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         ))}
       </div>
     </section>
