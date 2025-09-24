@@ -26,10 +26,10 @@ const members: Member[] = [
   { name: "Koko Nader", role: "vocal", youtube: ["#"], performances: [{ song: "انا الرب قد دعوتك", scale: "A" }] },
 
   // Instruments
-  { name: "Ofaa", role: "instrument", youtube: ["#"], performances: [{ solo: "Acoustic Guitar", song: "انت تقول اسمي ايه" }] },
-  { name: "Jason", role: "instrument", youtube: ["#"], performances: [{ solo: "Electric Guitar", song: "اسندني في ضعفي" }] },
-  { name: "Youssef Saper", role: "instrument", youtube: ["#"], performances: [{ solo: "Drums", song: "بتحبني" }] },
-  { name: "Youssef Adel", role: "instrument", youtube: ["#"], performances: [{ solo: "Piano", song: "انا الرب قد دعوتك" }] },
+  { name: "Ofaa", role: "instrument", youtube: ["#"], performances: [{ solo: "", song: "انت تقول اسمي ايه" }] },
+  { name: "Jason", role: "instrument", youtube: ["#"], performances: [{ solo: "", song: "اسندني في ضعفي" }] },
+  { name: "Youssef Saper", role: "instrument", youtube: ["#"], performances: [{ solo: "", song: "بتحبني" }] },
+  { name: "Youssef Adel", role: "instrument", youtube: ["#"], performances: [{ solo: "", song: "انا الرب قد دعوتك" }] },
 ];
 
 export default function Trainings() {
@@ -104,7 +104,7 @@ export default function Trainings() {
                 >
                   {m.role === "instrument" ? (
                     <span className="flex items-center gap-2 text-gray-200">
-                      {getInstrumentIcon(p.solo)} {p.solo} على "{p.song}"
+                      {getInstrumentIcon(p.solo)} {p.solo}  {p.song}
                     </span>
                   ) : (
                     <>
