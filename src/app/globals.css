@@ -2,14 +2,15 @@
 
 body {
   background-color: #001a2b; /* أزرق غامق/سمواوي زي الـ Home */
+  scroll-behavior: smooth;
 }
 
 /* ==== Scrollbar Customization ==== */
 
 /* للـ Desktop (webkit browsers) */
 ::-webkit-scrollbar {
-  width: 8px; /* نخليه أرفع شوية */
-  height: 8px;
+  width: 5px; /* نخليه أرفع شوية */
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
