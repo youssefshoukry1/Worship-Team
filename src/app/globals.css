@@ -1,9 +1,34 @@
 @import "tailwindcss";
 
-.nav-link{
-
+body {
+  background-color: #001a2b; /* أزرق غامق/سمواوي زي الـ Home */
 }
 
-.active-link{
+/* ==== Scrollbar Customization ==== */
 
+/* للـ Desktop (webkit browsers) */
+::-webkit-scrollbar {
+  width: 8px; /* نخليه أرفع شوية */
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #001a2b; /* الأزرق الغامق */
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #0a3d62, #3c1a5b); /* الأزرق السمواوي هو الأساس + لمسة موف غامق */
+  border-radius: 10px;
+  border: 2px solid #001a2b;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #145374, #5b2a86); /* أزرق أفتح + موف أوضح */
+}
+
+/* للـ Mobile (Firefox + دعم عام) */
+* {
+  scrollbar-width: thin; /* يخليه رفيع */
+  scrollbar-color: #0a3d62 #001a2b; 
+  /* thumb أزرق سمواوي أساسي + track أزرق غامق */
 }

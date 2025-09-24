@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence, easeOut } from "framer-motion"; // ✅ استدعينا easeOut
+import { motion, AnimatePresence, easeOut } from "framer-motion";
 import { useRouter, usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 
@@ -63,7 +63,7 @@ export default function Navbar() {
     visible: {
       y: 0,
       opacity: 1,
-      transition: { duration: 0.6, ease: easeOut }, // ✅ استخدمنا easeOut
+      transition: { duration: 0.6, ease: easeOut },
     },
   };
 
@@ -88,7 +88,7 @@ export default function Navbar() {
           <motion.li key={name} variants={itemVariants} className="list-none">
             <button
               onClick={() => handleNavClick(path, id)}
-              className="text-white lg:text-lg font-semibold cursor-pointer transition-all duration-300 hover:text-[#FFD700] hover:scale-110 px-2 py-1"
+              className="text-white lg:text-lg font-semibold cursor-pointer transition-all duration-300 hover:text-cyan-400 hover:scale-110 px-2 py-1"
             >
               {name}
             </button>
@@ -100,25 +100,25 @@ export default function Navbar() {
       <div className="relative md:hidden">
         <button
           onClick={() => setMenuOpen((prev) => !prev)}
-          className="text-white"
+          className="text-white bg-cyan-500 hover:bg-cyan-600 p-2 rounded-full transition"
         >
-          {menuOpen ? <X size={28} /> : <Menu size={28} />}
+          {menuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
 
         <AnimatePresence>
           {menuOpen && (
             <motion.ul
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "tween", duration: 0.3 }}
-              className="fixed top-0 right-0 h-screen w-2/3 bg-[#001a2b]/80 backdrop-blur-lg shadow-lg flex flex-col items-start gap-6 p-6 z-50 border-l border-white/10"
+              initial={{ opacity: 0, y: -40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -40 }}
+              transition={{ duration: 0.3, ease: easeOut }}
+              className="absolute right-0 mt-3 w-48 bg-[#001a2b] text-white flex flex-col p-3 gap-2 rounded-xl z-50 border border-cyan-400 shadow-lg"
             >
               {navItems.map(({ name, path, id }) => (
-                <li key={name} className="list-none">
+                <li key={name}>
                   <button
                     onClick={() => handleNavClick(path, id)}
-                    className="text-white text-lg font-semibold transition-all duration-300 hover:text-[#FFD700]"
+                    className="block w-full text-left px-4 py-2 rounded-md hover:bg-cyan-500 transition"
                   >
                     {name}
                   </button>
