@@ -123,7 +123,7 @@ export default function Trainings() {
                   key={j}
                   href={link}
                   target="_blank"
-                  className="flex items-center gap-2 bg-red-600/10 hover:bg-red-600/20 text-red-400 px-3 py-1.5 rounded-lg text-xs sm:text-sm transition border border-red-500/20"
+                  className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-cyan-200 px-3 py-1.5 rounded-lg text-xs sm:text-sm transition"
                 >
                   <PlayCircle className="w-4 h-4" /> Play {j + 1}
                 </a>

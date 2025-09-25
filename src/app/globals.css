@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 body {
+    margin: 0;
+    padding: 0;
   background-color: #001a2b; /* أزرق غامق/سمواوي زي الـ Home */
   scroll-behavior: smooth;
 }
