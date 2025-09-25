@@ -22,7 +22,7 @@ const members: Member[] = [
   { name: "Marly Milad", role: "vocal", youtube: ["https://youtu.be/_oDpgEIx1Is?si=XnfYPuNsVME-QqRw"], performances: [{ song: "انت تقول اسمي ايه", scale: "A" }, { song: "بتحبني", scale: "unknow!" }] },
   { name: "Tota Email", role: "vocal", youtube: ["https://on.soundcloud.com/LtvWm7Pb40Euiz7CGl"], performances: [{ song: "من لاصير من شعبك", scale: "unknow!" }] },
   { name: "Yara Milad", role: "vocal", youtube: ["https://soundcloud.com/goodnewsteam/mydly-mn-n-lsyr-mn-shbk-hfl-qad-ukmila-2025-fryq-lkhbr-lsr-3?si=2e1c54fa266b4c7981e46a5bfd05b1e7&utm_source=clipboard&utm_medium=text&utm_campaign=social_sharing "], performances: [{ song: "من لاصير من شعبك", scale: "unknow!" }, { song: "انا الرب قد دعوتك", scale: "A" }] },
-  { name: "Akram Ashraf", role: "vocal", youtube: ["#"], performances: [{ song: "أحاط بي", scale: "Cm" }] },
+  { name: "Akram Ashraf", role: "vocal", youtube: ["https://youtu.be/NE3asKtPeUc?si=VjH1Rdglg14CeC5f"], performances: [{ song: "أحاط بي", scale: "Cm" }] },
   { name: "Koko Nader", role: "vocal", youtube: ["#"], performances: [{ song: "انا الرب قد دعوتك", scale: "A" }] },
 
   // Instruments
