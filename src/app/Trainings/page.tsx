@@ -17,19 +17,19 @@ type Member = {
 };
 
 const members: Member[] = [
-  { name: "Joyce Becket", role: "vocal", youtube: ["#"], performances: [{ song: "انت تقول اسمي ايه", scale: "A" }] },
+  { name: "Joyce Becket", role: "vocal", youtube: ["https://youtu.be/_oDpgEIx1Is?si=XnfYPuNsVME-QqRw"], performances: [{ song: "انت تقول اسمي ايه", scale: "A" }] },
   { name: "Shery Adel", role: "vocal", youtube: ["#", "#"], performances: [{ song: "اسندني في ضعفي", scale: "Gm" }] },
-  { name: "Marly Milad", role: "vocal", youtube: ["#"], performances: [{ song: "انت تقول اسمي ايه", scale: "A" }, { song: "بتحبني", scale: "unknow!" }] },
-  { name: "Tota Email", role: "vocal", youtube: ["#"], performances: [{ song: "من لاصير من شعبك", scale: "unknow!" }] },
-  { name: "Yara Milad", role: "vocal", youtube: ["#"], performances: [{ song: "من لاصير من شعبك", scale: "unknow!" }, { song: "انا الرب قد دعوتك", scale: "A" }] },
+  { name: "Marly Milad", role: "vocal", youtube: ["https://youtu.be/_oDpgEIx1Is?si=XnfYPuNsVME-QqRw"], performances: [{ song: "انت تقول اسمي ايه", scale: "A" }, { song: "بتحبني", scale: "unknow!" }] },
+  { name: "Tota Email", role: "vocal", youtube: ["https://on.soundcloud.com/LtvWm7Pb40Euiz7CGl"], performances: [{ song: "من لاصير من شعبك", scale: "unknow!" }] },
+  { name: "Yara Milad", role: "vocal", youtube: ["https://soundcloud.com/goodnewsteam/mydly-mn-n-lsyr-mn-shbk-hfl-qad-ukmila-2025-fryq-lkhbr-lsr-3?si=2e1c54fa266b4c7981e46a5bfd05b1e7&utm_source=clipboard&utm_medium=text&utm_campaign=social_sharing "], performances: [{ song: "من لاصير من شعبك", scale: "unknow!" }, { song: "انا الرب قد دعوتك", scale: "A" }] },
   { name: "Akram Ashraf", role: "vocal", youtube: ["#"], performances: [{ song: "أحاط بي", scale: "Cm" }] },
   { name: "Koko Nader", role: "vocal", youtube: ["#"], performances: [{ song: "انا الرب قد دعوتك", scale: "A" }] },
 
   // Instruments
-  { name: "Ofaa", role: "instrument", youtube: ["#"], performances: [{ solo: "", song: "انت تقول اسمي ايه" }] },
-  { name: "Jason", role: "instrument", youtube: ["#"], performances: [{ solo: "", song: "اسندني في ضعفي" }] },
-  { name: "Youssef Saper", role: "instrument", youtube: ["#"], performances: [{ solo: "", song: "بتحبني" }] },
-  { name: "Youssef Adel", role: "instrument", youtube: ["#"], performances: [{ solo: "", song: "انا الرب قد دعوتك" }] },
+  { name: "Ofaa", role: "instrument", youtube: ["#"], performances: [{ solo: "", song: "unKnow" }] },
+  { name: "Jason", role: "instrument", youtube: ["#"], performances: [{ solo: "", song: "unKnow" }] },
+  { name: "Youssef Saper", role: "instrument", youtube: ["#"], performances: [{ solo: "", song: "unKnow" }] },
+  { name: "Youssef Adel", role: "instrument", youtube: ["#"], performances: [{ solo: "", song: "unKnow"}] },
 ];
 
 export default function Trainings() {
@@ -50,7 +50,7 @@ export default function Trainings() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(167,139,250,0.1),transparent_70%)]" />
 
       {/* العنوان */}
-      <h1 className="text-4xl sm:text-5xl font-extrabold mb-14 text-center bg-gradient-to-r from-sky-300 via-indigo-300 to-purple-400 text-transparent bg-clip-text drop-shadow-lg">
+      <h1 className="text-3xl sm:text-5xl font-extrabold mb-14 text-center bg-gradient-to-r from-sky-300 via-indigo-300 to-purple-400 text-transparent bg-clip-text drop-shadow-lg">
         🎶 Training Schedule
       </h1>
 
@@ -85,12 +85,12 @@ export default function Trainings() {
                 </span>
               )}
             </div>
-
+            
             {/* Member name */}
             <h2 className="text-xl sm:text-2xl font-semibold mb-6 bg-gradient-to-r from-gray-100 to-gray-300 bg-clip-text text-transparent">
               {m.name}
             </h2>
-
+            
             {/* Performances */}
             <div className="mb-6 flex flex-wrap gap-2">
               {m.performances.map((p, idx) => (
@@ -108,7 +108,7 @@ export default function Trainings() {
                     </span>
                   ) : (
                     <>
-                      <span className="text-sky-300">🎼 {p.song}</span>
+                      <span className="text-sky-300"> {p.song}</span>
                       <span className="text-purple-300">🎵 {p.scale}</span>
                     </>
                   )}
