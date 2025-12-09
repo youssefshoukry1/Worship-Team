@@ -4,6 +4,8 @@ import "./globals.css";
 import Navbar from "./Navbar/Navbar";
 import Footer from "./Footer/Footer";
 import PageTransition from "./page-transition/page-transition";
+import UserContextProvider from "./context/User_Context";
+import QueryProvider from "../../QueryProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,9 +36,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Navbar/>
+        <UserContextProvider>
+          <QueryProvider>
         <PageTransition>
           {children}
         </PageTransition>
+          </QueryProvider>
+        </UserContextProvider>
         
         <Footer/>
       </body>
