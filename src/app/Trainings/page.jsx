@@ -12,8 +12,7 @@ import { UserContext } from "../context/User_Context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Loading from "../loading";
-import Portal from '../Portal/portal'
-
+import Portal from '../Portal/Portal.jsx'
 export default function Trainings() {
   const queryClient = useQueryClient();
   const { isLogin } = useContext(UserContext);
