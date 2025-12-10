@@ -30,7 +30,7 @@ export default function Trainings() {
   const get_All_Users = () => {
     if (!isLogin) return <LogIn />;
     return axios
-      .get("http://localhost:4000/api/users", {
+      .get("https://worship-team-api.vercel.app/api/users", {
         headers: { Authorization: `Bearer ${isLogin}` },
       })
       .then((res) => res.data)
@@ -40,7 +40,7 @@ export default function Trainings() {
   const delete_song = (userid, songid) => {
     if (!isLogin) return <LogIn />;
     return axios
-      .delete(`http://localhost:4000/api/users/${userid}/${songid}`, {
+      .delete(`https://worship-team-api.vercel.app/api/users/${userid}/${songid}`, {
         headers: { Authorization: `Bearer ${isLogin}` },
       })
       .then(() => queryClient.invalidateQueries(["data", isLogin]))
@@ -52,7 +52,7 @@ export default function Trainings() {
     setSubmitClicked(true);
     return axios
       .patch(
-        `http://localhost:4000/api/users/${userid}`,
+        `https://worship-team-api.vercel.app/api/users/${userid}`,
         { song, scale, link },
         { headers: { Authorization: `Bearer ${isLogin}` } }
       )
@@ -73,17 +73,28 @@ export default function Trainings() {
     if (!isLogin) return <LogIn />;
     setSubmitClicked(true);
     return axios.patch(
-      `http://localhost:4000/api/users/${userid}/${songid}`,
+      `https://worship-team-api.vercel.app/api/users/${userid}/${songid}`,
       { song, scale, link },
       { headers: { Authorization: `Bearer ${isLogin}` } }
     )
-    .then(() => {
-      queryClient.invalidateQueries(["data", isLogin]);
-      resetModal();
-      setSubmitClicked(false);
-    })
-    .catch(() => setSubmitClicked(false));
+      .then(() => {
+        queryClient.invalidateQueries(["data", isLogin]);
+        resetModal();
+        setSubmitClicked(false);
+      })
+      .catch(() => setSubmitClicked(false));
   };
+
+  const delete_All_Songs = async (userid) => {
+    if (!isLogin) return <LogIn />;
+    return axios
+      .delete(`https://worship-team-api.vercel.app/api/users/${userid}/allsongs`,
+        { headers: { Authorization: `Bearer ${isLogin}` } }
+      ).then(() => {
+        queryClient.invalidateQueries(['data', isLogin])
+      }).catch(() => { })
+
+  }
 
   const { data = [], isLoading } = useQuery({
     queryKey: ["data", isLogin],
@@ -96,7 +107,7 @@ export default function Trainings() {
   const openModal = (type, user, songObj = null) => {
     setSelectedUser(user);
     setModalType(type);
-    if(type === "update" && songObj){
+    if (type === "update" && songObj) {
       setSong(songObj.song);
       setScale(songObj.scale);
       setLink(songObj.link);
@@ -151,6 +162,13 @@ export default function Trainings() {
             <h2 className="text-xl sm:text-2xl font-semibold mb-6 bg-gradient-to-r from-gray-100 to-gray-300 bg-clip-text text-transparent">
               {m.Name}
             </h2>
+
+
+            <button class="relative inline-flex items-center justify-center p-0.5 overflow-hidden text-sm font-medium text-heading rounded-base group bg-gradient-to-br from-purple-500 to-pink-500 group-hover:from-purple-500 group-hover:to-pink-500 hover:text-white dark:text-white focus:ring-4 focus:outline-none focus:ring-purple-200 dark:focus:ring-purple-800 rounded-3xl">
+              <span class=" relative px-4 py-2.5 transition-all ease-in duration-75 bg-neutral-primary-soft rounded-base group-hover:bg-transparent group-hover:dark:bg-transparent leading-5">
+                Delete All
+              </span>
+            </button>
 
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-white">{m.name}</h2>
@@ -241,8 +259,8 @@ export default function Trainings() {
                 />
                 <button
                   onClick={() => {
-                    if(modalType === "add") add_song(selectedUser._id, { song, scale, link });
-                    else if(currentSongId) update_song(selectedUser._id, currentSongId, { song, scale, link });
+                    if (modalType === "add") add_song(selectedUser._id, { song, scale, link });
+                    else if (currentSongId) update_song(selectedUser._id, currentSongId, { song, scale, link });
                   }}
                   className={`mt-4 bg-gradient-to-r from-sky-500 to-purple-500 py-3 rounded-xl text-white font-semibold transition shadow-lg shadow-purple-500/20
                     ${submitClicked ? "animate-pulse" : ""}`}
