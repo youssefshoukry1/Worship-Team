@@ -14,7 +14,7 @@ export default function Login() {
 
     const handleLogin = (formsData) => {
         setLoading(true);
-        axios.post('http://localhost:4000/api/users/login', formsData)
+        axios.post('https://worship-team-psi.vercel.app/api/users/login', formsData)
             .then((response) => {
                 console.log('success', response);
                 if (response.data.msg === 'Login successful') {

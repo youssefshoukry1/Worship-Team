@@ -17,7 +17,7 @@ export default function Register() {
     function handleRegister(formsData) {
         setLoading(true);
         axios
-            .post("http://localhost:4000/api/users/register", formsData)
+            .post("https://worship-team-psi.vercel.app/api/users/register", formsData)
             .then((response) => {
                 console.log("success", response);
 
