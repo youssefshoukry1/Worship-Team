@@ -1,0 +1,412 @@
+'use client';
+import React, { useState, useContext } from 'react';
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from 'axios';
+import { motion, AnimatePresence } from 'framer-motion';
+import Loading from '../loading';
+import Portal from '../Portal/Portal';
+import { UserContext } from '../context/User_Context';
+import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X } from 'lucide-react';
+
+export default function Category_Humns() {
+  const queryClient = useQueryClient();
+  const { isLogin, UserRole } = useContext(UserContext); // Re-introduced for Role checks
+  const [activeTab, setActiveTab] = useState('all');
+
+  // Modal State
+  const [showModal, setShowModal] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [formData, setFormData] = useState({ title: '', scale: '', link: '', party: 'All' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // --- API Functions ---
+
+  // 1. Fetch Hymns
+  const fetchHymns = async () => {
+    let url = "https://worship-team-api.vercel.app/api/hymns";
+
+    // Adjust URL based on Active Tab
+    if (activeTab === 'christmass') {
+      url = "https://worship-team-api.vercel.app/api/hymns/christmass";
+    } else if (activeTab === 'easter') {
+      url = "https://worship-team-api.vercel.app/api/hymns/easter";
+    } else if (activeTab === 'newyear') {
+      url = "https://worship-team-api.vercel.app/api/hymns/newyear";
+    }
+
+    try {
+      const { data } = await axios.get(url);
+      return data;
+    } catch (error) {
+      console.error("Error fetching hymns:", error);
+      return [];
+    }
+  };
+
+  // 2. Add Hymn (Post)
+  const add_Hymn = async () => {
+    if (!isLogin) return;
+    setIsSubmitting(true);
+    try {
+      // User: Replace this URL with your actual Create/Post API endpoint
+      const url = "https://worship-team-api.vercel.app/api/hymns/create";
+
+      await axios.post(url, formData, {
+        headers: { Authorization: `Bearer ${isLogin}` }
+      });
+
+      queryClient.invalidateQueries(["humns"]);
+      closeModal();
+      setFormData({ title: '', scale: '', link: '', party: 'All' });
+    } catch (error) {
+      console.error("Error adding hymn:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 3. Delete Hymn by ID
+  const delete_Hymn = async (id) => {
+    if (!isLogin) return;
+    if (!confirm("Are you sure you want to delete this hymn?")) return;
+
+    try {
+      // User: Replace this URL with your actual Delete API endpoint
+      const url = `https://worship-team-api.vercel.app/api/hymns/${id}`;
+
+      await axios.delete(url, {
+        headers: { Authorization: `Bearer ${isLogin}` }
+      });
+
+      queryClient.invalidateQueries(["humns"]);
+    } catch (error) {
+      console.error("Error deleting hymn:", error);
+    }
+  };
+
+  // 4. Delete All Hymns (Utility Function - Use with Caution)
+  const delete_All_Hymns = async () => {
+    if (!isLogin) return;
+    if (!confirm("WARNING: This will delete ALL hymns. Are you sure?")) return;
+
+    try {
+      // User: Replace this URL with your actual Delete All API endpoint
+      const url = "https://worship-team-api.vercel.app/api/hymns";
+
+      await axios.delete(url, {
+        headers: { Authorization: `Bearer ${isLogin}` }
+      });
+
+      queryClient.invalidateQueries(["humns"]);
+    } catch (error) {
+      console.error("Error deleting all hymns:", error);
+    }
+  };
+
+  const { data: humns = [], isLoading } = useQuery({
+    queryKey: ["humns", activeTab],
+    queryFn: fetchHymns,
+  });
+
+  // --- Modal Helpers ---
+  const openModal = () => {
+    // Pre-fill party based on active tab if specific
+    setFormData(prev => ({
+      ...prev,
+      party: activeTab === 'all' ? 'all' :
+        activeTab === 'christmass' ? 'christmass' :
+          activeTab === 'easter' ? 'easter' :
+            activeTab === 'newyear' ? 'newyear' : 'all'
+    }));
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setShowModal(false);
+      setIsClosing(false);
+    }, 300);
+  };
+
+  const categories = [
+    { id: 'all', label: 'All Hymns', icon: Music },
+    { id: 'christmass', label: 'Christmas', icon: Gift },
+    { id: 'easter', label: 'Easter', icon: Star },
+    { id: 'newyear', label: 'New Year', icon: Sparkles },
+  ];
+
+  // Helper to check permission
+  const canEdit = UserRole === 'ADMIN' || UserRole === 'MANEGER';
+
+  // Animation Variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    show: { y: 0, opacity: 1 }
+  };
+
+  return (
+    <section className="min-h-screen bg-linear-to-br from-[#050510] via-[#0a0a1a] to-[#141432] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
+      {/* Background Gradients */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_70%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(167,139,250,0.1),transparent_70%)]" />
+
+      <div className="relative z-10 max-w-7xl mx-auto">
+        <h1 className="text-3xl sm:text-5xl font-extrabold mb-10 text-center bg-linear-to-br from-sky-300 via-indigo-300 to-purple-400 text-transparent bg-clip-text drop-shadow-lg">
+          🎶 Hymns Library
+        </h1>
+
+        {/* Categories Tabs */}
+        <div className="flex flex-wrap justify-center gap-4 mb-8">
+          {categories.map((cat) => {
+            const Icon = cat.icon;
+            const isActive = activeTab === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setActiveTab(cat.id)}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 border backdrop-blur-md relative overflow-hidden group
+                  ${isActive
+                    ? 'bg-sky-500/20 border-sky-400/50 text-sky-200 shadow-[0_0_20px_rgba(56,189,248,0.3)]'
+                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                  }`}
+              >
+                {isActive && (
+                  <div className="absolute inset-0 bg-sky-400/10 blur-xl rounded-full" />
+                )}
+                <Icon className={`w-5 h-5 relative z-10 ${isActive ? 'text-sky-300' : ''}`} />
+                <span className="font-medium relative z-10">{cat.label}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Admin Controls */}
+        {canEdit && (
+          <div className="flex flex-wrap justify-between sm:justify-end items-center gap-4 mb-6">
+            <button
+              onClick={delete_All_Hymns}
+              className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-600/20 to-red-900/40 border border-red-500/50 rounded-xl hover:from-red-600 hover:to-red-800 transition shadow-lg text-red-200 hover:text-white font-semibold hover:scale-105 active:scale-95 duration-200 backdrop-blur-md"
+            >
+              <Trash2 className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
+              <span>Delete All</span>
+            </button>
+
+            <button
+              onClick={openModal}
+              className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-700 rounded-xl hover:from-emerald-400 hover:to-emerald-600 transition shadow-lg text-white font-semibold hover:scale-105 active:scale-95 duration-200"
+            >
+              <PlusCircle className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+              <span>Add New Hymn</span>
+            </button>
+          </div>
+        )}
+
+        {/* Content Table/List */}
+        {isLoading ? (
+          <Loading />
+        ) : (
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl relative">
+            <div className="absolute inset-0 pointer-events-none border border-white/5 rounded-3xl" />
+
+            {/* Table Header */}
+            <div className="grid grid-cols-12 gap-4 p-6 bg-white/5 border-b border-white/10 text-gray-300 font-semibold uppercase tracking-wider text-sm sticky top-0 backdrop-blur-xl z-20">
+              <div className="col-span-1 text-center">#</div>
+              <div className="col-span-11 sm:col-span-5 md:col-span-6">Song</div>
+              <div className="hidden sm:block sm:col-span-2 text-center">Scale</div>
+              <div className="hidden sm:block sm:col-span-3 text-center">Link</div>
+              {canEdit && <div className="col-span-1 text-center">Actions</div>}
+            </div>
+
+            {/* Table Body */}
+            <motion.div
+              className="divide-y divide-white/10"
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+            >
+              {humns.length > 0 ? (
+                humns.map((humn, index) => (
+                  <motion.div
+                    key={humn._id || index}
+                    variants={itemVariants}
+                    className="grid grid-cols-12 gap-4 p-5 hover:bg-white/5 transition-colors duration-200 items-center group relative"
+                  >
+                    {/* Hover Glow Effect */}
+                    <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-sky-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                    <div className="col-span-1 text-center text-gray-500 font-mono text-sm group-hover:text-sky-400 transition-colors">
+                      {(index + 1).toString().padStart(2, '0')}
+                    </div>
+
+                    {/* Song Title (Main) */}
+                    <div className="col-span-11 sm:col-span-5 md:col-span-6 font-medium text-lg text-gray-200 group-hover:text-white transition-colors">
+                      {humn.title}
+                      {/* Mobile-only details - NOW WITH BETTER UI */}
+                      <div className="sm:hidden mt-3 flex items-center justify-between gap-3 text-sm">
+                        <span className="text-purple-300 bg-purple-500/10 px-2 py-1 rounded-md border border-purple-500/20">
+                          {humn.scale || '-'}
+                        </span>
+
+                        {humn.link && (
+                          <a
+                            href={humn.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 hover:text-sky-300 transition-all text-xs font-bold uppercase tracking-wide border border-sky-500/20"
+                          >
+                            <PlayCircle className="w-3.5 h-3.5" />
+                            Play
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="hidden sm:block col-span-2 text-center text-purple-300 font-medium">
+                      {humn.scale || '-'}
+                    </div>
+
+                    <div className="hidden sm:block col-span-3 flex justify-center">
+                      <div className="flex justify-center w-full">
+                        {humn.link ? (
+                          <a
+                            href={humn.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 hover:text-sky-300 transition-all text-sm font-medium border border-sky-500/20"
+                          >
+                            <PlayCircle className="w-4 h-4" />
+                            <span>Play</span>
+                          </a>
+                        ) : (
+                          <span className="text-gray-600 italic text-sm">No Link</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {canEdit && (
+                      <div className="col-span-1 flex justify-center">
+                        <button
+                          onClick={() => delete_Hymn(humn._id)}
+                          className="p-2 rounded-full hover:bg-red-500/20 text-red-400 hover:text-red-300 transition"
+                          title="Delete Song"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Bottom Border Glow on Hover */}
+                    <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-purple-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  </motion.div>
+                ))
+              ) : (
+                <div className="p-10 text-center text-gray-400">
+                  No hymns found in this category.
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+
+        {/* --- Add Hymn Modal --- */}
+        {showModal && (
+          <Portal>
+            <div
+              className={`fixed inset-0 z-[9999] flex justify-center items-center p-4 transition-all duration-300
+                ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/70"}`}
+            >
+              <div
+                className={`w-full max-w-md max-h-[90vh] bg-[#0c0c20] border border-white/10 rounded-2xl shadow-2xl overflow-y-auto relative transform transition-all duration-300
+                  ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
+              >
+                {/* Header */}
+                <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-sky-400 to-purple-400 bg-clip-text text-transparent">
+                    🎵 Add New Hymn
+                  </h2>
+                  <button onClick={closeModal} className="text-gray-400 hover:text-white transition">
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+
+                {/* Form */}
+                <div className="p-6 flex flex-col gap-4">
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-2">Song Title</label>
+                    <input
+                      type="text"
+                      className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition"
+                      placeholder="e.g. Amazing Grace"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Scale (Optional)</label>
+                      <input
+                        type="text"
+                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition"
+                        placeholder="e.g. C Major"
+                        value={formData.scale}
+                        onChange={(e) => setFormData({ ...formData, scale: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Category</label>
+                      <select
+                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition [&>option]:bg-gray-900"
+                        value={formData.party}
+                        onChange={(e) => setFormData({ ...formData, party: e.target.value })}
+                      >
+                        <option value="all">All / General</option>
+                        <option value="christmass">Christmas</option>
+                        <option value="easter">Easter</option>
+                        <option value="newyear">New Year</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-2">YouTube Link (Optional)</label>
+                    <input
+                      type="text"
+                      className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition"
+                      placeholder="https://youtube.com/..."
+                      value={formData.link}
+                      onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+                    />
+                  </div>
+
+                  <button
+                    onClick={add_Hymn}
+                    disabled={isSubmitting || !formData.title}
+                    className={`mt-4 w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all
+                      ${isSubmitting
+                        ? 'bg-gray-600 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-sky-500 to-purple-600 hover:from-sky-400 hover:to-purple-500 hover:shadow-sky-500/25'}`}
+                  >
+                    {isSubmitting ? 'Adding...' : 'Add Song'}
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          </Portal>
+        )}
+      </div>
+    </section>
+  )
+}

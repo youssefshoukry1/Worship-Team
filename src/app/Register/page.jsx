@@ -9,7 +9,7 @@ import { UserContext } from "../context/User_Context";
 
 
 export default function Register() {
-    let { setLogin } = useContext(UserContext);
+    let { setLogin, setUser_id, setUserRole } = useContext(UserContext);
     const [apiError, setError] = useState("");
     const [isLoading, setLoading] = useState(false);
     const router = useRouter();
@@ -22,8 +22,9 @@ export default function Register() {
                 console.log("success", response);
 
                 if (response.data.msg == "User created successfully") {
-                    localStorage.setItem("user_Taspe7_Token", response.data.token);
+                    localStorage.setItem("user_Taspe7_Token", response?.data?.token);
                     localStorage.setItem('user_Taspe7_Role',response?.data?.user?.role)
+                    localStorage.setItem('user_Taspe7_ID',response?.data?.user?._id)
                     setLogin(response.data.token);
                     setLoading(false);
                     console.log(response.data.user.role);
