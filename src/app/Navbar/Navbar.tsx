@@ -13,7 +13,7 @@ interface NavItem {
 export default function Navbar() {
   const navItems: NavItem[] = [
     { name: "Home", path: "/", id: "home-section" },
-    { name: "Setlist", path: "/", id: "setlist-section" },
+    { name: "Hymns", path: "/Category_Humns", id: "Category_Humns" },
     { name: "Training", path: "/Trainings", id: "training-section" },
     { name: "Resources", path: "/", id: "resources-section" },
     { name: "Contact", path: "/", id: "contact-section" },
