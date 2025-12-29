@@ -193,21 +193,22 @@ export default function Category_Humns() {
 
         {/* Admin Controls */}
         {canEdit && (
-          <div className="flex flex-wrap justify-between sm:justify-end items-center gap-4 mb-6">
+          <div className="flex flex-wrap justify-end items-center gap-3 mb-6">
             <button
               onClick={delete_All_Hymns}
-              className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-600/20 to-red-900/40 border border-red-500/50 rounded-xl hover:from-red-600 hover:to-red-800 transition shadow-lg text-red-200 hover:text-white font-semibold hover:scale-105 active:scale-95 duration-200 backdrop-blur-md"
+              className="group flex items-center justify-center w-10 h-10 rounded-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all duration-300 relative overflow-hidden"
+              title="Delete All Hymns"
             >
-              <Trash2 className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
-              <span>Delete All</span>
+              <Trash2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <div className="absolute inset-0 bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
             </button>
 
             <button
               onClick={openModal}
-              className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-700 rounded-xl hover:from-emerald-400 hover:to-emerald-600 transition shadow-lg text-white font-semibold hover:scale-105 active:scale-95 duration-200"
+              className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-full hover:bg-gray-100 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_25px_rgba(255,255,255,0.5)] active:scale-95 font-semibold text-sm"
             >
-              <PlusCircle className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
-              <span>Add New Hymn</span>
+              <PlusCircle className="w-5 h-5" />
+              <span>New Hymn</span>
             </button>
           </div>
         )}
