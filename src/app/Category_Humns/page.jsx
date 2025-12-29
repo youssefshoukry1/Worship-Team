@@ -217,21 +217,19 @@ export default function Category_Humns() {
         {isLoading ? (
           <Loading />
         ) : (
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl relative">
-            <div className="absolute inset-0 pointer-events-none border border-white/5 rounded-3xl" />
-
-            {/* Table Header */}
-            <div className="grid grid-cols-12 gap-4 p-6 bg-white/5 border-b border-white/10 text-gray-300 font-semibold uppercase tracking-wider text-sm sticky top-0 backdrop-blur-xl z-20">
+          <div className="relative">
+            {/* Table Header - Hidden on small mobile for cleaner look */}
+            <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest bg-white/5 rounded-t-2xl border-b border-white/10 mx-2">
               <div className="col-span-1 text-center">#</div>
-              <div className="col-span-11 sm:col-span-5 md:col-span-6">Song</div>
-              <div className="hidden sm:block sm:col-span-2 text-center">Scale</div>
-              <div className="hidden sm:block sm:col-span-3 text-center">Link</div>
-              {canEdit && <div className="col-span-1 text-center">Actions</div>}
+              <div className="col-span-11 sm:col-span-5 md:col-span-6">Song Title</div>
+              <div className="col-span-2 text-center">Key</div>
+              <div className="col-span-3 text-center">Media</div>
+              {canEdit && <div className="col-span-1 text-center">Action</div>}
             </div>
 
-            {/* Table Body */}
+            {/* List Body */}
             <motion.div
-              className="divide-y divide-white/10"
+              className="flex flex-col gap-3 mt-2 pb-20"
               variants={containerVariants}
               initial="hidden"
               animate="show"
@@ -241,79 +239,103 @@ export default function Category_Humns() {
                   <motion.div
                     key={humn._id || index}
                     variants={itemVariants}
-                    className="grid grid-cols-12 gap-4 p-5 hover:bg-white/5 transition-colors duration-200 items-center group relative"
+                    className="group relative grid grid-cols-12 gap-4 p-4 sm:p-5 items-center 
+                               bg-[#13132b]/60 hover:bg-[#1a1a38] 
+                               border border-white/5 hover:border-sky-500/30 
+                               rounded-2xl transition-all duration-300 backdrop-blur-sm
+                               hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
                   >
-                    {/* Hover Glow Effect */}
-                    <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-sky-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    {/* Hover Glow Gradient */}
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-sky-500/5 via-purple-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
-                    <div className="col-span-1 text-center text-gray-500 font-mono text-sm group-hover:text-sky-400 transition-colors">
+                    {/* Index */}
+                    <div className="col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
                       {(index + 1).toString().padStart(2, '0')}
                     </div>
 
-                    {/* Song Title (Main) */}
-                    <div className="col-span-11 sm:col-span-5 md:col-span-6 font-medium text-lg text-gray-200 group-hover:text-white transition-colors">
-                      {humn.title}
-                      {/* Mobile-only details - NOW WITH BETTER UI */}
-                      <div className="sm:hidden mt-3 flex items-center justify-between gap-3 text-sm">
-                        <span className="text-purple-300 bg-purple-500/10 px-2 py-1 rounded-md border border-purple-500/20">
-                          {humn.scale || '-'}
-                        </span>
+                    {/* Song Title & Mobile Info */}
+                    <div className="col-span-11 sm:col-span-5 md:col-span-6 relative z-10">
+                      <h3 className="font-bold text-base sm:text-lg text-gray-200 group-hover:text-white transition-colors tracking-wide">
+                        {humn.title}
+                      </h3>
 
-                        {humn.link && (
-                          <a
-                            href={humn.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 hover:text-sky-300 transition-all text-xs font-bold uppercase tracking-wide border border-sky-500/20"
-                          >
-                            <PlayCircle className="w-3.5 h-3.5" />
-                            Play
-                          </a>
-                        )}
+                      {/* Mobile Row Layout */}
+                      <div className="sm:hidden mt-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {humn.scale && (
+                            <span className="text-[10px] font-bold text-purple-200 bg-purple-500/20 px-2 py-0.5 rounded-md border border-purple-500/20">
+                              {humn.scale}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          {humn.link && (
+                            <a
+                              href={humn.link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 border border-sky-500/20 text-xs font-bold transition-all"
+                            >
+                              <PlayCircle className="w-3.5 h-3.5" />
+                              PLAY
+                            </a>
+                          )}
+                          {canEdit && (
+                            <button
+                              onClick={() => delete_Hymn(humn._id)}
+                              className="p-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/10"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="hidden sm:block col-span-2 text-center text-purple-300 font-medium">
-                      {humn.scale || '-'}
+                    {/* Desktop Key/Scale */}
+                    <div className="hidden sm:block col-span-2 text-center relative z-10">
+                      <span className={`text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
+                        ${humn.scale ? 'text-purple-300 bg-purple-500/10' : 'text-gray-600'}`}>
+                        {humn.scale || '-'}
+                      </span>
                     </div>
 
-                    <div className="hidden sm:block col-span-3 flex justify-center">
-                      <div className="flex justify-center w-full">
-                        {humn.link ? (
-                          <a
-                            href={humn.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 hover:text-sky-300 transition-all text-sm font-medium border border-sky-500/20"
-                          >
-                            <PlayCircle className="w-4 h-4" />
-                            <span>Play</span>
-                          </a>
-                        ) : (
-                          <span className="text-gray-600 italic text-sm">No Link</span>
-                        )}
-                      </div>
+                    {/* Desktop Media Link */}
+                    <div className="hidden sm:flex col-span-3 justify-center relative z-10">
+                      {humn.link ? (
+                        <a
+                          href={humn.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10"
+                        >
+                          <PlayCircle className="w-4 h-4" />
+                          <span className="text-sm font-medium">Listen</span>
+                        </a>
+                      ) : (
+                        <span className="text-gray-700 text-xs">—</span>
+                      )}
                     </div>
 
+                    {/* Desktop Actions */}
                     {canEdit && (
-                      <div className="col-span-1 flex justify-center">
+                      <div className="hidden sm:flex col-span-1 justify-center relative z-10">
                         <button
                           onClick={() => delete_Hymn(humn._id)}
-                          className="p-2 rounded-full hover:bg-red-500/20 text-red-400 hover:text-red-300 transition"
+                          className="p-2.5 rounded-xl text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0"
                           title="Delete Song"
                         >
-                          <Trash2 className="w-5 h-5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     )}
-
-                    {/* Bottom Border Glow on Hover */}
-                    <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-purple-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   </motion.div>
                 ))
               ) : (
-                <div className="p-10 text-center text-gray-400">
-                  No hymns found in this category.
+                <div className="p-20 text-center flex flex-col items-center justify-center text-gray-500 bg-white/5 rounded-3xl border border-white/5 border-dashed">
+                  <Music className="w-12 h-12 mb-4 opacity-50" />
+                  <p className="text-lg font-medium">No hymns found in this category.</p>
                 </div>
               )}
             </motion.div>
