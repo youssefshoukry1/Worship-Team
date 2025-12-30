@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../loading';
 import Portal from '../Portal/Portal';
 import { UserContext } from '../context/User_Context';
-import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X } from 'lucide-react';
+import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart } from 'lucide-react';
 
 export default function Category_Humns() {
   const queryClient = useQueryClient();
@@ -32,7 +32,9 @@ export default function Category_Humns() {
       url = "https://worship-team-api.vercel.app/api/hymns/easter";
     } else if (activeTab === 'newyear') {
       url = "https://worship-team-api.vercel.app/api/hymns/newyear";
-    }
+    } else if (activeTab === 'motherday') {
+      url = "https://worship-team-api.vercel.app/api/hymns/motherday";
+    } 
 
     try {
       const { data } = await axios.get(url);
@@ -116,7 +118,8 @@ export default function Category_Humns() {
       party: activeTab === 'all' ? 'all' :
         activeTab === 'christmass' ? 'christmass' :
           activeTab === 'easter' ? 'easter' :
-            activeTab === 'newyear' ? 'newyear' : 'all'
+            activeTab === 'newyear' ? 'newyear' :
+              activeTab === 'motherday' ? 'motherday' : 'all'
     }));
     setShowModal(true);
   };
@@ -134,6 +137,7 @@ export default function Category_Humns() {
     { id: 'christmass', label: 'Christmas', icon: Gift },
     { id: 'easter', label: 'Easter', icon: Star },
     { id: 'newyear', label: 'New Year', icon: Sparkles },
+    { id: 'motherday', label: 'Mother Day', icon: Heart },
   ];
 
   // Helper to check permission
@@ -398,6 +402,7 @@ export default function Category_Humns() {
                         <option value="christmass">Christmas</option>
                         <option value="easter">Easter</option>
                         <option value="newyear">New Year</option>
+                        <option value="motherday">Mother Day</option> 
                       </select>
                     </div>
                   </div>
