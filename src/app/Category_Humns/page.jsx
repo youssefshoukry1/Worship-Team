@@ -34,6 +34,8 @@ export default function Category_Humns() {
       url = "https://worship-team-api.vercel.app/api/hymns/newyear";
     } else if (activeTab === 'motherday') {
       url = "https://worship-team-api.vercel.app/api/hymns/motherday";
+    } else if (activeTab === 'graduation') {
+      url = "https://worship-team-api.vercel.app/api/hymns/graduation";
     } 
 
     try {
@@ -119,7 +121,8 @@ export default function Category_Humns() {
         activeTab === 'christmass' ? 'christmass' :
           activeTab === 'easter' ? 'easter' :
             activeTab === 'newyear' ? 'newyear' :
-              activeTab === 'motherday' ? 'motherday' : 'all'
+              activeTab === 'motherday' ? 'motherday' :
+                activeTab === 'graduation' ? 'graduation' : 'all'
     }));
     setShowModal(true);
   };
@@ -138,6 +141,7 @@ export default function Category_Humns() {
     { id: 'easter', label: 'Easter', icon: Star },
     { id: 'newyear', label: 'New Year', icon: Sparkles },
     { id: 'motherday', label: 'Mother Day', icon: Heart },
+    { id: 'graduation', label: 'Graduation', icon: GraduationCap },   
   ];
 
   // Helper to check permission
@@ -403,6 +407,7 @@ export default function Category_Humns() {
                         <option value="easter">Easter</option>
                         <option value="newyear">New Year</option>
                         <option value="motherday">Mother Day</option> 
+                        <option value="graduation">Graduation</option> 
                       </select>
                     </div>
                   </div>
