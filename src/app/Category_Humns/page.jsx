@@ -6,12 +6,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../loading';
 import Portal from '../Portal/Portal';
 import { UserContext } from '../context/User_Context';
-import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap } from 'lucide-react';
+import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check } from 'lucide-react';
+import { HymnsContext } from '../context/Hymns_Context';
 
 export default function Category_Humns() {
   const queryClient = useQueryClient();
-  const { isLogin, UserRole } = useContext(UserContext); // Re-introduced for Role checks
+  const { isLogin, UserRole } = useContext(UserContext);
+  const { addToWorkspace, isHymnInWorkspace } = useContext(HymnsContext)
+  // Re-introduced for Role checks
   const [activeTab, setActiveTab] = useState('all');
+
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -36,7 +40,7 @@ export default function Category_Humns() {
       url = "https://worship-team-api.vercel.app/api/hymns/motherday";
     } else if (activeTab === 'graduation') {
       url = "https://worship-team-api.vercel.app/api/hymns/graduation";
-    } 
+    }
 
     try {
       const { data } = await axios.get(url);
@@ -141,7 +145,7 @@ export default function Category_Humns() {
     { id: 'easter', label: 'Easter', icon: Star },
     { id: 'newyear', label: 'New Year', icon: Sparkles },
     { id: 'motherday', label: 'Mother Day', icon: Heart },
-    { id: 'graduation', label: 'Graduation', icon: GraduationCap },   
+    { id: 'graduation', label: 'Graduation', icon: GraduationCap },
   ];
 
   // Helper to check permission
@@ -162,6 +166,8 @@ export default function Category_Humns() {
     hidden: { y: 20, opacity: 0 },
     show: { y: 0, opacity: 1 }
   };
+
+
 
   return (
     <section id="Category_Humns" className="min-h-screen bg-linear-to-br from-[#050510] via-[#0a0a1a] to-[#141432] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
@@ -229,10 +235,10 @@ export default function Category_Humns() {
             {/* Table Header - Hidden on small mobile for cleaner look */}
             <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest bg-white/5 rounded-t-2xl border-b border-white/10 mx-2">
               <div className="col-span-1 text-center">#</div>
-              <div className="col-span-11 sm:col-span-5 md:col-span-6">Song Title</div>
-              <div className="col-span-2 text-center">Key</div>
+              <div className="col-span-11 sm:col-span-5 md:col-span-5">Song Title</div>
+              <div className="col-span-2 text-center bg-white/5 rounded-lg py-1">Key</div>
               <div className="col-span-3 text-center">Media</div>
-              {canEdit && <div className="col-span-1 text-center">Action</div>}
+              <div className="col-span-1 text-center">Action</div>
             </div>
 
             {/* List Body */}
@@ -289,6 +295,17 @@ export default function Category_Humns() {
                               PLAY
                             </a>
                           )}
+                          <button
+                            onClick={() => addToWorkspace(humn)}
+                            disabled={isHymnInWorkspace(humn._id)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all
+                              ${isHymnInWorkspace(humn._id)
+                                ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                                : 'bg-purple-500/10 text-purple-400 border-purple-500/20 active:scale-95'}`}
+                          >
+                            {isHymnInWorkspace(humn._id) ? <Check className="w-3.5 h-3.5" /> : <FolderPlus className="w-3.5 h-3.5" />}
+                            {isHymnInWorkspace(humn._id) ? 'ADDED' : 'ADD'}
+                          </button>
                           {canEdit && (
                             <button
                               onClick={() => delete_Hymn(humn._id)}
@@ -309,6 +326,8 @@ export default function Category_Humns() {
                       </span>
                     </div>
 
+
+
                     {/* Desktop Media Link */}
                     <div className="hidden sm:flex col-span-3 justify-center relative z-10">
                       {humn.link ? (
@@ -327,17 +346,29 @@ export default function Category_Humns() {
                     </div>
 
                     {/* Desktop Actions */}
-                    {canEdit && (
-                      <div className="hidden sm:flex col-span-1 justify-center relative z-10">
+                    <div className="hidden sm:flex col-span-1 justify-center gap-2 relative z-10">
+                      <button
+                        onClick={() => addToWorkspace(humn)}
+                        disabled={isHymnInWorkspace(humn._id)}
+                        className={`p-2.5 rounded-xl transition-all duration-300
+                          ${isHymnInWorkspace(humn._id)
+                            ? 'text-green-400 bg-green-500/10 cursor-default'
+                            : 'text-gray-400 hover:text-purple-400 hover:bg-purple-500/10'}`}
+                        title={isHymnInWorkspace(humn._id) ? "Added to Workspace" : "Add to Workspace"}
+                      >
+                        {isHymnInWorkspace(humn._id) ? <Check className="w-4 h-4" /> : <FolderPlus className="w-4 h-4" />}
+                      </button>
+
+                      {canEdit && (
                         <button
                           onClick={() => delete_Hymn(humn._id)}
-                          className="p-2.5 rounded-xl text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0"
+                          className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
                           title="Delete Song"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </motion.div>
                 ))
               ) : (
@@ -406,8 +437,8 @@ export default function Category_Humns() {
                         <option value="christmass">Christmas</option>
                         <option value="easter">Easter</option>
                         <option value="newyear">New Year</option>
-                        <option value="motherday">Mother Day</option> 
-                        <option value="graduation">Graduation</option> 
+                        <option value="motherday">Mother Day</option>
+                        <option value="graduation">Graduation</option>
                       </select>
                     </div>
                   </div>

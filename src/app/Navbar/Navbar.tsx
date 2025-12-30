@@ -15,7 +15,7 @@ export default function Navbar() {
     { name: "Home", path: "/", id: "home-section" },
     { name: "Hymns", path: "/Category_Humns", id: "Category_Humns" },
     { name: "Training", path: "/Trainings", id: "training-section" },
-    { name: "Resources", path: "/", id: "resources-section" },
+    { name: "WorkSpace", path: "/WorkSpace", id: "WorkSpace-section" },
     { name: "Contact", path: "/", id: "contact-section" },
   ];
 
