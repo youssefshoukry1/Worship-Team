@@ -24,10 +24,10 @@ export default function WorkSpace() {
     };
 
     return (
-        <section id='WorkSpace-section' className="min-h-screen bg-linear-to-br from-[#050510] via-[#0a0a1a] to-[#141432] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
+        <section id='WorkSpace-section' className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
             {/* Background Gradients - Matching Category Page */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_70%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(167,139,250,0.1),transparent_70%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_70%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.15),transparent_70%)]" />
 
             <div className="relative z-10 max-w-7xl mx-auto">
                 {/* Header */}
@@ -35,7 +35,7 @@ export default function WorkSpace() {
                     <div className="inline-flex items-center justify-center p-3 bg-white/5 rounded-full mb-4 border border-white/10 backdrop-blur-xl">
                         <ListMusic className="w-8 h-8 text-sky-400" />
                     </div>
-                    <h1 className="text-3xl sm:text-5xl font-extrabold bg-linear-to-br from-sky-300 via-indigo-300 to-purple-400 text-transparent bg-clip-text drop-shadow-lg">
+                    <h1 className="text-3xl sm:text-5xl font-extrabold bg-linear-to-br from-sky-300 via-blue-400 to-indigo-500 text-transparent bg-clip-text drop-shadow-lg">
                         My Workspace
                     </h1>
                     <p className="mt-2 text-gray-400">Manage your setlist for the service</p>
@@ -85,7 +85,7 @@ export default function WorkSpace() {
                                         <div className="sm:hidden mt-3 flex items-center justify-between">
                                             <div className="flex items-center gap-2">
                                                 {hymn.scale && (
-                                                    <span className="text-[10px] font-bold text-purple-200 bg-purple-500/20 px-2 py-0.5 rounded-md border border-purple-500/20">
+                                                    <span className="text-[10px] font-bold text-blue-200 bg-blue-500/20 px-2 py-0.5 rounded-md border border-blue-500/20">
                                                         {hymn.scale}
                                                     </span>
                                                 )}
@@ -117,7 +117,7 @@ export default function WorkSpace() {
                                     {/* Desktop Key/Scale */}
                                     <div className="hidden sm:block col-span-2 text-center relative z-10">
                                         <span className={`text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
-                                      ${hymn.scale ? 'text-purple-300 bg-purple-500/10' : 'text-gray-600'}`}>
+                                      ${hymn.scale ? 'text-blue-300 bg-blue-500/10' : 'text-gray-600'}`}>
                                             {hymn.scale || '-'}
                                         </span>
                                     </div>

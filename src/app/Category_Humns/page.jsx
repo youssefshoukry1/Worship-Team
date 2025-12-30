@@ -170,13 +170,13 @@ export default function Category_Humns() {
 
 
   return (
-    <section id="Category_Humns" className="min-h-screen bg-linear-to-br from-[#050510] via-[#0a0a1a] to-[#141432] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
+    <section id="Category_Humns" className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
       {/* Background Gradients */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_70%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(167,139,250,0.1),transparent_70%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_70%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.15),transparent_70%)]" />
 
       <div className="relative z-10 max-w-7xl mx-auto">
-        <h1 className="text-3xl sm:text-5xl font-extrabold mb-10 text-center bg-linear-to-br from-sky-300 via-indigo-300 to-purple-400 text-transparent bg-clip-text drop-shadow-lg">
+        <h1 className="text-3xl sm:text-5xl font-extrabold mb-10 text-center bg-linear-to-br from-sky-300 via-blue-400 to-indigo-500 text-transparent bg-clip-text drop-shadow-lg">
           🎶 Hymns Library
         </h1>
 
@@ -233,6 +233,7 @@ export default function Category_Humns() {
         ) : (
           <div className="relative">
             {/* Table Header - Hidden on small mobile for cleaner look */}
+            {/* Table Header - Hidden on small mobile for cleaner look */}
             <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest bg-white/5 rounded-t-2xl border-b border-white/10 mx-2">
               <div className="col-span-1 text-center">#</div>
               <div className="col-span-11 sm:col-span-5 md:col-span-5">Song Title</div>
@@ -260,7 +261,7 @@ export default function Category_Humns() {
                                hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
                   >
                     {/* Hover Glow Gradient */}
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-sky-500/5 via-purple-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-sky-500/5 via-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
                     {/* Index */}
                     <div className="col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
@@ -268,7 +269,7 @@ export default function Category_Humns() {
                     </div>
 
                     {/* Song Title & Mobile Info */}
-                    <div className="col-span-11 sm:col-span-5 md:col-span-6 relative z-10">
+                    <div className="col-span-11 sm:col-span-5 md:col-span-5 relative z-10">
                       <h3 className="font-bold text-base sm:text-lg text-gray-200 group-hover:text-white transition-colors tracking-wide">
                         {humn.title}
                       </h3>
@@ -289,22 +290,22 @@ export default function Category_Humns() {
                               href={humn.link}
                               target="_blank"
                               rel="noreferrer"
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 border border-sky-500/20 text-xs font-bold transition-all"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/20 text-gray-300 border border-white/10 hover:bg-sky-500/20 hover:text-sky-300 hover:border-sky-500/20 text-xs font-bold transition-all"
                             >
                               <PlayCircle className="w-3.5 h-3.5" />
-                              PLAY
+                              Listen
                             </a>
                           )}
                           <button
                             onClick={() => addToWorkspace(humn)}
                             disabled={isHymnInWorkspace(humn._id)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all
+                            className={`p-2 rounded-lg border transition-all
                               ${isHymnInWorkspace(humn._id)
                                 ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                                : 'bg-purple-500/10 text-purple-400 border-purple-500/20 active:scale-95'}`}
+                                : 'bg-blue-500/10 text-blue-400 border-blue-500/20 active:scale-95'}`}
+                            title={isHymnInWorkspace(humn._id) ? "Added to Workspace" : "Add to Workspace"}
                           >
-                            {isHymnInWorkspace(humn._id) ? <Check className="w-3.5 h-3.5" /> : <FolderPlus className="w-3.5 h-3.5" />}
-                            {isHymnInWorkspace(humn._id) ? 'ADDED' : 'ADD'}
+                            {isHymnInWorkspace(humn._id) ? <Check className="w-4 h-4" /> : <FolderPlus className="w-4 h-4" />}
                           </button>
                           {canEdit && (
                             <button
@@ -321,7 +322,7 @@ export default function Category_Humns() {
                     {/* Desktop Key/Scale */}
                     <div className="hidden sm:block col-span-2 text-center relative z-10">
                       <span className={`text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
-                        ${humn.scale ? 'text-purple-300 bg-purple-500/10' : 'text-gray-600'}`}>
+                        ${humn.scale ? 'text-blue-300 bg-blue-500/10' : 'text-gray-600'}`}>
                         {humn.scale || '-'}
                       </span>
                     </div>
@@ -394,7 +395,7 @@ export default function Category_Humns() {
               >
                 {/* Header */}
                 <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-sky-400 to-purple-400 bg-clip-text text-transparent">
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
                     🎵 Add New Hymn
                   </h2>
                   <button onClick={closeModal} className="text-gray-400 hover:text-white transition">
@@ -417,7 +418,7 @@ export default function Category_Humns() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-gray-400 text-sm mb-2">Scale (Optional)</label>
+                      <label className="block text-gray-400 text-sm mb-2">Scale</label>
                       <input
                         type="text"
                         className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition"
@@ -460,7 +461,7 @@ export default function Category_Humns() {
                     className={`mt-4 w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all
                       ${isSubmitting
                         ? 'bg-gray-600 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-sky-500 to-purple-600 hover:from-sky-400 hover:to-purple-500 hover:shadow-sky-500/25'}`}
+                        : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 hover:shadow-sky-500/25'}`}
                   >
                     {isSubmitting ? 'Adding...' : 'Add Song'}
                   </button>

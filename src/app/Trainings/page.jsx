@@ -15,7 +15,7 @@ import Loading from "../loading";
 import Portal from '../Portal/Portal.jsx'
 export default function Trainings() {
   const queryClient = useQueryClient();
-  const { isLogin, UserRole,  user_id } = useContext(UserContext);
+  const { isLogin, UserRole, user_id } = useContext(UserContext);
 
   const [showModel, setShowmodel] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -138,16 +138,16 @@ export default function Trainings() {
   }
 
   return (
-    <section className="min-h-screen bg-linear-to-br from-[#050510] via-[#0a0a1a] to-[#141432] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_70%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(167,139,250,0.1),transparent_70%)]" />
+    <section className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_70%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.15),transparent_70%)]" />
 
-      <h1 className="text-3xl sm:text-5xl font-extrabold mb-14 text-center bg-linear-to-br from-sky-300 via-indigo-300 to-purple-400 text-transparent bg-clip-text drop-shadow-lg">
+      <h1 className="text-3xl sm:text-5xl font-extrabold mb-14 text-center bg-linear-to-br from-sky-300 via-blue-400 to-indigo-500 text-transparent bg-clip-text drop-shadow-lg">
         🎶 Training Schedule
       </h1>
 
       <div className="grid gap-8 sm:gap-10 md:grid-cols-2 lg:grid-cols-3 relative z-10">
-        {data.filter( (e) => e.role === 'USER').map((m, i) => (
+        {data.filter((e) => e.role === 'USER').map((m, i) => (
           <div
             key={i}
             className="relative bg-white/5 backdrop-blur-md rounded-2xl p-6 sm:p-7 shadow-xl hover:shadow-sky-500/20 border border-white/10 transition"
@@ -162,15 +162,15 @@ export default function Trainings() {
             <h2 className="text-xl sm:text-2xl font-semibold mb-6 bg-linear-to-br from-gray-100 to-gray-300 bg-clip-text text-transparent">
               {m.Name}
             </h2>
-            { UserRole === 'Admin' || UserRole === 'MANEGER'|| user_id === m._id ? (
-                          <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-white">{m.name}</h2>
-              <PlusCircle
-                onClick={() => openModal("add", m)}
-                className="w-7 h-7 cursor-pointer text-green-400 hover:text-green-300 transition"
-              />
-            </div>
-            ):null
+            {UserRole === 'Admin' || UserRole === 'MANEGER' || user_id === m._id ? (
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-white">{m.name}</h2>
+                <PlusCircle
+                  onClick={() => openModal("add", m)}
+                  className="w-7 h-7 cursor-pointer text-green-400 hover:text-green-300 transition"
+                />
+              </div>
+            ) : null
             }
 
 
@@ -182,22 +182,22 @@ export default function Trainings() {
                 >
                   {
                     UserRole === 'Admin' || user_id === m._id ? (
-                    
-                    <>
-                                        <Trash2
-                    onClick={() => delete_song(m._id, p._id)}
-                    className="w-5 h-5 cursor-pointer text-red-400 hover:text-red-300 transition"
-                  />
-                  <Edit3
-                    onClick={() => openModal("update", m, p)}
-                    className="w-5 h-5 cursor-pointer text-yellow-400 hover:text-yellow-300 transition"
-                  />
-                  </>
-                    ):null
+
+                      <>
+                        <Trash2
+                          onClick={() => delete_song(m._id, p._id)}
+                          className="w-5 h-5 cursor-pointer text-red-400 hover:text-red-300 transition"
+                        />
+                        <Edit3
+                          onClick={() => openModal("update", m, p)}
+                          className="w-5 h-5 cursor-pointer text-yellow-400 hover:text-yellow-300 transition"
+                        />
+                      </>
+                    ) : null
                   }
 
                   <span className="text-sky-300">{p.song}</span>
-                  <span className="text-purple-300">🎵 {p.scale}</span>
+                  <span className="text-blue-300">🎵 {p.scale}</span>
                 </div>
               ))}
             </div>
@@ -235,7 +235,7 @@ export default function Trainings() {
                 ✖
               </button>
 
-              <h2 className="text-center text-2xl font-bold mb-6 bg-linear-to-br from-sky-300 to-purple-300 bg-clip-text text-transparent">
+              <h2 className="text-center text-2xl font-bold mb-6 bg-linear-to-br from-sky-300 to-blue-400 bg-clip-text text-transparent">
                 {modalType === "add" ? "🎵 Add Song" : "🎵 Update Song"}
               </h2>
 
@@ -250,7 +250,7 @@ export default function Trainings() {
                 <input
                   type="text"
                   placeholder="YouTube Link (optional)"
-                  className="p-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:ring-2 focus:ring-purple-400 outline-none"
+                  className="p-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:ring-2 focus:ring-blue-400 outline-none"
                   value={link}
                   onChange={(e) => setLink(e.target.value)}
                 />
@@ -266,7 +266,7 @@ export default function Trainings() {
                     if (modalType === "add") add_song(selectedUser._id, { song, scale, link });
                     else if (currentSongId) update_song(selectedUser._id, currentSongId, { song, scale, link });
                   }}
-                  className={`mt-4 bg-linear-to-br from-sky-500 to-purple-500 py-3 rounded-xl text-white font-semibold transition shadow-lg shadow-purple-500/20
+                  className={`mt-4 bg-linear-to-br from-sky-500 to-blue-600 py-3 rounded-xl text-white font-semibold transition shadow-lg shadow-blue-500/20
                     ${submitClicked ? "animate-pulse" : ""}`}
                 >
                   Submit
