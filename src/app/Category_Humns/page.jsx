@@ -279,7 +279,7 @@ export default function Category_Humns() {
                                             <div className="flex items-center gap-2">
                                                 {humn.scale && (
                                                     <span className="text-[10px] font-bold  text-blue-200  px-2 py-0.5 rounded-md ">
-                                                        <KeyDisplay humn={humn} />
+                                                        <KeyDisplay humn_parameter={humn} />
                                                     </span>
                                                 )}
                                             </div>
@@ -321,7 +321,7 @@ export default function Category_Humns() {
 
                     {/* Desktop Key/Scale */}
                     <div className="hidden sm:block col-span-2 text-center relative z-10">
-                      <KeyDisplay humn={humn} />
+                      <KeyDisplay humn_parameter={humn} />
                     </div>
 
 
@@ -487,18 +487,18 @@ export default function Category_Humns() {
 }
 
 // Sub-component for handling Key/Chords toggle state
-function KeyDisplay({ humn }) {
+function KeyDisplay({ humn_parameter }) {
   const [showChords, setShowChords] = useState(false);
 
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="flex items-center gap-2">
         <span className={`text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
-          ${humn.scale ? 'text-blue-300 bg-blue-500/10' : 'text-gray-600'}`}>
-          {humn.scale || '-'}
+          ${humn_parameter.scale ? 'text-blue-300 bg-blue-500/10' : 'text-gray-600'}`}>
+          {humn_parameter.scale || '-'}
         </span>
 
-        {humn.relatedChords && (
+        {humn_parameter.relatedChords && (
           <button
             onClick={() => setShowChords(!showChords)}
             className={`p-1 rounded-full transition-all duration-300 border border-transparent
@@ -513,7 +513,7 @@ function KeyDisplay({ humn }) {
       </div>
 
       <AnimatePresence>
-        {showChords && humn.relatedChords && (
+        {showChords && humn_parameter.relatedChords && (
           <motion.div
             initial={{ opacity: 0, height: 0, y: -5 }}
             animate={{ opacity: 1, height: 'auto', y: 0 }}
@@ -521,7 +521,7 @@ function KeyDisplay({ humn }) {
             className="overflow-hidden"
           >
             <div className="mt-1 flex flex-wrap justify-center gap-1.5 max-w-[150px]">
-              {humn.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, i) => (
+              {humn_parameter.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, i) => (
                 <span key={i} className="text-[10px] uppercase font-bold text-sky-200 bg-sky-900/30 px-1.5 py-0.5 rounded border border-sky-500/20">
                   {chord}
                 </span>
