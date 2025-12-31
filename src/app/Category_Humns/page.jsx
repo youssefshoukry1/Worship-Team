@@ -493,7 +493,7 @@ function KeyDisplay({ humn_parameter }) {
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="flex items-center gap-2">
-        <span className={`text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
+        <span className={` mx-5 text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
           ${humn_parameter.scale ? 'text-blue-300 bg-blue-500/10' : 'text-gray-600'}`}>
           {humn_parameter.scale || '-'}
         </span>
@@ -501,7 +501,7 @@ function KeyDisplay({ humn_parameter }) {
         {humn_parameter.relatedChords && (
           <button
             onClick={() => setShowChords(!showChords)}
-            className={`p-1 rounded-full transition-all duration-300 border border-transparent
+            className={` -mx-3.5 p-1 rounded-full transition-all duration-300 border border-transparent
               ${showChords
                 ? 'bg-sky-500/20 text-sky-300 rotate-180 border-sky-500/30'
                 : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}

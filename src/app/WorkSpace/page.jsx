@@ -176,7 +176,7 @@ function KeyDisplay({ humn_parameter }) {
                 {humn_parameter.relatedChords && (
                     <button
                         onClick={() => setShowChords(!showChords)}
-                        className={`p-1 -mx-3 rounded-full transition-all duration-300 border border-transparent 
+                        className={`p-1 -mx-3.5 rounded-full transition-all duration-300 border border-transparent 
               ${showChords
                                 ? 'bg-sky-500/20 text-sky-300 rotate-180 border-sky-500/30'
                                 : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}
