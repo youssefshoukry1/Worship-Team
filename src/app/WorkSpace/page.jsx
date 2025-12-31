@@ -1,6 +1,6 @@
 'use client';
-import React, { useContext } from 'react';
-import { motion } from 'framer-motion';
+import React, { useContext, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { PlayCircle, Trash2, Heart, Music, ListMusic } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 
@@ -47,7 +47,7 @@ export default function WorkSpace() {
                     <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest bg-white/5 rounded-t-2xl border-b border-white/10 mx-2">
                         <div className="col-span-1 text-center">#</div>
                         <div className="col-span-11 sm:col-span-5 md:col-span-5">Song Title</div>
-                        <div className="col-span-2 text-center bg-white/5 rounded-lg py-1">Key</div>
+                        <div className="col-span-2 text-center bg-white/5 rounded-lg py-1">Key / Chords</div>
                         <div className="col-span-3 text-center">Media</div>
                         <div className="col-span-1 text-center">Remove</div>
                     </div>
@@ -65,10 +65,10 @@ export default function WorkSpace() {
                                     key={hymn._id || index}
                                     variants={itemVariants}
                                     className="group relative grid grid-cols-12 gap-4 p-4 sm:p-5 items-center 
-                                           bg-[#13132b]/60 hover:bg-[#1a1a38] 
-                                           border border-white/5 hover:border-red-500/30 
-                                           rounded-2xl transition-all duration-300 backdrop-blur-sm
-                                           hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
+                               bg-[#13132b]/60 hover:bg-[#1a1a38] 
+                               border border-white/5 hover:border-sky-500/30 
+                               rounded-2xl transition-all duration-300 backdrop-blur-sm
+                               hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
                                 >
                                     {/* Index */}
                                     <div className="col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
@@ -85,8 +85,8 @@ export default function WorkSpace() {
                                         <div className="sm:hidden mt-3 flex items-center justify-between">
                                             <div className="flex items-center gap-2">
                                                 {hymn.scale && (
-                                                    <span className="text-[10px] font-bold text-blue-200 bg-blue-500/20 px-2 py-0.5 rounded-md border border-blue-500/20">
-                                                        {hymn.scale}
+                                                    <span className="text-[10px] font-bold  text-blue-200  px-2 py-0.5 rounded-md ">
+                                                        <KeyDisplay humn={hymn} />
                                                     </span>
                                                 )}
                                             </div>
@@ -116,10 +116,7 @@ export default function WorkSpace() {
 
                                     {/* Desktop Key/Scale */}
                                     <div className="hidden sm:block col-span-2 text-center relative z-10">
-                                        <span className={`text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
-                                      ${hymn.scale ? 'text-blue-300 bg-blue-500/10' : 'text-gray-600'}`}>
-                                            {hymn.scale || '-'}
-                                        </span>
+                                        <KeyDisplay humn={hymn} />
                                     </div>
 
                                     {/* Desktop Media Link */}
@@ -163,4 +160,52 @@ export default function WorkSpace() {
             </div>
         </section>
     )
+}
+
+// Sub-component for handling Key/Chords toggle state (Reused)
+function KeyDisplay({ humn }) {
+    const [showChords, setShowChords] = useState(false);
+
+    return (
+        <div className="flex flex-col items-center gap-2">
+            <div className="flex items-center gap-2">
+                <span className={`text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
+          ${humn.scale ? 'text-blue-300 bg-blue-500/10' : 'text-gray-600'}`}>
+                    {humn.scale || '-'}
+                </span>
+
+                {humn.relatedChords && (
+                    <button
+                        onClick={() => setShowChords(!showChords)}
+                        className={`p-1 rounded-full transition-all duration-300 border border-transparent
+              ${showChords
+                                ? 'bg-sky-500/20 text-sky-300 rotate-180 border-sky-500/30'
+                                : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}
+                        title="Show Related Chords"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
+                    </button>
+                )}
+            </div>
+
+            <AnimatePresence>
+                {showChords && humn.relatedChords && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0, y: -5 }}
+                        animate={{ opacity: 1, height: 'auto', y: 0 }}
+                        exit={{ opacity: 0, height: 0, y: -5 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="mt-1 flex flex-wrap justify-center gap-1.5 max-w-[150px]">
+                            {humn.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, i) => (
+                                <span key={i} className="text-[10px] uppercase font-bold text-sky-200 bg-sky-900/30 px-1.5 py-0.5 rounded border border-sky-500/20">
+                                    {chord}
+                                </span>
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
 }

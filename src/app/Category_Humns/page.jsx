@@ -20,7 +20,7 @@ export default function Category_Humns() {
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [formData, setFormData] = useState({ title: '', scale: '', link: '', party: 'All' });
+  const [formData, setFormData] = useState({ title: '', scale: '', relatedChords: '', link: '', party: 'All' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // --- API Functions ---
@@ -65,7 +65,7 @@ export default function Category_Humns() {
 
       queryClient.invalidateQueries(["humns"]);
       closeModal();
-      setFormData({ title: '', scale: '', link: '', party: 'All' });
+      setFormData({ title: '', scale: '', relatedChords: '', link: '', party: 'All' });
     } catch (error) {
       console.error("Error adding hymn:", error);
     } finally {
@@ -237,7 +237,7 @@ export default function Category_Humns() {
             <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest bg-white/5 rounded-t-2xl border-b border-white/10 mx-2">
               <div className="col-span-1 text-center">#</div>
               <div className="col-span-11 sm:col-span-5 md:col-span-5">Song Title</div>
-              <div className="col-span-2 text-center bg-white/5 rounded-lg py-1">Key</div>
+              <div className="col-span-2 text-center bg-white/5 rounded-lg py-1">Key / Chords</div>
               <div className="col-span-3 text-center">Media</div>
               <div className="col-span-1 text-center">Action</div>
             </div>
@@ -275,14 +275,14 @@ export default function Category_Humns() {
                       </h3>
 
                       {/* Mobile Row Layout */}
-                      <div className="sm:hidden mt-3 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {humn.scale && (
-                            <span className="text-[10px] font-bold text-purple-200 bg-purple-500/20 px-2 py-0.5 rounded-md border border-purple-500/20">
-                              {humn.scale}
-                            </span>
-                          )}
-                        </div>
+                                          <div className="sm:hidden mt-3 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                {humn.scale && (
+                                                    <span className="text-[10px] font-bold  text-blue-200  px-2 py-0.5 rounded-md ">
+                                                        <KeyDisplay humn={humn} />
+                                                    </span>
+                                                )}
+                                            </div>
 
                         <div className="flex items-center gap-3">
                           {humn.link && (
@@ -321,10 +321,7 @@ export default function Category_Humns() {
 
                     {/* Desktop Key/Scale */}
                     <div className="hidden sm:block col-span-2 text-center relative z-10">
-                      <span className={`text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
-                        ${humn.scale ? 'text-blue-300 bg-blue-500/10' : 'text-gray-600'}`}>
-                        {humn.scale || '-'}
-                      </span>
+                      <KeyDisplay humn={humn} />
                     </div>
 
 
@@ -444,6 +441,19 @@ export default function Category_Humns() {
                     </div>
                   </div>
 
+
+
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-2">Related Chords</label>
+                    <input
+                      type="text"
+                      className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition placeholder-gray-600"
+                      placeholder="e.g. G, C, D, Em"
+                      value={formData.relatedChords}
+                      onChange={(e) => setFormData({ ...formData, relatedChords: e.target.value })}
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-gray-400 text-sm mb-2">YouTube Link (Optional)</label>
                     <input
@@ -472,6 +482,54 @@ export default function Category_Humns() {
           </Portal>
         )}
       </div>
-    </section>
+    </section >
   )
+}
+
+// Sub-component for handling Key/Chords toggle state
+function KeyDisplay({ humn }) {
+  const [showChords, setShowChords] = useState(false);
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="flex items-center gap-2">
+        <span className={`text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
+          ${humn.scale ? 'text-blue-300 bg-blue-500/10' : 'text-gray-600'}`}>
+          {humn.scale || '-'}
+        </span>
+
+        {humn.relatedChords && (
+          <button
+            onClick={() => setShowChords(!showChords)}
+            className={`p-1 rounded-full transition-all duration-300 border border-transparent
+              ${showChords
+                ? 'bg-sky-500/20 text-sky-300 rotate-180 border-sky-500/30'
+                : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}
+            title="Show Related Chords"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {showChords && humn.relatedChords && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, y: -5 }}
+            animate={{ opacity: 1, height: 'auto', y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -5 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-1 flex flex-wrap justify-center gap-1.5 max-w-[150px]">
+              {humn.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, i) => (
+                <span key={i} className="text-[10px] uppercase font-bold text-sky-200 bg-sky-900/30 px-1.5 py-0.5 rounded border border-sky-500/20">
+                  {chord}
+                </span>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
