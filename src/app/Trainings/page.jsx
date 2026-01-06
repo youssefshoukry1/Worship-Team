@@ -52,7 +52,7 @@ export default function Trainings() {
     setSubmitClicked(true);
     return axios
       .patch(
-        `https://worship-team-api.vercel.app/api/users/${userid}`,
+        `https://worship-team-api.vercel.app/api/users/${userid}/${churchId}`,
         { song, scale, link },
         { headers: { Authorization: `Bearer ${isLogin}` } }
       )
@@ -73,7 +73,7 @@ export default function Trainings() {
     if (!isLogin) return <LogIn />;
     setSubmitClicked(true);
     return axios.patch(
-      `https://worship-team-api.vercel.app/api/users/${userid}/${songid}`,
+      `https://worship-team-api.vercel.app/api/users/${userid}/${songid}/${churchId}`,
       { song, scale, link },
       { headers: { Authorization: `Bearer ${isLogin}` } }
     )
@@ -88,7 +88,7 @@ export default function Trainings() {
   const delete_All_Songs = async (userid) => {
     if (!isLogin) return <LogIn />;
     return axios
-      .delete(`https://worship-team-api.vercel.app/api/users/${userid}/allsongs`,
+      .delete(`https://worship-team-api.vercel.app/api/users/${userid}/allsongs/${churchId}`,
         { headers: { Authorization: `Bearer ${isLogin}` } }
       ).then(() => {
         queryClient.invalidateQueries(['data', isLogin])
