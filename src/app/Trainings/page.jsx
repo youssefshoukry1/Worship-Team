@@ -15,7 +15,7 @@ import Loading from "../loading";
 import Portal from '../Portal/Portal.jsx'
 export default function Trainings() {
   const queryClient = useQueryClient();
-  const { isLogin, UserRole, user_id } = useContext(UserContext);
+  const { isLogin, UserRole, user_id, churchId } = useContext(UserContext);
 
   const [showModel, setShowmodel] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -30,7 +30,7 @@ export default function Trainings() {
   const get_All_Users = () => {
     if (!isLogin) return <LogIn />;
     return axios
-      .get("https://worship-team-api.vercel.app/api/users", {
+      .get(`https://worship-team-api.vercel.app/api/users/${churchId}`, {
         headers: { Authorization: `Bearer ${isLogin}` },
       })
       .then((res) => res.data)

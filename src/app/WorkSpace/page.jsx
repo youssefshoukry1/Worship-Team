@@ -186,7 +186,7 @@ function KeyDisplay({ humn_parameter }) {
                     </button>
                 )}
             </div>
-
+ 
             <AnimatePresence>
                 {showChords && humn_parameter.relatedChords && (
                     <motion.div

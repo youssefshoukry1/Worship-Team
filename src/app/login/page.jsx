@@ -19,9 +19,25 @@ export default function Login() {
                 console.log('success', response);
                 if (response.data.msg === 'Login successful') {
                     localStorage.setItem('user_Taspe7_Token', response?.data?.token);
+                    localStorage.setItem('user_Taspe7_ID', response?.data?.user?.id);
+                    localStorage.setItem('user_Taspe7_Role', response?.data?.user?.role);
+                    localStorage.setItem('user_Taspe7_ChurchId', response?.data?.user?.churchId);
+
                     setLogin(response?.data?.token);
+                    // We should also update other context values if possible, but context loads from localStorage on mount/change.
+                    // For now, redirecting triggers re-mount or we rely on page refresh logic if any. 
+                    // Actually, context updates are not triggered by localStorage changes automatically in other components unless we use storage event or set state.
+                    // But here we only have setLogin from context. Ideally we should have setUser_id, setChurchId etc. exposed from context and call them here.
+                    // But to keep it simple and since I don't want to change too much, I will assume a reload or the context will pick it up if the user navigates. 
+                    // Actually, navigating to home '/' might no cause full reload in SPA. 
+                    // But `window.location.href = '/'` would. `router.push` won't.
+                    // Let's rely on standard Context usage.
+
                     setLoading(false);
-                    router.push("/"); // redirect to home
+                    // Force reload to ensure context picks up new localStorage values if setters are not available/used.
+                    // Or better, let's just let it be. The user didn't complain about login issues, just "training page".
+                    // If they re-login, it should work.
+                    window.location.href = "/";
                 }
             })
             .catch((error) => {
