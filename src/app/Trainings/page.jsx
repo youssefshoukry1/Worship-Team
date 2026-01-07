@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useContext, useState } from "react";
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   PlayCircle,
   Mic,
@@ -184,38 +185,67 @@ export default function Trainings() {
             }
 
 
-            <div className="mb-6 flex flex-wrap gap-2">
-              {m.songs_Array.map((p, idx) => (
-                <div
-                  key={idx}
-                  className="px-3 py-2 rounded-full flex items-center gap-3 text-sm sm:text-base border backdrop-blur-md shadow-sm"
-                >
-                  {
-                    UserRole === 'Admin' || user_id === m._id ? (
-                      <Trash2
-                        onClick={() => delete_song(m._id, p._id)}
-                        className="w-5 h-5 cursor-pointer text-red-400 hover:text-red-300 transition"
-                      />
-                    ) : null
-                  }
+            <div className="flex flex-col gap-3 mt-4">
+              {m.songs_Array.length > 0 ? (
+                m.songs_Array.map((p, idx) => (
+                  <div
+                    key={idx}
+                    className="group relative grid grid-cols-12 gap-4 p-3 sm:p-4 items-center 
+                             bg-[#13132b]/60 hover:bg-[#1a1a38] 
+                             border border-white/5 hover:border-sky-500/30 
+                             rounded-xl transition-all duration-300 backdrop-blur-sm"
+                  >
+                    {/* Index */}
+                    <div className="col-span-2 sm:col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
+                      {(idx + 1).toString().padStart(2, '0')}
+                    </div>
 
-                  <span className="text-sky-300">{p.title}</span>
-                  <span className="text-blue-300">🎵 {p.scale}</span>
-                </div>
-              ))}
-            </div>
+                    {/* Song Title */}
+                    <div className="col-span-10 sm:col-span-5 md:col-span-5 relative z-10 flex items-center">
+                      <h3 className="font-bold text-sm sm:text-base text-gray-200 group-hover:text-white transition-colors tracking-wide truncate">
+                        {p.title}
+                      </h3>
+                    </div>
 
-            <div className="flex flex-wrap gap-2 mt-auto">
-              {m.songs_Array.map((l, idx) => (
-                <a
-                  key={idx}
-                  href={l.link}
-                  target="_blank"
-                  className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-cyan-200 px-3 py-1.5 rounded-lg text-xs sm:text-sm transition"
-                >
-                  <PlayCircle className="w-4 h-4" /> Play {idx + 1}
-                </a>
-              ))}
+                    {/* Key/Scale - Under Title on Mobile (Left Aligned), Center on Desktop */}
+                    <div className="col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0">
+                      <KeyDisplay humn_parameter={p} />
+                    </div>
+
+                    {/* Media Link */}
+                    <div className="col-span-6 sm:col-span-3 flex justify-center items-center relative z-10">
+                      {p.link ? (
+                        <a
+                          href={p.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all w-full sm:w-auto justify-center"
+                        >
+                          <PlayCircle className="w-3.5 h-3.5" />
+                          <span className="text-xs font-medium">Listen</span>
+                        </a>
+                      ) : (
+                        <span className="text-gray-700 text-xs">—</span>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="col-span-6 sm:col-span-1 flex justify-center items-center relative z-10">
+                      {UserRole === 'Admin' || UserRole === 'MANEGER' || user_id === m._id ? (
+                        <button
+                          onClick={() => delete_song(m._id, p._id)}
+                          className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 sm:border-transparent hover:border-red-500/20 bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
+                          title="Remove Song"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-gray-500 py-4 text-sm">No songs assigned</div>
+              )}
             </div>
           </div>
         ))}
@@ -312,5 +342,53 @@ export default function Trainings() {
         </Portal>
       )}
     </section>
+  );
+}
+
+// Sub-component for handling Key/Chords toggle state (Reused)
+function KeyDisplay({ humn_parameter }) {
+  const [showChords, setShowChords] = useState(false);
+
+  return (
+    <div className="flex flex-col items-start sm:items-center gap-2 w-full">
+      <div className="flex items-center gap-1">
+        <span className={`text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
+          ${humn_parameter.scale ? 'text-blue-300 bg-blue-500/10' : 'text-gray-600'}`}>
+          {humn_parameter.scale || '-'}
+        </span>
+
+        {humn_parameter.relatedChords && (
+          <button
+            onClick={() => setShowChords(!showChords)}
+            className={`p-1 rounded-full transition-all duration-300 border border-transparent 
+              ${showChords
+                ? 'bg-sky-500/20 text-sky-300 rotate-180 border-sky-500/30'
+                : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}
+            title="Show Related Chords"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {showChords && humn_parameter.relatedChords && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, y: -5 }}
+            animate={{ opacity: 1, height: 'auto', y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -5 }}
+            className="overflow-hidden w-full flex justify-start sm:justify-center"
+          >
+            <div className="mt-1 flex flex-wrap justify-start sm:justify-center gap-1.5 w-full sm:max-w-[200px]">
+              {humn_parameter.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, i) => (
+                <span key={i} className="text-[10px] uppercase font-bold text-sky-200 bg-sky-900/30 px-1.5 py-0.5 rounded border border-sky-500/20">
+                  {chord}
+                </span>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

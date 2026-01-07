@@ -73,61 +73,30 @@ export default function WorkSpace() {
                                hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
                                 >
                                     {/* Index */}
-                                    <div className="col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
+                                    <div className="col-span-2 sm:col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
                                         {(index + 1).toString().padStart(2, '0')}
                                     </div>
 
-                                    {/* Song Title & Mobile Info */}
-                                    <div className="col-span-11 sm:col-span-5 md:col-span-5 relative z-10">
+                                    {/* Song Title */}
+                                    <div className="col-span-10 sm:col-span-5 md:col-span-5 relative z-10 flex items-center">
                                         <h3 className="font-bold text-base sm:text-lg text-gray-200 group-hover:text-white transition-colors tracking-wide">
                                             {hymn.title}
                                         </h3>
-
-                                        {/* Mobile Row Layout */}
-                                        <div className="sm:hidden mt-3 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                {hymn.scale && (
-                                                    <span className="text-[10px] font-bold  text-blue-200  px-2 py-0.5 rounded-md ">
-                                                        <KeyDisplay humn_parameter={hymn} />
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            <div className="flex items-center gap-3">
-                                                {hymn.link && (
-                                                    <a
-                                                        href={hymn.link}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/20 text-gray-300 border border-white/10 hover:bg-sky-500/20 hover:text-sky-300 hover:border-sky-500/20 text-xs font-bold transition-all"
-                                                    >
-                                                        <PlayCircle className="w-3.5 h-3.5" />
-                                                        Listen
-                                                    </a>
-                                                )}
-                                                <button
-                                                    onClick={() => removeFromWorkspace(hymn._id)}
-                                                    className="p-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/10"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </div>
                                     </div>
 
-                                    {/* Key/Scale */}
-                                    <div className="hidden sm:block col-span-2 text-center relative z-10 ">
+                                    {/* Key/Scale - Under Title on Mobile (Left Aligned), Center on Desktop */}
+                                    <div className="col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0">
                                         <KeyDisplay humn_parameter={hymn} />
                                     </div>
 
-                                    {/* Desktop Media Link */}
-                                    <div className="hidden sm:flex col-span-3 justify-center relative z-10">
+                                    {/* Media Link */}
+                                    <div className="col-span-6 sm:col-span-3 flex justify-center items-center relative z-10">
                                         {hymn.link ? (
                                             <a
                                                 href={hymn.link}
                                                 target="_blank"
                                                 rel="noreferrer"
-                                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all"
+                                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all w-full sm:w-auto justify-center"
                                             >
                                                 <PlayCircle className="w-4 h-4" />
                                                 <span className="text-sm font-medium">Listen</span>
@@ -137,11 +106,11 @@ export default function WorkSpace() {
                                         )}
                                     </div>
 
-                                    {/* Desktop Remove Action */}
-                                    <div className="hidden sm:flex col-span-1 justify-center relative z-10">
+                                    {/* Remove Action */}
+                                    <div className="col-span-6 sm:col-span-1 flex justify-center items-center relative z-10">
                                         <button
                                             onClick={() => removeFromWorkspace(hymn._id)}
-                                            className="p-2.5 rounded-xl text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
+                                            className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 sm:border-transparent hover:border-red-500/20 bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
                                             title="Remove from Workspace"
                                         >
                                             <Trash2 className="w-4 h-4" />
@@ -168,9 +137,9 @@ function KeyDisplay({ humn_parameter }) {
     const [showChords, setShowChords] = useState(false);
 
     return (
-        <div className="flex flex-col items-center gap-2 ">
+        <div className="flex flex-col items-start sm:items-center gap-2 w-full">
             <div className="flex items-center gap-1">
-                <span className={` mx-5 text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
+                <span className={`text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
           ${humn_parameter.scale ? 'text-blue-300 bg-blue-500/10' : 'text-gray-600'}`}>
                     {humn_parameter.scale || '-'}
                 </span>
@@ -178,7 +147,7 @@ function KeyDisplay({ humn_parameter }) {
                 {humn_parameter.relatedChords && (
                     <button
                         onClick={() => setShowChords(!showChords)}
-                        className={`p-1 -mx-3.5 rounded-full transition-all duration-300 border border-transparent 
+                        className={`p-1 rounded-full transition-all duration-300 border border-transparent 
               ${showChords
                                 ? 'bg-sky-500/20 text-sky-300 rotate-180 border-sky-500/30'
                                 : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}
@@ -195,9 +164,9 @@ function KeyDisplay({ humn_parameter }) {
                         initial={{ opacity: 0, height: 0, y: -5 }}
                         animate={{ opacity: 1, height: 'auto', y: 0 }}
                         exit={{ opacity: 0, height: 0, y: -5 }}
-                        className="overflow-hidden"
+                        className="overflow-hidden w-full flex justify-start sm:justify-center"
                     >
-                        <div className="mt-1 flex flex-wrap justify-center gap-1.5 max-w-[150px]">
+                        <div className="mt-1 flex flex-wrap justify-start sm:justify-center gap-1.5 w-full sm:max-w-[200px]">
                             {humn_parameter.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, i) => (
                                 <span key={i} className="text-[10px] uppercase font-bold text-sky-200 bg-sky-900/30 px-1.5 py-0.5 rounded border border-sky-500/20">
                                     {chord}

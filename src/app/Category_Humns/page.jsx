@@ -264,76 +264,30 @@ export default function Category_Humns() {
                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-sky-500/5 via-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
                     {/* Index */}
-                    <div className="col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
+                    <div className="col-span-2 sm:col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
                       {(index + 1).toString().padStart(2, '0')}
                     </div>
 
-                    {/* Song Title & Mobile Info */}
-                    <div className="col-span-11 sm:col-span-5 md:col-span-5 relative z-10">
+                    {/* Song Title */}
+                    <div className="col-span-10 sm:col-span-5 md:col-span-5 relative z-10 flex items-center">
                       <h3 className="font-bold text-base sm:text-lg text-gray-200 group-hover:text-white transition-colors tracking-wide">
                         {humn.title}
                       </h3>
-
-                      {/* Mobile Row Layout */}
-                                          <div className="sm:hidden mt-3 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                {humn.scale && (
-                                                    <span className="text-[10px] font-bold  text-blue-200  px-2 py-0.5 rounded-md ">
-                                                        <KeyDisplay humn_parameter={humn} />
-                                                    </span>
-                                                )}
-                                            </div>
-
-                        <div className="flex items-center gap-3">
-                          {humn.link && (
-                            <a
-                              href={humn.link}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/20 text-gray-300 border border-white/10 hover:bg-sky-500/20 hover:text-sky-300 hover:border-sky-500/20 text-xs font-bold transition-all"
-                            >
-                              <PlayCircle className="w-3.5 h-3.5" />
-                              Listen
-                            </a>
-                          )}
-                          <button
-                            onClick={() => addToWorkspace(humn)}
-                            disabled={isHymnInWorkspace(humn._id)}
-                            className={`p-2 rounded-lg border transition-all
-                              ${isHymnInWorkspace(humn._id)
-                                ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                                : 'bg-blue-500/10 text-blue-400 border-blue-500/20 active:scale-95'}`}
-                            title={isHymnInWorkspace(humn._id) ? "Added to Workspace" : "Add to Workspace"}
-                          >
-                            {isHymnInWorkspace(humn._id) ? <Check className="w-4 h-4" /> : <FolderPlus className="w-4 h-4" />}
-                          </button>
-                          {canEdit && (
-                            <button
-                              onClick={() => delete_Hymn(humn._id)}
-                              className="p-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/10"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
                     </div>
 
-                    {/* Desktop Key/Scale */}
-                    <div className="hidden sm:block col-span-2 text-center relative z-10">
+                    {/* Key/Scale - Under Title on Mobile (Left Aligned), Center on Desktop */}
+                    <div className="col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0">
                       <KeyDisplay humn_parameter={humn} />
                     </div>
 
-
-
-                    {/* Desktop Media Link */}
-                    <div className="hidden sm:flex col-span-3 justify-center relative z-10">
+                    {/* Media Link */}
+                    <div className="col-span-6 sm:col-span-3 flex justify-center items-center relative z-10">
                       {humn.link ? (
                         <a
                           href={humn.link}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10"
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
                         >
                           <PlayCircle className="w-4 h-4" />
                           <span className="text-sm font-medium">Listen</span>
@@ -343,15 +297,15 @@ export default function Category_Humns() {
                       )}
                     </div>
 
-                    {/* Desktop Actions */}
-                    <div className="hidden sm:flex col-span-1 justify-center gap-2 relative z-10">
+                    {/* Actions */}
+                    <div className="col-span-6 sm:col-span-1 flex justify-center items-center gap-2 relative z-10">
                       <button
                         onClick={() => addToWorkspace(humn)}
                         disabled={isHymnInWorkspace(humn._id)}
-                        className={`p-2.5 rounded-xl transition-all duration-300
+                        className={`p-2.5 rounded-xl transition-all duration-300 flex-1 sm:flex-none flex justify-center
                           ${isHymnInWorkspace(humn._id)
                             ? 'text-green-400 bg-green-500/10 cursor-default'
-                            : 'text-gray-400 hover:text-purple-400 hover:bg-purple-500/10'}`}
+                            : 'text-gray-400 hover:text-purple-400 hover:bg-purple-500/10 bg-white/5 sm:bg-transparent'}`}
                         title={isHymnInWorkspace(humn._id) ? "Added to Workspace" : "Add to Workspace"}
                       >
                         {isHymnInWorkspace(humn._id) ? <Check className="w-4 h-4" /> : <FolderPlus className="w-4 h-4" />}
@@ -360,7 +314,7 @@ export default function Category_Humns() {
                       {canEdit && (
                         <button
                           onClick={() => delete_Hymn(humn._id)}
-                          className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                          className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
                           title="Delete Song"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -491,9 +445,9 @@ function KeyDisplay({ humn_parameter }) {
   const [showChords, setShowChords] = useState(false);
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col items-start sm:items-center gap-2 w-full">
       <div className="flex items-center gap-2">
-        <span className={` mx-5 text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
+        <span className={`text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
           ${humn_parameter.scale ? 'text-blue-300 bg-blue-500/10' : 'text-gray-600'}`}>
           {humn_parameter.scale || '-'}
         </span>
@@ -501,7 +455,7 @@ function KeyDisplay({ humn_parameter }) {
         {humn_parameter.relatedChords && (
           <button
             onClick={() => setShowChords(!showChords)}
-            className={` -mx-3.5 p-1 rounded-full transition-all duration-300 border border-transparent
+            className={`p-1 rounded-full transition-all duration-300 border border-transparent
               ${showChords
                 ? 'bg-sky-500/20 text-sky-300 rotate-180 border-sky-500/30'
                 : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}
@@ -518,9 +472,9 @@ function KeyDisplay({ humn_parameter }) {
             initial={{ opacity: 0, height: 0, y: -5 }}
             animate={{ opacity: 1, height: 'auto', y: 0 }}
             exit={{ opacity: 0, height: 0, y: -5 }}
-            className="overflow-hidden"
+            className="overflow-hidden w-full flex justify-start sm:justify-center"
           >
-            <div className="mt-1 flex flex-wrap justify-center gap-1.5 max-w-[150px]">
+            <div className="mt-1 flex flex-wrap justify-start sm:justify-center gap-1.5 w-full sm:max-w-[200px]">
               {humn_parameter.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, i) => (
                 <span key={i} className="text-[10px] uppercase font-bold text-sky-200 bg-sky-900/30 px-1.5 py-0.5 rounded border border-sky-500/20">
                   {chord}
