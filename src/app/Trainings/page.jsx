@@ -9,6 +9,7 @@ import {
   Edit3
 } from "lucide-react";
 import { UserContext } from "../context/User_Context";
+import { HymnsContext } from "../context/Hymns_Context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Loading from "../loading";
@@ -16,6 +17,7 @@ import Portal from '../Portal/Portal.jsx'
 export default function Trainings() {
   const queryClient = useQueryClient();
   const { isLogin, UserRole, user_id, churchId } = useContext(UserContext);
+  const { workspace } = useContext(HymnsContext);
 
   const [showModel, setShowmodel] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -26,9 +28,8 @@ export default function Trainings() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [currentSongId, setCurrentSongId] = useState(null);
   const [submitClicked, setSubmitClicked] = useState(false);
-  const [availableHymns, setAvailableHymns] = useState([]);
+  // Removed availableHymns and isLoadingHymns because we use 'workspace' directly
   const [selectedHymnIds, setSelectedHymnIds] = useState([]);
-  const [isLoadingHymns, setIsLoadingHymns] = useState(false);
 
   const get_All_Users = () => {
     if (!isLogin) return <LogIn />;
@@ -123,22 +124,7 @@ export default function Trainings() {
     }
     setShowmodel(true);
 
-    if (type === "add" && availableHymns.length === 0) {
-      setIsLoadingHymns(true);
-      axios.get("https://worship-team-api.vercel.app/api/Hymns")
-        .then(res => {
-          // Check different possible response structures
-          const hymns = res.data.data?.Hymns || res.data.Hymns || res.data || [];
-          if (Array.isArray(hymns)) {
-            setAvailableHymns(hymns);
-          } else {
-            console.error("Unexpected API response structure:", res.data);
-            setAvailableHymns([]);
-          }
-        })
-        .catch(err => console.error(err))
-        .finally(() => setIsLoadingHymns(false));
-    }
+    // We don't need to fetch from API anymore, we use 'workspace' from context.
 
     if (type === "add") {
       setSelectedHymnIds([]);
@@ -266,10 +252,10 @@ export default function Trainings() {
               <div className="flex flex-col gap-4">
                 {modalType === "add" ? (
                   <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-2">
-                    {isLoadingHymns ? (
-                      <div className="text-center text-gray-400 py-4">Loading Hymns...</div>
+                    {workspace.length === 0 ? (
+                      <div className="text-center text-gray-400 py-4">No hymns in Workspace yet.</div>
                     ) : (
-                      availableHymns.map((h) => (
+                      workspace.map((h) => (
                         <label key={h._id} className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition border border-white/5">
                           <input
                             type="checkbox"
