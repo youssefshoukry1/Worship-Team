@@ -11,6 +11,7 @@ export default function UserContextProvider({ children }) {
   const [user_id, setUser_id] = useState(null)
 
   const [churchId, setChurchId] = useState(null);
+  const [HymnIds, setHymnIds] = useState([])
 
   // Check token stored in browser
 
@@ -33,8 +34,12 @@ export default function UserContextProvider({ children }) {
     }
   }, []);
 
-
-
+  useEffect(() => {
+    const hymnIds = localStorage.getItem("user_Taspe7_HymnIds");
+    if (hymnIds) {
+      setHymnIds(JSON.parse(hymnIds));
+    }
+  }, []);
 
 
   useEffect(() => {
@@ -45,7 +50,7 @@ export default function UserContextProvider({ children }) {
   })
 
   return (
-    <UserContext.Provider value={{ isLogin, setLogin, UserRole, setUserRole, user_id, setUser_id, churchId, setChurchId }}>
+    <UserContext.Provider value={{ isLogin, setLogin, UserRole, setUserRole, user_id, setUser_id, churchId, setChurchId, HymnIds, setHymnIds }}>
       {children}
     </UserContext.Provider>
   );

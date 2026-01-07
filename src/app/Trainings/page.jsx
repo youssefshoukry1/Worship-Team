@@ -26,6 +26,9 @@ export default function Trainings() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [currentSongId, setCurrentSongId] = useState(null);
   const [submitClicked, setSubmitClicked] = useState(false);
+  const [availableHymns, setAvailableHymns] = useState([]);
+  const [selectedHymnIds, setSelectedHymnIds] = useState([]);
+  const [isLoadingHymns, setIsLoadingHymns] = useState(false);
 
   const get_All_Users = () => {
     if (!isLogin) return <LogIn />;
@@ -47,13 +50,13 @@ export default function Trainings() {
       .catch(() => []);
   };
 
-  const add_song = async (userid, { song, scale, link }) => {
+  const add_song = async (userid, { hymnIds }) => {
     if (!isLogin) return <LogIn />;
     setSubmitClicked(true);
     return axios
       .patch(
         `https://worship-team-api.vercel.app/api/users/${userid}/${churchId}`,
-        { song, scale, link },
+        { hymnIds },
         { headers: { Authorization: `Bearer ${isLogin}` } }
       )
       .then((res) => {
@@ -119,6 +122,27 @@ export default function Trainings() {
       setCurrentSongId(null);
     }
     setShowmodel(true);
+
+    if (type === "add" && availableHymns.length === 0) {
+      setIsLoadingHymns(true);
+      axios.get("https://worship-team-api.vercel.app/api/Hymns")
+        .then(res => {
+          // Check different possible response structures
+          const hymns = res.data.data?.Hymns || res.data.Hymns || res.data || [];
+          if (Array.isArray(hymns)) {
+            setAvailableHymns(hymns);
+          } else {
+            console.error("Unexpected API response structure:", res.data);
+            setAvailableHymns([]);
+          }
+        })
+        .catch(err => console.error(err))
+        .finally(() => setIsLoadingHymns(false));
+    }
+
+    if (type === "add") {
+      setSelectedHymnIds([]);
+    }
   }
 
   const closeModal = () => {
@@ -196,7 +220,7 @@ export default function Trainings() {
                     ) : null
                   }
 
-                  <span className="text-sky-300">{p.song}</span>
+                  <span className="text-sky-300">{p.title}</span>
                   <span className="text-blue-300">🎵 {p.scale}</span>
                 </div>
               ))}
@@ -236,34 +260,66 @@ export default function Trainings() {
               </button>
 
               <h2 className="text-center text-2xl font-bold mb-6 bg-linear-to-br from-sky-300 to-blue-400 bg-clip-text text-transparent">
-                {modalType === "add" ? "🎵 Add Song" : "🎵 Update Song"}
+                {modalType === "add" ? "🎵 Select Hymns" : "🎵 Update Song"}
               </h2>
 
               <div className="flex flex-col gap-4">
-                <input
-                  type="text"
-                  placeholder="Song Name"
-                  className="p-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:ring-2 focus:ring-sky-400 outline-none"
-                  value={song}
-                  onChange={(e) => setSong(e.target.value)}
-                />
-                <input
-                  type="text"
-                  placeholder="YouTube Link (optional)"
-                  className="p-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:ring-2 focus:ring-blue-400 outline-none"
-                  value={link}
-                  onChange={(e) => setLink(e.target.value)}
-                />
-                <input
-                  type="text"
-                  placeholder="Scale"
-                  className="p-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:ring-2 focus:ring-amber-400 outline-none"
-                  value={scale}
-                  onChange={(e) => setScale(e.target.value)}
-                />
+                {modalType === "add" ? (
+                  <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-2">
+                    {isLoadingHymns ? (
+                      <div className="text-center text-gray-400 py-4">Loading Hymns...</div>
+                    ) : (
+                      availableHymns.map((h) => (
+                        <label key={h._id} className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition border border-white/5">
+                          <input
+                            type="checkbox"
+                            checked={selectedHymnIds.includes(h._id)}
+                            onChange={() => {
+                              setSelectedHymnIds((prev) =>
+                                prev.includes(h._id)
+                                  ? prev.filter((id) => id !== h._id)
+                                  : [...prev, h._id]
+                              );
+                            }}
+                            className="w-5 h-5 accent-sky-500 rounded focus:ring-sky-500/50"
+                          />
+                          <div className="flex flex-col">
+                            <span className="font-medium text-white">{h.title}</span>
+                            <span className="text-xs text-sky-300/80">{h.scale}</span>
+                          </div>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      placeholder="Song Name"
+                      className="p-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:ring-2 focus:ring-sky-400 outline-none"
+                      value={song}
+                      onChange={(e) => setSong(e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      placeholder="YouTube Link (optional)"
+                      className="p-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:ring-2 focus:ring-blue-400 outline-none"
+                      value={link}
+                      onChange={(e) => setLink(e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Scale"
+                      className="p-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-gray-300 focus:ring-2 focus:ring-amber-400 outline-none"
+                      value={scale}
+                      onChange={(e) => setScale(e.target.value)}
+                    />
+                  </>
+                )}
+
                 <button
                   onClick={() => {
-                    if (modalType === "add") add_song(selectedUser._id, { song, scale, link });
+                    if (modalType === "add") add_song(selectedUser._id, { hymnIds: selectedHymnIds });
                     else if (currentSongId) update_song(selectedUser._id, currentSongId, { song, scale, link });
                   }}
                   className={`mt-4 bg-linear-to-br from-sky-500 to-blue-600 py-3 rounded-xl text-white font-semibold transition shadow-lg shadow-blue-500/20

@@ -3,9 +3,11 @@ import React, { useContext, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PlayCircle, Trash2, Heart, Music, ListMusic } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
+import { UserContext } from '../context/User_Context';
 
 export default function WorkSpace() {
     const { workspace, removeFromWorkspace } = useContext(HymnsContext);
+    const { HymnIds, setHymnIds } = useContext(UserContext);
 
     // Animation Variants (Reusable from Category_Humns for consistency)
     const containerVariants = {
@@ -93,22 +95,22 @@ export default function WorkSpace() {
 
                                             <div className="flex items-center gap-3">
                                                 {hymn.link && (
-                            <a
-                              href={hymn.link}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/20 text-gray-300 border border-white/10 hover:bg-sky-500/20 hover:text-sky-300 hover:border-sky-500/20 text-xs font-bold transition-all"
-                            >
-                              <PlayCircle className="w-3.5 h-3.5" />
-                              Listen
-                            </a>
+                                                    <a
+                                                        href={hymn.link}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/20 text-gray-300 border border-white/10 hover:bg-sky-500/20 hover:text-sky-300 hover:border-sky-500/20 text-xs font-bold transition-all"
+                                                    >
+                                                        <PlayCircle className="w-3.5 h-3.5" />
+                                                        Listen
+                                                    </a>
                                                 )}
-                            <button
-                              onClick={() => removeFromWorkspace(hymn._id)}
-                              className="p-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/10"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                                                <button
+                                                    onClick={() => removeFromWorkspace(hymn._id)}
+                                                    className="p-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/10"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -186,7 +188,7 @@ function KeyDisplay({ humn_parameter }) {
                     </button>
                 )}
             </div>
- 
+
             <AnimatePresence>
                 {showChords && humn_parameter.relatedChords && (
                     <motion.div
