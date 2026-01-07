@@ -159,95 +159,127 @@ export default function Trainings() {
 
       <div className="grid gap-8 sm:gap-10 md:grid-cols-2 lg:grid-cols-3 relative z-10 items-start">
         {data.filter((e) => e.role === 'USER').map((m, i) => (
-          <div
+          <motion.div
             key={i}
-            className="relative bg-white/5 backdrop-blur-md rounded-2xl p-6 sm:p-7 shadow-xl hover:shadow-sky-500/20 border border-white/10 transition flex flex-col"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            whileHover={{ y: -5, boxShadow: "0 20px 40px -10px rgba(14, 165, 233, 0.2)" }}
+            className="relative bg-[#0f172a]/80 backdrop-blur-xl rounded-3xl p-1 shadow-2xl border border-white/10 group overflow-hidden flex flex-col h-full"
           >
-            <div className="absolute top-4 right-4">
-              <span className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium 
-                                bg-sky-500/20 text-sky-300 border border-sky-400/40 shadow-sm shadow-sky-500/30">
-                <Mic className="w-4 h-4" /> Vocal
-              </span>
-            </div>
+            {/* Gradient Top Border */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-sky-500 via-blue-500 to-indigo-500 opacity-80" />
 
-            <h2 className="text-xl sm:text-2xl font-semibold mb-6 bg-linear-to-br from-gray-100 to-gray-300 bg-clip-text text-transparent">
-              {m.Name}
-            </h2>
-            {UserRole === 'Admin' || UserRole === 'MANEGER' || user_id === m._id ? (
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-white">{m.name}</h2>
-                <PlusCircle
-                  onClick={() => openModal("add", m)}
-                  className="w-7 h-7 cursor-pointer text-green-400 hover:text-green-300 transition"
-                />
-              </div>
-            ) : null
-            }
-
-
-            <div className="flex flex-col gap-3 mt-4">
-              {m.songs_Array.length > 0 ? (
-                m.songs_Array.map((p, idx) => (
-                  <div
-                    key={idx}
-                    className="group relative grid grid-cols-12 gap-4 p-3 sm:p-4 items-center 
-                             bg-[#13132b]/60 hover:bg-[#1a1a38] 
-                             border border-white/5 hover:border-sky-500/30 
-                             rounded-xl transition-all duration-300 backdrop-blur-sm"
-                  >
-                    {/* Index */}
-                    <div className="col-span-2 sm:col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
-                      {(idx + 1).toString().padStart(2, '0')}
-                    </div>
-
-                    {/* Song Title */}
-                    <div className="col-span-10 sm:col-span-5 md:col-span-5 relative z-10 flex items-center">
-                      <h3 className="font-bold text-sm sm:text-base text-gray-200 group-hover:text-white transition-colors tracking-wide truncate">
-                        {p.title}
-                      </h3>
-                    </div>
-
-                    {/* Key/Scale - Under Title on Mobile (Left Aligned), Center on Desktop */}
-                    <div className="col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0">
-                      <KeyDisplay humn_parameter={p} />
-                    </div>
-
-                    {/* Media Link */}
-                    <div className="col-span-6 sm:col-span-3 flex justify-center items-center relative z-10">
-                      {p.link ? (
-                        <a
-                          href={p.link}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all w-full sm:w-auto justify-center"
-                        >
-                          <PlayCircle className="w-3.5 h-3.5" />
-                          <span className="text-xs font-medium">Listen</span>
-                        </a>
-                      ) : (
-                        <span className="text-gray-700 text-xs">—</span>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    <div className="col-span-6 sm:col-span-1 flex justify-center items-center relative z-10">
-                      {UserRole === 'Admin' || UserRole === 'MANEGER' || user_id === m._id ? (
-                        <button
-                          onClick={() => delete_song(m._id, p._id)}
-                          className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 sm:border-transparent hover:border-red-500/20 bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
-                          title="Remove Song"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      ) : null}
-                    </div>
+            <div className="p-6 sm:p-7 flex flex-col h-full relative z-10">
+              {/* Header Section */}
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
+                                  bg-sky-500/10 text-sky-300 border border-sky-500/20">
+                      <Mic className="w-3 h-3" /> Vocal
+                    </span>
                   </div>
-                ))
-              ) : (
-                <div className="text-center text-gray-500 py-4 text-sm">No songs assigned</div>
-              )}
+                  <h2 className="text-2xl font-bold text-white tracking-tight">
+                    {m.Name}
+                  </h2>
+                  <p className="text-sm text-gray-400 font-medium">{m.name}</p>
+                </div>
+
+                {/* Add Song Action */}
+                {(UserRole === 'Admin' || UserRole === 'MANEGER' || user_id === m._id) && (
+                  <motion.button
+                    whileHover={{ scale: 1.1, rotate: 90 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => openModal("add", m)}
+                    className="p-2 rounded-full bg-linear-to-br from-green-500/20 to-emerald-500/20 text-green-400 hover:text-green-300 border border-green-500/30 shadow-lg shadow-green-500/10 transition-colors"
+                  >
+                    <PlusCircle className="w-6 h-6" />
+                  </motion.button>
+                )}
+              </div>
+
+              {/* Scrollable Content Area */}
+              <div className="flex-1 min-h-[150px] relative">
+                <div className="absolute inset-0 overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="flex flex-col gap-3 pb-2">
+                    {m.songs_Array.length > 0 ? (
+                      m.songs_Array.map((p, idx) => (
+                        <div
+                          key={idx}
+                          className="group relative grid grid-cols-12 gap-4 p-4 sm:p-5 items-center 
+                                   bg-[#13132b]/60 hover:bg-[#1a1a38] 
+                                   border border-white/5 hover:border-sky-500/30 
+                                   rounded-2xl transition-all duration-300 backdrop-blur-sm
+                                   hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
+                        >
+                          {/* Hover Glow Gradient */}
+                          <div className="absolute inset-0 rounded-2xl bg-linear-to-r from-sky-500/5 via-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+                          {/* Index */}
+                          <div className="col-span-2 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
+                            {(idx + 1).toString().padStart(2, '0')}
+                          </div>
+
+                          {/* Song Title */}
+                          <div className="col-span-10 relative z-10 flex items-center">
+                            <h3 className="font-bold text-base sm:text-lg text-gray-200 group-hover:text-white transition-colors tracking-wide truncate">
+                              {p.title}
+                            </h3>
+                          </div>
+
+                          {/* Key/Scale - Always Under Title (Left Aligned) */}
+                          <div className="col-span-12 relative z-10 flex items-center justify-start -mt-2 pl-2">
+                            <KeyDisplay humn_parameter={p} />
+                          </div>
+
+                          {/* Media Link */}
+                          <div className="col-span-6 flex justify-center items-center relative z-10">
+                            {p.link ? (
+                              <a
+                                href={p.link}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all w-full justify-center"
+                              >
+                                <PlayCircle className="w-4 h-4" />
+                                <span className="text-sm font-medium">Listen</span>
+                              </a>
+                            ) : (
+                              <span className="text-gray-700 text-xs">—</span>
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          <div className="col-span-6 flex justify-center items-center relative z-10">
+                            {(UserRole === 'Admin' || UserRole === 'MANEGER' || user_id === m._id) && (
+                              <button
+                                onClick={() => delete_song(m._id, p._id)}
+                                className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 hover:border-red-500/20 bg-white/5 flex-1 flex justify-center"
+                                title="Remove Song"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-10 text-gray-500 opacity-60">
+                        <motion.div
+                          animate={{ rotate: [0, 10, -10, 0] }}
+                          transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                        >
+                          <Mic className="w-10 h-10 mb-2 opacity-30" />
+                        </motion.div>
+                        <p className="text-sm">No songs assigned yet</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
 
