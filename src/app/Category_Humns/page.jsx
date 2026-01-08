@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../loading';
 import Portal from '../Portal/Portal';
 import { UserContext } from '../context/User_Context';
-import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check } from 'lucide-react';
+import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2 } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 
 export default function Category_Humns() {
@@ -22,6 +22,7 @@ export default function Category_Humns() {
   const [isClosing, setIsClosing] = useState(false);
   const [formData, setFormData] = useState({ title: '', scale: '', relatedChords: '', link: '', party: 'All' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingHymnId, setEditingHymnId] = useState(null); // Track which hymn is being edited
 
   // --- API Functions ---
 
@@ -68,6 +69,28 @@ export default function Category_Humns() {
       setFormData({ title: '', scale: '', relatedChords: '', link: '', party: 'All' });
     } catch (error) {
       console.error("Error adding hymn:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 2. Edit Hymn (Patch)
+  const edit_Hymn = async (id) => {
+    if (!isLogin) return;
+    setIsSubmitting(true);
+    try {
+      const url = `https://worship-team-api.vercel.app/api/hymns/${id}`;
+
+      await axios.patch(url, formData, {
+        headers: { Authorization: `Bearer ${isLogin}` }
+      });
+
+      queryClient.invalidateQueries(["humns"]);
+      closeModal();
+      setFormData({ title: '', scale: '', relatedChords: '', link: '', party: 'All' });
+      setEditingHymnId(null);
+    } catch (error) {
+      console.error("Error editing hymn:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -128,6 +151,20 @@ export default function Category_Humns() {
               activeTab === 'motherday' ? 'motherday' :
                 activeTab === 'graduation' ? 'graduation' : 'all'
     }));
+    setEditingHymnId(null); // Reset editing mode
+    setShowModal(true);
+  };
+
+  const openEditModal = (hymn) => {
+    // Pre-fill form with hymn data for editing
+    setFormData({
+      title: hymn.title || '',
+      scale: hymn.scale || '',
+      relatedChords: hymn.relatedChords || '',
+      link: hymn.link || '',
+      party: hymn.party || 'All'
+    });
+    setEditingHymnId(hymn._id); // Set the ID of the hymn being edited
     setShowModal(true);
   };
 
@@ -312,13 +349,22 @@ export default function Category_Humns() {
                       </button>
 
                       {canEdit && (
-                        <button
-                          onClick={() => delete_Hymn(humn._id)}
-                          className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
-                          title="Delete Song"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => delete_Hymn(humn._id)}
+                            className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
+                            title="Delete Song"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => openEditModal(humn)}
+                            className="p-2.5 rounded-xl text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
+                            title="Edit Song"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        </>
                       )}
                     </div>
                   </motion.div>
@@ -347,7 +393,7 @@ export default function Category_Humns() {
                 {/* Header */}
                 <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
                   <h2 className="text-2xl font-bold bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
-                    🎵 Add New Hymn
+                    {editingHymnId ? '✏️ Edit Hymn' : '🎵 Add New Hymn'}
                   </h2>
                   <button onClick={closeModal} className="text-gray-400 hover:text-white transition">
                     <X className="w-6 h-6" />
@@ -420,14 +466,16 @@ export default function Category_Humns() {
                   </div>
 
                   <button
-                    onClick={add_Hymn}
+                    onClick={() => editingHymnId ? edit_Hymn(editingHymnId) : add_Hymn()}
                     disabled={isSubmitting || !formData.title}
                     className={`mt-4 w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all
                       ${isSubmitting
                         ? 'bg-gray-600 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 hover:shadow-sky-500/25'}`}
+                        : editingHymnId
+                          ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 hover:shadow-blue-500/25'
+                          : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 hover:shadow-sky-500/25'}`}
                   >
-                    {isSubmitting ? 'Adding...' : 'Add Song'}
+                    {isSubmitting ? (editingHymnId ? 'Updating...' : 'Adding...') : (editingHymnId ? 'Update Song' : 'Add Song')}
                   </button>
                 </div>
 
