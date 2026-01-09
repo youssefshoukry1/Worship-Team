@@ -152,12 +152,15 @@ export default function Category_Humns() {
     }
   };
 
+  // All data
   const { data: humns = [], isLoading } = useQuery({
     queryKey: ["humns", activeTab, search], // Re-fetch when search changes
     queryFn: fetchHymns,
   });
 
-  // --- Modal Helpers ---
+  ///////////////////////////////// API proccess end here /////////////////////////////
+
+  // --- Modal Helpers ---//
   const openModal = () => {
     // Pre-fill party based on active tab if specific
     setFormData(prev => ({
@@ -296,6 +299,9 @@ export default function Category_Humns() {
         </div>
 
         {/* Categories Tabs */}
+        {
+          showSearchBar ? 
+          (null): 
         <div className="flex flex-wrap justify-center gap-4 mb-8">
           {categories.map((cat) => {
             const Icon = cat.icon;
@@ -319,6 +325,9 @@ export default function Category_Humns() {
             )
           })}
         </div>
+          
+        }
+
 
 
 
