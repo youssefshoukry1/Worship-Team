@@ -2,7 +2,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence, easeOut } from "framer-motion";
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Globe, ChevronDown } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
+import { translations } from "../i18n/translations";
 
 interface NavItem {
   name: string;
@@ -11,12 +13,15 @@ interface NavItem {
 }
 
 export default function Navbar() {
+  const { t, language, setLanguage } = useLanguage();
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+
   const navItems: NavItem[] = [
-    { name: "Home", path: "/", id: "home-section" },
-    { name: "Hymns", path: "/Category_Humns", id: "Category_Humns" },
-    { name: "Training", path: "/Trainings", id: "training-section" },
-    { name: "WorkSpace", path: "/WorkSpace", id: "WorkSpace-section" },
-    { name: "Contact", path: "/Contact", id: "contact-section" },
+    { name: "home", path: "/", id: "home-section" },
+    { name: "hymns", path: "/Category_Humns", id: "Category_Humns" },
+    { name: "training", path: "/Trainings", id: "training-section" },
+    { name: "workspace", path: "/WorkSpace", id: "WorkSpace-section" },
+    { name: "contact", path: "/Contact", id: "contact-section" },
   ];
 
   const router = useRouter();
@@ -71,10 +76,10 @@ export default function Navbar() {
     <nav className="sticky w-full flex justify-between items-center py-3 px-6 top-0 z-50 bg-blue-950/20 backdrop-blur-xl border-b border-sky-500/10 transition-all duration-300">
       {/* Logo */}
       <div
-        className="relative text-white font-bold text-2xl tracking-tight bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent drop-shadow-sm cursor-pointer"
+        className="relative font-bold text-2xl tracking-tight bg-linear-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent drop-shadow-sm cursor-pointer"
         onClick={() => router.push("/")}
       >
-        PraiseTeam
+        {t("praiseTeam")}
       </div>
 
       {/* Desktop Menu */}
@@ -95,10 +100,55 @@ export default function Navbar() {
                     : "text-gray-300 hover:text-sky-300"
                 }`}
             >
-              {name}
+              {t(name as keyof (typeof translations)["en"])}
             </button>
           </motion.li>
         ))}
+        {/* Language Switcher Desktop */}
+        <div className="relative">
+          <button
+            onClick={() => setLangMenuOpen(!langMenuOpen)}
+            className="flex items-center gap-1 text-gray-300 hover:text-sky-400 transition"
+          >
+            <Globe size={20} />
+            <span className="uppercase text-sm font-medium">{language}</span>
+            <ChevronDown size={14} />
+          </button>
+
+          <AnimatePresence>
+            {langMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute right-0 mt-2 w-32 bg-[#0f172a] border border-white/10 rounded-lg shadow-xl overflow-hidden py-1"
+              >
+                {(["en", "ar", "de"] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => {
+                      setLanguage(lang);
+                      setLangMenuOpen(false);
+                    }}
+                    className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition
+                      ${
+                        language === lang
+                          ? "text-sky-400 font-bold"
+                          : "text-gray-300"
+                      }
+                    `}
+                  >
+                    {lang === "en"
+                      ? "English"
+                      : lang === "ar"
+                      ? "العربية"
+                      : "Deutsch"}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </motion.ul>
 
       {/* Mobile Hamburger */}
@@ -130,10 +180,66 @@ export default function Navbar() {
                           : "text-gray-300 hover:bg-white/5 hover:text-white"
                       }`}
                   >
-                    {name}
+                    {t(name as keyof (typeof translations)["en"])}
                   </button>
                 </li>
               ))}
+              {/* Mobile Language Switcher */}
+              <li className="w-full">
+                <div className="relative w-full">
+                  <button
+                    onClick={() => setLangMenuOpen(!langMenuOpen)}
+                    className="flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all font-medium text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Globe size={20} />
+                      <span className="uppercase">{language}</span>
+                    </span>
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform ${
+                        langMenuOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  <AnimatePresence>
+                    {langMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="mt-1 bg-[#0f172a] border border-white/10 rounded-lg shadow-inner overflow-hidden py-1"
+                      >
+                        {(["en", "ar", "de"] as const).map((lang) => (
+                          <button
+                            key={lang}
+                            onClick={() => {
+                              setLanguage(lang);
+                              setLangMenuOpen(false);
+                              setMenuOpen(false); // Close main menu after language selection
+                            }}
+                            className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition
+                              ${
+                                language === lang
+                                  ? "text-sky-400 font-bold"
+                                  : "text-gray-300"
+                              }
+                            `}
+                          >
+                            {lang === "en"
+                              ? "English"
+                              : lang === "ar"
+                              ? "العربية"
+                              : "Deutsch"}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </li>
             </motion.ul>
           )}
         </AnimatePresence>

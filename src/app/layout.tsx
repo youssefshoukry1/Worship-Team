@@ -7,6 +7,7 @@ import PageTransition from "./page-transition/page-transition";
 import UserContextProvider from "./context/User_Context";
 import QueryProvider from "../../QueryProvider";
 import HymnsContextProvider from "./context/Hymns_Context";
+import { LanguageProvider } from "./context/LanguageContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,19 +37,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Navbar/>
-        <HymnsContextProvider>
-        <UserContextProvider>
-          <QueryProvider>
-        <PageTransition>
-          {children}
-        </PageTransition>
-          </QueryProvider>
-        </UserContextProvider>
-        </HymnsContextProvider>
-
-        
-        <Footer/>
+        <LanguageProvider>
+          <Navbar />
+          <HymnsContextProvider>
+            <UserContextProvider>
+              <QueryProvider>
+                <PageTransition>{children}</PageTransition>
+              </QueryProvider>
+            </UserContextProvider>
+          </HymnsContextProvider>
+          <Footer />
+        </LanguageProvider>
       </body>
     </html>
   );
