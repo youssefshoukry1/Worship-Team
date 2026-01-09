@@ -300,32 +300,32 @@ export default function Category_Humns() {
 
         {/* Categories Tabs */}
         {
-          showSearchBar ? 
-          (null): 
-        <div className="flex flex-wrap justify-center gap-4 mb-8">
-          {categories.map((cat) => {
-            const Icon = cat.icon;
-            const isActive = activeTab === cat.id;
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setActiveTab(cat.id)}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 border backdrop-blur-md relative overflow-hidden group
+          showSearchBar ?
+            (null) :
+            <div className="flex flex-wrap justify-center gap-4 mb-8">
+              {categories.map((cat) => {
+                const Icon = cat.icon;
+                const isActive = activeTab === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setActiveTab(cat.id)}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 border backdrop-blur-md relative overflow-hidden group
                   ${isActive
-                    ? 'bg-sky-500/20 border-sky-400/50 text-sky-200 shadow-[0_0_20px_rgba(56,189,248,0.3)]'
-                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
-                  }`}
-              >
-                {isActive && (
-                  <div className="absolute inset-0 bg-sky-400/10 blur-xl rounded-full" />
-                )}
-                <Icon className={`w-5 h-5 relative z-10 ${isActive ? 'text-sky-300' : ''}`} />
-                <span className="font-medium relative z-10">{cat.label}</span>
-              </button>
-            )
-          })}
-        </div>
-          
+                        ? 'bg-sky-500/20 border-sky-400/50 text-sky-200 shadow-[0_0_20px_rgba(56,189,248,0.3)]'
+                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                      }`}
+                  >
+                    {isActive && (
+                      <div className="absolute inset-0 bg-sky-400/10 blur-xl rounded-full" />
+                    )}
+                    <Icon className={`w-5 h-5 relative z-10 ${isActive ? 'text-sky-300' : ''}`} />
+                    <span className="font-medium relative z-10">{cat.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+
         }
 
 
@@ -381,7 +381,7 @@ export default function Category_Humns() {
                   <motion.div
                     key={humn._id || index}
                     variants={itemVariants}
-                    className="group relative grid grid-cols-12 gap-4 p-4 sm:p-5 items-center 
+                    className="group relative grid grid-cols-12 gap-2 sm:gap-4 p-3 sm:p-5 items-center 
                                bg-[#13132b]/60 hover:bg-[#1a1a38] 
                                border border-white/5 hover:border-sky-500/30 
                                rounded-2xl transition-all duration-300 backdrop-blur-sm
@@ -391,12 +391,22 @@ export default function Category_Humns() {
                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-sky-500/5 via-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
                     {/* Index */}
-                    <div className="col-span-2 sm:col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
+                    <div className="col-span-1 sm:col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
                       {(index + 1).toString().padStart(2, '0')}
                     </div>
 
                     {/* Song Title */}
-                    <div className="col-span-10 sm:col-span-5 md:col-span-5 relative z-10 flex items-center">
+                    <div className="col-span-11 sm:col-span-5 md:col-span-5 relative z-10 flex items-center gap-2 py-4">
+                      {(() => {
+                        const matchedCat = categories.find(c => c.id === humn.party) || { icon: Music };
+                        const CatIcon = matchedCat.icon;
+                        return (
+                          <CatIcon
+                            className="w-4 h-4 text-gray-500 group-hover:text-sky-300 transition-colors shrink-0"
+                            title={matchedCat.label}
+                          />
+                        );
+                      })()}
                       <h3 className="font-bold text-base sm:text-lg text-gray-200 group-hover:text-white transition-colors tracking-wide">
                         {humn.title}
                       </h3>
