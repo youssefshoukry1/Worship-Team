@@ -1,13 +1,23 @@
 'use client';
 import React, { useContext, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PlayCircle, Trash2, Heart, Music, ListMusic } from 'lucide-react';
+import { PlayCircle, Trash2, Heart, Music, ListMusic, Gift, Star, Sparkles, GraduationCap } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
 
 export default function WorkSpace() {
     const { workspace, removeFromWorkspace } = useContext(HymnsContext);
     const { HymnIds, setHymnIds } = useContext(UserContext);
+
+    // Categories Configuration for Icon Lookup
+    const categories = [
+        { id: 'all', label: 'All Hymns', icon: Music },
+        { id: 'christmass', label: 'Christmas', icon: Gift },
+        { id: 'easter', label: 'Easter', icon: Star },
+        { id: 'newyear', label: 'New Year', icon: Sparkles },
+        { id: 'motherday', label: 'Mother Day', icon: Heart },
+        { id: 'graduation', label: 'Graduation', icon: GraduationCap },
+    ];
 
     // Animation Variants (Reusable from Category_Humns for consistency)
     const containerVariants = {
@@ -66,20 +76,30 @@ export default function WorkSpace() {
                                 <motion.div
                                     key={hymn._id || index}
                                     variants={itemVariants}
-                                    className="group relative grid grid-cols-12 gap-4 p-4 sm:p-5 items-center 
+                                    className="group relative grid grid-cols-12 gap-2 sm:gap-4 p-3 sm:p-5 items-center 
                                bg-[#13132b]/60 hover:bg-[#1a1a38] 
                                border border-white/5 hover:border-sky-500/30 
                                rounded-2xl transition-all duration-300 backdrop-blur-sm
                                hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
                                 >
                                     {/* Index */}
-                                    <div className="col-span-2 sm:col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
+                                    <div className="col-span-1 sm:col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
                                         {(index + 1).toString().padStart(2, '0')}
                                     </div>
 
                                     {/* Song Title */}
-                                    <div className="col-span-10 sm:col-span-5 md:col-span-5 relative z-10 flex items-center">
-                                        <h3 className="font-bold text-base sm:text-lg text-gray-200 group-hover:text-white transition-colors tracking-wide">
+                                    <div className="col-span-11 sm:col-span-5 md:col-span-5 relative z-10 flex items-center gap-2 py-4">
+                                        {(() => {
+                                            const matchedCat = categories.find(c => c.id === hymn.party) || { icon: Music };
+                                            const CatIcon = matchedCat.icon;
+                                            return (
+                                                <CatIcon
+                                                    className="w-4 h-4 text-gray-500 group-hover:text-sky-300 transition-colors shrink-0"
+                                                    title={matchedCat.label}
+                                                />
+                                            );
+                                        })()}
+                                        <h3 className="font-bold text-sm sm:text-lg text-gray-200 group-hover:text-white transition-colors tracking-wide truncate">
                                             {hymn.title}
                                         </h3>
                                     </div>
