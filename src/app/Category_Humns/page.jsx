@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../loading';
 import Portal from '../Portal/Portal';
 import { UserContext } from '../context/User_Context';
-import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2 } from 'lucide-react';
+import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 
 export default function Category_Humns() {
@@ -24,10 +24,28 @@ export default function Category_Humns() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingHymnId, setEditingHymnId] = useState(null); // Track which hymn is being edited
 
+  //search State
+  const [search, setSearch] = useState(''); // Stores the search query text
+  const [showSearchBar, setShowSearchBar] = useState(false); // Controls search input visibility
+
   // --- API Functions ---
 
   // 1. Fetch Hymns
   const fetchHymns = async () => {
+    // If search is active, use search endpoint
+    if (search.trim()) {
+      try {
+        const { data } = await axios.get(
+          `https://worship-team-api.vercel.app/api/hymns/search?q=${encodeURIComponent(search)}`
+        );
+        return data;
+      } catch (error) {
+        console.error("Error searching hymns:", error);
+        return [];
+      }
+    }
+
+    // Otherwise, fetch by category
     let url = "https://worship-team-api.vercel.app/api/hymns";
 
     // Adjust URL based on Active Tab
@@ -60,7 +78,7 @@ export default function Category_Humns() {
       // User: Replace this URL with your actual Create/Post API endpoint
       const url = "https://worship-team-api.vercel.app/api/hymns/create";
 
-      await axios.post(url, formData, {
+      await axios.post(url, formData, { //formData is req.body
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
@@ -81,7 +99,7 @@ export default function Category_Humns() {
     try {
       const url = `https://worship-team-api.vercel.app/api/hymns/${id}`;
 
-      await axios.patch(url, formData, {
+      await axios.patch(url, formData, { //formData is req.body
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
@@ -135,7 +153,7 @@ export default function Category_Humns() {
   };
 
   const { data: humns = [], isLoading } = useQuery({
-    queryKey: ["humns", activeTab],
+    queryKey: ["humns", activeTab, search], // Re-fetch when search changes
     queryFn: fetchHymns,
   });
 
@@ -241,6 +259,73 @@ export default function Category_Humns() {
             )
           })}
         </div>
+
+        {/* Search Section - Only visible on "All Hymns" tab */}
+        {activeTab === 'all' && (
+          <div className="mb-6 flex flex-col items-center gap-3">
+            {/* Search Toggle Button */}
+            <button
+              onClick={() => {
+                setShowSearchBar(!showSearchBar);
+                if (showSearchBar) {
+                  setSearch(''); // Clear search when closing
+                }
+              }}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all duration-300 border backdrop-blur-md relative overflow-hidden group
+                ${showSearchBar
+                  ? 'bg-sky-500/20 border-sky-400/50 text-sky-200 shadow-[0_0_20px_rgba(56,189,248,0.3)]'
+                  : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                }`}
+            >
+              {showSearchBar && (
+                <div className="absolute inset-0 bg-sky-400/10 blur-xl rounded-full" />
+              )}
+              <Search className={`w-5 h-5 relative z-10 ${showSearchBar ? 'text-sky-300' : ''}`} />
+              <span className="font-medium relative z-10">
+                {showSearchBar ? 'Hide Search' : 'Search Hymns'}
+              </span>
+            </button>
+
+            {/* Animated Search Input */}
+            <AnimatePresence>
+              {showSearchBar && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, y: -10 }}
+                  animate={{ opacity: 1, height: 'auto', y: 0 }}
+                  exit={{ opacity: 0, height: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="w-full max-w-2xl overflow-hidden"
+                >
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-sky-400" />
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search by title (supports Arabic & English)..."
+                      className="w-full pl-12 pr-10 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/50 outline-none transition-all backdrop-blur-md shadow-lg"
+                      autoFocus
+                    />
+                    {search && (
+                      <button
+                        onClick={() => setSearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full bg-white/10 hover:bg-white/20 text-gray-400 hover:text-white transition-all"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  {search && (
+                    <p className="text-xs text-gray-400 mt-2 text-center">
+                      Searching for: <span className="text-sky-300 font-semibold">"{search}"</span>
+                    </p>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
 
         {/* Admin Controls */}
         {canEdit && (
