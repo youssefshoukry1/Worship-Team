@@ -17,8 +17,7 @@ export default function Navbar() {
   const [langMenuOpen, setLangMenuOpen] = useState(false);
 
   const navItems: NavItem[] = [
-    { name: "home", path: "/", id: "home-section" },
-    { name: "hymns", path: "/Category_Humns", id: "Category_Humns" },
+    { name: "hymns", path: "/", id: "home-section" },
     { name: "training", path: "/Trainings", id: "training-section" },
     { name: "workspace", path: "/WorkSpace", id: "WorkSpace-section" },
     { name: "contact", path: "/Contact", id: "contact-section" },
