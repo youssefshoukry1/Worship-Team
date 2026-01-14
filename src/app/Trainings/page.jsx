@@ -35,7 +35,7 @@ export default function Trainings() {
   const get_All_Users = () => {
     if (!isLogin) return <LogIn />;
     return axios
-      .get(`https://worship-team-api.vercel.app/api/users/${churchId}`, {
+      .get(`https://worship-team-api.vercel.app/api/users/my-church`, {
         headers: { Authorization: `Bearer ${isLogin}` },
       })
       .then((res) => res.data)
