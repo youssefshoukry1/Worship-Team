@@ -211,9 +211,8 @@ export default function ChurchS_Dashboards() {
                                 : 'border-sky-500/20 text-sky-300/70 bg-sky-500/5 hover:bg-sky-500/10'}`}
                           >
                             <option value="USER" className="bg-[#0f172a] text-gray-300">USER</option>
-                            <option value="Admin" className="bg-[#0f172a] text-amber-300">Admin</option>
+                            <option value="ADMIN" className="bg-[#0f172a] text-amber-300">ADMIN</option>
                             <option value="MANEGER" className="bg-[#0f172a] text-emerald-300">MANEGER</option>
-                            <option value="PROGRAMER" className="bg-[#0f172a] text-rose-300">PROGRAMER</option>
                           </select>
                         </div>
                       ))
