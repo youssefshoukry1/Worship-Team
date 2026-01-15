@@ -1,5 +1,6 @@
 'use client';
 import React, { useContext, useState } from 'react';
+import { transposeScale, transposeChords } from '../utils/musicUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PlayCircle, Trash2, Heart, Music, ListMusic, Gift, Star, Sparkles, GraduationCap } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
@@ -73,70 +74,14 @@ export default function WorkSpace() {
                     >
                         {workspace.length > 0 ? (
                             workspace.map((hymn, index) => (
-                                <motion.div
+                                <WorkspaceItem
                                     key={hymn._id || index}
+                                    hymn={hymn}
+                                    index={index}
+                                    categories={categories}
+                                    removeFromWorkspace={removeFromWorkspace}
                                     variants={itemVariants}
-                                    className="group relative grid grid-cols-12 gap-2 sm:gap-4 p-3 sm:p-5 items-center 
-                               bg-[#13132b]/60 hover:bg-[#1a1a38] 
-                               border border-white/5 hover:border-sky-500/30 
-                               rounded-2xl transition-all duration-300 backdrop-blur-sm
-                               hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
-                                >
-                                    {/* Index */}
-                                    <div className="col-span-1 sm:col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
-                                        {(index + 1).toString().padStart(2, '0')}
-                                    </div>
-
-                                    {/* Song Title */}
-                                    <div className="col-span-11 sm:col-span-5 md:col-span-5 relative z-10 flex items-center gap-2 py-4">
-                                        {(() => {
-                                            const matchedCat = categories.find(c => c.id === hymn.party) || { icon: Music };
-                                            const CatIcon = matchedCat.icon;
-                                            return (
-                                                <CatIcon
-                                                    className="w-4 h-4 text-gray-500 group-hover:text-sky-300 transition-colors shrink-0"
-                                                    title={matchedCat.label}
-                                                />
-                                            );
-                                        })()}
-                                        <h3 className="font-bold text-sm sm:text-lg text-gray-200 group-hover:text-white transition-colors tracking-wide truncate">
-                                            {hymn.title}
-                                        </h3>
-                                    </div>
-
-                                    {/* Key/Scale - Under Title on Mobile (Left Aligned), Center on Desktop */}
-                                    <div className="col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0">
-                                        <KeyDisplay humn_parameter={hymn} />
-                                    </div>
-
-                                    {/* Media Link */}
-                                    <div className="col-span-6 sm:col-span-3 flex justify-center items-center relative z-10">
-                                        {hymn.link ? (
-                                            <a
-                                                href={hymn.link}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all w-full sm:w-auto justify-center"
-                                            >
-                                                <PlayCircle className="w-4 h-4" />
-                                                <span className="text-sm font-medium">Listen</span>
-                                            </a>
-                                        ) : (
-                                            <span className="text-gray-700 text-xs">—</span>
-                                        )}
-                                    </div>
-
-                                    {/* Remove Action */}
-                                    <div className="col-span-6 sm:col-span-1 flex justify-center items-center relative z-10">
-                                        <button
-                                            onClick={() => removeFromWorkspace(hymn._id)}
-                                            className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 sm:border-transparent hover:border-red-500/20 bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
-                                            title="Remove from Workspace"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </motion.div>
+                                />
                             ))
                         ) : (
                             <div className="p-20 text-center flex flex-col items-center justify-center text-gray-500 bg-white/5 rounded-3xl border border-white/5 border-dashed">
@@ -153,18 +98,36 @@ export default function WorkSpace() {
 }
 
 // Sub-component for handling Key/Chords toggle state (Reused)
-function KeyDisplay({ humn_parameter }) {
+function KeyDisplay({ scale, relatedChords, onTranspose }) {
     const [showChords, setShowChords] = useState(false);
 
     return (
         <div className="flex flex-col items-start sm:items-center gap-2 w-full">
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
                 <span className={`text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
-          ${humn_parameter.scale ? 'text-blue-300 bg-blue-500/10' : 'text-gray-600'}`}>
-                    {humn_parameter.scale || '-'}
+          ${scale ? 'text-blue-300 bg-blue-500/10' : 'text-gray-600'}`}>
+                    {scale || '-'}
                 </span>
 
-                {humn_parameter.relatedChords && (
+                {/* Transpose Controls */}
+                <div className="flex items-center rounded-lg border border-white/10 overflow-hidden bg-white/5">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onTranspose(-1); }}
+                        className="px-2 py-0.5 hover:bg-white/10 text-[10px] sm:text-xs text-red-300 font-bold border-r border-white/5"
+                        title="Transpose -1"
+                    >
+                        -
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onTranspose(1); }}
+                        className="px-2 py-0.5 hover:bg-white/10 text-[10px] sm:text-xs text-green-300 font-bold border-l border-white/5"
+                        title="Transpose +1"
+                    >
+                        +
+                    </button>
+                </div>
+
+                {relatedChords && (
                     <button
                         onClick={() => setShowChords(!showChords)}
                         className={`p-1 rounded-full transition-all duration-300 border border-transparent 
@@ -179,7 +142,7 @@ function KeyDisplay({ humn_parameter }) {
             </div>
 
             <AnimatePresence>
-                {showChords && humn_parameter.relatedChords && (
+                {showChords && relatedChords && (
                     <motion.div
                         initial={{ opacity: 0, height: 0, y: -5 }}
                         animate={{ opacity: 1, height: 'auto', y: 0 }}
@@ -187,7 +150,7 @@ function KeyDisplay({ humn_parameter }) {
                         className="overflow-hidden w-full flex justify-start sm:justify-center"
                     >
                         <div className="mt-1 flex flex-wrap justify-start sm:justify-center gap-1.5 w-full sm:max-w-[200px]">
-                            {humn_parameter.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, i) => (
+                            {relatedChords.split(/[, ]+/).filter(Boolean).map((chord, i) => (
                                 <span key={i} className="text-[10px] uppercase font-bold text-sky-200 bg-sky-900/30 px-1.5 py-0.5 rounded border border-sky-500/20">
                                     {chord}
                                 </span>
@@ -197,5 +160,82 @@ function KeyDisplay({ humn_parameter }) {
                 )}
             </AnimatePresence>
         </div>
+    );
+}
+
+function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants }) {
+    const [transposeStep, setTransposeStep] = useState(0);
+
+    const currentScale = transposeScale(hymn.scale, transposeStep);
+    const currentChords = transposeChords(hymn.relatedChords, transposeStep);
+
+    return (
+        <motion.div
+            variants={variants}
+            className="group relative grid grid-cols-12 gap-2 sm:gap-4 p-3 sm:p-5 items-center 
+                               bg-[#13132b]/60 hover:bg-[#1a1a38] 
+                               border border-white/5 hover:border-sky-500/30 
+                               rounded-2xl transition-all duration-300 backdrop-blur-sm
+                               hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
+        >
+            {/* Index */}
+            <div className="col-span-1 sm:col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
+                {(index + 1).toString().padStart(2, '0')}
+            </div>
+
+            {/* Song Title */}
+            <div className="col-span-11 sm:col-span-5 md:col-span-5 relative z-10 flex items-center gap-2 py-4">
+                {(() => {
+                    const matchedCat = categories.find(c => c.id === hymn.party) || { icon: Music };
+                    const CatIcon = matchedCat.icon;
+                    return (
+                        <CatIcon
+                            className="w-4 h-4 text-gray-500 group-hover:text-sky-300 transition-colors shrink-0"
+                            title={matchedCat.label}
+                        />
+                    );
+                })()}
+                <h3 className="font-bold text-sm sm:text-lg text-gray-200 group-hover:text-white transition-colors tracking-wide truncate">
+                    {hymn.title}
+                </h3>
+            </div>
+
+            {/* Key/Scale - Under Title on Mobile (Left Aligned), Center on Desktop */}
+            <div className="col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0">
+                <KeyDisplay
+                    scale={currentScale}
+                    relatedChords={currentChords}
+                    onTranspose={(val) => setTransposeStep(prev => prev + val)}
+                />
+            </div>
+
+            {/* Media Link */}
+            <div className="col-span-6 sm:col-span-3 flex justify-center items-center relative z-10">
+                {hymn.link ? (
+                    <a
+                        href={hymn.link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all w-full sm:w-auto justify-center"
+                    >
+                        <PlayCircle className="w-4 h-4" />
+                        <span className="text-sm font-medium">Listen</span>
+                    </a>
+                ) : (
+                    <span className="text-gray-700 text-xs">—</span>
+                )}
+            </div>
+
+            {/* Remove Action */}
+            <div className="col-span-6 sm:col-span-1 flex justify-center items-center relative z-10">
+                <button
+                    onClick={() => removeFromWorkspace(hymn._id)}
+                    className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 sm:border-transparent hover:border-red-500/20 bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
+                    title="Remove from Workspace"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            </div>
+        </motion.div>
     );
 }
