@@ -38,15 +38,15 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <LanguageProvider>
-          <Navbar />
-          <HymnsContextProvider>
-            <UserContextProvider>
+          <UserContextProvider>
+            <HymnsContextProvider>
+              <Navbar />
               <QueryProvider>
                 <PageTransition>{children}</PageTransition>
               </QueryProvider>
-            </UserContextProvider>
-          </HymnsContextProvider>
-          <Footer />
+              <Footer />
+            </HymnsContextProvider>
+          </UserContextProvider>
         </LanguageProvider>
       </body>
     </html>

@@ -2,6 +2,7 @@
 
 import React, { useContext, useState } from "react";
 import { motion, AnimatePresence } from 'framer-motion';
+import Login from '../login/page'
 import {
   PlayCircle,
   Mic,
@@ -33,7 +34,7 @@ export default function Trainings() {
   const [selectedHymnIds, setSelectedHymnIds] = useState([]);
 
   const get_All_Users = () => {
-    if (!isLogin) return <LogIn />;
+    if (!isLogin) return <Login />;
     return axios
       .get(`https://worship-team-api.vercel.app/api/users/my-church`, {
         headers: { Authorization: `Bearer ${isLogin}` },
@@ -53,7 +54,7 @@ export default function Trainings() {
   };
 
   const add_song = async (userid, { hymnIds }) => {
-    if (!isLogin) return <LogIn />;
+    if (!isLogin) return <Login />;
     setSubmitClicked(true);
     return axios
       .patch(
@@ -75,7 +76,7 @@ export default function Trainings() {
   };
 
   const update_song = async (userid, songid, { song, scale, link }) => {
-    if (!isLogin) return <LogIn />;
+    if (!isLogin) return <Login />;
     setSubmitClicked(true);
     return axios.patch(
       `https://worship-team-api.vercel.app/api/users/${userid}/${songid}/${churchId}`,
@@ -91,7 +92,7 @@ export default function Trainings() {
   };
 
   const delete_All_Songs = async (userid) => {
-    if (!isLogin) return <LogIn />;
+    if (!isLogin) return <Login />;
     return axios
       .delete(`https://worship-team-api.vercel.app/api/users/${userid}/allsongs/${churchId}`,
         { headers: { Authorization: `Bearer ${isLogin}` } }

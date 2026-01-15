@@ -1,10 +1,11 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useContext } from "react";
 import { motion, AnimatePresence, easeOut } from "framer-motion";
 import { useRouter, usePathname } from "next/navigation";
 import { Menu, X, Globe, ChevronDown } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 import { translations } from "../i18n/translations";
+import { UserContext } from "../context/User_Context";
 
 interface NavItem {
   name: string;
@@ -14,14 +15,23 @@ interface NavItem {
 
 export default function Navbar() {
   const { t, language, setLanguage } = useLanguage();
+  const { isLogin, UserRole } = useContext(UserContext);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
 
+  // Default Items
   const navItems: NavItem[] = [
     { name: "hymns", path: "/", id: "home-section" },
     { name: "training", path: "/Trainings", id: "training-section" },
     { name: "workspace", path: "/WorkSpace", id: "WorkSpace-section" },
+    { name: "Dashboard", path: "/Dashboard", id: "Dashboard-section" },
     { name: "contact", path: "/Contact", id: "contact-section" },
   ];
+
+  /* 
+     Removed the dynamic push to navItems here.
+     The Dashboard button is now rendered explicitly in the JSX 
+     to ensure it appears next to the language switcher.
+  */
 
   const router = useRouter();
   const pathname = usePathname();
@@ -83,7 +93,7 @@ export default function Navbar() {
 
       {/* Desktop Menu */}
       <motion.ul
-        className="relative hidden md:flex gap-8 items-center"
+        className="relative hidden md:flex gap-8 items-center "
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -99,12 +109,36 @@ export default function Navbar() {
                     : "text-gray-300 hover:text-sky-300"
                 }`}
             >
-              {t(name as keyof (typeof translations)["en"])}
+              {/* @ts-ignore */}
+              {t(name)}
             </button>
           </motion.li>
         ))}
+
+        {/* Dashboard Link (Admin/Manager/Programmers) - Placed next to Language Switcher */}
+        {isLogin &&
+          UserRole &&
+          ["Admin", "MANEGER", "programers", "Programmer"].includes(
+            UserRole
+          ) && (
+            <motion.li variants={itemVariants} className="list-none">
+              <button
+                onClick={() => router.push("/Dashboard")}
+                className={`text-sm lg:text-base font-bold cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg border border-sky-500/30
+                ${
+                  pathname === "/Dashboard"
+                    ? "text-sky-400 bg-sky-500/10 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
+                    : "text-sky-300 hover:text-white hover:bg-sky-500/20 hover:shadow-[0_0_10px_rgba(14,165,233,0.2)]"
+                }`}
+              >
+                {/* @ts-ignore */}
+                {t("dashboard")}
+              </button>
+            </motion.li>
+          )}
+
         {/* Language Switcher Desktop */}
-        <div className="relative">
+        <div className="relative ">
           <button
             onClick={() => setLangMenuOpen(!langMenuOpen)}
             className="flex items-center gap-1 text-gray-300 hover:text-sky-400 transition"
@@ -179,10 +213,37 @@ export default function Navbar() {
                           : "text-gray-300 hover:bg-white/5 hover:text-white"
                       }`}
                   >
-                    {t(name as keyof (typeof translations)["en"])}
+                    {/* @ts-ignore */}
+                    {t(name)}
                   </button>
                 </li>
               ))}
+
+              {/* Mobile Dashboard Link */}
+              {isLogin &&
+                UserRole &&
+                ["Admin", "MANEGER", "programers", "Programmer"].includes(
+                  UserRole
+                ) && (
+                  <li>
+                    <button
+                      onClick={() => {
+                        router.push("/Dashboard");
+                        setMenuOpen(false);
+                      }}
+                      className={`block w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm
+                      ${
+                        pathname === "/Dashboard"
+                          ? "bg-sky-500/20 text-sky-400"
+                          : "text-sky-300 hover:bg-white/5 hover:text-white"
+                      }`}
+                    >
+                      {/* @ts-ignore */}
+                      {t("dashboard")}
+                    </button>
+                  </li>
+                )}
+
               {/* Mobile Language Switcher */}
               <li className="w-full">
                 <div className="relative w-full">

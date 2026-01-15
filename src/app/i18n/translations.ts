@@ -16,6 +16,7 @@ export const translations = {
     emptyWorkspace: "Your workspace is empty",
     goToLibrary: "Go to the Hymns Library to add some songs.",
     listen: "Listen",
+    dashboard: "Dashboard",
   },
   ar: {
     home: "الرئيسية",
@@ -33,6 +34,7 @@ export const translations = {
     emptyWorkspace: "مساحة العمل فارغة",
     goToLibrary: "اذهب إلى مكتبة الترانيم لإضافة بعض الأغاني.",
     listen: "استمع",
+    dashboard: "لوحة التحكم",
   },
   de: {
     home: "Startseite",
@@ -50,5 +52,6 @@ export const translations = {
     emptyWorkspace: "Ihr Arbeitsbereich ist leer",
     goToLibrary: "Gehen Sie zur Hymnenbibliothek, um Lieder hinzuzufügen.",
     listen: "Zuhören",
+    dashboard: "Dashboard",
   }
 };
