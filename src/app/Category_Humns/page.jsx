@@ -235,9 +235,7 @@ export default function Category_Humns() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.15),transparent_70%)]" />
 
       <div className="relative z-10 max-w-7xl mx-auto">
-        <h1 className="text-3xl sm:text-5xl font-extrabold mb-6 text-center bg-linear-to-br from-sky-300 via-blue-400 to-indigo-500 text-transparent bg-clip-text drop-shadow-lg">
-          🎶 Hymns Library
-        </h1>
+
 
         {/* Search Section - Centered under Title */}
         <div className="mb-8 flex items-center justify-center gap-3 relative z-20 h-12">
