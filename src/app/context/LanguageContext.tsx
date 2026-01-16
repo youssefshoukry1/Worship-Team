@@ -26,7 +26,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     const savedLang = localStorage.getItem("app-language") as Language;
     if (savedLang && ["en", "ar", "de"].includes(savedLang)) {
       setLanguage(savedLang);
-      document.documentElement.dir = savedLang === "ar" ? "rtl" : "ltr";
+      document.documentElement.dir = "ltr";
       document.documentElement.lang = savedLang;
     }
   }, []);
@@ -34,7 +34,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const handleSetLanguage = (lang: Language) => {
     setLanguage(lang);
     localStorage.setItem("app-language", lang);
-    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+    document.documentElement.dir = "ltr";
     document.documentElement.lang = lang;
   };
 
@@ -49,7 +49,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         language,
         setLanguage: handleSetLanguage,
         t,
-        dir: language === "ar" ? "rtl" : "ltr",
+        dir: "ltr",
       }}
     >
       {children}
