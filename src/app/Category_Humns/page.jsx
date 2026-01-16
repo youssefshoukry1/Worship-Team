@@ -6,6 +6,7 @@ import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../loading';
 import Portal from '../Portal/Portal';
+import Metronome from '../Metronome/page';
 import { UserContext } from '../context/User_Context';
 import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
@@ -21,7 +22,7 @@ export default function Category_Humns() {
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [formData, setFormData] = useState({ title: '', scale: '', relatedChords: '', link: '', party: 'All' });
+  const [formData, setFormData] = useState({ title: '', scale: '', relatedChords: '', link: '', party: 'All', BPM: '', timeSignature: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingHymnId, setEditingHymnId] = useState(null); // Track which hymn is being edited
 
@@ -106,7 +107,7 @@ export default function Category_Humns() {
 
       queryClient.invalidateQueries(["humns"]);
       closeModal();
-      setFormData({ title: '', scale: '', relatedChords: '', link: '', party: 'All' });
+      setFormData({ title: '', scale: '', relatedChords: '', link: '', party: 'All', BPM: '', timeSignature: '' });
       setEditingHymnId(null);
     } catch (error) {
       console.error("Error editing hymn:", error);
@@ -131,25 +132,6 @@ export default function Category_Humns() {
       queryClient.invalidateQueries(["humns"]);
     } catch (error) {
       console.error("Error deleting hymn:", error);
-    }
-  };
-
-  // 4. Delete All Hymns (Utility Function - Use with Caution)
-  const delete_All_Hymns = async () => {
-    if (!isLogin) return;
-    if (!confirm("WARNING: This will delete ALL hymns. Are you sure?")) return;
-
-    try {
-      // User: Replace this URL with your actual Delete All API endpoint
-      const url = "https://worship-team-api.vercel.app/api/hymns";
-
-      await axios.delete(url, {
-        headers: { Authorization: `Bearer ${isLogin}` }
-      });
-
-      queryClient.invalidateQueries(["humns"]);
-    } catch (error) {
-      console.error("Error deleting all hymns:", error);
     }
   };
 
@@ -184,7 +166,9 @@ export default function Category_Humns() {
       scale: hymn.scale || '',
       relatedChords: hymn.relatedChords || '',
       link: hymn.link || '',
-      party: hymn.party || 'All'
+      party: hymn.party || 'All',
+      BPM: hymn.BPM || '',
+      timeSignature: hymn.timeSignature || ''
     });
     setEditingHymnId(hymn._id); // Set the ID of the hymn being edited
     setShowModal(true);
@@ -208,7 +192,7 @@ export default function Category_Humns() {
   ];
 
   // Helper to check permission
-  const canEdit = UserRole === 'ADMIN' || UserRole === 'MANEGER';
+  const canEdit = UserRole === 'ADMIN' || UserRole === 'MANEGER' || UserRole === 'PROGRAMER';
 
   // Animation Variants
   const containerVariants = {
@@ -335,15 +319,6 @@ export default function Category_Humns() {
         {canEdit && (
           <div className="flex flex-wrap justify-end items-center gap-3 mb-6">
             <button
-              onClick={delete_All_Hymns}
-              className="group flex items-center justify-center w-10 h-10 rounded-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all duration-300 relative overflow-hidden"
-              title="Delete All Hymns"
-            >
-              <Trash2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
-              <div className="absolute inset-0 bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </button>
-
-            <button
               onClick={openModal}
               className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-full hover:bg-gray-100 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_25px_rgba(255,255,255,0.5)] active:scale-95 font-semibold text-sm"
             >
@@ -462,6 +437,29 @@ export default function Category_Humns() {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">BPM</label>
+                      <input
+                        type="text"
+                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition"
+                        placeholder="e.g. 120"
+                        value={formData.BPM}
+                        onChange={(e) => setFormData({ ...formData, BPM: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Time Signature</label>
+                      <input
+                        type="text"
+                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition"
+                        placeholder="e.g. 4/4"
+                        value={formData.timeSignature}
+                        onChange={(e) => setFormData({ ...formData, timeSignature: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
 
 
                   <div>
@@ -563,7 +561,7 @@ function KeyDisplay({ scale, relatedChords, onTranspose }) {
           >
             <div className="mt-1 flex flex-wrap justify-start sm:justify-center gap-1.5 w-full sm:max-w-[200px]">
               {relatedChords.split(/[, ]+/).filter(Boolean).map((chord, i) => (
-                <span key={i} className="text-[10px] uppercase font-bold text-sky-200 bg-sky-900/30 px-1.5 py-0.5 rounded border border-sky-500/20">
+                <span key={i} className="text-[10px] font-bold text-sky-200 bg-sky-900/30 px-1.5 py-0.5 rounded border border-sky-500/20">
                   {chord}
                 </span>
               ))}
@@ -607,6 +605,18 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       <div className="col-span-1 sm:col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
         {(index + 1).toString().padStart(2, '0')}
       </div>
+
+      {/* BPM and Time Signature Display */}
+      {(humn.BPM || humn.timeSignature) && (
+        <div className="absolute top-2 right-2 flex items-center gap-2 bg-black/40 pr-3 pl-1 py-0.5 rounded-full border border-white/5 z-20 backdrop-blur-sm">
+          {humn.BPM && <Metronome id={humn._id} bpm={humn.BPM} minimal={true} />}
+          <div className="flex gap-2 text-[10px] font-mono text-gray-500">
+            {humn.BPM && <span>{humn.BPM} bpm</span>}
+            {humn.BPM && humn.timeSignature && <span className="text-gray-600">|</span>}
+            {humn.timeSignature && <span>{humn.timeSignature}</span>}
+          </div>
+        </div>
+      )}
 
       {/* Song Title */}
       <div className="col-span-11 sm:col-span-5 md:col-span-5 relative z-10 flex items-center gap-2 py-4">

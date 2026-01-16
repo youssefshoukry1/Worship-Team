@@ -3,6 +3,7 @@ import React, { useContext, useState } from 'react';
 import { transposeScale, transposeChords } from '../utils/musicUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PlayCircle, Trash2, Heart, Music, ListMusic, Gift, Star, Sparkles, GraduationCap } from 'lucide-react';
+import Metronome from '../Metronome/page';
 import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
 
@@ -182,6 +183,18 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants 
             <div className="col-span-1 sm:col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
                 {(index + 1).toString().padStart(2, '0')}
             </div>
+
+            {/* BPM and Time Signature Display */}
+            {(hymn.BPM || hymn.timeSignature) && (
+                <div className="absolute top-2 right-2 flex items-center gap-2 bg-black/40 pr-3 pl-1 py-0.5 rounded-full border border-white/5 z-20 backdrop-blur-sm">
+                    {hymn.BPM && <Metronome id={hymn._id} bpm={hymn.BPM} minimal={true} />}
+                    <div className="flex gap-2 text-[10px] font-mono text-gray-500">
+                        {hymn.BPM && <span>{hymn.BPM} bpm</span>}
+                        {hymn.BPM && hymn.timeSignature && <span className="text-gray-600">|</span>}
+                        {hymn.timeSignature && <span>{hymn.timeSignature}</span>}
+                    </div>
+                </div>
+            )}
 
             {/* Song Title */}
             <div className="col-span-11 sm:col-span-5 md:col-span-5 relative z-10 flex items-center gap-2 py-4">
