@@ -523,14 +523,14 @@ function KeyDisplay({ scale, relatedChords, onTranspose }) {
         <div className="flex items-center rounded-lg border border-white/10 overflow-hidden bg-white/5">
           <button
             onClick={(e) => { e.stopPropagation(); onTranspose(-1); }}
-            className="px-2 py-0.5 hover:bg-white/10 text-[10px] sm:text-xs text-red-300 font-bold border-r border-white/5"
+            className="px-2 py-0.5 hover:bg-blue-500/10 text-[10px] sm:text-xs text-red-300 font-bold border-r border-white/5"
             title="Transpose -1"
           >
             -
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onTranspose(1); }}
-            className="px-2 py-0.5 hover:bg-white/10 text-[10px] sm:text-xs text-green-300 font-bold border-l border-white/5"
+            className="px-2 py-0.5 hover:bg-blue-500/10 text-[10px] sm:text-xs text-green-300 font-bold border-l border-white/5"
             title="Transpose +1"
           >
             +
@@ -608,7 +608,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
 
       {/* BPM and Time Signature Display */}
       {(humn.BPM || humn.timeSignature) && (
-        <div className="absolute top-2 right-2 flex items-center gap-2 bg-black/40 pr-3 pl-1 py-0.5 rounded-full border border-white/5 z-20 backdrop-blur-sm">
+        <div className="absolute lg:top-1 top-2 right-2 flex items-center gap-2 bg-black/40 pr-3 pl-1 py-0.5 rounded-full border border-white/5 z-20 backdrop-blur-sm">
           {humn.BPM && <Metronome id={humn._id} bpm={humn.BPM} minimal={true} />}
           <div className="flex gap-2 text-[10px] font-mono text-gray-500">
             {humn.BPM && <span>{humn.BPM} bpm</span>}
@@ -662,7 +662,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       </div>
 
       {/* Actions */}
-      <div className="col-span-6 sm:col-span-1 flex justify-center items-center gap-2 relative z-10">
+      <div className="col-span-6 sm:col-span-1 flex justify-center items-center gap-2 relative z-10 lg:top-2">
         <button
           onClick={handleAddToWorkspace}
           disabled={isHymnInWorkspace(humn._id)}
