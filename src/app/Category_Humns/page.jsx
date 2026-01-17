@@ -526,13 +526,24 @@ export default function Category_Humns() {
                         </div>
                         <div>
                           <label className="block text-gray-400 text-sm mb-2">Time Signature</label>
-                          <input
-                            type="text"
-                            className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition"
-                            placeholder="e.g. 4/4"
+                          <select
+                            className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition [&>option]:bg-gray-900"
                             value={formData.timeSignature}
                             onChange={(e) => setFormData({ ...formData, timeSignature: e.target.value })}
-                          />
+                          >
+                            <option value="1/4">1/4</option>
+                            <option value="2/4">2/4</option>
+                            <option value="3/4">3/4</option>
+                            <option value="4/4">4/4</option>
+                            <option value="5/4">5/4</option>
+                            <option value="7/4">7/4</option>
+                            <option value="5/8">5/8</option>
+                            <option value="6/8">6/8</option>
+                            <option value="7/8">7/8</option>
+                            <option value="9/8">9/8</option>
+                            <option value="12/8">12/8</option>
+                            <option value="8/10">8/10</option>
+                          </select>
                         </div>
                       </div>
 
@@ -688,7 +699,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       {/* BPM and Time Signature Display */}
       {(humn.BPM || humn.timeSignature) && (
         <div className="absolute lg:top-1 top-2 right-2 flex items-center gap-2 bg-black/40 pr-3 pl-1 py-0.5 rounded-full border border-white/5 z-20 backdrop-blur-sm">
-          {humn.BPM && <Metronome id={humn._id} bpm={humn.BPM} minimal={true} />}
+          {humn.BPM && <Metronome id={humn._id} bpm={humn.BPM} timeSignature={humn.timeSignature || "4/4"} minimal={true} />}
           <div className="flex gap-2 text-[10px] font-mono text-gray-500">
             {humn.BPM && <span>{humn.BPM} bpm</span>}
             {humn.BPM && humn.timeSignature && <span className="text-gray-600">|</span>}

@@ -188,7 +188,7 @@ export default function Trainings() {
                 </div>
 
                 {/* Add Song Action */}
-                {(UserRole === 'Admin' || UserRole === 'MANEGER' || user_id === m._id) && (
+                {(UserRole === 'Admin' || UserRole === 'MANEGER' || user_id === m._id  || UserRole === 'PROGRAMER') && (
                   <motion.button
                     whileHover={{ scale: 1.1, rotate: 90 }}
                     whileTap={{ scale: 0.9 }}
@@ -253,7 +253,7 @@ export default function Trainings() {
 
                           {/* Actions */}
                           <div className="col-span-6 flex justify-center items-center relative z-10">
-                            {(UserRole === 'Admin' || UserRole === 'MANEGER' || user_id === m._id) && (
+                            {(UserRole === 'Admin' || UserRole === 'MANEGER' || user_id === m._id || UserRole === 'PROGRAMER') && (
                               <button
                                 onClick={() => delete_song(m._id, p._id)}
                                 className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 hover:border-red-500/20 bg-white/5 flex-1 flex justify-center"

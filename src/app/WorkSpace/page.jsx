@@ -187,7 +187,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants 
             {/* BPM and Time Signature Display */}
             {(hymn.BPM || hymn.timeSignature) && (
                 <div className="absolute top-2 right-2 flex items-center gap-2 bg-black/40 pr-3 pl-1 py-0.5 rounded-full border border-white/5 z-20 backdrop-blur-sm">
-                    {hymn.BPM && <Metronome id={hymn._id} bpm={hymn.BPM} minimal={true} />}
+                    {hymn.BPM && <Metronome id={hymn._id} bpm={hymn.BPM} timeSignature={hymn.timeSignature || "4/4"} minimal={true} />}
                     <div className="flex gap-2 text-[10px] font-mono text-gray-500">
                         {hymn.BPM && <span>{hymn.BPM} bpm</span>}
                         {hymn.BPM && hymn.timeSignature && <span className="text-gray-600">|</span>}

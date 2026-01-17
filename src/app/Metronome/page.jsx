@@ -2,7 +2,22 @@
 import { useEffect, useRef, useState } from "react";
 import { Play, Square } from "lucide-react";
 
-export default function Metronome({ bpm = 130, beats = 4, minimal = false, id }) {
+/**
+ * Parse time signature string to extract beats per measure
+ * @param {string} timeSignature - Time signature in format "3/4", "6/8", etc.
+ * @returns {number} Number of beats per measure
+ */
+function parseTimeSignature(timeSignature) {
+    if (!timeSignature || typeof timeSignature !== 'string') return 4;
+
+    const parts = timeSignature.split('/');
+    const beats = parseInt(parts[0], 10);
+
+    return isNaN(beats) || beats <= 0 ? 4 : beats;
+}
+
+export default function Metronome({ bpm = 130, timeSignature = "4/4", minimal = false, id }) {
+    const beats = parseTimeSignature(timeSignature);
     const [isPlaying, setIsPlaying] = useState(false); // UI State
     const isRunningRef = useRef(false); // Logic Guard (Sync source of truth)
 
@@ -54,12 +69,19 @@ export default function Metronome({ bpm = 130, beats = 4, minimal = false, id })
         osc.connect(gainNode);
         gainNode.connect(ctx.destination);
 
-        // Frequencies: High for Downbeat (1), Low for others
-        if (beatNumber === 0) {
-            osc.frequency.value = 1000; // High Pitch (Beat 1)
+        // Determine if this is an accented beat
+        // For compound time signatures (6/8, 9/8, 12/8), accent every 3 beats
+        // For simple time signatures, accent only beat 1
+        const isCompound = timeSignature.endsWith('/8') && beats >= 6;
+        const isAccent = isCompound
+            ? (beatNumber % 3 === 0)  // Compound: accent on 1, 4, 7, 10, etc.
+            : (beatNumber === 0);      // Simple: accent only on beat 1
+
+        if (isAccent) {
+            osc.frequency.value = 1000; // High Pitch (Accented beats)
             gainNode.gain.setValueAtTime(1, time);
         } else {
-            osc.frequency.value = 800;  // Low Pitch (Other beats)
+            osc.frequency.value = 800;  // Low Pitch (Unaccented beats)
             gainNode.gain.setValueAtTime(0.7, time);
         }
 
