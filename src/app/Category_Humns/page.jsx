@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useContext } from 'react';
 import { transposeScale, transposeChords } from '../utils/musicUtils';
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../loading';
@@ -19,6 +19,7 @@ export default function Category_Humns() {
   const [activeTab, setActiveTab] = useState('all');
 
 
+
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -33,8 +34,8 @@ export default function Category_Humns() {
   // --- API Functions ---
 
   // 1. Fetch Hymns
-  const fetchHymns = async () => {
-    // If search is active, use search endpoint
+  const fetchHymns = async ({ pageParam = 0 }) => {
+    // If search is active, use search endpoint (No pagination for search currently)
     if (search.trim()) {
       try {
         const { data } = await axios.get(
@@ -47,21 +48,20 @@ export default function Category_Humns() {
       }
     }
 
-    // Otherwise, fetch by category
-    let url = "https://worship-team-api.vercel.app/api/hymns";
+    // Otherwise, fetch by category with pagination
+    const baseUrl = "https://worship-team-api.vercel.app/api/hymns";
+    let endpoint = "";
 
-    // Adjust URL based on Active Tab
-    if (activeTab === 'christmass') {
-      url = "https://worship-team-api.vercel.app/api/hymns/christmass";
-    } else if (activeTab === 'easter') {
-      url = "https://worship-team-api.vercel.app/api/hymns/easter";
-    } else if (activeTab === 'newyear') {
-      url = "https://worship-team-api.vercel.app/api/hymns/newyear";
-    } else if (activeTab === 'motherday') {
-      url = "https://worship-team-api.vercel.app/api/hymns/motherday";
-    } else if (activeTab === 'graduation') {
-      url = "https://worship-team-api.vercel.app/api/hymns/graduation";
+    switch (activeTab) {
+      case 'christmass': endpoint = "/christmass"; break;
+      case 'easter': endpoint = "/easter"; break;
+      case 'newyear': endpoint = "/newyear"; break;
+      case 'motherday': endpoint = "/motherday"; break;
+      case 'graduation': endpoint = "/graduation"; break;
+      default: endpoint = ""; break;
     }
+
+    const url = `${baseUrl}${endpoint}?skip=${pageParam}&limit=10`;
 
     try {
       const { data } = await axios.get(url);
@@ -86,7 +86,7 @@ export default function Category_Humns() {
 
       queryClient.invalidateQueries(["humns"]);
       closeModal();
-      setFormData({ title: '', scale: '', relatedChords: '', link: '', party: 'All' });
+      setFormData({ title: '', scale: '', relatedChords: '', link: '', BPM: '', timeSignature: '', party: 'All' });
     } catch (error) {
       console.error("Error adding hymn:", error);
     } finally {
@@ -136,10 +136,59 @@ export default function Category_Humns() {
   };
 
   // All data
-  const { data: humns = [], isLoading } = useQuery({
-    queryKey: ["humns", activeTab, search], // Re-fetch when search changes
+  // All data
+  const {
+    data,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
+    queryKey: ["humns", activeTab, search],
     queryFn: fetchHymns,
+    getNextPageParam: (lastPage, allPages) => {
+      // 1. لو البحث شغال، مفيش Pagination
+      if (search.trim()) return undefined;
+
+      // 2. لو الصفحة الأخيرة فاضية أو عدد عناصرها أقل من الـ limit (10)
+      // ده معناه إننا وصلنا لنهاية البيانات
+      if (!lastPage || lastPage.length < 10 || lastPage.length === 0) {
+        return undefined;
+      }
+
+      // 3. لو لسه فيه بيانات، احسب الـ skip القادم
+      return allPages.length * 10;
+    },
+    initialPageParam: 0,
   });
+
+  // السطر القديم: const humns = data ? data.pages.flat() : [];
+
+  // السطر الجديد (بيشيل أي عنصر متكرر بناءً على الـ _id):
+  const humns = data
+    ? Array.from(new Map(data.pages.flat().map(item => [item._id, item])).values())
+    : [];
+
+  // Infinite Scroll Trigger
+  const loadMoreRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 } // Trigger when just starting to come into view
+    );
+
+    if (loadMoreRef.current) observer.observe(loadMoreRef.current);
+
+    return () => {
+      if (loadMoreRef.current) observer.unobserve(loadMoreRef.current);
+      observer.disconnect();
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   ///////////////////////////////// API proccess end here /////////////////////////////
 
@@ -213,6 +262,8 @@ export default function Category_Humns() {
 
 
   return (
+
+
     <section id="Category_Humns" className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
       {/* Background Gradients */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_70%)]" />
@@ -372,138 +423,159 @@ export default function Category_Humns() {
                 </div>
               )}
             </motion.div>
-          </div>
-        )}
 
-        {/* --- Add Hymn Modal --- */}
-        {showModal && (
-          <Portal>
-            <div
-              className={`fixed inset-0 z-[9999] flex justify-center items-center p-4 transition-all duration-300
-                ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/70"}`}
-            >
-              <div
-                className={`w-full max-w-md max-h-[90vh] bg-[#0c0c20] border border-white/10 rounded-2xl shadow-2xl overflow-y-auto relative transform transition-all duration-300
-                  ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
-              >
-                {/* Header */}
-                <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
-                    {editingHymnId ? '✏️ Edit Hymn' : '🎵 Add New Hymn'}
-                  </h2>
-                  <button onClick={closeModal} className="text-gray-400 hover:text-white transition">
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
-
-                {/* Form */}
-                <div className="p-6 flex flex-col gap-4">
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Song Title</label>
-                    <input
-                      type="text"
-                      className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition"
-                      placeholder="e.g. Amazing Grace"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-gray-400 text-sm mb-2">Scale</label>
-                      <input
-                        type="text"
-                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition"
-                        placeholder="e.g. C Major"
-                        value={formData.scale}
-                        onChange={(e) => setFormData({ ...formData, scale: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-400 text-sm mb-2">Category</label>
-                      <select
-                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition [&>option]:bg-gray-900"
-                        value={formData.party}
-                        onChange={(e) => setFormData({ ...formData, party: e.target.value })}
-                      >
-                        <option value="all">All / General</option>
-                        <option value="christmass">Christmas</option>
-                        <option value="easter">Easter</option>
-                        <option value="newyear">New Year</option>
-                        <option value="motherday">Mother Day</option>
-                        <option value="graduation">Graduation</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-gray-400 text-sm mb-2">BPM</label>
-                      <input
-                        type="text"
-                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition"
-                        placeholder="e.g. 120"
-                        value={formData.BPM}
-                        onChange={(e) => setFormData({ ...formData, BPM: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-400 text-sm mb-2">Time Signature</label>
-                      <input
-                        type="text"
-                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition"
-                        placeholder="e.g. 4/4"
-                        value={formData.timeSignature}
-                        onChange={(e) => setFormData({ ...formData, timeSignature: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-
-
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">Related Chords</label>
-                    <input
-                      type="text"
-                      className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition placeholder-gray-600"
-                      placeholder="e.g. G, C, D, Em"
-                      value={formData.relatedChords}
-                      onChange={(e) => setFormData({ ...formData, relatedChords: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-400 text-sm mb-2">YouTube Link (Optional)</label>
-                    <input
-                      type="text"
-                      className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition"
-                      placeholder="https://youtube.com/..."
-                      value={formData.link}
-                      onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-                    />
-                  </div>
-
-                  <button
-                    onClick={() => editingHymnId ? edit_Hymn(editingHymnId) : add_Hymn()}
-                    disabled={isSubmitting || !formData.title}
-                    className={`mt-4 w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all
-                      ${isSubmitting
-                        ? 'bg-gray-600 cursor-not-allowed'
-                        : editingHymnId
-                          ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 hover:shadow-blue-500/25'
-                          : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 hover:shadow-sky-500/25'}`}
-                  >
-                    {isSubmitting ? (editingHymnId ? 'Updating...' : 'Adding...') : (editingHymnId ? 'Update Song' : 'Add Song')}
-                  </button>
-                </div>
-
+            {/* Load More Sentinel & Spinner */}
+            {!search.trim() && hasNextPage && (
+              <div ref={loadMoreRef} className="py-8 flex justify-center w-full">
+                {/* بنظهر السبينر فقط لو فعلاً بنعمل Fetch حالياً */}
+                {isFetchingNextPage ? (
+                  <div className="w-8 h-8 border-4 border-sky-500/30 border-t-sky-500 rounded-full animate-spin" />
+                ) : (
+                  // مساحة فاضية صغيرة عشان الـ Observer يلقطها أول ما نوصلها
+                  <div className="h-4" />
+                )}
               </div>
-            </div>
-          </Portal>
+            )}
+
+            {/* رسالة اختيارية تظهر لما الترانيم تخلص خالص */}
+            {!hasNextPage && humns.length > 0 && !search.trim() && (
+              <p className="text-center text-gray-500 py-10 font-light italic">
+                — You've reached the end of the list —
+              </p>
+            )}
+
+            {/* --- Add Hymn Modal --- */}
+            {showModal && (
+              <Portal>
+                <div
+                  className={`fixed inset-0 z-[9999] flex justify-center items-center p-4 transition-all duration-300
+                ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/70"}`}
+                >
+                  <div
+                    className={`w-full max-w-md max-h-[90vh] bg-[#0c0c20] border border-white/10 rounded-2xl shadow-2xl overflow-y-auto relative transform transition-all duration-300
+                  ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
+                  >
+                    {/* Header */}
+                    <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+                      <h2 className="text-2xl font-bold bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
+                        {editingHymnId ? '✏️ Edit Hymn' : '🎵 Add New Hymn'}
+                      </h2>
+                      <button onClick={closeModal} className="text-gray-400 hover:text-white transition">
+                        <X className="w-6 h-6" />
+                      </button>
+                    </div>
+
+                    {/* Form */}
+                    <div className="p-6 flex flex-col gap-4">
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">Song Title</label>
+                        <input
+                          type="text"
+                          className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition"
+                          placeholder="e.g. Amazing Grace"
+                          value={formData.title}
+                          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-2">Scale</label>
+                          <input
+                            type="text"
+                            className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition"
+                            placeholder="e.g. C Major"
+                            value={formData.scale}
+                            onChange={(e) => setFormData({ ...formData, scale: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-2">Category</label>
+                          <select
+                            className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition [&>option]:bg-gray-900"
+                            value={formData.party}
+                            onChange={(e) => setFormData({ ...formData, party: e.target.value })}
+                          >
+                            <option value="all">All / General</option>
+                            <option value="christmass">Christmas</option>
+                            <option value="easter">Easter</option>
+                            <option value="newyear">New Year</option>
+                            <option value="motherday">Mother Day</option>
+                            <option value="graduation">Graduation</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-2">BPM</label>
+                          <input
+                            type="text"
+                            className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition"
+                            placeholder="e.g. 120"
+                            value={formData.BPM}
+                            onChange={(e) => setFormData({ ...formData, BPM: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-2">Time Signature</label>
+                          <input
+                            type="text"
+                            className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition"
+                            placeholder="e.g. 4/4"
+                            value={formData.timeSignature}
+                            onChange={(e) => setFormData({ ...formData, timeSignature: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+
+
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">Related Chords</label>
+                        <input
+                          type="text"
+                          className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition placeholder-gray-600"
+                          placeholder="e.g. G, C, D, Em"
+                          value={formData.relatedChords}
+                          onChange={(e) => setFormData({ ...formData, relatedChords: e.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">YouTube Link (Optional)</label>
+                        <input
+                          type="text"
+                          className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition"
+                          placeholder="https://youtube.com/..."
+                          value={formData.link}
+                          onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+                        />
+                      </div>
+
+                      <button
+                        onClick={() => editingHymnId ? edit_Hymn(editingHymnId) : add_Hymn()}
+                        disabled={isSubmitting || !formData.title}
+                        className={`mt-4 w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all
+                      ${isSubmitting
+                            ? 'bg-gray-600 cursor-not-allowed'
+                            : editingHymnId
+                              ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 hover:shadow-blue-500/25'
+                              : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 hover:shadow-sky-500/25'}`}
+                      >
+                        {isSubmitting ? (editingHymnId ? 'Updating...' : 'Adding...') : (editingHymnId ? 'Update Song' : 'Add Song')}
+                      </button>
+                    </div>
+
+                  </div>
+                </div>
+              </Portal>
+            )}
+          </div>
         )}
       </div>
     </section >
+
   )
 }
 
