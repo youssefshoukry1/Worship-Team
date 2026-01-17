@@ -65,6 +65,7 @@ export default function Category_Humns() {
 
     try {
       const { data } = await axios.get(url);
+      console.log(`📊 Fetched page with skip=${pageParam}, got ${data.length} items`);
       return data;
     } catch (error) {
       console.error("Error fetching hymns:", error);
@@ -147,17 +148,23 @@ export default function Category_Humns() {
     queryKey: ["humns", activeTab, search],
     queryFn: fetchHymns,
     getNextPageParam: (lastPage, allPages) => {
-      // 1. لو البحث شغال، مفيش Pagination
+      // 1. If search is active, no pagination
       if (search.trim()) return undefined;
 
-      // 2. لو الصفحة الأخيرة فاضية أو عدد عناصرها أقل من الـ limit (10)
-      // ده معناه إننا وصلنا لنهاية البيانات
-      if (!lastPage || lastPage.length < 10 || lastPage.length === 0) {
+      // 2. If last page is empty or has less than 10 items, we've reached the end
+      // This works because backend always tries to return 10 items if available
+      const hasMore = lastPage && lastPage.length === 10;
+      console.log(`🔍 getNextPageParam: lastPage has ${lastPage?.length || 0} items, hasMore=${hasMore}`);
+
+      if (!hasMore) {
+        console.log('✅ End of data reached!');
         return undefined;
       }
 
-      // 3. لو لسه فيه بيانات، احسب الـ skip القادم
-      return allPages.length * 10;
+      // 3. Otherwise, calculate next skip value
+      const nextSkip = allPages.length * 10;
+      console.log(`➡️ Loading next page with skip=${nextSkip}`);
+      return nextSkip;
     },
     initialPageParam: 0,
   });
