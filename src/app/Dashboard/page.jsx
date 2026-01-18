@@ -10,7 +10,7 @@ import { Check, X, ShieldAlert, User, Mail, Calendar, Edit3 } from 'lucide-react
 
 // Using localhost to access the new backend changes locally as per user request context.
 // utilizing port 4000 based on backend config.
-const API_URL = "https://worship-team-api.vercel.app/api/users/pending";
+const API_URL = "https://worship-team-api.vercel.app/api/users";
 
 export default function Dashboard() {
   const { isLogin, UserRole, churchId } = useContext(UserContext);
@@ -20,7 +20,7 @@ export default function Dashboard() {
   const fetchPendingUsers = async () => {
     if (!isLogin) return [];
     try {
-      const res = await axios.get(`${API_URL}`, {
+      const res = await axios.get(`${API_URL}/pending`, {
         headers: { Authorization: `Bearer ${isLogin}` },
       });
       return res.data;
