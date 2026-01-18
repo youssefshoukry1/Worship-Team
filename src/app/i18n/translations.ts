@@ -16,11 +16,14 @@ export const translations = {
     emptyWorkspace: "Your workspace is empty",
     goToLibrary: "Go to the Hymns Library to add some songs.",
     listen: "Listen",
+    AllHymns: 'All Hymns',
     dashboard: "Dashboard",
+    MothersDay: 'Mother\'s Day',
+    NoHymnsfoundinthiscategory:  'No Hymns found in this category'
   },
   ar: {
     home: "الرئيسية",
-    hymns: "التصنيفات",
+    hymns: "التصنيفات", 
     training: "التدريبات",
     workspace: "مساحتي",
     contact: "تواصل معنا",
@@ -35,10 +38,17 @@ export const translations = {
     goToLibrary: "اذهب إلى مكتبة الترانيم لإضافة بعض الأغاني.",
     listen: "استمع",
     dashboard: "لوحة التحكم",
+    MothersDay: 'عيد الامهات',
+    Christmas: 'الكريسماس',
+    Graduation: 'التخرج',
+    NewYear: 'السنة الجديدة',
+    Easter: ' القيامة',
+    AllHymns: 'كل الترانيم',
+    NoHymnsfoundinthiscategory: 'لا ترانيم لهذا التصنيف'
   },
   de: {
     home: "Startseite",
-    hymns: "Hymnen",
+    hymns: "Loblieder",
     training: "Training",
     workspace: "Arbeitsbereich",
     contact: "Kontakt",
@@ -53,5 +63,12 @@ export const translations = {
     goToLibrary: "Gehen Sie zur Hymnenbibliothek, um Lieder hinzuzufügen.",
     listen: "Zuhören",
     dashboard: "Dashboard",
+    AllHymns: " Alle Lieder",
+    NewYear: 'Silvester',
+    MothersDay: 'Muttertag',
+    Easter : 'Ostern',
+    Graduation : 'Abschluss',
+    Christmas : 'Weihnachten',
+    NoHymnsfoundinthiscategory : 'Keine Lieder in dieser Kategorie gefunden '
   }
 };

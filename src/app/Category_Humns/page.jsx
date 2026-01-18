@@ -10,11 +10,14 @@ import Metronome from '../Metronome/page';
 import { UserContext } from '../context/User_Context';
 import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
+import { useLanguage } from "../context/LanguageContext";
 
 export default function Category_Humns() {
   const queryClient = useQueryClient();
   const { isLogin, UserRole } = useContext(UserContext);
   const { addToWorkspace, isHymnInWorkspace } = useContext(HymnsContext)
+  const { t, language, setLanguage } = useLanguage();
+
   // Re-introduced for Role checks
   const [activeTab, setActiveTab] = useState('all');
 
@@ -120,7 +123,7 @@ export default function Category_Humns() {
   // 3. Delete Hymn by ID
   const delete_Hymn = async (id) => {
     if (!isLogin) return;
-    if (!confirm("Are you sure you want to delete this hymn?")) return;
+    if (!confirm(t("confirmDeleteHymn"))) return;
 
     try {
       // User: Replace this URL with your actual Delete API endpoint
@@ -239,12 +242,12 @@ export default function Category_Humns() {
   };
 
   const categories = [
-    { id: 'all', label: 'All Hymns', icon: Music },
-    { id: 'christmass', label: 'Christmas', icon: Gift },
-    { id: 'easter', label: 'Easter', icon: Star },
-    { id: 'newyear', label: 'New Year', icon: Sparkles },
-    { id: 'motherday', label: 'Mother Day', icon: Heart },
-    { id: 'graduation', label: 'Graduation', icon: GraduationCap },
+    { id: 'all', label: t("AllHymns"), icon: Music },
+    { id: 'christmass', label: t("Christmas"), icon: Gift },
+    { id: 'easter', label: t("Easter"), icon: Star },
+    { id: 'newyear', label: t("NewYear"), icon: Sparkles },
+    { id: 'motherday', label: t("MothersDay"), icon: Heart },
+    { id: 'graduation', label: t("Graduation"), icon: GraduationCap },
   ];
 
   // Helper to check permission
@@ -320,7 +323,7 @@ export default function Category_Humns() {
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search for Hymn..."
+                    placeholder={t("searchPlaceholder")}
                     className="w-full h-full pl-4 pr-8 py-2 bg-transparent text-sm text-white placeholder-gray-400/70 
                                 outline-none relative z-10 font-light tracking-wide"
                     autoFocus
@@ -381,7 +384,7 @@ export default function Category_Humns() {
               className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-full hover:bg-gray-100 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_25px_rgba(255,255,255,0.5)] active:scale-95 font-semibold text-sm"
             >
               <PlusCircle className="w-5 h-5" />
-              <span>New Hymn</span>
+              <span>{t("newHymn")}</span>
             </button>
           </div>
         )}
@@ -395,10 +398,10 @@ export default function Category_Humns() {
             {/* Table Header - Hidden on small mobile for cleaner look */}
             <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest bg-white/5 rounded-t-2xl border-b border-white/10 mx-2">
               <div className="col-span-1 text-center">#</div>
-              <div className="col-span-11 sm:col-span-5 md:col-span-5">Song Title</div>
-              <div className="col-span-2 text-center bg-white/5 rounded-lg py-1">Key / Chords</div>
-              <div className="col-span-3 text-center">Media</div>
-              <div className="col-span-1 text-center">Action</div>
+              <div className="col-span-11 sm:col-span-5 md:col-span-5">{t("songTitle")}</div>
+              <div className="col-span-2 text-center bg-white/5 rounded-lg py-1">{t("keyChords")}</div>
+              <div className="col-span-3 text-center">{t("media")}</div>
+              <div className="col-span-1 text-center">{t("action")}</div>
             </div>
 
             {/* List Body */}
@@ -421,12 +424,13 @@ export default function Category_Humns() {
                     delete_Hymn={delete_Hymn}
                     openEditModal={openEditModal}
                     variants={itemVariants}
+                    t={t}
                   />
                 ))
               ) : (
                 <div className="p-20 text-center flex flex-col items-center justify-center text-gray-500 bg-white/5 rounded-3xl border border-white/5 border-dashed">
                   <Music className="w-12 h-12 mb-4 opacity-50" />
-                  <p className="text-lg font-medium">No hymns found in this category.</p>
+                  <p className="text-lg font-medium">{t("NoHymnsfoundinthiscategory")}</p>
                 </div>
               )}
             </motion.div>
@@ -447,7 +451,7 @@ export default function Category_Humns() {
             {/* رسالة اختيارية تظهر لما الترانيم تخلص خالص */}
             {!hasNextPage && humns.length > 0 && !search.trim() && (
               <p className="text-center text-gray-500 py-10 font-light italic">
-                — You've reached the end of the list —
+                — {t("endOfList")} —
               </p>
             )}
 
@@ -465,7 +469,7 @@ export default function Category_Humns() {
                     {/* Header */}
                     <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
                       <h2 className="text-2xl font-bold bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
-                        {editingHymnId ? '✏️ Edit Hymn' : '🎵 Add New Hymn'}
+                        {editingHymnId ? `✏️ ${t("editHymn")}` : `🎵 ${t("addNewHymn")}`}
                       </h2>
                       <button onClick={closeModal} className="text-gray-400 hover:text-white transition">
                         <X className="w-6 h-6" />
@@ -475,7 +479,7 @@ export default function Category_Humns() {
                     {/* Form */}
                     <div className="p-6 flex flex-col gap-4">
                       <div>
-                        <label className="block text-gray-400 text-sm mb-2">Song Title</label>
+                        <label className="block text-gray-400 text-sm mb-2">{t("songTitle")}</label>
                         <input
                           type="text"
                           className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition"
@@ -487,7 +491,7 @@ export default function Category_Humns() {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-gray-400 text-sm mb-2">Scale</label>
+                          <label className="block text-gray-400 text-sm mb-2">{t("scale")}</label>
                           <input
                             type="text"
                             className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition"
@@ -497,25 +501,25 @@ export default function Category_Humns() {
                           />
                         </div>
                         <div>
-                          <label className="block text-gray-400 text-sm mb-2">Category</label>
+                          <label className="block text-gray-400 text-sm mb-2">{t("category")}</label>
                           <select
                             className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition [&>option]:bg-gray-900"
                             value={formData.party}
                             onChange={(e) => setFormData({ ...formData, party: e.target.value })}
                           >
-                            <option value="all">All / General</option>
-                            <option value="christmass">Christmas</option>
-                            <option value="easter">Easter</option>
-                            <option value="newyear">New Year</option>
-                            <option value="motherday">Mother Day</option>
-                            <option value="graduation">Graduation</option>
+                            <option value="all">{t("allGeneral")}</option>
+                            <option value="christmass">{t("christmas")}</option>
+                            <option value="easter">{t("easter")}</option>
+                            <option value="newyear">{t("newYear")}</option>
+                            <option value="motherday">{t("motherDay")}</option>
+                            <option value="graduation">{t("graduation")}</option>
                           </select>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-gray-400 text-sm mb-2">BPM</label>
+                          <label className="block text-gray-400 text-sm mb-2">{t("bpm")}</label>
                           <input
                             type="text"
                             className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition"
@@ -525,7 +529,7 @@ export default function Category_Humns() {
                           />
                         </div>
                         <div>
-                          <label className="block text-gray-400 text-sm mb-2">Time Signature</label>
+                          <label className="block text-gray-400 text-sm mb-2">{t("timeSignature")}</label>
                           <select
                             className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition [&>option]:bg-gray-900"
                             value={formData.timeSignature}
@@ -549,7 +553,7 @@ export default function Category_Humns() {
 
 
                       <div>
-                        <label className="block text-gray-400 text-sm mb-2">Related Chords</label>
+                        <label className="block text-gray-400 text-sm mb-2">{t("relatedChords")}</label>
                         <input
                           type="text"
                           className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition placeholder-gray-600"
@@ -560,7 +564,7 @@ export default function Category_Humns() {
                       </div>
 
                       <div>
-                        <label className="block text-gray-400 text-sm mb-2">YouTube Link (Optional)</label>
+                        <label className="block text-gray-400 text-sm mb-2">{t("youtubeLink")}</label>
                         <input
                           type="text"
                           className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition"
@@ -580,7 +584,7 @@ export default function Category_Humns() {
                               ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 hover:shadow-blue-500/25'
                               : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 hover:shadow-sky-500/25'}`}
                       >
-                        {isSubmitting ? (editingHymnId ? 'Updating...' : 'Adding...') : (editingHymnId ? 'Update Song' : 'Add Song')}
+                        {isSubmitting ? (editingHymnId ? t("updating") : t("adding")) : (editingHymnId ? t("updateSong") : t("addSong"))}
                       </button>
                     </div>
 
@@ -662,7 +666,7 @@ function KeyDisplay({ scale, relatedChords, onTranspose }) {
   );
 }
 
-function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, canEdit, delete_Hymn, openEditModal, variants }) {
+function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, canEdit, delete_Hymn, openEditModal, variants, t }) {
   const [transposeStep, setTransposeStep] = useState(0);
 
   // Compute transposed values
@@ -743,7 +747,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
           >
             <PlayCircle className="w-4 h-4" />
-            <span className="text-sm font-medium">Listen</span>
+            <span className="text-sm font-medium">{t("listen")}</span>
           </a>
         ) : (
           <span className="text-gray-700 text-xs">—</span>
@@ -759,7 +763,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
             ${isHymnInWorkspace(humn._id)
               ? 'text-green-400 bg-green-500/10 cursor-default'
               : 'text-gray-400 hover:text-purple-400 hover:bg-purple-500/10 bg-white/5 sm:bg-transparent'}`}
-          title={isHymnInWorkspace(humn._id) ? "Added to Workspace" : "Add to Workspace"}
+          title={isHymnInWorkspace(humn._id) ? t("addedToWorkspace") : t("addToWorkspace")}
         >
           {isHymnInWorkspace(humn._id) ? <Check className="w-4 h-4" /> : <FolderPlus className="w-4 h-4" />}
         </button>
@@ -769,14 +773,14 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
             <button
               onClick={() => delete_Hymn(humn._id)}
               className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
-              title="Delete Song"
+              title={t("deleteSong")}
             >
               <Trash2 className="w-4 h-4" />
             </button>
             <button
               onClick={() => openEditModal(humn)}
               className="p-2.5 rounded-xl text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
-              title="Edit Song"
+              title={t("editSong")}
             >
               <Edit2 className="w-4 h-4" />
             </button>

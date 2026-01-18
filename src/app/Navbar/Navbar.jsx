@@ -92,12 +92,16 @@ export default function Navbar() {
                 initial="hidden"
                 animate="visible"
             >
-                {navItems.map(({ name, path, id }) => (
+
+                {(UserRole === 'USER'
+                    ? navItems.filter((item) => item.name !== 'Dashboard')
+                    : navItems
+                ).map(({ name, path, id }) => (
                     <motion.li key={name} variants={itemVariants} className="list-none">
                         <button
                             onClick={() => handleNavClick(path, id)}
                             className={`text-sm lg:text-base font-medium cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg hover:bg-white/5
-                ${pathname === path
+            ${pathname === path
                                     ? "text-sky-400 bg-white/5"
                                     : "text-gray-300 hover:text-sky-300"
                                 }`}
@@ -107,13 +111,10 @@ export default function Navbar() {
                         </button>
                     </motion.li>
                 ))}
-
                 {/* Dashboard Link (Admin/Manager/Programmers) - Placed next to Language Switcher */}
                 {isLogin &&
                     UserRole &&
-                    ["Admin", "MANEGER", "programers", "Programmer"].includes(
-                        UserRole
-                    ) && (
+                    ["ADMIN", "MANEGER", "PEOGRAMER"].includes(UserRole) && (
                         <motion.li variants={itemVariants} className="list-none">
                             <button
                                 onClick={() => router.push("/Dashboard")}
