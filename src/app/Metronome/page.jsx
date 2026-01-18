@@ -11,9 +11,9 @@ function parseTimeSignature(timeSignature) {
     if (!timeSignature || typeof timeSignature !== 'string') return 4;
 
     const parts = timeSignature.split('/');
-    const beats = parseInt(parts[0], 10);
+    const numerator = parseInt(parts[0], 10);
 
-    return isNaN(beats) || beats <= 0 ? 4 : beats;
+    return isNaN(numerator) || numerator <= 0 ? 4 : numerator;
 }
 
 export default function Metronome({ bpm = 130, timeSignature = "4/4", minimal = false, id }) {
@@ -69,19 +69,23 @@ export default function Metronome({ bpm = 130, timeSignature = "4/4", minimal = 
         osc.connect(gainNode);
         gainNode.connect(ctx.destination);
 
-        // Determine if this is an accented beat
-        // For compound time signatures (6/8, 9/8, 12/8), accent every 3 beats
-        // For simple time signatures, accent only beat 1
-        const isCompound = timeSignature.endsWith('/8') && beats >= 6;
-        const isAccent = isCompound
-            ? (beatNumber % 3 === 0)  // Compound: accent on 1, 4, 7, 10, etc.
+        // Determine accent pattern based on time signature
+        // Compound meters (6/8, 9/8) accent every 3 beats
+        // All other meters accent only on beat 1
+        const parts = timeSignature.split('/');
+        const numerator = parseInt(parts[0], 10);
+        const denominator = parseInt(parts[1], 10);
+
+        const isCompoundMeter = denominator === 8 && numerator % 3 === 0 && numerator >= 6;
+        const isAccent = isCompoundMeter
+            ? (beatNumber % 3 === 0)  // Compound: accent on 1, 4, 7, etc.
             : (beatNumber === 0);      // Simple: accent only on beat 1
 
         if (isAccent) {
             osc.frequency.value = 1000; // High Pitch (Accented beats)
             gainNode.gain.setValueAtTime(1, time);
         } else {
-            osc.frequency.value = 800;  // Low Pitch (Unaccented beats)
+            osc.frequency.value = 800;  // Low Pitch (Other beats)
             gainNode.gain.setValueAtTime(0.7, time);
         }
 
