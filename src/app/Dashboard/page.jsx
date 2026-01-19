@@ -138,7 +138,7 @@ export default function Dashboard() {
                             <select
                               value={user.role || 'USER'}
                               onChange={(e) => handleRoleChange(user._id, e.target.value)}
-                              disabled={processingId === user._id || (UserRole !== 'Admin' && UserRole !== 'MANEGER')}
+                              disabled={processingId === user._id || (UserRole !== 'ADMIN' && UserRole !== 'MANEGER') && UserRole !== 'PROGRAMER'}
                               className="bg-black/40 border border-white/10 text-xs rounded-lg px-2 py-1 text-sky-300 outline-none focus:border-sky-500/50 cursor-pointer hover:bg-black/60 transition-colors"
                             >
                               <option value="USER">USER</option>
