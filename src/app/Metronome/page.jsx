@@ -58,7 +58,6 @@ export default function Metronome({ bpm = 130, timeSignature = "4/4", minimal = 
     }, [id]);
 
     // Professional Synthesized "Woodblock" Sound
-    // This eliminates file loading drift and ensures 100% precision.
     const scheduleNote = (beatNumber, time) => {
         if (!audioCtxRef.current) return;
         const ctx = audioCtxRef.current;
@@ -69,23 +68,17 @@ export default function Metronome({ bpm = 130, timeSignature = "4/4", minimal = 
         osc.connect(gainNode);
         gainNode.connect(ctx.destination);
 
-        // Determine accent pattern based on time signature
-        // Compound meters (6/8, 9/8) accent every 3 beats
-        // All other meters accent only on beat 1
-        const parts = timeSignature.split('/');
-        const numerator = parseInt(parts[0], 10);
-        const denominator = parseInt(parts[1], 10);
-
-        const isCompoundMeter = denominator === 8 && numerator % 3 === 0 && numerator >= 6;
-        const isAccent = isCompoundMeter
-            ? (beatNumber % 3 === 0)  // Compound: accent on 1, 4, 7, etc.
-            : (beatNumber === 0);      // Simple: accent only on beat 1
+        // --- التعديل تم هنا ---
+        // في المترونوم، العد بيبدأ من 0
+        // إحنا عايزين الدقة رقم 0 بس هي اللي تكون مميزة (High Pitch)
+        // وأي دقة تانية تكون عادية، بغض النظر عن نوع الميزان (6/8, 9/8, etc)
+        const isAccent = beatNumber === 0;
 
         if (isAccent) {
-            osc.frequency.value = 1000; // High Pitch (Accented beats)
+            osc.frequency.value = 1000; // High Pitch (أول دقة فقط)
             gainNode.gain.setValueAtTime(1, time);
         } else {
-            osc.frequency.value = 800;  // Low Pitch (Other beats)
+            osc.frequency.value = 800;  // Low Pitch (باقي الدقات)
             gainNode.gain.setValueAtTime(0.7, time);
         }
 
@@ -127,8 +120,6 @@ export default function Metronome({ bpm = 130, timeSignature = "4/4", minimal = 
         }
 
         if (audioCtxRef.current?.state === 'running') {
-            // We use suspend to kill the audio engine timeline immediately
-            // catch handles potential race conditions if already closed
             audioCtxRef.current.suspend().catch(() => { });
         }
     };
@@ -156,7 +147,6 @@ export default function Metronome({ bpm = 130, timeSignature = "4/4", minimal = 
             nextNoteTimeRef.current = audioCtxRef.current.currentTime + 0.05;
 
             // 4. Start Scheduler Loop
-            // (isRunningRef was already set to true in toggle, keeping it locked)
             scheduler();
 
         } catch (error) {
@@ -170,20 +160,12 @@ export default function Metronome({ bpm = 130, timeSignature = "4/4", minimal = 
     const toggle = async (e) => {
         if (e) e.stopPropagation();
 
-        // Check Sync Guard
         if (isRunningRef.current) {
-            // STOP
             stopMetronome();
         } else {
-            // PLAY
-            // 1. Lock immediately to prevent race conditions (double-clicks)
             isRunningRef.current = true;
             setIsPlaying(true);
-
-            // 2. Ensure clean state
             if (timerIdRef.current) clearTimeout(timerIdRef.current);
-
-            // 3. Run Async Init
             await startMetronome();
         }
     };
