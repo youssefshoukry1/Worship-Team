@@ -6,14 +6,14 @@ import axios from 'axios';
 import { UserContext } from '../context/User_Context';
 import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../loading';
-import {
-  Check,
-  X,
-  ShieldAlert,
-  User,
-  Mail,
-  BookOpen,
-  RefreshCw,
+import { 
+  Check, 
+  X, 
+  ShieldAlert, 
+  User, 
+  Mail, 
+  BookOpen, 
+  RefreshCw, 
   Users,
   PauseCircle, // أيقونة للإيقاف
   PlayCircle   // أيقونة للبدء
@@ -84,26 +84,12 @@ export default function Dashboard() {
   };
 
   const resetAllTraining = async () => {
-    if (!isLogin || !churchId || !confirm("Are you sure you want to reset training for EVERYONE?")) return;
-
+    if (!isLogin || !churchId || !confirm("Reset all?")) return;
     setProcessingId("RESET_ALL");
     try {
-      await axios.patch(
-        `${API_URL}/users/training/reset/${churchId}`,
-        {},
-        { headers: { Authorization: `Bearer ${isLogin}` } }
-      );
-
-      // تحديث البيانات في الصفحة
-      await queryClient.invalidateQueries(['AllUsersChurch']);
-      alert("All users have been reset successfully!"); // تأكيد للمستخدم
-
-    } catch (error) {
-      console.error(error);
-      alert("Error resetting training. Please check permissions.");
-    } finally {
-      setProcessingId(null);
-    }
+      await axios.patch(`${API_URL}/users/training/reset/${churchId}`, {}, { headers: { Authorization: `Bearer ${isLogin}` } });
+      queryClient.invalidateQueries(['AllUsersChurch']);
+    } finally { setProcessingId(null); }
   };
 
   const { data: pendingUsers = [], isLoading: isLoadingPending } = useQuery({
@@ -123,11 +109,11 @@ export default function Dashboard() {
   return (
     <section className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
       <div className="max-w-7xl mx-auto relative z-10">
-
+        
         <h1 className="text-3xl sm:text-5xl font-extrabold mb-12 text-center bg-linear-to-br from-sky-300 via-blue-400 to-indigo-500 text-transparent bg-clip-text flex items-center justify-center gap-4">
           <ShieldAlert className="w-10 h-10 text-sky-400" /> Admin Dashboard
         </h1>
-        {/* ---------------- PENDING APPROVALS SECTION ---------------- */}
+{/* ---------------- PENDING APPROVALS SECTION ---------------- */}
         <div className="mb-16">
           <h2 className="text-2xl font-bold text-white mb-6 pl-2 border-l-4 border-sky-500 flex items-center">
             Pending Approvals
@@ -169,7 +155,7 @@ export default function Dashboard() {
                         <p className="text-xs text-sky-400">{user.role || 'USER'}</p>
                       </div>
                     </div>
-
+                    
                     <div className="space-y-2 mb-4 text-sm text-gray-400">
                       <div className="flex items-center gap-2 bg-black/20 p-2 rounded-lg">
                         <Mail className="w-3 h-3 text-sky-500" /> {user.email}
@@ -193,9 +179,9 @@ export default function Dashboard() {
                       </button>
                     </div>
                     {processingId === user._id && (
-                      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-10 rounded-2xl">
-                        <Loading className="scale-75" />
-                      </div>
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-10 rounded-2xl">
+                          <Loading className="scale-75" />
+                        </div>
                     )}
                   </motion.div>
                 ))}
@@ -220,8 +206,9 @@ export default function Dashboard() {
               <motion.div
                 key={user._id}
                 layout
-                className={`relative p-5 rounded-2xl border backdrop-blur-md transition-all duration-500 ${user.isInTraining ? 'bg-indigo-500/10 border-indigo-500/40 shadow-lg shadow-indigo-500/10' : 'bg-white/5 border-white/10'
-                  }`}
+                className={`relative p-5 rounded-2xl border backdrop-blur-md transition-all duration-500 ${
+                  user.isInTraining ? 'bg-indigo-500/10 border-indigo-500/40 shadow-lg shadow-indigo-500/10' : 'bg-white/5 border-white/10'
+                }`}
               >
                 {/* Active Indicator Glow */}
                 {user.isInTraining && (
@@ -263,10 +250,11 @@ export default function Dashboard() {
                   <button
                     onClick={() => toggleTrainingStatus(user._id, user.isInTraining)}
                     disabled={processingId === user._id}
-                    className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-bold transition-all border ${user.isInTraining
-                        ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20'
+                    className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                      user.isInTraining 
+                        ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20' 
                         : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
-                      }`}
+                    }`}
                   >
                     {user.isInTraining ? (
                       <><PauseCircle className="w-4 h-4" /> Stop</>
