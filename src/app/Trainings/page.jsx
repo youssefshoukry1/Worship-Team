@@ -159,7 +159,7 @@ export default function Trainings() {
       </h1>
 
       <div className="grid gap-8 sm:gap-10 md:grid-cols-2 lg:grid-cols-3 relative z-10 items-start">
-        {data.filter((e) => e.role === 'USER').map((m, i) => (
+        {data.filter((e) => e.isInTraining === true).map((m, i) => (
           <motion.div
             key={i}
             initial={{ opacity: 0, y: 20 }}
@@ -188,7 +188,7 @@ export default function Trainings() {
                 </div>
 
                 {/* Add Song Action */}
-                {(UserRole === 'Admin' || UserRole === 'MANEGER' || user_id === m._id  || UserRole === 'PROGRAMER') && (
+                {(UserRole === 'Admin' || UserRole === 'MANEGER' || user_id === m._id || UserRole === 'PROGRAMER') && (
                   <motion.button
                     whileHover={{ scale: 1.1, rotate: 90 }}
                     whileTap={{ scale: 0.9 }}
