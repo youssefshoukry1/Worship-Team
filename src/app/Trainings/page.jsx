@@ -16,6 +16,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Loading from "../loading";
 import Portal from '../Portal/Portal.jsx'
+
 export default function Trainings() {
   const queryClient = useQueryClient();
   const { isLogin, UserRole, user_id, churchId } = useContext(UserContext);
@@ -30,7 +31,6 @@ export default function Trainings() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [currentSongId, setCurrentSongId] = useState(null);
   const [submitClicked, setSubmitClicked] = useState(false);
-  // Removed availableHymns and isLoadingHymns because we use 'workspace' directly
   const [selectedHymnIds, setSelectedHymnIds] = useState([]);
 
   const get_All_Users = () => {
@@ -44,7 +44,7 @@ export default function Trainings() {
   };
 
   const delete_song = (userid, songid) => {
-    if (!isLogin) return <LogIn />;
+    if (!isLogin) return <Login />;
     return axios
       .delete(`https://worship-team-api.vercel.app/api/users/${userid}/${songid}`, {
         headers: { Authorization: `Bearer ${isLogin}` },
@@ -99,7 +99,6 @@ export default function Trainings() {
       ).then(() => {
         queryClient.invalidateQueries(['data', isLogin])
       }).catch(() => { })
-
   }
 
   const { data = [], isLoading } = useQuery({
@@ -109,6 +108,23 @@ export default function Trainings() {
   });
 
   if (isLoading) return <Loading />;
+
+  // --- منطق الفلترة بناءً على الـ Event المشترك ---
+  const currentUserData = data.find(u => u._id === user_id);
+  const myEventIds = currentUserData?.trainingEvents?.map(ev => typeof ev === 'object' ? ev._id : ev) || [];
+
+  const filteredData = data.filter((user) => {
+    // 1. يجب أن يكون المستخدم في وضع التدريب أولاً
+    if (!user.isInTraining) return false;
+    
+    // 2. إذا كان الشخص هو أنا، أظهر كارتي
+    if (user._id === user_id) return true;
+
+    // 3. للمديرين أو المبرمجين، يمكنهم رؤية الجميع (اختياري، لكن هنا سنلتزم بطلبك "نفس الـ event")
+    // إذا كنت تريد تقييد الجميع حرفياً بنفس الـ event:
+    const theirEventIds = user.trainingEvents?.map(ev => typeof ev === 'object' ? ev._id : ev) || [];
+    return theirEventIds.some(id => myEventIds.includes(id));
+  });
 
   const openModal = (type, user, songObj = null) => {
     setSelectedUser(user);
@@ -125,8 +141,6 @@ export default function Trainings() {
       setCurrentSongId(null);
     }
     setShowmodel(true);
-
-    // We don't need to fetch from API anymore, we use 'workspace' from context.
 
     if (type === "add") {
       setSelectedHymnIds([]);
@@ -159,7 +173,7 @@ export default function Trainings() {
       </h1>
 
       <div className="grid gap-8 sm:gap-10 md:grid-cols-2 lg:grid-cols-3 relative z-10 items-start">
-        {data.filter((e) => e.isInTraining === true).map((m, i) => (
+        {filteredData.map((m, i) => (
           <motion.div
             key={i}
             initial={{ opacity: 0, y: 20 }}
@@ -188,7 +202,7 @@ export default function Trainings() {
                 </div>
 
                 {/* Add Song Action */}
-                {(UserRole === 'Admin' || UserRole === 'MANEGER' || user_id === m._id || UserRole === 'PROGRAMER') && (
+                {(UserRole === 'ADMIN' || UserRole === 'MANEGER' || user_id === m._id || UserRole === 'PROGRAMER') && (
                   <motion.button
                     whileHover={{ scale: 1.1, rotate: 90 }}
                     whileTap={{ scale: 0.9 }}
@@ -209,10 +223,10 @@ export default function Trainings() {
                         <div
                           key={idx}
                           className="group relative grid grid-cols-12 gap-4 p-4 sm:p-5 items-center 
-                                   bg-[#13132b]/60 hover:bg-[#1a1a38] 
-                                   border border-white/5 hover:border-sky-500/30 
-                                   rounded-2xl transition-all duration-300 backdrop-blur-sm
-                                   hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
+                                    bg-[#13132b]/60 hover:bg-[#1a1a38] 
+                                    border border-white/5 hover:border-sky-500/30 
+                                    rounded-2xl transition-all duration-300 backdrop-blur-sm
+                                    hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
                         >
                           {/* Hover Glow Gradient */}
                           <div className="absolute inset-0 rounded-2xl bg-linear-to-r from-sky-500/5 via-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
