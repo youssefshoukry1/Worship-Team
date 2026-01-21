@@ -3,12 +3,15 @@
 import React, { useContext, useState } from "react";
 import { motion, AnimatePresence } from 'framer-motion';
 import Login from '../login/page'
+
 import {
   PlayCircle,
   Mic,
   Trash2,
   PlusCircle,
-  Edit3
+  FileText,
+  Edit3,
+  X
 } from "lucide-react";
 import { UserContext } from "../context/User_Context";
 import { HymnsContext } from "../context/Hymns_Context";
@@ -16,11 +19,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Loading from "../loading";
 import Portal from '../Portal/Portal.jsx'
+import { useLanguage } from "../context/LanguageContext";
 
 export default function Trainings() {
   const queryClient = useQueryClient();
   const { isLogin, UserRole, user_id, churchId } = useContext(UserContext);
   const { workspace } = useContext(HymnsContext);
+  const { t, language, setLanguage } = useLanguage();
 
   const [showModel, setShowmodel] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -32,6 +37,39 @@ export default function Trainings() {
   const [currentSongId, setCurrentSongId] = useState(null);
   const [submitClicked, setSubmitClicked] = useState(false);
   const [selectedHymnIds, setSelectedHymnIds] = useState([]);
+
+  // Lyrics Modal State
+  const [showLyricsModal, setShowLyricsModal] = useState(false);
+  const [selectedLyricsHymn, setSelectedLyricsHymn] = useState(null);
+
+  const openLyrics = (hymn) => {
+    setSelectedLyricsHymn(hymn);
+    setShowLyricsModal(true);
+  };
+
+  const closeLyricsModal = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setShowLyricsModal(false);
+      setSelectedLyricsHymn(null);
+      setIsClosing(false);
+    }, 300);
+  };
+
+  // Prevent background scrolling when lyrics modal is open
+  React.useEffect(() => {
+    if (showLyricsModal) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, [showLyricsModal]);
 
   const get_All_Users = () => {
     if (!isLogin) return [];
@@ -219,49 +257,52 @@ export default function Trainings() {
                         m.songs_Array.map((p, idx) => (
                           <div
                             key={idx}
-                            className="group relative grid grid-cols-12 gap-4 p-4 sm:p-5 items-center 
-                                      bg-[#13132b]/60 hover:bg-[#1a1a38] 
+                            className="group relative flex items-center gap-3 p-3 
+                                      bg-[#13132b]/40 hover:bg-[#1a1a38] 
                                       border border-white/5 hover:border-sky-500/30 
-                                      rounded-2xl transition-all duration-300 backdrop-blur-sm
-                                      hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
+                                      rounded-xl transition-all duration-300 backdrop-blur-sm"
                           >
-                            <div className="absolute inset-0 rounded-2xl bg-linear-to-r from-sky-500/5 via-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
-                            <div className="col-span-2 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
+                            {/* Index */}
+                            <div className="font-mono text-xs text-gray-600 group-hover:text-sky-400 transition-colors w-5 text-center shrink-0">
                               {(idx + 1).toString().padStart(2, '0')}
                             </div>
 
-                            <div className="col-span-10 relative z-10 flex items-center">
-                              <h3 className="font-bold text-base sm:text-lg text-gray-200 group-hover:text-white transition-colors tracking-wide truncate">
+                            {/* Title & Key */}
+                            <div className="flex-1 min-w-0 flex flex-col gap-1">
+                              <h3 className="font-bold text-sm text-gray-200 group-hover:text-white transition-colors truncate">
                                 {p.title}
                               </h3>
-                            </div>
-
-                            <div className="col-span-12 relative z-10 flex items-center justify-start -mt-2 pl-2">
                               <KeyDisplay humn_parameter={p} />
                             </div>
 
-                            <div className="col-span-6 flex justify-center items-center relative z-10">
+                            {/* Actions */}
+                            <div className="flex items-center gap-1 shrink-0">
+                              {p.lyrics ? (
+                                <button
+                                  onClick={() => openLyrics(p)}
+                                  className="p-1.5 rounded-lg text-gray-400 hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
+                                  title={t("lyrics")}
+                                >
+                                  <FileText className="w-4 h-4" />
+                                </button>
+                              ) : null}
+
                               {p.link ? (
                                 <a
                                   href={p.link}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all w-full justify-center"
+                                  className="p-1.5 rounded-lg text-gray-400 hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
+                                  title="Listen"
                                 >
                                   <PlayCircle className="w-4 h-4" />
-                                  <span className="text-sm font-medium">Listen</span>
                                 </a>
-                              ) : (
-                                <span className="text-gray-700 text-xs">—</span>
-                              )}
-                            </div>
+                              ) : null}
 
-                            <div className="col-span-6 flex justify-center items-center relative z-10">
                               {(["Admin", "MANEGER", "PROGRAMER", "ADMIN"].includes(UserRole) || user_id === m._id) && (
                                 <button
                                   onClick={() => delete_song(m._id, p._id)}
-                                  className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 hover:border-red-500/20 bg-white/5 flex-1 flex justify-center"
+                                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                                   title="Remove Song"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -384,6 +425,38 @@ export default function Trainings() {
           </div>
         </Portal>
       )}
+
+      {/* --- Lyrics Modal --- */}
+      {showLyricsModal && selectedLyricsHymn && (
+        <Portal>
+          <div
+            className={`fixed inset-0 z-[9999] flex justify-center items-center p-4 transition-all duration-300
+                ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/70"}`}
+          >
+            <div
+              className={`w-full max-w-2xl max-h-[85vh] bg-[#0c0c20] border border-white/10 rounded-2xl shadow-2xl flex flex-col relative transform transition-all duration-300
+                  ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
+            >
+              {/* Header */}
+              <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
+                  {selectedLyricsHymn.title}
+                </h2>
+                <button onClick={closeLyricsModal} className="text-gray-400 hover:text-white transition">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 overflow-y-auto custom-scrollbar overscroll-contain">
+                <p className="text-gray-200 text-lg leading-relaxed whitespace-pre-wrap font-medium font-sans" dir="rtl">
+                  {selectedLyricsHymn.lyrics}
+                </p>
+              </div>
+            </div>
+          </div>
+        </Portal>
+      )}
     </section>
   );
 }
@@ -392,9 +465,9 @@ function KeyDisplay({ humn_parameter }) {
   const [showChords, setShowChords] = useState(false);
 
   return (
-    <div className="flex flex-col items-start sm:items-center gap-2 w-full">
+    <div className="flex flex-col items-start gap-1">
       <div className="flex items-center gap-1">
-        <span className={`text-sm font-semibold px-3 py-1 rounded-full border border-white/5 
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/5 
           ${humn_parameter.scale ? 'text-blue-300 bg-blue-500/10' : 'text-gray-600'}`}>
           {humn_parameter.scale || '-'}
         </span>
@@ -402,13 +475,13 @@ function KeyDisplay({ humn_parameter }) {
         {humn_parameter.relatedChords && (
           <button
             onClick={() => setShowChords(!showChords)}
-            className={`p-1 rounded-full transition-all duration-300 border border-transparent 
+            className={`p-0.5 rounded-full transition-all duration-300 border border-transparent 
               ${showChords
                 ? 'bg-sky-500/20 text-sky-300 rotate-180 border-sky-500/30'
                 : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'}`}
             title="Show Related Chords"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
           </button>
         )}
       </div>
@@ -419,11 +492,11 @@ function KeyDisplay({ humn_parameter }) {
             initial={{ opacity: 0, height: 0, y: -5 }}
             animate={{ opacity: 1, height: 'auto', y: 0 }}
             exit={{ opacity: 0, height: 0, y: -5 }}
-            className="overflow-hidden w-full flex justify-start sm:justify-center"
+            className="overflow-hidden w-full"
           >
-            <div className="mt-1 flex flex-wrap justify-start sm:justify-center gap-1.5 w-full sm:max-w-[200px]">
+            <div className="mt-1 flex flex-wrap gap-1 w-full">
               {humn_parameter.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, i) => (
-                <span key={i} className="text-[10px] uppercase font-bold text-sky-200 bg-sky-900/30 px-1.5 py-0.5 rounded border border-sky-500/20">
+                <span key={i} className="text-[9px] uppercase font-bold text-sky-200 bg-sky-900/30 px-1 py-0.5 rounded border border-sky-500/20">
                   {chord}
                 </span>
               ))}
