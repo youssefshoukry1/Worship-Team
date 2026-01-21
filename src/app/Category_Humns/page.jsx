@@ -48,6 +48,18 @@ export default function Category_Humns() {
     }, 300);
   };
 
+  // Prevent background scrolling when lyrics modal is open
+  React.useEffect(() => {
+    if (showLyricsModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showLyricsModal]);
+
   //search State
   const [search, setSearch] = useState(''); // Stores the search query text
   const [showSearchBar, setShowSearchBar] = useState(false); // Controls search input visibility
