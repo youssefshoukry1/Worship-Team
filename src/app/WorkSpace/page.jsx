@@ -292,6 +292,17 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
 
             {/* Media Link */}
             <div className="col-span-6 sm:col-span-3 flex flex-col sm:flex-row justify-center items-center gap-2 relative z-10">
+
+                {hymn.lyrics && (
+                    <button
+                        onClick={() => openLyrics(hymn)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
+                    >
+                        <FileText className="w-4 h-4" />
+                        <span className="text-sm font-medium">Lyrics</span>
+                    </button>
+                )}
+
                 {hymn.link && (
                     <a
                         href={hymn.link}
@@ -304,15 +315,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
                     </a>
                 )}
 
-                {hymn.lyrics && (
-                    <button
-                        onClick={() => openLyrics(hymn)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
-                    >
-                        <FileText className="w-4 h-4" />
-                        <span className="text-sm font-medium">Lyrics</span>
-                    </button>
-                )}
+
 
                 {!hymn.link && !hymn.lyrics && (
                     <span className="text-gray-700 text-xs">—</span>

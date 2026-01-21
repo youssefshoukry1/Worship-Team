@@ -15,10 +15,9 @@ export default function Navbar() {
     // Default Items
     const navItems = [
         { name: "hymns", path: "/", id: "home-section" },
-        { name: "training", path: "/Trainings", id: "training-section" },
         { name: "workspace", path: "/WorkSpace", id: "WorkSpace-section" },
+        { name: "training", path: "/Trainings", id: "training-section" },
         { name: "Dashboard", path: "/Dashboard", id: "Dashboard-section" },
-        { name: "contact", path: "/Contact", id: "contact-section" },
     ];
 
     /* 
@@ -213,7 +212,7 @@ export default function Navbar() {
                             {/* Mobile Dashboard Link */}
                             {isLogin &&
                                 UserRole &&
-                                ["Admin", "MANEGER", "programers", "Programmer"].includes(
+                                ["PEOGRAMER", "MANEGER", "ADMIN"].includes(
                                     UserRole
                                 ) && (
                                     <li>
