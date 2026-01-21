@@ -182,11 +182,17 @@ export default function Trainings() {
               <div className="p-6 sm:p-7 flex flex-col h-full relative z-10">
                 <div className="flex justify-between items-start mb-6">
                   <div>
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
                       <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
                                     bg-sky-500/10 text-sky-300 border border-sky-500/20">
                         <Mic className="w-3 h-3" /> Vocal
                       </span>
+                      {m.trainingEvents?.map((event, idx) => event?.eventName && (
+                        <span key={idx} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
+                                      bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                          {event.eventName}
+                        </span>
+                      ))}
                     </div>
                     <h2 className="text-2xl font-bold text-white tracking-tight">
                       {m.Name}

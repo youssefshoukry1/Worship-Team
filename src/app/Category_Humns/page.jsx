@@ -8,7 +8,7 @@ import Loading from '../loading';
 import Portal from '../Portal/Portal';
 import Metronome from '../Metronome/page';
 import { UserContext } from '../context/User_Context';
-import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search } from 'lucide-react';
+import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
 
@@ -26,9 +26,27 @@ export default function Category_Humns() {
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [formData, setFormData] = useState({ title: '', scale: '', relatedChords: '', link: '', party: 'All', BPM: '', timeSignature: '' });
+  const [formData, setFormData] = useState({ title: '', lyrics: '', scale: '', relatedChords: '', link: '', party: 'All', BPM: '', timeSignature: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingHymnId, setEditingHymnId] = useState(null); // Track which hymn is being edited
+
+  // Lyrics Modal State
+  const [showLyricsModal, setShowLyricsModal] = useState(false);
+  const [selectedLyricsHymn, setSelectedLyricsHymn] = useState(null);
+
+  const openLyrics = (hymn) => {
+    setSelectedLyricsHymn(hymn);
+    setShowLyricsModal(true);
+  };
+
+  const closeLyricsModal = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setShowLyricsModal(false);
+      setSelectedLyricsHymn(null);
+      setIsClosing(false);
+    }, 300);
+  };
 
   //search State
   const [search, setSearch] = useState(''); // Stores the search query text
@@ -90,7 +108,7 @@ export default function Category_Humns() {
 
       queryClient.invalidateQueries(["humns"]);
       closeModal();
-      setFormData({ title: '', scale: '', relatedChords: '', link: '', BPM: '', timeSignature: '', party: 'All' });
+      setFormData({ title: '', lyrics: '', scale: '', relatedChords: '', link: '', BPM: '', timeSignature: '', party: 'All' });
     } catch (error) {
       console.error("Error adding hymn:", error);
     } finally {
@@ -111,7 +129,7 @@ export default function Category_Humns() {
 
       queryClient.invalidateQueries(["humns"]);
       closeModal();
-      setFormData({ title: '', scale: '', relatedChords: '', link: '', party: 'All', BPM: '', timeSignature: '' });
+      setFormData({ title: '', lyrics: '', scale: '', relatedChords: '', link: '', party: 'All', BPM: '', timeSignature: '' });
       setEditingHymnId(null);
     } catch (error) {
       console.error("Error editing hymn:", error);
@@ -222,6 +240,7 @@ export default function Category_Humns() {
     // Pre-fill form with hymn data for editing
     setFormData({
       title: hymn.title || '',
+      lyrics: hymn.lyrics || '',
       scale: hymn.scale || '',
       relatedChords: hymn.relatedChords || '',
       link: hymn.link || '',
@@ -424,6 +443,7 @@ export default function Category_Humns() {
                     delete_Hymn={delete_Hymn}
                     openEditModal={openEditModal}
                     variants={itemVariants}
+                    openLyrics={openLyrics}
                     t={t}
                   />
                 ))
@@ -488,6 +508,18 @@ export default function Category_Humns() {
                           onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                         />
                       </div>
+
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">{t("lyrics")}</label>
+                        <textarea
+                          dir="rtl"  // ⬅️ ضيفنا دي عشان العربي يظهر صح بالأقواس
+                          className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[150px] resize-y whitespace-pre-wrap" // ⬅️ ضيفنا whitespace-pre-wrap
+                          placeholder="e.g. Amazing Grace"
+                          value={formData.lyrics}
+                          onChange={(e) => setFormData({ ...formData, lyrics: e.target.value })}
+                        />
+                      </div>
+
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -592,6 +624,38 @@ export default function Category_Humns() {
                 </div>
               </Portal>
             )}
+
+            {/* --- Lyrics Modal --- */}
+            {showLyricsModal && selectedLyricsHymn && (
+              <Portal>
+                <div
+                  className={`fixed inset-0 z-[9999] flex justify-center items-center p-4 transition-all duration-300
+                ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/70"}`}
+                >
+                  <div
+                    className={`w-full max-w-2xl max-h-[85vh] bg-[#0c0c20] border border-white/10 rounded-2xl shadow-2xl flex flex-col relative transform transition-all duration-300
+                  ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
+                  >
+                    {/* Header */}
+                    <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
+                      <h2 className="text-2xl font-bold bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
+                        {selectedLyricsHymn.title}
+                      </h2>
+                      <button onClick={closeLyricsModal} className="text-gray-400 hover:text-white transition">
+                        <X className="w-6 h-6" />
+                      </button>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-6 overflow-y-auto custom-scrollbar">
+                      <p className="text-gray-200 text-lg leading-relaxed whitespace-pre-wrap font-medium font-sans" dir="rtl">
+                        {selectedLyricsHymn.lyrics}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </Portal>
+            )}
           </div>
         )}
       </div>
@@ -666,7 +730,7 @@ function KeyDisplay({ scale, relatedChords, onTranspose }) {
   );
 }
 
-function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, canEdit, delete_Hymn, openEditModal, variants, t }) {
+function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, canEdit, delete_Hymn, openEditModal, variants, t, openLyrics }) {
   const [transposeStep, setTransposeStep] = useState(0);
 
   // Compute transposed values
@@ -738,18 +802,30 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       </div>
 
       {/* Media Link */}
-      <div className="col-span-6 sm:col-span-3 flex justify-center items-center relative z-10">
-        {humn.link ? (
+      <div className="col-span-6 sm:col-span-3 flex flex-col sm:flex-row justify-center items-center gap-2 relative z-10">
+        {humn.link && (
           <a
             href={humn.link}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
           >
             <PlayCircle className="w-4 h-4" />
             <span className="text-sm font-medium">{t("listen")}</span>
           </a>
-        ) : (
+        )}
+
+        {humn.lyrics && (
+          <button
+            onClick={() => openLyrics(humn)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
+          >
+            <FileText className="w-4 h-4" />
+            <span className="text-sm font-medium">{t("lyrics")}</span>
+          </button>
+        )}
+
+        {!humn.link && !humn.lyrics && (
           <span className="text-gray-700 text-xs">—</span>
         )}
       </div>
