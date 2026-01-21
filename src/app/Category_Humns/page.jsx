@@ -305,7 +305,7 @@ export default function Category_Humns() {
   return (
 
 
-    <section id="Category_Humns" className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
+    <section id="Category_Humns" className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-10 relative overflow-hidden">
       {/* Background Gradients */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_70%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.15),transparent_70%)]" />
@@ -754,7 +754,8 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
     addToWorkspace({
       ...humn,
       scale: currentScale,
-      relatedChords: currentChords
+      relatedChords: currentChords,
+      lyrics: humn.lyrics
     });
   };
 

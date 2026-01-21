@@ -2,10 +2,11 @@
 import React, { useContext, useState } from 'react';
 import { transposeScale, transposeChords } from '../utils/musicUtils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PlayCircle, Trash2, Heart, Music, ListMusic, Gift, Star, Sparkles, GraduationCap } from 'lucide-react';
+import { PlayCircle, Trash2, Heart, Music, ListMusic, Gift, Star, Sparkles, GraduationCap, FileText, X } from 'lucide-react';
 import Metronome from '../Metronome/page';
 import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
+import Portal from '../Portal/Portal';
 
 export default function WorkSpace() {
     const { workspace, removeFromWorkspace } = useContext(HymnsContext);
@@ -36,6 +37,40 @@ export default function WorkSpace() {
         hidden: { y: 20, opacity: 0 },
         show: { y: 0, opacity: 1 }
     };
+
+    // Lyrics Modal State
+    const [showLyricsModal, setShowLyricsModal] = useState(false);
+    const [selectedLyricsHymn, setSelectedLyricsHymn] = useState(null);
+    const [isClosing, setIsClosing] = useState(false);
+
+    const openLyrics = (hymn) => {
+        setSelectedLyricsHymn(hymn);
+        setShowLyricsModal(true);
+    };
+
+    const closeLyricsModal = () => {
+        setIsClosing(true);
+        setTimeout(() => {
+            setShowLyricsModal(false);
+            setSelectedLyricsHymn(null);
+            setIsClosing(false);
+        }, 300);
+    };
+
+    // Prevent background scrolling when lyrics modal is open
+    React.useEffect(() => {
+        if (showLyricsModal) {
+            document.body.style.overflow = 'hidden';
+            document.documentElement.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
+        };
+    }, [showLyricsModal]);
 
     return (
         <section id='WorkSpace-section' className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
@@ -82,6 +117,7 @@ export default function WorkSpace() {
                                     categories={categories}
                                     removeFromWorkspace={removeFromWorkspace}
                                     variants={itemVariants}
+                                    openLyrics={openLyrics}
                                 />
                             ))
                         ) : (
@@ -93,6 +129,38 @@ export default function WorkSpace() {
                         )}
                     </motion.div>
                 </div>
+
+                {/* --- Lyrics Modal --- */}
+                {showLyricsModal && selectedLyricsHymn && (
+                    <Portal>
+                        <div
+                            className={`fixed inset-0 z-[9999] flex justify-center items-center p-4 transition-all duration-300
+                ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/70"}`}
+                        >
+                            <div
+                                className={`w-full max-w-2xl max-h-[85vh] bg-[#0c0c20] border border-white/10 rounded-2xl shadow-2xl flex flex-col relative transform transition-all duration-300
+                  ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
+                            >
+                                {/* Header */}
+                                <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
+                                    <h2 className="text-2xl font-bold bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
+                                        {selectedLyricsHymn.title}
+                                    </h2>
+                                    <button onClick={closeLyricsModal} className="text-gray-400 hover:text-white transition">
+                                        <X className="w-6 h-6" />
+                                    </button>
+                                </div>
+
+                                {/* Content */}
+                                <div className="p-6 overflow-y-auto custom-scrollbar overscroll-contain">
+                                    <p className="text-gray-200 text-lg leading-relaxed whitespace-pre-wrap font-medium font-sans" dir="rtl">
+                                        {selectedLyricsHymn.lyrics}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </Portal>
+                )}
             </div>
         </section>
     )
@@ -164,7 +232,7 @@ function KeyDisplay({ scale, relatedChords, onTranspose }) {
     );
 }
 
-function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants }) {
+function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants, openLyrics }) {
     const [transposeStep, setTransposeStep] = useState(0);
 
     const currentScale = transposeScale(hymn.scale, transposeStep);
@@ -186,7 +254,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants 
 
             {/* BPM and Time Signature Display */}
             {(hymn.BPM || hymn.timeSignature) && (
-                <div className="absolute top-2 right-2 flex items-center gap-2 bg-black/40 pr-3 pl-1 py-0.5 rounded-full border border-white/5 z-20 backdrop-blur-sm">
+                <div className="absolute lg:top-1 top-2 right-2 flex items-center gap-2 bg-black/40 pr-3 pl-1 py-0.5 rounded-full border border-white/5 z-20 backdrop-blur-sm">
                     {hymn.BPM && <Metronome id={hymn._id} bpm={hymn.BPM} timeSignature={hymn.timeSignature || "4/4"} minimal={true} />}
                     <div className="flex gap-2 text-[10px] font-mono text-gray-500">
                         {hymn.BPM && <span>{hymn.BPM} bpm</span>}
@@ -223,18 +291,30 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants 
             </div>
 
             {/* Media Link */}
-            <div className="col-span-6 sm:col-span-3 flex justify-center items-center relative z-10">
-                {hymn.link ? (
+            <div className="col-span-6 sm:col-span-3 flex flex-col sm:flex-row justify-center items-center gap-2 relative z-10">
+                {hymn.link && (
                     <a
                         href={hymn.link}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all w-full sm:w-auto justify-center"
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
                     >
                         <PlayCircle className="w-4 h-4" />
                         <span className="text-sm font-medium">Listen</span>
                     </a>
-                ) : (
+                )}
+
+                {hymn.lyrics && (
+                    <button
+                        onClick={() => openLyrics(hymn)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
+                    >
+                        <FileText className="w-4 h-4" />
+                        <span className="text-sm font-medium">Lyrics</span>
+                    </button>
+                )}
+
+                {!hymn.link && !hymn.lyrics && (
                     <span className="text-gray-700 text-xs">—</span>
                 )}
             </div>
