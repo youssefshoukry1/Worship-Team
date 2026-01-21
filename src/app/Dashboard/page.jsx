@@ -6,14 +6,14 @@ import axios from 'axios';
 import { UserContext } from '../context/User_Context';
 import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../loading';
-import { 
-  Check, 
-  X, 
-  ShieldAlert, 
-  User, 
-  Mail, 
-  BookOpen, 
-  RefreshCw, 
+import {
+  Check,
+  X,
+  ShieldAlert,
+  User,
+  Mail,
+  BookOpen,
+  RefreshCw,
   Users,
   PlusCircle,
   Calendar,
@@ -30,7 +30,7 @@ export default function Dashboard() {
   const [newEventName, setNewEventName] = useState("");
 
   // --- 1. API Fetching Functions ---
-  
+
   const fetchPendingUsers = async () => {
     const res = await axios.get(`${API_URL}/users/pending`, {
       headers: { Authorization: `Bearer ${isLogin}` },
@@ -58,7 +58,7 @@ export default function Dashboard() {
     if (!newEventName) return;
     setProcessingId("CREATE_EVENT");
     try {
-      await axios.post(`${API_URL}/events/create`, 
+      await axios.post(`${API_URL}/events/create`,
         { eventName: newEventName },
         { headers: { Authorization: `Bearer ${isLogin}` } }
       );
@@ -73,7 +73,7 @@ export default function Dashboard() {
       await axios.patch(`${API_URL}/events/toggle/${userId}/${eventId}`, {}, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
-      queryClient.invalidateQueries(['AllUsersChurch']);
+      queryClient.invalidateQueries({ queryKey: ['data', isLogin] });
     } finally { setProcessingId(null); }
   };
 
@@ -82,7 +82,7 @@ export default function Dashboard() {
     try {
       await axios.patch(`${API_URL}/users/status/${userId}`, { status: newStatus }, { headers: { Authorization: `Bearer ${isLogin}` } });
       queryClient.invalidateQueries(['pendingUsers']);
-      queryClient.invalidateQueries(['AllUsersChurch']);
+      queryClient.invalidateQueries({ queryKey: ['data', isLogin] });
     } finally { setProcessingId(null); }
   };
 
@@ -90,19 +90,52 @@ export default function Dashboard() {
     setProcessingId(userId);
     try {
       await axios.patch(`${API_URL}/users/role/${userId}/${churchId}`, { role: newRole }, { headers: { Authorization: `Bearer ${isLogin}` } });
-      queryClient.invalidateQueries(['AllUsersChurch']);
+      queryClient.invalidateQueries({ queryKey: ['data', isLogin] });
+    } finally { setProcessingId(null); }
+  };
+
+  const handleTrainingToggle = async (userId) => {
+    setProcessingId(userId);
+    try {
+      await axios.patch(`${API_URL}/users/training-status/${userId}`, {}, { headers: { Authorization: `Bearer ${isLogin}` } }); // اتاكد ان ال id ده موجود في الداتا بيز
+      queryClient.invalidateQueries({ queryKey: ['data', isLogin] });
     } finally { setProcessingId(null); }
   };
 
   const resetAllTraining = async () => {
-    if (!confirm("هل أنت متأكد من مسح جميع بيانات التدريب والحفلات لكل الأعضاء؟")) return;
-    setProcessingId("RESET_ALL");
-    try {
-      await axios.patch(`${API_URL}/users/training/reset/${churchId}`, {}, { headers: { Authorization: `Bearer ${isLogin}` } });
-      queryClient.invalidateQueries(['AllUsersChurch']);
-    } finally { setProcessingId(null); }
-  };
+    // 1. تأكد من وجود الـ churchId
+    if (!churchId) {
+      alert("خطأ: لم يتم العثور على معرف الكنيسة");
+      return;
+    }
 
+    if (!confirm("هل أنت متأكد من مسح جميع ترانيم التدريب والحفلات لكل الأعضاء؟")) return;
+
+    setProcessingId("RESET_ALL");
+
+    try {
+      // 2. إرسال الطلب
+      await axios.patch(
+        `${API_URL}/users/training/reset/${churchId}`,
+        {},
+        { headers: { Authorization: `Bearer ${isLogin}` } }
+      );
+
+      // 3. الخطوة السحرية: تحديث كل المفاتيح (Invalidate Everything)
+      // سنقوم بعمل Invalidate لكل الـ queries التي تبدأ بكلمات معينة لضمان مسح الكاش
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['data'] }), // هذا هو المفتاح المستخدم في صفحة الـ Training
+        queryClient.invalidateQueries({ queryKey: ['churchEvents'] })
+      ]);
+
+      alert("تم تصفير كافة الجداول بنجاح ✅");
+    } catch (error) {
+      console.error("Reset Error:", error);
+      alert("حدث خطأ أثناء التصفير، تأكد من صلاحياتك");
+    } finally {
+      setProcessingId(null);
+    }
+  };
   // --- 3. React Query Hooks ---
 
   const { data: pendingUsers = [], isLoading: isLoadingPending } = useQuery({
@@ -112,7 +145,7 @@ export default function Dashboard() {
   });
 
   const { data: UsersChurch = [], isLoading: isLoadingChurch } = useQuery({
-    queryKey: ['AllUsersChurch', isLogin],
+    queryKey: ['data', isLogin],
     queryFn: fetchAll_ChurchID_Users,
     enabled: !!isLogin,
   });
@@ -128,7 +161,7 @@ export default function Dashboard() {
   return (
     <section className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
       <div className="max-w-7xl mx-auto relative z-10">
-        
+
         <h1 className="text-3xl sm:text-5xl font-extrabold mb-12 text-center bg-linear-to-br from-sky-300 via-blue-400 to-indigo-500 text-transparent bg-clip-text flex items-center justify-center gap-4">
           <ShieldAlert className="w-10 h-10 text-sky-400" /> Admin Dashboard
         </h1>
@@ -139,14 +172,14 @@ export default function Dashboard() {
             <Calendar className="text-sky-400 w-6 h-6" /> Quick Event Setup (إنشاء حفلة)
           </h2>
           <div className="flex flex-col sm:flex-row gap-4">
-            <input 
+            <input
               type="text"
               value={newEventName}
               onChange={(e) => setNewEventName(e.target.value)}
               placeholder="اسم الحفلة (مثلاً: حفلة القيامة 2026)"
               className="flex-1 bg-black/20 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-sky-500 transition-all text-sm"
             />
-            <button 
+            <button
               onClick={handleCreateEvent}
               disabled={processingId === "CREATE_EVENT"}
               className="bg-sky-500 hover:bg-sky-600 px-8 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
@@ -220,21 +253,36 @@ export default function Dashboard() {
                 layout
                 className="relative p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md"
               >
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center border-2 border-indigo-400/30 bg-indigo-400/10">
-                    <User className="w-6 h-6 text-indigo-300" />
+                <div className="flex items-start justify-between gap-4 mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center border-2 border-indigo-400/30 bg-indigo-400/10">
+                      <User className="w-6 h-6 text-indigo-300" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg leading-tight">{user.Name}</h3>
+                      <select
+                        value={user.role}
+                        onChange={(e) => handleRoleChange(user._id, e.target.value)}
+                        className="bg-transparent text-xs text-indigo-400 outline-none cursor-pointer mt-1"
+                      >
+                        <option className="bg-slate-900" value="USER">USER</option>
+                        <option className="bg-slate-900" value="ADMIN">ADMIN</option>
+                        <option className="bg-slate-900" value="MANEGER">MANAGER</option>
+                      </select>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-lg leading-tight">{user.Name}</h3>
-                    <select
-                      value={user.role}
-                      onChange={(e) => handleRoleChange(user._id, e.target.value)}
-                      className="bg-transparent text-xs text-indigo-400 outline-none cursor-pointer mt-1"
-                    >
-                      <option className="bg-slate-900" value="USER">USER</option>
-                      <option className="bg-slate-900" value="ADMIN">ADMIN</option>
-                      <option className="bg-slate-900" value="MANEGER">MANAGER</option>
-                    </select>
+                  <div className="flex flex-col items-end gap-1 text-center">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase">In Training</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={user.isInTraining}
+                        onChange={() => handleTrainingToggle(user._id)}
+                        className="sr-only peer"
+                        disabled={processingId === user._id}
+                      />
+                      <div className="w-9 h-5 bg-gray-600 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
+                    </label>
                   </div>
                 </div>
 
@@ -248,17 +296,16 @@ export default function Dashboard() {
                     {churchEvents.map((event) => {
                       const isActive = user.trainingEvents?.some(e => e._id === event._id || e === event._id);
                       const isLocalProcessing = processingId === `${user._id}-${event._id}`;
-                      
+
                       return (
                         <button
                           key={event._id}
                           onClick={() => toggleUserInEvent(user._id, event._id)}
                           disabled={isLocalProcessing}
-                          className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all flex items-center gap-1.5 ${
-                            isActive 
-                            ? 'bg-sky-500/20 border-sky-500 text-sky-300 shadow-lg shadow-sky-500/10' 
+                          className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all flex items-center gap-1.5 ${isActive
+                            ? 'bg-sky-500/20 border-sky-500 text-sky-300 shadow-lg shadow-sky-500/10'
                             : 'bg-white/5 border-white/10 text-gray-500 hover:border-white/30'
-                          }`}
+                            }`}
                         >
                           {isLocalProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Calendar className="w-3 h-3" />}
                           {event.eventName}

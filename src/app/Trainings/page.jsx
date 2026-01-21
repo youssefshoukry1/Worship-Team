@@ -24,7 +24,7 @@ export default function Trainings() {
 
   const [showModel, setShowmodel] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [modalType, setModalType] = useState("add"); // "add" أو "update"
+  const [modalType, setModalType] = useState("add");
   const [song, setSong] = useState("");
   const [scale, setScale] = useState("");
   const [link, setLink] = useState("");
@@ -34,7 +34,7 @@ export default function Trainings() {
   const [selectedHymnIds, setSelectedHymnIds] = useState([]);
 
   const get_All_Users = () => {
-    if (!isLogin) return <Login />;
+    if (!isLogin) return [];
     return axios
       .get(`https://worship-team-api.vercel.app/api/users/my-church`, {
         headers: { Authorization: `Bearer ${isLogin}` },
@@ -91,16 +91,6 @@ export default function Trainings() {
       .catch(() => setSubmitClicked(false));
   };
 
-  const delete_All_Songs = async (userid) => {
-    if (!isLogin) return <Login />;
-    return axios
-      .delete(`https://worship-team-api.vercel.app/api/users/${userid}/allsongs/${churchId}`,
-        { headers: { Authorization: `Bearer ${isLogin}` } }
-      ).then(() => {
-        queryClient.invalidateQueries(['data', isLogin])
-      }).catch(() => { })
-  }
-
   const { data = [], isLoading } = useQuery({
     queryKey: ["data", isLogin],
     queryFn: get_All_Users,
@@ -109,20 +99,25 @@ export default function Trainings() {
 
   if (isLoading) return <Loading />;
 
-  // --- منطق الفلترة بناءً على الـ Event المشترك ---
-  const currentUserData = data.find(u => u._id === user_id);
-  const myEventIds = currentUserData?.trainingEvents?.map(ev => typeof ev === 'object' ? ev._id : ev) || [];
-
+  // --- منطق الفلترة المتوافق مع الـ Populated Backend ---
   const filteredData = data.filter((user) => {
-    // 1. يجب أن يكون المستخدم في وضع التدريب أولاً
+    // 1. استثناء: يجب أن يكون المستخدم مفعّل عنده الـ Training
     if (!user.isInTraining) return false;
-    
-    // 2. إذا كان الشخص هو أنا، أظهر كارتي
+
+    // 2. الرتب العالية ترى الجميع (Admin, MANEGER, PROGRAMER)
+    const upperRoles = ["Admin", "MANEGER", "PROGRAMER", "ADMIN"]; // أضفت ADMIN احتياطاً لحالة الحروف
+    if (upperRoles.includes(UserRole)) return true;
+
+    // 3. للمستخدم العادي: نرى أنفسنا ومن معنا في نفس الـ Event
     if (user._id === user_id) return true;
 
-    // 3. للمديرين أو المبرمجين، يمكنهم رؤية الجميع (اختياري، لكن هنا سنلتزم بطلبك "نفس الـ event")
-    // إذا كنت تريد تقييد الجميع حرفياً بنفس الـ event:
-    const theirEventIds = user.trainingEvents?.map(ev => typeof ev === 'object' ? ev._id : ev) || [];
+    const myData = data.find(u => u._id === user_id);
+    if (!myData || !myData.trainingEvents) return false;
+
+    // استخراج الـ IDs من الـ Populated Objects ومقارنتها كـ Strings
+    const myEventIds = myData.trainingEvents.map(ev => (ev._id || ev).toString());
+    const theirEventIds = (user.trainingEvents || []).map(ev => (ev._id || ev).toString());
+
     return theirEventIds.some(id => myEventIds.includes(id));
   });
 
@@ -141,7 +136,6 @@ export default function Trainings() {
       setCurrentSongId(null);
     }
     setShowmodel(true);
-
     if (type === "add") {
       setSelectedHymnIds([]);
     }
@@ -173,129 +167,125 @@ export default function Trainings() {
       </h1>
 
       <div className="grid gap-8 sm:gap-10 md:grid-cols-2 lg:grid-cols-3 relative z-10 items-start">
-        {filteredData.map((m, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            whileHover={{ y: -5, boxShadow: "0 20px 40px -10px rgba(14, 165, 233, 0.2)" }}
-            className="relative bg-[#0f172a]/80 backdrop-blur-xl rounded-3xl p-1 shadow-2xl border border-white/10 group overflow-hidden flex flex-col h-full"
-          >
-            {/* Gradient Top Border */}
-            <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-sky-500 via-blue-500 to-indigo-500 opacity-80" />
+        {filteredData.length > 0 ? (
+          filteredData.map((m, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              whileHover={{ y: -5, boxShadow: "0 20px 40px -10px rgba(14, 165, 233, 0.2)" }}
+              className="relative bg-[#0f172a]/80 backdrop-blur-xl rounded-3xl p-1 shadow-2xl border border-white/10 group overflow-hidden flex flex-col h-full"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-sky-500 via-blue-500 to-indigo-500 opacity-80" />
 
-            <div className="p-6 sm:p-7 flex flex-col h-full relative z-10">
-              {/* Header Section */}
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
-                                  bg-sky-500/10 text-sky-300 border border-sky-500/20">
-                      <Mic className="w-3 h-3" /> Vocal
-                    </span>
+              <div className="p-6 sm:p-7 flex flex-col h-full relative z-10">
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
+                                    bg-sky-500/10 text-sky-300 border border-sky-500/20">
+                        <Mic className="w-3 h-3" /> Vocal
+                      </span>
+                    </div>
+                    <h2 className="text-2xl font-bold text-white tracking-tight">
+                      {m.Name}
+                    </h2>
+                    <p className="text-sm text-gray-400 font-medium">{m.name}</p>
                   </div>
-                  <h2 className="text-2xl font-bold text-white tracking-tight">
-                    {m.Name}
-                  </h2>
-                  <p className="text-sm text-gray-400 font-medium">{m.name}</p>
+
+                  {(["Admin", "MANEGER", "PROGRAMER", "ADMIN"].includes(UserRole) || user_id === m._id) && (
+                    <motion.button
+                      whileHover={{ scale: 1.1, rotate: 90 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => openModal("add", m)}
+                      className="p-2 rounded-full bg-linear-to-br from-green-500/20 to-emerald-500/20 text-green-400 hover:text-green-300 border border-green-500/30 shadow-lg shadow-green-500/10 transition-colors"
+                    >
+                      <PlusCircle className="w-6 h-6" />
+                    </motion.button>
+                  )}
                 </div>
 
-                {/* Add Song Action */}
-                {(UserRole === 'ADMIN' || UserRole === 'MANEGER' || user_id === m._id || UserRole === 'PROGRAMER') && (
-                  <motion.button
-                    whileHover={{ scale: 1.1, rotate: 90 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => openModal("add", m)}
-                    className="p-2 rounded-full bg-linear-to-br from-green-500/20 to-emerald-500/20 text-green-400 hover:text-green-300 border border-green-500/30 shadow-lg shadow-green-500/10 transition-colors"
-                  >
-                    <PlusCircle className="w-6 h-6" />
-                  </motion.button>
-                )}
-              </div>
+                <div className="flex-1 min-h-[150px] relative">
+                  <div className="absolute inset-0 overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="flex flex-col gap-3 pb-2">
+                      {m.songs_Array && m.songs_Array.length > 0 ? (
+                        m.songs_Array.map((p, idx) => (
+                          <div
+                            key={idx}
+                            className="group relative grid grid-cols-12 gap-4 p-4 sm:p-5 items-center 
+                                      bg-[#13132b]/60 hover:bg-[#1a1a38] 
+                                      border border-white/5 hover:border-sky-500/30 
+                                      rounded-2xl transition-all duration-300 backdrop-blur-sm
+                                      hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
+                          >
+                            <div className="absolute inset-0 rounded-2xl bg-linear-to-r from-sky-500/5 via-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
-              {/* Scrollable Content Area */}
-              <div className="flex-1 min-h-[150px] relative">
-                <div className="absolute inset-0 overflow-y-auto pr-2 custom-scrollbar">
-                  <div className="flex flex-col gap-3 pb-2">
-                    {m.songs_Array.length > 0 ? (
-                      m.songs_Array.map((p, idx) => (
-                        <div
-                          key={idx}
-                          className="group relative grid grid-cols-12 gap-4 p-4 sm:p-5 items-center 
-                                    bg-[#13132b]/60 hover:bg-[#1a1a38] 
-                                    border border-white/5 hover:border-sky-500/30 
-                                    rounded-2xl transition-all duration-300 backdrop-blur-sm
-                                    hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
-                        >
-                          {/* Hover Glow Gradient */}
-                          <div className="absolute inset-0 rounded-2xl bg-linear-to-r from-sky-500/5 via-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                            <div className="col-span-2 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
+                              {(idx + 1).toString().padStart(2, '0')}
+                            </div>
 
-                          {/* Index */}
-                          <div className="col-span-2 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
-                            {(idx + 1).toString().padStart(2, '0')}
+                            <div className="col-span-10 relative z-10 flex items-center">
+                              <h3 className="font-bold text-base sm:text-lg text-gray-200 group-hover:text-white transition-colors tracking-wide truncate">
+                                {p.title}
+                              </h3>
+                            </div>
+
+                            <div className="col-span-12 relative z-10 flex items-center justify-start -mt-2 pl-2">
+                              <KeyDisplay humn_parameter={p} />
+                            </div>
+
+                            <div className="col-span-6 flex justify-center items-center relative z-10">
+                              {p.link ? (
+                                <a
+                                  href={p.link}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all w-full justify-center"
+                                >
+                                  <PlayCircle className="w-4 h-4" />
+                                  <span className="text-sm font-medium">Listen</span>
+                                </a>
+                              ) : (
+                                <span className="text-gray-700 text-xs">—</span>
+                              )}
+                            </div>
+
+                            <div className="col-span-6 flex justify-center items-center relative z-10">
+                              {(["Admin", "MANEGER", "PROGRAMER", "ADMIN"].includes(UserRole) || user_id === m._id) && (
+                                <button
+                                  onClick={() => delete_song(m._id, p._id)}
+                                  className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 hover:border-red-500/20 bg-white/5 flex-1 flex justify-center"
+                                  title="Remove Song"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
                           </div>
-
-                          {/* Song Title */}
-                          <div className="col-span-10 relative z-10 flex items-center">
-                            <h3 className="font-bold text-base sm:text-lg text-gray-200 group-hover:text-white transition-colors tracking-wide truncate">
-                              {p.title}
-                            </h3>
-                          </div>
-
-                          {/* Key/Scale - Always Under Title (Left Aligned) */}
-                          <div className="col-span-12 relative z-10 flex items-center justify-start -mt-2 pl-2">
-                            <KeyDisplay humn_parameter={p} />
-                          </div>
-
-                          {/* Media Link */}
-                          <div className="col-span-6 flex justify-center items-center relative z-10">
-                            {p.link ? (
-                              <a
-                                href={p.link}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all w-full justify-center"
-                              >
-                                <PlayCircle className="w-4 h-4" />
-                                <span className="text-sm font-medium">Listen</span>
-                              </a>
-                            ) : (
-                              <span className="text-gray-700 text-xs">—</span>
-                            )}
-                          </div>
-
-                          {/* Actions */}
-                          <div className="col-span-6 flex justify-center items-center relative z-10">
-                            {(UserRole === 'Admin' || UserRole === 'MANEGER' || user_id === m._id || UserRole === 'PROGRAMER') && (
-                              <button
-                                onClick={() => delete_song(m._id, p._id)}
-                                className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 hover:border-red-500/20 bg-white/5 flex-1 flex justify-center"
-                                title="Remove Song"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
+                        ))
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-10 text-gray-500 opacity-60">
+                          <motion.div
+                            animate={{ rotate: [0, 10, -10, 0] }}
+                            transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                          >
+                            <Mic className="w-10 h-10 mb-2 opacity-30" />
+                          </motion.div>
+                          <p className="text-sm">No songs assigned yet</p>
                         </div>
-                      ))
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-10 text-gray-500 opacity-60">
-                        <motion.div
-                          animate={{ rotate: [0, 10, -10, 0] }}
-                          transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-                        >
-                          <Mic className="w-10 h-10 mb-2 opacity-30" />
-                        </motion.div>
-                        <p className="text-sm">No songs assigned yet</p>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          ))
+        ) : (
+          <div className="col-span-full text-center py-20 text-gray-400">
+            لا يوجد أعضاء مضافين للتدريب في الحفلات الخاصة بك حالياً.
+          </div>
+        )}
       </div>
 
       {showModel && (
@@ -392,7 +382,6 @@ export default function Trainings() {
   );
 }
 
-// Sub-component for handling Key/Chords toggle state (Reused)
 function KeyDisplay({ humn_parameter }) {
   const [showChords, setShowChords] = useState(false);
 
