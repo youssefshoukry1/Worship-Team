@@ -11,6 +11,7 @@ import { UserContext } from '../context/User_Context';
 import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
+import { useEffect } from "react";
 
 export default function Category_Humns() {
   const queryClient = useQueryClient();
@@ -18,6 +19,7 @@ export default function Category_Humns() {
   const { addToWorkspace, isHymnInWorkspace } = useContext(HymnsContext)
   const { t, language, setLanguage } = useLanguage();
 
+  
   // Re-introduced for Role checks
   const [activeTab, setActiveTab] = useState('all');
 
@@ -62,17 +64,29 @@ export default function Category_Humns() {
 
   //search State
   const [search, setSearch] = useState(''); // Stores the search query text
+  const [debouncedSearch, setDebouncedSearch] = useState(''); // Debounced search text
   const [showSearchBar, setShowSearchBar] = useState(false); // Controls search input visibility
+
+  // Debounce Effect
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [search]);
 
   // --- API Functions ---
 
   // 1. Fetch Hymns
   const fetchHymns = async ({ pageParam = 0 }) => {
     // If search is active, use search endpoint (No pagination for search currently)
-    if (search.trim()) {
+    if (debouncedSearch.trim()) {
       try {
         const { data } = await axios.get(
-          `https://worship-team-api.vercel.app/api/hymns/search?q=${encodeURIComponent(search)}`
+          `https://worship-team-api.vercel.app/api/hymns/search?q=${encodeURIComponent(debouncedSearch)}`
         );
         return data;
       } catch (error) {
@@ -178,11 +192,11 @@ export default function Category_Humns() {
     hasNextPage,
     isFetchingNextPage
   } = useInfiniteQuery({
-    queryKey: ["humns", activeTab, search],
+    queryKey: ["humns", activeTab, debouncedSearch],
     queryFn: fetchHymns,
     getNextPageParam: (lastPage, allPages) => {
       // 1. If search is active, no pagination
-      if (search.trim()) return undefined;
+      if (debouncedSearch.trim()) return undefined;
 
       // 2. If last page is empty or has less than 10 items, we've reached the end
       // This works because backend always tries to return 10 items if available
@@ -468,7 +482,7 @@ export default function Category_Humns() {
             </motion.div>
 
             {/* Load More Sentinel & Spinner */}
-            {!search.trim() && hasNextPage && (
+            {!debouncedSearch.trim() && hasNextPage && (
               <div ref={loadMoreRef} className="py-8 flex justify-center w-full">
                 {/* بنظهر السبينر فقط لو فعلاً بنعمل Fetch حالياً */}
                 {isFetchingNextPage ? (
@@ -481,7 +495,7 @@ export default function Category_Humns() {
             )}
 
             {/* رسالة اختيارية تظهر لما الترانيم تخلص خالص */}
-            {!hasNextPage && humns.length > 0 && !search.trim() && (
+            {!hasNextPage && humns.length > 0 && !debouncedSearch.trim() && (
               <p className="text-center text-gray-500 py-10 font-light italic">
                 — {t("endOfList")} —
               </p>
