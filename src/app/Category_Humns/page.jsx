@@ -19,7 +19,7 @@ export default function Category_Humns() {
   const { addToWorkspace, isHymnInWorkspace } = useContext(HymnsContext)
   const { t, language, setLanguage } = useLanguage();
 
-  
+
   // Re-introduced for Role checks
   const [activeTab, setActiveTab] = useState('all');
 
@@ -35,9 +35,18 @@ export default function Category_Humns() {
   // Lyrics Modal State
   const [showLyricsModal, setShowLyricsModal] = useState(false);
   const [selectedLyricsHymn, setSelectedLyricsHymn] = useState(null);
+  const [lyricsTheme, setLyricsTheme] = useState('main');
+
+  const lyricsThemes = {
+    warm: { bg: '#F8F5EE', text: '#222222', label: 'Warm' },
+    dark: { bg: '#14181f', text: '#f1f1f1', label: 'Dark' },
+    main: { bg: '#0E2238', text: '#EDEDED', label: 'Main' }
+  };
 
   const openLyrics = (hymn) => {
     setSelectedLyricsHymn(hymn);
+    setLyricsTheme('main');
+    setShowLyricsModal(true);
     setShowLyricsModal(true);
   };
 
@@ -659,22 +668,57 @@ export default function Category_Humns() {
                 ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/70"}`}
                 >
                   <div
-                    className={`w-full max-w-2xl max-h-[85vh] bg-[#0c0c20] border border-white/10 rounded-2xl shadow-2xl flex flex-col relative transform transition-all duration-300
+                    style={{ backgroundColor: lyricsThemes[lyricsTheme].bg }}
+                    className={`w-full max-w-2xl max-h-[85vh] border border-white/10 rounded-2xl shadow-2xl flex flex-col relative transform transition-all duration-300
                   ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
                   >
                     {/* Header */}
-                    <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
-                      <h2 className="text-2xl font-bold bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
-                        {selectedLyricsHymn.title}
-                      </h2>
-                      <button onClick={closeLyricsModal} className="text-gray-400 hover:text-white transition">
-                        <X className="w-6 h-6" />
-                      </button>
+                    <div className={`p-6 border-b border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 transition-colors duration-300
+                      ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/5' : 'bg-white/5'}`}>
+
+                      <div className="flex-1 min-w-0">
+                        <h2 className={`text-2xl font-bold truncate ${lyricsTheme === 'warm' ? 'text-gray-800' : 'bg-linear-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent'}`}>
+                          {selectedLyricsHymn.title}
+                        </h2>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        {/* Theme Toggles */}
+                        <div className={`flex p-1 rounded-lg border ${lyricsTheme === 'warm' ? 'bg-white border-black/10' : 'bg-black/20 border-white/10'}`}>
+                          {Object.entries(lyricsThemes).map(([key, theme]) => (
+                            <button
+                              key={key}
+                              onClick={() => setLyricsTheme(key)}
+                              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200
+                                ${lyricsTheme === key
+                                  ? 'shadow-sm transform scale-105'
+                                  : 'opacity-50 hover:opacity-100'}`}
+                              style={{
+                                backgroundColor: lyricsTheme === key ? theme.text : 'transparent',
+                                color: lyricsTheme === key ? theme.bg : (lyricsTheme === 'warm' ? '#222' : '#fff')
+                              }}
+                            >
+                              {theme.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        <button
+                          onClick={closeLyricsModal}
+                          className={`transition ${lyricsTheme === 'warm' ? 'text-gray-400 hover:text-gray-700' : 'text-gray-400 hover:text-white'}`}
+                        >
+                          <X className="w-6 h-6" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Content */}
-                    <div className="p-6 overflow-y-auto custom-scrollbar">
-                      <p className="text-gray-200 text-lg leading-relaxed whitespace-pre-wrap font-medium font-sans" dir="rtl">
+                    <div className="p-8 overflow-y-auto custom-scrollbar">
+                      <p
+                        style={{ color: lyricsThemes[lyricsTheme].text }}
+                        className="text-lg leading-relaxed whitespace-pre-wrap font-medium font-sans text-center transition-colors duration-300"
+                        dir="rtl"
+                      >
                         {selectedLyricsHymn.lyrics}
                       </p>
                     </div>
