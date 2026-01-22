@@ -42,6 +42,7 @@ export default function WorkSpace() {
     const [showLyricsModal, setShowLyricsModal] = useState(false);
     const [selectedLyricsHymn, setSelectedLyricsHymn] = useState(null);
     const [lyricsTheme, setLyricsTheme] = useState('main');
+    const [fontSize, setFontSize] = useState(18);
 
     const lyricsThemes = {
         warm: { bg: '#F8F5EE', text: '#222222', label: 'Warm' },
@@ -53,6 +54,7 @@ export default function WorkSpace() {
     const openLyrics = (hymn) => {
         setSelectedLyricsHymn(hymn);
         setLyricsTheme('main');
+        setFontSize(18);
         setShowLyricsModal(true);
     };
 
@@ -161,6 +163,24 @@ export default function WorkSpace() {
                                     </div>
 
                                     <div className="flex items-center gap-3">
+                                        {/* Font Size Controls */}
+                                        <div className={`flex items-center rounded-lg border ${lyricsTheme === 'warm' ? 'bg-white border-black/10' : 'bg-black/20 border-white/10'}`}>
+                                            <button
+                                                onClick={() => setFontSize(prev => Math.max(14, prev - 2))}
+                                                disabled={fontSize <= 14}
+                                                className={`px-3 py-1.5 text-xs font-bold border-r ${lyricsTheme === 'warm' ? 'border-black/5 text-gray-600 hover:bg-black/5' : 'border-white/5 text-gray-300 hover:bg-white/10'} disabled:opacity-30`}
+                                            >
+                                                A-
+                                            </button>
+                                            <button
+                                                onClick={() => setFontSize(prev => Math.min(36, prev + 2))}
+                                                disabled={fontSize >= 36}
+                                                className={`px-3 py-1.5 text-xs font-bold ${lyricsTheme === 'warm' ? 'text-gray-600 hover:bg-black/5' : 'text-gray-300 hover:bg-white/10'} disabled:opacity-30`}
+                                            >
+                                                A+
+                                            </button>
+                                        </div>
+
                                         {/* Theme Toggles */}
                                         <div className={`flex p-1 rounded-lg border ${lyricsTheme === 'warm' ? 'bg-white border-black/10' : 'bg-black/20 border-white/10'}`}>
                                             {Object.entries(lyricsThemes).map(([key, theme]) => (
@@ -193,8 +213,12 @@ export default function WorkSpace() {
                                 {/* Content */}
                                 <div className="p-8 overflow-y-auto custom-scrollbar">
                                     <p
-                                        style={{ color: lyricsThemes[lyricsTheme].text }}
-                                        className="text-lg leading-relaxed whitespace-pre-wrap font-medium font-sans text-center transition-colors duration-300"
+                                        style={{
+                                            color: lyricsThemes[lyricsTheme].text,
+                                            fontSize: `${fontSize}px`,
+                                            lineHeight: 1.6
+                                        }}
+                                        className="leading-relaxed whitespace-pre-wrap font-medium font-sans text-center transition-all duration-200"
                                         dir="rtl"
                                     >
                                         {selectedLyricsHymn.lyrics}
