@@ -932,7 +932,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
 
 
       {/* Media Link */}
-      <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-2 relative z-10">
+      <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-1 relative z-10">
   
         {humn.link && (
           <a
