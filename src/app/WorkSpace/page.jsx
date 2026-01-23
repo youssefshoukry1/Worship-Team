@@ -357,7 +357,19 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
                 />
             </div>
 
-            {/* Media Link */}
+            {/* Remove Action */}
+            <div className="col-span-6 sm:col-span-1 flex justify-center items-center relative z-10 px-2">
+                <button
+                    onClick={() => removeFromWorkspace(hymn._id)}
+                    className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 sm:border-transparent hover:border-red-500/20 bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
+                    title="Remove from Workspace"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            </div>
+
+
+             {/* Media Link */}
             <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-2 relative z-10">
 
 
@@ -387,17 +399,6 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
                 {!hymn.link && !hymn.lyrics && (
                     <span className="text-gray-700 text-xs">—</span>
                 )}
-            </div>
-
-            {/* Remove Action */}
-            <div className="col-span-6 sm:col-span-1 flex justify-center items-center relative z-10">
-                <button
-                    onClick={() => removeFromWorkspace(hymn._id)}
-                    className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 sm:border-transparent hover:border-red-500/20 bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
-                    title="Remove from Workspace"
-                >
-                    <Trash2 className="w-4 h-4" />
-                </button>
             </div>
         </motion.div>
     );
