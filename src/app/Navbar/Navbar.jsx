@@ -193,7 +193,10 @@ export default function Navbar() {
                             transition={{ duration: 0.2, ease: easeOut }}
                             className="absolute right-0 mt-4 w-56 bg-[#0f172a]/95 backdrop-blur-2xl text-white flex flex-col p-2 gap-1 rounded-2xl z-50 border border-white/10 shadow-2xl origin-top-right"
                         >
-                            {navItems.map(({ name, path, id }) => (
+                            {(UserRole === 'USER'
+                                ? navItems.filter((item) => item.name !== 'Dashboard')
+                                : navItems
+                            ).map(({ name, path, id }) => (
                                 <li key={name}>
                                     <button
                                         onClick={() => handleNavClick(path, id)}
