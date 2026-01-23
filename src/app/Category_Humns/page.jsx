@@ -896,17 +896,8 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       </div>
 
       {/* Media Link */}
-      <div className="col-span-6 sm:col-span-3 flex flex-col sm:flex-row justify-center items-center gap-2 relative z-10">
-        {humn.lyrics && (
-          <button
-            onClick={() => openLyrics(humn)}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
-          >
-            <FileText className="w-4 h-4" />
-            <span className="text-sm font-medium">{t("lyrics")}</span>
-          </button>
-        )}
-
+      <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-2 relative z-10">
+  
         {humn.link && (
           <a
             href={humn.link}
@@ -917,6 +908,16 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
             <PlayCircle className="w-4 h-4" />
             <span className="text-sm font-medium">{t("listen")}</span>
           </a>
+        )}
+
+              {humn.lyrics && (
+          <button
+            onClick={() => openLyrics(humn)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/20 hover         :bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
+          >
+            <FileText className="w-4 h-4" />
+            <span className="text-sm font-medium">{t("lyrics")}</span>
+          </button>
         )}
 
         {!humn.link && !humn.lyrics && (
