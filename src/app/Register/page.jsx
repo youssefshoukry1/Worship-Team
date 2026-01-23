@@ -56,7 +56,6 @@ export default function Register() {
                 "min lenth is 6 and max is 8 and first letter should be capital"
             ),
         ChurchName: Yup.string().required("Church Name is required"),
-        role: Yup.string(),
     });
 
     let formik = useFormik({
@@ -65,7 +64,6 @@ export default function Register() {
             email: "",
             password: "",
             ChurchName: "",
-            role: "",
         },
         validationSchema: validationSchema,
         onSubmit: handleRegister,
@@ -209,32 +207,6 @@ export default function Register() {
                             </div>
                         </div>
 
-                        {/* Role */}
-                        <div>
-                            <label
-                                htmlFor="role"
-                                className="block text-sm font-medium text-gray-300"
-                            >
-                                Role
-                            </label>
-                            <div className="mt-1">
-                                <input
-                                    onChange={formik.handleChange}
-                                    onBlur={formik.handleBlur}
-                                    value={formik.values.role}
-                                    name="role"
-                                    id="role"
-                                    type="text"
-                                    className="px-4 py-3 block w-full rounded-xl bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 sm:text-sm transition-all"
-                                    placeholder="Optional"
-                                />
-                                {formik.errors.role && formik.touched.role ? (
-                                    <div className="mt-1 text-red-400 text-xs text-right">
-                                        <span className="font-medium">{formik.errors.role}</span>
-                                    </div>
-                                ) : null}
-                            </div>
-                        </div>
 
                         {/* Submit Button */}
                         <button
