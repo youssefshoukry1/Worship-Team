@@ -11,14 +11,14 @@ import {
   X,
   ShieldAlert,
   User,
-  Mail,
-  BookOpen,
   RefreshCw,
   Users,
   PlusCircle,
   Calendar,
   Music,
-  Trash2
+  Trash2,
+  Edit,
+  Settings
 } from 'lucide-react';
 
 const API_URL = "https://worship-team-api.vercel.app/api";
@@ -28,6 +28,10 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const [processingId, setProcessingId] = useState(null);
   const [newEventName, setNewEventName] = useState("");
+  const [showEventsList, setShowEventsList] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState(null);
+  const [editingEventId, setEditingEventId] = useState(null);
+  const [editEventName, setEditEventName] = useState("");
 
   // --- 1. API Fetching Functions ---
 
@@ -53,6 +57,47 @@ export default function Dashboard() {
   };
 
   // --- 2. Action Handlers ---
+
+  const handleDeleteEvent = async (eventId) => {
+    if (!confirm("Are you sure you want to delete this event? This action cannot be undone.")) return;
+    setProcessingId(`DELETE_${eventId}`);
+    try {
+      await axios.delete(`${API_URL}/events/${eventId}`, {
+        headers: { Authorization: `Bearer ${isLogin}` }
+      });
+      queryClient.invalidateQueries(['churchEvents']);
+      setSelectedEventId(null);
+    } catch (error) {
+      console.error("Delete Error:", error);
+      alert("Failed to delete event");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleUpdateEvent = async (eventId) => {
+    if (!editEventName) return;
+    setProcessingId(`UPDATE_${eventId}`);
+    try {
+      await axios.patch(`${API_URL}/events/edit/${eventId}`,
+        { eventName: editEventName },
+        { headers: { Authorization: `Bearer ${isLogin}` } }
+      );
+      queryClient.invalidateQueries(['churchEvents']);
+      setEditingEventId(null);
+      setEditEventName("");
+    } catch (error) {
+      console.error("Update Error:", error);
+      alert("Failed to update event");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const startEditing = (event) => {
+    setEditingEventId(event._id);
+    setEditEventName(event.eventName);
+  };
 
   const handleCreateEvent = async () => {
     if (!newEventName) return;
@@ -187,6 +232,86 @@ export default function Dashboard() {
               {processingId === "CREATE_EVENT" ? <RefreshCw className="animate-spin w-4 h-4" /> : <PlusCircle className="w-5 h-5" />}
               Create Event
             </button>
+          </div>
+
+          <div className="mt-6 border-t border-white/10 pt-6">
+            <button
+              onClick={() => setShowEventsList(!showEventsList)}
+              className="flex items-center gap-2 text-sky-400 font-bold hover:text-sky-300 transition-colors"
+            >
+              <Settings className="w-5 h-5" /> Events Management
+            </button>
+
+            <AnimatePresence>
+              {showEventsList && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="grid gap-3 mt-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {churchEvents.map(event => (
+                      <div key={event._id} className="bg-white/5 border border-white/10 p-4 rounded-xl hover:bg-white/10 transition-colors">
+
+                        {editingEventId === event._id ? (
+                          <div className="flex gap-2">
+                            <input
+                              value={editEventName}
+                              onChange={(e) => setEditEventName(e.target.value)}
+                              className="flex-1 bg-black/20 border border-white/10 rounded px-2 py-1 text-sm outline-none focus:border-sky-500"
+                            />
+                            <button onClick={() => handleUpdateEvent(event._id)} disabled={processingId === `UPDATE_${event._id}`} className="text-emerald-400 p-1 hover:bg-emerald-500/10 rounded">
+                              {processingId === `UPDATE_${event._id}` ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                            </button>
+                            <button onClick={() => setEditingEventId(null)} className="text-red-400 p-1 hover:bg-red-500/10 rounded">
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div
+                              onClick={() => setSelectedEventId(selectedEventId === event._id ? null : event._id)}
+                              className="font-bold text-lg cursor-pointer flex justify-between items-center"
+                            >
+                              {event.eventName}
+                              <Calendar className="w-4 h-4 text-gray-500" />
+                            </div>
+
+                            <AnimatePresence>
+                              {selectedEventId === event._id && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: -10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -10 }}
+                                  className="flex gap-2 mt-3 pt-3 border-t border-white/10"
+                                >
+                                  <button
+                                    onClick={() => startEditing(event)}
+                                    className="flex-1 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                                  >
+                                    <Edit className="w-3 h-3" /> Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteEvent(event._id)}
+                                    disabled={processingId === `DELETE_${event._id}`}
+                                    className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                                  >
+                                    {processingId === `DELETE_${event._id}` ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                    Delete
+                                  </button>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                    {churchEvents.length === 0 && <p className="text-gray-400 text-sm">No events found.</p>}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
