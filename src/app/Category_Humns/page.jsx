@@ -12,7 +12,7 @@ import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, 
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
 import { useEffect } from "react";
-import Hammer from 'hammerjs';
+
 export default function Category_Humns() {
   const queryClient = useQueryClient();
   const { isLogin, UserRole } = useContext(UserContext);
@@ -69,16 +69,29 @@ export default function Category_Humns() {
 
     //show data show phones swip
     const element = document.getElementById('showDataContainer');
-    const hammer = new Hammer(element);
 
-    // نعمل swipe gesture
-    hammer.on('swipeleft swiperight', function () {
-      showData = !showData;
-      renderShowData(showData);
-    });
+    // Dynamically import Hammer.js only on client side
+    let hammer;
+    if (element) {
+      import('hammerjs').then((Hammer) => {
+        hammer = new Hammer.default(element);
+
+        // نعمل swipe gesture
+        hammer.on('swipeleft swiperight', function () {
+          setShowDataShow(prev => !prev);
+        });
+      }).catch(err => {
+        console.error('Failed to load Hammer.js:', err);
+      });
+    }
 
     window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      if (hammer) {
+        hammer.destroy();
+      }
+    };
   }, [showDataShow, dataShowIndex, dataShowSlides.length]);
 
 
