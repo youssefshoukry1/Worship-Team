@@ -14,6 +14,7 @@
     "axios": "^1.13.2",
     "formik": "^2.4.9",
     "framer-motion": "^12.23.19",
+    "hammerjs": "^2.0.8",
     "lucide-react": "^0.544.0",
     "next": "latest",
     "react": "^19.1.0",
@@ -21,16 +22,15 @@
     "react-icons": "^5.5.0",
     "yup": "^1.7.1"
   },
-"devDependencies": {
-  "@eslint/eslintrc": "^3",
-  "@tailwindcss/postcss": "^4",
-  "@types/node": "^20",
-  "@types/react": "^19",
-  "@types/react-dom": "^19",
-  "eslint": "^9",
-  "eslint-config-next": "latest",
-  "tailwindcss": "^4",
-  "typescript": "^5"
-}
-
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "latest",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
 }

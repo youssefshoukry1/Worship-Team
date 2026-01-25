@@ -12,7 +12,7 @@ import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, 
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
 import { useEffect } from "react";
-
+import Hammer from 'hammerjs';
 export default function Category_Humns() {
   const queryClient = useQueryClient();
   const { isLogin, UserRole } = useContext(UserContext);
@@ -37,6 +37,50 @@ export default function Category_Humns() {
   const [selectedLyricsHymn, setSelectedLyricsHymn] = useState(null);
   const [lyricsTheme, setLyricsTheme] = useState('main');
   const [fontSize, setFontSize] = useState(18);
+
+  //Data Show
+  const [showDataShow, setShowDataShow] = useState(false);
+  const [dataShowIndex, setDataShowIndex] = useState(0);
+
+  const dataShowSlides = selectedLyricsHymn?.lyrics
+    ?.split('\n\n')
+    .map(b => b.trim())
+    .filter(Boolean) || [];
+
+  //Data show Swipe
+  useEffect(() => {
+    if (!showDataShow) return;
+
+    const handleKey = (e) => {
+      // الشمال = التالي
+      if (e.key === 'ArrowLeft' && dataShowIndex < dataShowSlides.length - 1) {
+        setDataShowIndex(i => i + 1);
+      }
+
+      // اليمين = السابق
+      if (e.key === 'ArrowRight' && dataShowIndex > 0) {
+        setDataShowIndex(i => i - 1);
+      }
+
+      if (e.key === 'Escape') {
+        setShowDataShow(false);
+      }
+    };
+
+    //show data show phones swip
+    const element = document.getElementById('showDataContainer');
+    const hammer = new Hammer(element);
+
+    // نعمل swipe gesture
+    hammer.on('swipeleft swiperight', function () {
+      showData = !showData;
+      renderShowData(showData);
+    });
+
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [showDataShow, dataShowIndex, dataShowSlides.length]);
+
 
   const lyricsThemes = {
     warm: { bg: '#F8F5EE', text: '#222222', label: 'Warm' },
@@ -674,6 +718,17 @@ export default function Category_Humns() {
                   ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
                   >
                     {/* Header */}
+                    <button
+                      onClick={() => {
+                        setShowDataShow(true);
+                        setDataShowIndex(0);
+                      }}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-black/20 border border-white/10 hover:bg-black/40"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Data Show
+                    </button>
+
                     <div className={`p-6 border-b border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 transition-colors duration-300
                       ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/5' : 'bg-white/5'}`}>
 
@@ -747,15 +802,65 @@ export default function Category_Humns() {
                     </div>
                   </div>
                 </div>
+                {/* Data show */}
+                {showDataShow && selectedLyricsHymn && (
+                  <Portal>
+                    <div className="fixed inset-0 z-[10000] bg-black flex items-center justify-center">
+
+                      {/* Exit */}
+                      <button
+                        onClick={() => setShowDataShow(false)}
+                        className="absolute top-6 right-6 text-white/60 hover:text-white z-10"
+                      >
+                        <X size={32} />
+                      </button>
+
+                      {/* Counter */}
+                      <div className="absolute bottom-6 text-white/50 text-sm z-10">
+                        {dataShowIndex + 1} / {dataShowSlides.length}
+                      </div>
+
+                      {/* Slide with Fade */}
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={dataShowIndex}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.4, ease: "easeInOut" }}
+                          className="w-full h-full flex items-center justify-center px-10 text-center"
+                        >
+                          <p
+                            className="text-white font-bold whitespace-pre-line select-none"
+                            style={{
+                              fontSize: "64px",
+                              lineHeight: 1.6
+                            }}
+                            dir="rtl"
+                          >
+                            {dataShowSlides[dataShowIndex]}
+                          </p>
+                        </motion.div>
+                      </AnimatePresence>
+
+                    </div>
+                  </Portal>
+                )}
+
+
               </Portal>
+
             )}
           </div>
         )}
       </div>
+
     </section >
 
   )
 }
+
+
 
 // Sub-component for handling Key/Chords toggle state
 function KeyDisplay({ scale, relatedChords, onTranspose }) {
@@ -896,7 +1001,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       </div>
 
 
- {/* Actions */}
+      {/* Actions */}
       <div className="col-span-6 sm:col-span-1 flex justify-center items-center gap-2 relative z-10 lg:top-2 px-2">
         <button
           onClick={handleAddToWorkspace}
@@ -933,7 +1038,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
 
       {/* Media Link */}
       <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-1 relative z-10">
-  
+
         {humn.link && (
           <a
             href={humn.link}
@@ -946,10 +1051,10 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
           </a>
         )}
 
-              {humn.lyrics && (
+        {humn.lyrics && (
           <button
             onClick={() => openLyrics(humn)}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/20 hover       :bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
           >
             <FileText className="w-4 h-4" />
             <span className="text-sm font-medium">{t("lyrics")}</span>
@@ -961,7 +1066,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
         )}
       </div>
 
-     
+
     </motion.div>
   );
 }
