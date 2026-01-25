@@ -47,7 +47,7 @@ export default function Category_Humns() {
     .map(b => b.trim())
     .filter(Boolean) || [];
 
-  //Data show Swipe
+  //Data show Swipe - Native Touch Events (No Library)
   useEffect(() => {
     if (!showDataShow) return;
 
@@ -67,30 +67,45 @@ export default function Category_Humns() {
       }
     };
 
-    //show data show phones swip
+    // Native Touch Events for Mobile Swipe (Lightweight & Fast)
     const element = document.getElementById('showDataContainer');
+    if (!element) return;
 
-    // Dynamically import Hammer.js only on client side
-    let hammer;
-    if (element) {
-      import('hammerjs').then((Hammer) => {
-        hammer = new Hammer.default(element);
+    let touchStartX = 0;
+    let touchEndX = 0;
+    const minSwipeDistance = 50; // Minimum distance for swipe detection
 
-        // نعمل swipe gesture
-        hammer.on('swipeleft swiperight', function () {
-          setShowDataShow(prev => !prev);
-        });
-      }).catch(err => {
-        console.error('Failed to load Hammer.js:', err);
-      });
-    }
+    const handleTouchStart = (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    };
 
-    window.addEventListener('keydown', handleKey);
-    return () => {
-      window.removeEventListener('keydown', handleKey);
-      if (hammer) {
-        hammer.destroy();
+    const handleTouchEnd = (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+    };
+
+    const handleSwipe = () => {
+      const swipeDistance = touchStartX - touchEndX;
+
+      // Swipe Left (Next Slide)
+      if (swipeDistance > minSwipeDistance && dataShowIndex < dataShowSlides.length - 1) {
+        setDataShowIndex(i => i + 1);
       }
+
+      // Swipe Right (Previous Slide)
+      if (swipeDistance < -minSwipeDistance && dataShowIndex > 0) {
+        setDataShowIndex(i => i - 1);
+      }
+    };
+
+    element.addEventListener('touchstart', handleTouchStart);
+    element.addEventListener('touchend', handleTouchEnd);
+    window.addEventListener('keydown', handleKey);
+
+    return () => {
+      element.removeEventListener('touchstart', handleTouchStart);
+      element.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('keydown', handleKey);
     };
   }, [showDataShow, dataShowIndex, dataShowSlides.length]);
 
@@ -730,16 +745,19 @@ export default function Category_Humns() {
                     className={`w-full max-w-2xl max-h-[85vh] border border-white/10 rounded-2xl shadow-2xl flex flex-col relative transform transition-all duration-300
                   ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
                   >
-                    {/* Header */}
+                    {/* Modern Data Show Button */}
                     <button
                       onClick={() => {
                         setShowDataShow(true);
                         setDataShowIndex(0);
                       }}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-black/20 border border-white/10 hover:bg-black/40"
+                      className="group flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 border backdrop-blur-md relative overflow-hidden shadow-lg
+                        bg-gradient-to-r from-sky-500/10 to-blue-500/10 border-sky-400/30 text-sky-200 
+                        hover:from-sky-500/20 hover:to-blue-500/20 hover:border-sky-400/50 hover:shadow-sky-500/25 hover:scale-105 active:scale-95"
                     >
-                      <FileText className="w-4 h-4" />
-                      Data Show
+                      <div className="absolute inset-0 bg-sky-400/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <FileText className="w-4 h-4 relative z-10 group-hover:rotate-12 transition-transform" />
+                      <span className="relative z-10">Data Show</span>
                     </button>
 
                     <div className={`p-6 border-b border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 transition-colors duration-300
@@ -818,35 +836,63 @@ export default function Category_Humns() {
                 {/* Data show */}
                 {showDataShow && selectedLyricsHymn && (
                   <Portal>
-                    <div className="fixed inset-0 z-[10000] bg-black flex items-center justify-center">
+                    <div
+                      id="showDataContainer"
+                      className="fixed inset-0 z-[10000] bg-black flex items-center justify-center"
+                    >
 
-                      {/* Exit */}
+                      {/* Exit Button */}
                       <button
                         onClick={() => setShowDataShow(false)}
-                        className="absolute top-6 right-6 text-white/60 hover:text-white z-10"
+                        className="absolute top-6 right-6 text-white/60 hover:text-white transition-all hover:scale-110 z-10 p-2 rounded-full hover:bg-white/10"
                       >
                         <X size={32} />
                       </button>
 
                       {/* Counter */}
-                      <div className="absolute bottom-6 text-white/50 text-sm z-10">
+                      <div className="absolute bottom-6 text-white/50 text-sm font-mono z-10">
                         {dataShowIndex + 1} / {dataShowSlides.length}
+                      </div>
+
+                      {/* Navigation Arrows */}
+                      {dataShowIndex > 0 && (
+                        <button
+                          onClick={() => setDataShowIndex(i => i - 1)}
+                          className="absolute left-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                        </button>
+                      )}
+                      {dataShowIndex < dataShowSlides.length - 1 && (
+                        <button
+                          onClick={() => setDataShowIndex(i => i + 1)}
+                          className="absolute right-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                        </button>
+                      )}
+
+                      {/* Swipe Indicator (Mobile) */}
+                      <div className="absolute top-6 left-1/2 -translate-x-1/2 text-white/30 text-xs flex items-center gap-2 sm:hidden">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+                        <span>Swipe to navigate</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="rotate-180"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
                       </div>
 
                       {/* Slide with Fade */}
                       <AnimatePresence mode="wait">
                         <motion.div
                           key={dataShowIndex}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.4, ease: "easeInOut" }}
+                          initial={{ opacity: 0, x: 50 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -50 }}
+                          transition={{ duration: 0.3, ease: "easeOut" }}
                           className="w-full h-full flex items-center justify-center px-10 text-center"
                         >
                           <p
                             className="text-white font-bold whitespace-pre-line select-none"
                             style={{
-                              fontSize: "64px",
+                              fontSize: "clamp(32px, 8vw, 64px)",
                               lineHeight: 1.6
                             }}
                             dir="rtl"
