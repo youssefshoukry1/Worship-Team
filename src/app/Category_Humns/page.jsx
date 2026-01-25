@@ -51,13 +51,18 @@ export default function Category_Humns() {
   useEffect(() => {
     if (!showDataShow) return;
 
+    let touchStartX = 0;
+    let touchEndX = 0;
+    const minSwipeDistance = 50;
+    let elementRef = null;
+
     const handleKey = (e) => {
-      // الشمال = التالي
+      // الشمال = التالي (LTR: Left = Next)
       if (e.key === 'ArrowLeft' && dataShowIndex < dataShowSlides.length - 1) {
         setDataShowIndex(i => i + 1);
       }
 
-      // اليمين = السابق
+      // اليمين = السابق (LTR: Right = Previous)
       if (e.key === 'ArrowRight' && dataShowIndex > 0) {
         setDataShowIndex(i => i - 1);
       }
@@ -67,45 +72,44 @@ export default function Category_Humns() {
       }
     };
 
-    // Native Touch Events for Mobile Swipe (Lightweight & Fast)
-    const element = document.getElementById('showDataContainer');
-    if (!element) return;
-
-    let touchStartX = 0;
-    let touchEndX = 0;
-    const minSwipeDistance = 50; // Minimum distance for swipe detection
-
     const handleTouchStart = (e) => {
       touchStartX = e.changedTouches[0].screenX;
     };
 
     const handleTouchEnd = (e) => {
       touchEndX = e.changedTouches[0].screenX;
-      handleSwipe();
-    };
-
-    const handleSwipe = () => {
       const swipeDistance = touchStartX - touchEndX;
 
-      // Swipe Left (Next Slide)
-      if (swipeDistance > minSwipeDistance && dataShowIndex < dataShowSlides.length - 1) {
+      // Swipe Right (Next Slide) - RTL
+      if (swipeDistance < -minSwipeDistance && dataShowIndex < dataShowSlides.length - 1) {
         setDataShowIndex(i => i + 1);
       }
 
-      // Swipe Right (Previous Slide)
-      if (swipeDistance < -minSwipeDistance && dataShowIndex > 0) {
+      // Swipe Left (Previous Slide) - RTL
+      if (swipeDistance > minSwipeDistance && dataShowIndex > 0) {
         setDataShowIndex(i => i - 1);
       }
     };
 
-    element.addEventListener('touchstart', handleTouchStart);
-    element.addEventListener('touchend', handleTouchEnd);
+    // Wait for DOM to be ready (fixes first-time touch event issue)
+    const timer = setTimeout(() => {
+      const element = document.getElementById('showDataContainer');
+      if (element) {
+        elementRef = element;
+        element.addEventListener('touchstart', handleTouchStart, { passive: true });
+        element.addEventListener('touchend', handleTouchEnd, { passive: true });
+      }
+    }, 0);
+
     window.addEventListener('keydown', handleKey);
 
     return () => {
-      element.removeEventListener('touchstart', handleTouchStart);
-      element.removeEventListener('touchend', handleTouchEnd);
+      clearTimeout(timer);
       window.removeEventListener('keydown', handleKey);
+      if (elementRef) {
+        elementRef.removeEventListener('touchstart', handleTouchStart);
+        elementRef.removeEventListener('touchend', handleTouchEnd);
+      }
     };
   }, [showDataShow, dataShowIndex, dataShowSlides.length]);
 
@@ -752,7 +756,7 @@ export default function Category_Humns() {
                         setDataShowIndex(0);
                       }}
                       className="group flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 border backdrop-blur-md relative overflow-hidden shadow-lg
-                        bg-gradient-to-r from-sky-500/10 to-blue-500/10 border-sky-400/30 text-sky-200 
+                        bg-linear-to-r from-sky-500/10 to-blue-500/10 border-sky-400/30 text-sky-200 
                         hover:from-sky-500/20 hover:to-blue-500/20 hover:border-sky-400/50 hover:shadow-sky-500/25 hover:scale-105 active:scale-95"
                     >
                       <div className="absolute inset-0 bg-sky-400/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -854,18 +858,18 @@ export default function Category_Humns() {
                         {dataShowIndex + 1} / {dataShowSlides.length}
                       </div>
 
-                      {/* Navigation Arrows */}
-                      {dataShowIndex > 0 && (
+                      {/* Navigation Arrows - LTR: Left=Next, Right=Previous */}
+                      {dataShowIndex < dataShowSlides.length - 1 && (
                         <button
-                          onClick={() => setDataShowIndex(i => i - 1)}
+                          onClick={() => setDataShowIndex(i => i + 1)}
                           className="absolute left-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
                         </button>
                       )}
-                      {dataShowIndex < dataShowSlides.length - 1 && (
+                      {dataShowIndex > 0 && (
                         <button
-                          onClick={() => setDataShowIndex(i => i + 1)}
+                          onClick={() => setDataShowIndex(i => i - 1)}
                           className="absolute right-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
