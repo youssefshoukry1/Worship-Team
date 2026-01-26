@@ -890,7 +890,7 @@ export default function Category_Humns() {
                           initial={{ opacity: 0, x: 50 }}
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: -50 }}
-                          transition={{ duration: 0.1, ease: "easeOut" }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
                           className="w-full h-full flex items-center justify-center px-10 text-center"
                         >
                           <p
