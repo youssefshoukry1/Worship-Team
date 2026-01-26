@@ -42,6 +42,7 @@ export default function Category_Humns() {
   const [showDataShow, setShowDataShow] = useState(false);
   const [dataShowIndex, setDataShowIndex] = useState(0);
 
+
   const dataShowSlides = selectedLyricsHymn?.lyrics
     ?.split('\n\n')
     .map(b => b.trim())
@@ -887,10 +888,10 @@ export default function Category_Humns() {
                       <AnimatePresence mode="wait">
                         <motion.div
                           key={dataShowIndex}
-                          initial={{ opacity: 0, x: 50 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -50 }}
-                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          initial={{ opacity: 0, scale: 0.98 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.98 }}
+                          transition={{ duration: 0.2, ease: "easeInOut" }}
                           className="w-full h-full flex items-center justify-center px-10 text-center"
                         >
                           <p
@@ -1065,7 +1066,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
 
 
       {/* Actions */}
-       <div className="col-span-6 sm:col-span-1 flex justify-center items-center gap-2 relative z-10 lg:top-2 px-2">
+      <div className="col-span-6 sm:col-span-1 flex justify-center items-center gap-2 relative z-10 lg:top-2 px-2">
         <button
           onClick={handleAddToWorkspace}
           disabled={isHymnInWorkspace(humn._id)}

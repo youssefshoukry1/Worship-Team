@@ -364,32 +364,28 @@ export default function WorkSpace() {
 
                                         {/* Slide with Fade */}
 
-                                        
-<AnimatePresence mode="wait">
-    <motion.div
-        key={dataShowIndex}
-        // البداية: شفاف تماماً وأصغر شوية
-        initial={{ opacity: 0, scale: 0.98 }} 
-        // الظهور: معتم تماماً وحجمه الطبيعي
-        animate={{ opacity: 1, scale: 1 }}
-        // الاختفاء: يرجع شفاف وأصغر شوية
-        exit={{ opacity: 0, scale: 0.98 }}
-        // التوقيت: 0.2 ثانية بيدي سرعة واستجابة ممتازة
-        transition={{ duration: 0.2, ease: "easeInOut" }}
-        className="w-full h-full flex items-center justify-center px-10 text-center"
-    >
-        <p
-            className="text-white font-bold whitespace-pre-line select-none"
-            style={{
-                fontSize: "clamp(32px, 8vw, 64px)",
-                lineHeight: 1.6
-            }}
-            dir="rtl"
-        >
-            {dataShowSlides[dataShowIndex]}
-        </p>
-    </motion.div>
-</AnimatePresence>
+
+                                        <AnimatePresence mode="wait">
+                                            <motion.div
+                                                key={dataShowIndex}
+                                                initial={{ opacity: 0, scale: 0.98 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                exit={{ opacity: 0, scale: 0.98 }}
+                                                transition={{ duration: 0.2, ease: "easeInOut" }}
+                                                className="w-full h-full flex items-center justify-center px-10 text-center"
+                                            >
+                                                <p
+                                                    className="text-white font-bold whitespace-pre-line select-none"
+                                                    style={{
+                                                        fontSize: "clamp(32px, 8vw, 64px)",
+                                                        lineHeight: 1.6
+                                                    }}
+                                                    dir="rtl"
+                                                >
+                                                    {dataShowSlides[dataShowIndex]}
+                                                </p>
+                                            </motion.div>
+                                        </AnimatePresence>
                                     </div>
                                 </Portal>
                             )}
