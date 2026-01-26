@@ -765,8 +765,8 @@ export default function Category_Humns() {
                       <span className="relative z-10">Presentation</span>
                     </button>
 
-                    <div className={`p-6 border-b border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 transition-colors duration-300
-                      ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/5' : 'bg-white/5 backdrop-blur-md'}`}>
+                    <div className={`p-2 border-b border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 transition-colors duration-300
+                      ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/5' : 'bg-black/5 backdrop-blur-md'}`}>
 
                       <div className="flex-1 min-w-0">
                         <h2 className={`text-2xl font-bold truncate ${lyricsTheme === 'warm' ? 'text-gray-800' : 'bg-linear-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent'}`}>
@@ -888,6 +888,7 @@ export default function Category_Humns() {
                       <AnimatePresence mode="wait">
                         <motion.div
                           key={dataShowIndex}
+                          // البداية: شفاف تماماً وأصغر شوية
                           initial={{ opacity: 0, scale: 0.98 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.98 }}
