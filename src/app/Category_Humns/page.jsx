@@ -8,7 +8,7 @@ import Loading from '../loading';
 import Portal from '../Portal/Portal';
 import Metronome from '../Metronome/page';
 import { UserContext } from '../context/User_Context';
-import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText } from 'lucide-react';
+import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
 import { useEffect } from "react";
@@ -749,19 +749,19 @@ export default function Category_Humns() {
                     className={`w-full max-w-2xl max-h-[85vh] border border-white/10 rounded-2xl shadow-2xl flex flex-col relative transform transition-all duration-300
                   ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
                   >
-                    {/* Modern Data Show Button */}
+                    {/* Modern Presentation Button */}
                     <button
                       onClick={() => {
                         setShowDataShow(true);
                         setDataShowIndex(0);
                       }}
                       className="group flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 border backdrop-blur-md relative overflow-hidden shadow-lg
-                        bg-linear-to-r from-sky-500/10 to-blue-500/10 border-sky-400/30 text-sky-200 
-                        hover:from-sky-500/20 hover:to-blue-500/20 hover:border-sky-400/50 hover:shadow-sky-500/25 hover:scale-105 active:scale-95"
+                        bg-linear-to-r from-purple-500/10 to-pink-500/10 border-purple-400/30 text-purple-200 
+                        hover:from-purple-500/20 hover:to-pink-500/20 hover:border-purple-400/50 hover:shadow-purple-500/25 hover:scale-105 active:scale-95"
                     >
-                      <div className="absolute inset-0 bg-sky-400/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <FileText className="w-4 h-4 relative z-10 group-hover:rotate-12 transition-transform" />
-                      <span className="relative z-10">Data Show</span>
+                      <div className="absolute inset-0 bg-purple-400/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <Monitor className="w-4 h-4 relative z-10 group-hover:scale-110 transition-transform" />
+                      <span className="relative z-10">Presentation</span>
                     </button>
 
                     <div className={`p-6 border-b border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 transition-colors duration-300

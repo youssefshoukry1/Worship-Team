@@ -1,8 +1,8 @@
 'use client';
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { transposeScale, transposeChords } from '../utils/musicUtils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PlayCircle, Trash2, Heart, Music, ListMusic, Gift, Star, Sparkles, GraduationCap, FileText, X } from 'lucide-react';
+import { PlayCircle, Trash2, Heart, Music, ListMusic, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor } from 'lucide-react';
 import Metronome from '../Metronome/page';
 import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
@@ -51,6 +51,15 @@ export default function WorkSpace() {
     };
     const [isClosing, setIsClosing] = useState(false);
 
+    // Data Show State
+    const [showDataShow, setShowDataShow] = useState(false);
+    const [dataShowIndex, setDataShowIndex] = useState(0);
+
+    const dataShowSlides = selectedLyricsHymn?.lyrics
+        ?.split('\n\n')
+        .map(b => b.trim())
+        .filter(Boolean) || [];
+
     const openLyrics = (hymn) => {
         setSelectedLyricsHymn(hymn);
         setLyricsTheme('main');
@@ -81,6 +90,72 @@ export default function WorkSpace() {
             document.documentElement.style.overflow = '';
         };
     }, [showLyricsModal]);
+
+    // Data Show Swipe - Native Touch Events (No Library)
+    useEffect(() => {
+        if (!showDataShow) return;
+
+        let touchStartX = 0;
+        let touchEndX = 0;
+        const minSwipeDistance = 50;
+        let elementRef = null;
+
+        const handleKey = (e) => {
+            // الشمال = التالي (LTR: Left = Next)
+            if (e.key === 'ArrowLeft' && dataShowIndex < dataShowSlides.length - 1) {
+                setDataShowIndex(i => i + 1);
+            }
+
+            // اليمين = السابق (LTR: Right = Previous)
+            if (e.key === 'ArrowRight' && dataShowIndex > 0) {
+                setDataShowIndex(i => i - 1);
+            }
+
+            if (e.key === 'Escape') {
+                setShowDataShow(false);
+            }
+        };
+
+        const handleTouchStart = (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        };
+
+        const handleTouchEnd = (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            const swipeDistance = touchStartX - touchEndX;
+
+            // Swipe Right (Next Slide) - RTL
+            if (swipeDistance < -minSwipeDistance && dataShowIndex < dataShowSlides.length - 1) {
+                setDataShowIndex(i => i + 1);
+            }
+
+            // Swipe Left (Previous Slide) - RTL
+            if (swipeDistance > minSwipeDistance && dataShowIndex > 0) {
+                setDataShowIndex(i => i - 1);
+            }
+        };
+
+        // Wait for DOM to be ready (fixes first-time touch event issue)
+        const timer = setTimeout(() => {
+            const element = document.getElementById('showDataContainer');
+            if (element) {
+                elementRef = element;
+                element.addEventListener('touchstart', handleTouchStart, { passive: true });
+                element.addEventListener('touchend', handleTouchEnd, { passive: true });
+            }
+        }, 0);
+
+        window.addEventListener('keydown', handleKey);
+
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('keydown', handleKey);
+            if (elementRef) {
+                elementRef.removeEventListener('touchstart', handleTouchStart);
+                elementRef.removeEventListener('touchend', handleTouchEnd);
+            }
+        };
+    }, [showDataShow, dataShowIndex, dataShowSlides.length]);
 
     return (
         <section id='WorkSpace-section' className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
@@ -152,6 +227,21 @@ export default function WorkSpace() {
                                 className={`w-full max-w-2xl max-h-[85vh] border border-white/10 rounded-2xl shadow-2xl flex flex-col relative transform transition-all duration-300
                   ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
                             >
+                                {/* Modern Data Show Button */}
+                                <button
+                                    onClick={() => {
+                                        setShowDataShow(true);
+                                        setDataShowIndex(0);
+                                    }}
+                                    className="group flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 border backdrop-blur-md relative overflow-hidden shadow-lg
+                                        bg-linear-to-r from-purple-500/10 to-pink-500/10 border-purple-400/30 text-purple-200 
+                                        hover:from-purple-500/20 hover:to-pink-500/20 hover:border-purple-400/50 hover:shadow-purple-500/25 hover:scale-105 active:scale-95"
+                                >
+                                    <div className="absolute inset-0 bg-purple-400/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <Monitor className="w-4 h-4 relative z-10 group-hover:scale-110 transition-transform" />
+                                    <span className="relative z-10">Presentation</span>
+                                </button>
+
                                 {/* Header */}
                                 <div className={`p-6 border-b border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 transition-colors duration-300
                       ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/5' : 'bg-white/5'}`}>
@@ -225,6 +315,77 @@ export default function WorkSpace() {
                                     </p>
                                 </div>
                             </div>
+
+                            {/* Data Show Modal */}
+                            {showDataShow && selectedLyricsHymn && (
+                                <Portal>
+                                    <div
+                                        id="showDataContainer"
+                                        className="fixed inset-0 z-[10000] bg-black flex items-center justify-center"
+                                    >
+                                        {/* Exit Button */}
+                                        <button
+                                            onClick={() => setShowDataShow(false)}
+                                            className="absolute top-6 right-6 text-white/60 hover:text-white transition-all hover:scale-110 z-10 p-2 rounded-full hover:bg-white/10"
+                                        >
+                                            <X size={32} />
+                                        </button>
+
+                                        {/* Counter */}
+                                        <div className="absolute bottom-6 text-white/50 text-sm font-mono z-10">
+                                            {dataShowIndex + 1} / {dataShowSlides.length}
+                                        </div>
+
+                                        {/* Navigation Arrows - LTR: Left=Next, Right=Previous */}
+                                        {dataShowIndex < dataShowSlides.length - 1 && (
+                                            <button
+                                                onClick={() => setDataShowIndex(i => i + 1)}
+                                                className="absolute left-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                                            </button>
+                                        )}
+                                        {dataShowIndex > 0 && (
+                                            <button
+                                                onClick={() => setDataShowIndex(i => i - 1)}
+                                                className="absolute right-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                                            </button>
+                                        )}
+
+                                        {/* Swipe Indicator (Mobile) */}
+                                        <div className="absolute top-6 left-1/2 -translate-x-1/2 text-white/30 text-xs flex items-center gap-2 sm:hidden">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+                                            <span>Swipe to navigate</span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="rotate-180"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+                                        </div>
+
+                                        {/* Slide with Fade */}
+                                        <AnimatePresence mode="wait">
+                                            <motion.div
+                                                key={dataShowIndex}
+                                                initial={{ opacity: 0, x: 50 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: -50 }}
+                                                transition={{ duration: 0.3, ease: "easeOut" }}
+                                                className="w-full h-full flex items-center justify-center px-10 text-center"
+                                            >
+                                                <p
+                                                    className="text-white font-bold whitespace-pre-line select-none"
+                                                    style={{
+                                                        fontSize: "clamp(32px, 8vw, 64px)",
+                                                        lineHeight: 1.6
+                                                    }}
+                                                    dir="rtl"
+                                                >
+                                                    {dataShowSlides[dataShowIndex]}
+                                                </p>
+                                            </motion.div>
+                                        </AnimatePresence>
+                                    </div>
+                                </Portal>
+                            )}
                         </div>
                     </Portal>
                 )}
@@ -369,7 +530,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
             </div>
 
 
-             {/* Media Link */}
+            {/* Media Link */}
             <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-2 relative z-10">
 
 
@@ -384,7 +545,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
                         <span className="text-sm font-medium">Listen</span>
                     </a>
                 )}
-                
+
                 {hymn.lyrics && (
                     <button
                         onClick={() => openLyrics(hymn)}
