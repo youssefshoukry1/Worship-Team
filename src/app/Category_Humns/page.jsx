@@ -749,20 +749,20 @@ export default function Category_Humns() {
                     className={`w-full max-w-2xl max-h-[85vh] border border-white/10 rounded-2xl shadow-2xl flex flex-col relative transform transition-all duration-300
                   ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
                   >
-                    {/* Modern Presentation Button */}
-                    <button
-                      onClick={() => {
-                        setShowDataShow(true);
-                        setDataShowIndex(0);
-                      }}
-                      className="group flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 border backdrop-blur-md relative overflow-hidden shadow-lg
-                        bg-linear-to-r from-purple-500/10 to-pink-500/10 border-purple-400/30 text-purple-200 
-                        hover:from-purple-500/20 hover:to-pink-500/20 hover:border-purple-400/50 hover:shadow-purple-500/25 hover:scale-105 active:scale-95"
-                    >
-                      <div className="absolute inset-0 bg-purple-400/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <Monitor className="w-4 h-4 relative z-10 group-hover:scale-110 transition-transform" />
-                      <span className="relative z-10">Presentation</span>
-                    </button>
+ {/* Modern Data Show Button */}
+                                <button
+                                    onClick={() => {
+                                        setShowDataShow(true);
+                                        setDataShowIndex(0);
+                                    }}
+                                    className="group flex items-center min-h-12 gap-2 px-4 rounded-xl text-sm font-semibold transition-all duration-300 border backdrop-blur-md relative overflow-hidden shadow-lg
+                                        bg-linear-to-r from-purple-500/10 to-pink-500/10 border-purple-400/30 text-purple-200 
+                                        hover:from-purple-500/20 hover:to-pink-500/20 hover:border-purple-400/50 hover:shadow-purple-500/25 hover:scale-105 active:scale-95"
+                                >
+                                    <div className="absolute inset-0 bg-purple-400/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <Monitor className="w-4 h-4 relative z-10 group-hover:scale-110 transition-transform" />
+                                    <span className="relative z-10">Presentation</span>
+                                </button>
 
                     <div className={`p-6 border-b border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 transition-colors duration-300
                       ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/5' : 'bg-white/5'}`}>

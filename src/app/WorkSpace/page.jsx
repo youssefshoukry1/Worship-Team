@@ -233,7 +233,7 @@ export default function WorkSpace() {
                                         setShowDataShow(true);
                                         setDataShowIndex(0);
                                     }}
-                                    className="group flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 border backdrop-blur-md relative overflow-hidden shadow-lg
+                                    className="group flex items-center min-h-12 gap-2 px-4 rounded-xl text-sm font-semibold transition-all duration-300 border backdrop-blur-md relative overflow-hidden shadow-lg
                                         bg-linear-to-r from-purple-500/10 to-pink-500/10 border-purple-400/30 text-purple-200 
                                         hover:from-purple-500/20 hover:to-pink-500/20 hover:border-purple-400/50 hover:shadow-purple-500/25 hover:scale-105 active:scale-95"
                                 >
