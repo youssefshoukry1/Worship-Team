@@ -55,6 +55,7 @@ export default function WorkSpace() {
     const [showDataShow, setShowDataShow] = useState(false);
     const [dataShowIndex, setDataShowIndex] = useState(0);
 
+
     const dataShowSlides = selectedLyricsHymn?.lyrics
         ?.split('\n\n')
         .map(b => b.trim())
@@ -362,27 +363,33 @@ export default function WorkSpace() {
                                         </div>
 
                                         {/* Slide with Fade */}
-                                        <AnimatePresence mode="wait">
-                                            <motion.div
-                                                key={dataShowIndex}
-                                                initial={{ opacity: 0, x: 50 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                exit={{ opacity: 0, x: -50 }}
-                                                transition={{ duration: 0.3, ease: "easeOut" }}
-                                                className="w-full h-full flex items-center justify-center px-10 text-center"
-                                            >
-                                                <p
-                                                    className="text-white font-bold whitespace-pre-line select-none"
-                                                    style={{
-                                                        fontSize: "clamp(32px, 8vw, 64px)",
-                                                        lineHeight: 1.6
-                                                    }}
-                                                    dir="rtl"
-                                                >
-                                                    {dataShowSlides[dataShowIndex]}
-                                                </p>
-                                            </motion.div>
-                                        </AnimatePresence>
+
+                                        
+<AnimatePresence mode="wait">
+    <motion.div
+        key={dataShowIndex}
+        // البداية: شفاف تماماً وأصغر شوية
+        initial={{ opacity: 0, scale: 0.98 }} 
+        // الظهور: معتم تماماً وحجمه الطبيعي
+        animate={{ opacity: 1, scale: 1 }}
+        // الاختفاء: يرجع شفاف وأصغر شوية
+        exit={{ opacity: 0, scale: 0.98 }}
+        // التوقيت: 0.2 ثانية بيدي سرعة واستجابة ممتازة
+        transition={{ duration: 0.2, ease: "easeInOut" }}
+        className="w-full h-full flex items-center justify-center px-10 text-center"
+    >
+        <p
+            className="text-white font-bold whitespace-pre-line select-none"
+            style={{
+                fontSize: "clamp(32px, 8vw, 64px)",
+                lineHeight: 1.6
+            }}
+            dir="rtl"
+        >
+            {dataShowSlides[dataShowIndex]}
+        </p>
+    </motion.div>
+</AnimatePresence>
                                     </div>
                                 </Portal>
                             )}
@@ -510,7 +517,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
             </div>
 
             {/* Key/Scale - Under Title on Mobile (Left Aligned), Center on Desktop */}
-            <div className="col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0">
+            <div className="col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0 lg:top-2">
                 <KeyDisplay
                     scale={currentScale}
                     relatedChords={currentChords}
@@ -519,11 +526,11 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
             </div>
 
             {/* Remove Action */}
-            <div className="col-span-6 sm:col-span-1 flex justify-center items-center relative z-10 px-2">
+            <div className="col-span-6 sm:col-span-1 flex justify-center items-center relative z-10 px-2 lg:top-2">
                 <button
                     onClick={() => removeFromWorkspace(hymn._id)}
-                    className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 sm:border-transparent hover:border-red-500/20 bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
-                    title="Remove from Workspace"
+                    className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 sm:border-transparent hover:border-red-500/20 bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center "
+                    title="Remove from Workspace "
                 >
                     <Trash2 className="w-4 h-4" />
                 </button>
@@ -531,7 +538,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
 
 
             {/* Media Link */}
-            <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-2 relative z-10">
+            <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-2 relative z-10 lg:top-2">
 
 
                 {hymn.link && (

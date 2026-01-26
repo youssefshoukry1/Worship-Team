@@ -749,23 +749,23 @@ export default function Category_Humns() {
                     className={`w-full max-w-2xl max-h-[85vh] border border-white/10 rounded-2xl shadow-2xl flex flex-col relative transform transition-all duration-300
                   ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
                   >
- {/* Modern Data Show Button */}
-                                <button
-                                    onClick={() => {
-                                        setShowDataShow(true);
-                                        setDataShowIndex(0);
-                                    }}
-                                    className="group flex items-center min-h-12 gap-2 px-4 rounded-xl text-sm font-semibold transition-all duration-300 border backdrop-blur-md relative overflow-hidden shadow-lg
+                    {/* Modern Data Show Button */}
+                    <button
+                      onClick={() => {
+                        setShowDataShow(true);
+                        setDataShowIndex(0);
+                      }}
+                      className="group flex items-center min-h-12 gap-2 px-4 rounded-xl text-sm font-semibold transition-all duration-300 border backdrop-blur-md relative overflow-hidden shadow-lg
                                         bg-linear-to-r from-purple-500/10 to-pink-500/10 border-purple-400/30 text-purple-200 
                                         hover:from-purple-500/20 hover:to-pink-500/20 hover:border-purple-400/50 hover:shadow-purple-500/25 hover:scale-105 active:scale-95"
-                                >
-                                    <div className="absolute inset-0 bg-purple-400/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    <Monitor className="w-4 h-4 relative z-10 group-hover:scale-110 transition-transform" />
-                                    <span className="relative z-10">Presentation</span>
-                                </button>
+                    >
+                      <div className="absolute inset-0 bg-purple-400/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <Monitor className="w-4 h-4 relative z-10 group-hover:scale-110 transition-transform" />
+                      <span className="relative z-10">Presentation</span>
+                    </button>
 
                     <div className={`p-6 border-b border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 transition-colors duration-300
-                      ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/5' : 'bg-white/5'}`}>
+                      ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/5' : 'bg-white/5 backdrop-blur-md'}`}>
 
                       <div className="flex-1 min-w-0">
                         <h2 className={`text-2xl font-bold truncate ${lyricsTheme === 'warm' ? 'text-gray-800' : 'bg-linear-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent'}`}>
@@ -1038,7 +1038,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       )}
 
       {/* Song Title */}
-      <div className="col-span-11 sm:col-span-5 md:col-span-5 relative z-10 flex items-center gap-2 py-4">
+      <div className="col-span-11 sm:col-span-5 md:col-span-5 relative z-10 flex items-center gap-2  py-4">
         {(() => {
           const matchedCat = categories.find(c => c.id === humn.party) || { icon: Music };
           const CatIcon = matchedCat.icon;
@@ -1055,7 +1055,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       </div>
 
       {/* Key/Scale - Under Title on Mobile (Left Aligned), Center on Desktop */}
-      <div className="col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0">
+      <div className="col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0 lg:top-2">
         <KeyDisplay
           scale={currentScale}
           relatedChords={currentChords}
@@ -1065,7 +1065,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
 
 
       {/* Actions */}
-      <div className="col-span-6 sm:col-span-1 flex justify-center items-center gap-2 relative z-10 lg:top-2 px-2">
+       <div className="col-span-6 sm:col-span-1 flex justify-center items-center gap-2 relative z-10 lg:top-2 px-2">
         <button
           onClick={handleAddToWorkspace}
           disabled={isHymnInWorkspace(humn._id)}
@@ -1100,7 +1100,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
 
 
       {/* Media Link */}
-      <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-1 relative z-10">
+      <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-1 relative z-10 lg:top-2">
 
         {humn.link && (
           <a
