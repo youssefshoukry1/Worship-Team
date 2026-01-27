@@ -618,66 +618,64 @@ export default function Dashboard() {
                                           {isExpanded ? <ChevronUp className="w-3 h-3 text-gray-500" /> : <ChevronDown className="w-3 h-3 text-gray-500" />}
                                         </motion.div>
                                       </div>
-                                      <Portal>
-                                        <AnimatePresence>
-                                          {isExpanded && (
-                                            <motion.div
-                                              initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                                              transition={{ duration: 0.2 }}
-                                              className="border-t border-white/5"
-                                            >
-                                              {editingReport?.userId === user._id && editingReport?.index === index ? (
-                                                <div className="p-2 space-y-1">
-                                                  <textarea
-                                                    value={editingReport.text}
-                                                    onChange={(e) => setEditingReport(prev => ({ ...prev, text: e.target.value }))}
-                                                    className="w-full bg-black/30 border border-white/10 rounded px-2 py-1 text-xs text-gray-300 outline-none focus:border-sky-500 focus:bg-black/40 resize-none"
-                                                    rows="2"
-                                                  />
-                                                  <div className="flex gap-1 justify-end">
-                                                    <button onClick={() => {
-                                                      handlePatchReport(user._id, reportId, editingReport.text);
-                                                      setEditingReport(null);
-                                                    }} className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-2 py-1 rounded transition-colors text-xs font-medium flex items-center gap-1">
-                                                      <Check className="w-2.5 h-2.5" /> Save
-                                                    </button>
-                                                    <button onClick={() => setEditingReport(null)} className="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-2 py-1 rounded transition-colors text-xs font-medium flex items-center gap-1">
-                                                      <X className="w-2.5 h-2.5" /> Cancel
-                                                    </button>
-                                                  </div>
-                                                </div>
-                                              ) : (
-                                                <div className="p-2 space-y-1">
-                                                  <p className="text-gray-300 whitespace-pre-wrap leading-snug max-h-24 overflow-hidden text-xs">{reportText}</p>
 
-                                                  <div className="flex justify-end gap-1 pt-1 border-t border-white/5">
-                                                    <button
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setEditingReport({ userId: user._id, index, text: reportText });
-                                                      }}
-                                                      className="text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 px-1.5 py-0.5 rounded transition-colors text-xs flex items-center gap-0.5"
-                                                    >
-                                                      <Edit className="w-2.5 h-2.5" /> Edit
-                                                    </button>
-                                                    <button
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        if (confirm("Delete this report?")) handleDeleteReport(user._id, reportId);
-                                                      }}
-                                                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10 px-1.5 py-0.5 rounded transition-colors text-xs flex items-center gap-0.5"
-                                                    >
-                                                      <Trash2 className="w-2.5 h-2.5" /> Delete
-                                                    </button>
-                                                  </div>
-                                                </div>
-                                              )}
-                                            </motion.div>
-                                          )}
-                                        </AnimatePresence>
-                                      </Portal>
                                       {/* Report Content */}
+                                      <AnimatePresence>
+                                        {isExpanded && (
+                                          <motion.div
+                                            initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="border-t border-white/5"
+                                          >
+                                            {editingReport?.userId === user._id && editingReport?.index === index ? (
+                                              <div className="p-2 space-y-1">
+                                                <textarea
+                                                  value={editingReport.text}
+                                                  onChange={(e) => setEditingReport(prev => ({ ...prev, text: e.target.value }))}
+                                                  className="w-full bg-black/30 border border-white/10 rounded px-2 py-1 text-xs text-gray-300 outline-none focus:border-sky-500 focus:bg-black/40 resize-none"
+                                                  rows="2"
+                                                />
+                                                <div className="flex gap-1 justify-end">
+                                                  <button onClick={() => {
+                                                    handlePatchReport(user._id, reportId, editingReport.text);
+                                                    setEditingReport(null);
+                                                  }} className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-2 py-1 rounded transition-colors text-xs font-medium flex items-center gap-1">
+                                                    <Check className="w-2.5 h-2.5" /> Save
+                                                  </button>
+                                                  <button onClick={() => setEditingReport(null)} className="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-2 py-1 rounded transition-colors text-xs font-medium flex items-center gap-1">
+                                                    <X className="w-2.5 h-2.5" /> Cancel
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <div className="p-2 space-y-1">
+                                                <p className="text-gray-300 whitespace-pre-wrap leading-snug max-h-24 overflow-hidden text-xs">{reportText}</p>
 
+                                                <div className="flex justify-end gap-1 pt-1 border-t border-white/5">
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setEditingReport({ userId: user._id, index, text: reportText });
+                                                    }}
+                                                    className="text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 px-1.5 py-0.5 rounded transition-colors text-xs flex items-center gap-0.5"
+                                                  >
+                                                    <Edit className="w-2.5 h-2.5" /> Edit
+                                                  </button>
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      if (confirm("Delete this report?")) handleDeleteReport(user._id, reportId);
+                                                    }}
+                                                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10 px-1.5 py-0.5 rounded transition-colors text-xs flex items-center gap-0.5"
+                                                  >
+                                                    <Trash2 className="w-2.5 h-2.5" /> Delete
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            )}
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
                                     </div>
                                   );
                                 })
