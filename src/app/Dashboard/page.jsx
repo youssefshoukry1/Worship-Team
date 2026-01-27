@@ -18,8 +18,13 @@ import {
   Music,
   Trash2,
   Edit,
-  Settings
+  Settings,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  ClipboardList
 } from 'lucide-react';
+import Portal from '../Portal/Portal';
 
 const API_URL = "https://worship-team-api.vercel.app/api";
 
@@ -32,6 +37,10 @@ export default function Dashboard() {
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [editingEventId, setEditingEventId] = useState(null);
   const [editEventName, setEditEventName] = useState("");
+  const [reportInputs, setReportInputs] = useState({});
+  const [expandedReports, setExpandedReports] = useState({});
+  const [editingReport, setEditingReport] = useState(null);
+  const [showManageReports, setShowManageReports] = useState(false);
 
   // --- 1. API Fetching Functions ---
 
@@ -181,6 +190,39 @@ export default function Dashboard() {
       setProcessingId(null);
     }
   };
+
+  const handleAddReport = async (userId, report) => {
+    setProcessingId(userId);
+    try {
+      await axios.post(`${API_URL}/users/report`, { userid: userId, report: report }, { headers: { Authorization: `Bearer ${isLogin}` } });
+      queryClient.invalidateQueries({ queryKey: ['data', isLogin] });
+    } finally { setProcessingId(null); }
+  };
+
+  const handlePatchReport = async (userId, report) => {
+    setProcessingId(userId);
+    try {
+      await axios.patch(`${API_URL}/users/report/${userId}`, { report: report }, { headers: { Authorization: `Bearer ${isLogin}` } });
+      queryClient.invalidateQueries({ queryKey: ['data', isLogin] });
+    } finally { setProcessingId(null); }
+  };
+
+  const toggleReportExpand = (userId, index) => {
+    const key = `${userId}-${index}`;
+    setExpandedReports(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleDeleteReport = async (userId, report) => {
+    setProcessingId(userId);
+    try {
+      await axios.delete(`${API_URL}/users/report/${userId}`, { 
+        data: { report: report },
+        headers: { Authorization: `Bearer ${isLogin}` } 
+      });
+      queryClient.invalidateQueries({ queryKey: ['data', isLogin] });
+    } finally { setProcessingId(null); }
+  };
+
   // --- 3. React Query Hooks ---
 
   const { data: pendingUsers = [], isLoading: isLoadingPending } = useQuery({
@@ -366,9 +408,14 @@ export default function Dashboard() {
             <h2 className="text-2xl font-bold text-white flex items-center gap-2">
               <Users className="w-6 h-6 text-indigo-400" /> Member Management
             </h2>
-            <button onClick={resetAllTraining} className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-lg transition-all text-sm">
-              <RefreshCw className={`w-4 h-4 ${processingId === "RESET_ALL" ? "animate-spin" : ""}`} /> Reset All Training
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => setShowManageReports(true)} className="flex items-center gap-2 px-4 py-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded-lg transition-all text-sm">
+                <ClipboardList className="w-4 h-4" /> Manage Reports
+              </button>
+              <button onClick={resetAllTraining} className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-lg transition-all text-sm">
+                <RefreshCw className={`w-4 h-4 ${processingId === "RESET_ALL" ? "animate-spin" : ""}`} /> Reset All Training
+              </button>
+            </div>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -440,6 +487,37 @@ export default function Dashboard() {
                   </div>
                 </div>
 
+                {/* Reports Section */}
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1 mb-3">
+                    <FileText className="w-3 h-3" /> Reports
+                  </h4>
+                  
+                  <div className="flex gap-2 mb-3">
+                    <input 
+                      type="text" 
+                      placeholder="Add a report..."
+                      value={reportInputs[user._id] || ""}
+                      onChange={(e) => setReportInputs(prev => ({...prev, [user._id]: e.target.value}))}
+                      className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-sky-500 text-gray-300"
+                    />
+                    <button 
+                      onClick={async () => {
+                        const text = reportInputs[user._id];
+                        if (!text) return;
+                        await handleAddReport(user._id, text);
+                        setReportInputs(prev => ({ ...prev, [user._id]: "" }));
+                      }}
+                      disabled={processingId === user._id}
+                      className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 p-1.5 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {processingId === user._id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <PlusCircle className="w-3 h-3" />}
+                    </button>
+                  </div>
+
+                
+                </div>
+
                 {/* Loading Overlay for Global Card actions */}
                 {processingId === user._id && (
                   <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center z-20 rounded-2xl">
@@ -450,6 +528,136 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
+
+        {/* Manage Reports Modal */}
+        <Portal>
+        <AnimatePresence>
+          {showManageReports && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+                className="bg-[#0f172a] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col shadow-2xl"
+              >
+                <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+                  <h2 className="text-xl font-bold flex items-center gap-2">
+                    <ClipboardList className="w-6 h-6 text-sky-400" /> Manage Reports
+                  </h2>
+                  <button onClick={() => setShowManageReports(false)} className="text-gray-400 hover:text-white transition-colors">
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                  {UsersChurch.map(user => (
+                    <div key={user._id} className="bg-white/5 rounded-xl p-4 border border-white/5">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold">
+                            {user.Name.charAt(0)}
+                          </div>
+                          <div>
+                            <h3 className="font-bold">{user.Name}</h3>
+                            <p className="text-xs text-gray-500">{user.role}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 mb-3">
+                        <input 
+                          type="text" 
+                          placeholder="Add a report..."
+                          value={reportInputs[user._id] || ""}
+                          onChange={(e) => setReportInputs(prev => ({...prev, [user._id]: e.target.value}))}
+                          className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-sky-500 text-gray-300"
+                        />
+                        <button 
+                          onClick={async () => {
+                            const text = reportInputs[user._id];
+                            if (!text) return;
+                            await handleAddReport(user._id, text);
+                            setReportInputs(prev => ({ ...prev, [user._id]: "" }));
+                          }}
+                          disabled={processingId === user._id}
+                          className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 p-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {processingId === user._id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <PlusCircle className="w-3 h-3" />}
+                        </button>
+                      </div>
+
+                      <div className="space-y-2">
+                        {user.reports && user.reports.map((report, index) => (
+                          <div key={index} className="bg-black/20 rounded-lg overflow-hidden border border-white/5">
+                            <div 
+                              onClick={() => toggleReportExpand(user._id, index)}
+                              className="flex items-center justify-between p-2 cursor-pointer hover:bg-white/5 transition-colors"
+                            >
+                              <span className="text-xs font-medium text-gray-400">Report {index + 1}</span>
+                              {expandedReports[`${user._id}-${index}`] ? <ChevronUp className="w-3 h-3 text-gray-500" /> : <ChevronDown className="w-3 h-3 text-gray-500" />}
+                            </div>
+                            
+                            <AnimatePresence>
+                              {expandedReports[`${user._id}-${index}`] && (
+                                <motion.div 
+                                  initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                                  className="px-2 pb-2"
+                                >
+                                  {editingReport?.userId === user._id && editingReport?.index === index ? (
+                                     <div className="flex gap-2 mt-1">
+                                        <input 
+                                          value={editingReport.text}
+                                          onChange={(e) => setEditingReport(prev => ({...prev, text: e.target.value}))}
+                                          className="flex-1 bg-black/20 border border-white/10 rounded px-2 py-1 text-xs text-gray-300 outline-none focus:border-sky-500"
+                                        />
+                                        <button onClick={() => {
+                                            const updatedContent = typeof report === 'object' ? { ...report, report: editingReport.text } : editingReport.text;
+                                            handlePatchReport(user._id, updatedContent);
+                                            setEditingReport(null);
+                                        }} className="text-emerald-400 hover:bg-emerald-500/10 p-1 rounded"><Check className="w-3 h-3" /></button>
+                                        <button onClick={() => setEditingReport(null)} className="text-red-400 hover:bg-red-500/10 p-1 rounded"><X className="w-3 h-3" /></button>
+                                     </div>
+                                  ) : (
+                                    <div className="text-xs text-gray-300 mt-1 p-2 bg-black/20 rounded border border-white/5">
+                                      <p className="whitespace-pre-wrap">{typeof report === 'object' ? (report.report || report.text || JSON.stringify(report)) : report}</p>
+                                      
+                                      <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-white/5">
+                                        <button 
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingReport({ userId: user._id, index, text: typeof report === 'object' ? (report.report || report.text || "") : report });
+                                          }}
+                                          className="text-indigo-400 hover:text-indigo-300 transition-colors"
+                                        >
+                                          <Edit className="w-3 h-3" />
+                                        </button>
+                                        <button 
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if(confirm("Delete this report?")) handleDeleteReport(user._id, report);
+                                          }}
+                                          className="text-red-400 hover:text-red-300 transition-colors"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        </Portal>
       </div>
     </section>
   );

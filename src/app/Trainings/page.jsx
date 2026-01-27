@@ -38,6 +38,8 @@ export default function Trainings() {
   const [currentSongId, setCurrentSongId] = useState(null);
   const [submitClicked, setSubmitClicked] = useState(false);
   const [selectedHymnIds, setSelectedHymnIds] = useState([]);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportText, setReportText] = useState("");
 
   // Lyrics Modal State
   const [showLyricsModal, setShowLyricsModal] = useState(false);
@@ -335,6 +337,32 @@ export default function Trainings() {
                     </motion.button>
                   )}
                 </div>
+
+                {/* Reports List */}
+                {m.reports && m.reports.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {m.reports.map((report, idx) => {
+                      const reportContent = typeof report === 'object' ? (report.report || report.text) : report;
+                      if (!reportContent) return null;
+
+                      return (
+                        <motion.button
+                          key={idx}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => { setReportText(reportContent); setShowReportModal(true); }}
+                          className="group flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider
+                                    bg-white/5 text-gray-400 border border-white/10 
+                                    hover:bg-sky-500/10 hover:text-sky-300 hover:border-sky-500/20 
+                                    transition-all duration-300 backdrop-blur-sm"
+                        >
+
+                          Report {idx + 1}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                )}
 
                 <div className="flex-1 min-h-[150px] relative">
                   <div className="absolute inset-0 overflow-y-auto pr-2 custom-scrollbar">
@@ -687,6 +715,47 @@ export default function Trainings() {
           </div>
         </Portal>
       )}
+
+      {/* Report Modal */}
+      <AnimatePresence>
+        {showReportModal && (
+          <Portal>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowReportModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-[#0f172a] border border-white/10 p-5 rounded-2xl w-full max-w-sm shadow-2xl relative"
+              >
+                <button
+                  onClick={() => setShowReportModal(false)}
+                  className="absolute top-3 right-3 text-gray-400 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-full"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+
+                <div className="flex items-center gap-2 mb-3 text-indigo-400">
+                  <FileText className="w-5 h-5" />
+                  <h3 className="font-bold text-sm uppercase tracking-wider">User Report</h3>
+                </div>
+
+                <div className="max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
+                  <p className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">
+                    {reportText}
+                  </p>
+                </div>
+              </motion.div>
+            </motion.div>
+          </Portal>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
