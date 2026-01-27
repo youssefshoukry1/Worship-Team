@@ -342,7 +342,7 @@ export default function Trainings() {
                 {m.reports && m.reports.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-4">
                     {m.reports.map((report, idx) => {
-                      const reportContent = typeof report === 'object' ? (report.report || report.text) : report;
+                      const reportContent = report.text || report.report || (typeof report === 'string' ? report : "");
                       if (!reportContent) return null;
 
                       return (
