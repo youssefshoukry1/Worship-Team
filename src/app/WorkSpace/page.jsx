@@ -221,8 +221,8 @@ export default function WorkSpace() {
                         <div className="col-span-1 text-center">#</div>
                         <div className="col-span-11 sm:col-span-5 md:col-span-5">Song Title</div>
                         <div className="col-span-2 text-center bg-white/5 rounded-lg py-1">Key / Chords</div>
-                        <div className="col-span-3 text-center">Media</div>
                         <div className="col-span-1 text-center">Remove</div>
+                        <div className="col-span-3 text-center">Media</div>
                     </div>
 
                     {/* List Body */}

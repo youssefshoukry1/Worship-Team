@@ -578,8 +578,9 @@ export default function Category_Humns() {
               <div className="col-span-1 text-center">#</div>
               <div className="col-span-11 sm:col-span-5 md:col-span-5">{t("songTitle")}</div>
               <div className="col-span-2 text-center bg-white/5 rounded-lg py-1">{t("keyChords")}</div>
-              <div className="col-span-3 text-center">{t("media")}</div>
               <div className="col-span-1 text-center">{t("action")}</div>
+
+              <div className="col-span-3 text-center">{t("media")}</div>
             </div>
 
             {/* List Body */}
