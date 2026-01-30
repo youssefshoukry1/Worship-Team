@@ -12,7 +12,8 @@ import {
   FileText,
   Edit3,
   X,
-  Monitor
+  Monitor,
+  Guitar
 } from "lucide-react";
 import { UserContext } from "../context/User_Context";
 import { HymnsContext } from "../context/Hymns_Context";
@@ -37,7 +38,7 @@ export default function Trainings() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [currentSongId, setCurrentSongId] = useState(null);
   const [submitClicked, setSubmitClicked] = useState(false);
-  const [selectedHymnIds, setSelectedHymnIds] = useState([]);
+  const [selectedHymns, setSelectedHymns] = useState([]); // Store full hymn objects
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportText, setReportText] = useState("");
 
@@ -46,6 +47,7 @@ export default function Trainings() {
   const [selectedLyricsHymn, setSelectedLyricsHymn] = useState(null);
   const [lyricsTheme, setLyricsTheme] = useState('main');
   const [fontSize, setFontSize] = useState(18);
+  const [showChords, setShowChords] = useState(true);
 
   const lyricsThemes = {
     warm: { bg: '#F8F5EE', text: '#222222', label: 'Warm' },
@@ -58,7 +60,8 @@ export default function Trainings() {
   const [dataShowIndex, setDataShowIndex] = useState(0);
 
   const dataShowSlides = selectedLyricsHymn?.lyrics
-    ?.split('\n\n')
+    ?.replace(/\[.*?\]/g, '') // Remove chords
+    .split('\n\n')
     .map(b => b.trim())
     .filter(Boolean) || [];
 
@@ -66,6 +69,7 @@ export default function Trainings() {
     setSelectedLyricsHymn(hymn);
     setLyricsTheme('main');
     setFontSize(18);
+    setShowChords(true);
     setShowLyricsModal(true);
   };
 
@@ -159,6 +163,42 @@ export default function Trainings() {
     };
   }, [showDataShow, dataShowIndex, dataShowSlides.length]);
 
+  const renderLyricsWithChords = (text) => {
+    if (!text) return null;
+
+    return text.split('\n').map((line, i) => (
+      <div
+        key={i}
+        className="relative my-2 w-full text-center"
+        style={{ fontSize: `${fontSize}px`, minHeight: '1.5em' }}
+      >
+        {line ? line.split(/(\[.*?\])/g).map((part, j) => {
+          if (part.startsWith('[') && part.endsWith(']')) {
+            if (!showChords) return null;
+            const chord = part.slice(1, -1);
+
+            return (
+              <span key={j} className="inline-block relative w-0 overflow-visible mx-0.5 align-top">
+                <span
+                  className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 font-bold whitespace-nowrap shadow-sm"
+                  style={{
+                    color: lyricsTheme === 'warm' ? '#0369a1' : '#38bdf8',
+                    fontSize: `${fontSize * 0.75}px`,
+                    textShadow: lyricsTheme === 'warm' ? 'none' : '0 1px 2px rgba(0,0,0,0.5)'
+                  }}
+                  dir="ltr"
+                >
+                  {chord}
+                </span>
+              </span>
+            );
+          }
+          return <span key={j}>{part}</span>;
+        }) : <br />}
+      </div>
+    ));
+  };
+
   const get_All_Users = () => {
     if (!isLogin) return [];
     return axios
@@ -179,13 +219,13 @@ export default function Trainings() {
       .catch(() => []);
   };
 
-  const add_song = async (userid, { hymnIds }) => {
+  const add_song = async (userid, { hymns }) => {
     if (!isLogin) return <Login />;
     setSubmitClicked(true);
     return axios
       .patch(
         `https://worship-team-api.vercel.app/api/users/${userid}/${churchId}`,
-        { hymnIds },
+        { hymns },
         { headers: { Authorization: `Bearer ${isLogin}` } }
       )
       .then((res) => {
@@ -263,7 +303,7 @@ export default function Trainings() {
     }
     setShowmodel(true);
     if (type === "add") {
-      setSelectedHymnIds([]);
+      setSelectedHymns([]);
     }
   }
 
@@ -368,63 +408,66 @@ export default function Trainings() {
                   <div className="absolute inset-0 overflow-y-auto pr-2 custom-scrollbar">
                     <div className="flex flex-col gap-3 pb-2">
                       {m.songs_Array && m.songs_Array.length > 0 ? (
-                        m.songs_Array.map((p, idx) => (
-                          <div
-                            key={idx}
-                            className="group relative flex items-center gap-3 p-3 
+                        m.songs_Array.map((p, idx) => {
+                          const hymn = p.hymnId ? { ...p.hymnId, ...p } : p;
+                          return (
+                            <div
+                              key={idx}
+                              className="group relative flex items-center gap-3 p-3 
                                       bg-[#13132b]/40 hover:bg-[#1a1a38] 
                                       border border-white/5 hover:border-sky-500/30 
                                       rounded-xl transition-all duration-300 backdrop-blur-sm"
-                          >
-                            {/* Index */}
-                            <div className="font-mono text-xs text-gray-600 group-hover:text-sky-400 transition-colors w-5 text-center shrink-0">
-                              {(idx + 1).toString().padStart(2, '0')}
+                            >
+                              {/* Index */}
+                              <div className="font-mono text-xs text-gray-600 group-hover:text-sky-400 transition-colors w-5 text-center shrink-0">
+                                {(idx + 1).toString().padStart(2, '0')}
+                              </div>
+
+                              {/* Title & Key */}
+                              <div className="flex-1 min-w-0 flex flex-col gap-1">
+                                <h3 className="font-bold text-sm text-gray-200 group-hover:text-white transition-colors truncate">
+                                  {p.title}
+                                </h3>
+                                <KeyDisplay humn_parameter={p} />
+                              </div>
+
+                              {/* Actions */}
+                              <div className="flex items-center gap-1 shrink-0">
+                                {p.lyrics ? (
+                                  <button
+                                    onClick={() => openLyrics(p)}
+                                    className="p-1.5 rounded-lg text-gray-400 hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
+                                    title={t("lyrics")}
+                                  >
+                                    <FileText className="w-4 h-4" />
+                                  </button>
+                                ) : null}
+
+                                {p.link ? (
+                                  <a
+                                    href={p.link}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="p-1.5 rounded-lg text-gray-400 hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
+                                    title="Listen"
+                                  >
+                                    <PlayCircle className="w-4 h-4" />
+                                  </a>
+                                ) : null}
+
+                                {(["Admin", "MANEGER", "PROGRAMER", "ADMIN"].includes(UserRole) || user_id === m._id) && (
+                                  <button
+                                    onClick={() => delete_song(m._id, p._id)}
+                                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                    title="Remove Song"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
-
-                            {/* Title & Key */}
-                            <div className="flex-1 min-w-0 flex flex-col gap-1">
-                              <h3 className="font-bold text-sm text-gray-200 group-hover:text-white transition-colors truncate">
-                                {p.title}
-                              </h3>
-                              <KeyDisplay humn_parameter={p} />
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex items-center gap-1 shrink-0">
-                              {p.lyrics ? (
-                                <button
-                                  onClick={() => openLyrics(p)}
-                                  className="p-1.5 rounded-lg text-gray-400 hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
-                                  title={t("lyrics")}
-                                >
-                                  <FileText className="w-4 h-4" />
-                                </button>
-                              ) : null}
-
-                              {p.link ? (
-                                <a
-                                  href={p.link}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="p-1.5 rounded-lg text-gray-400 hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
-                                  title="Listen"
-                                >
-                                  <PlayCircle className="w-4 h-4" />
-                                </a>
-                              ) : null}
-
-                              {(["Admin", "MANEGER", "PROGRAMER", "ADMIN"].includes(UserRole) || user_id === m._id) && (
-                                <button
-                                  onClick={() => delete_song(m._id, p._id)}
-                                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                                  title="Remove Song"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))
+                          );
+                        })
                       ) : (
                         <div className="flex flex-col items-center justify-center py-10 text-gray-500 opacity-60">
                           <motion.div
@@ -480,12 +523,12 @@ export default function Trainings() {
                         <label key={h._id} className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition border border-white/5">
                           <input
                             type="checkbox"
-                            checked={selectedHymnIds.includes(h._id)}
+                            checked={selectedHymns.some(sh => sh._id === h._id)}
                             onChange={() => {
-                              setSelectedHymnIds((prev) =>
-                                prev.includes(h._id)
-                                  ? prev.filter((id) => id !== h._id)
-                                  : [...prev, h._id]
+                              setSelectedHymns((prev) =>
+                                prev.some((sh) => sh._id === h._id)
+                                  ? prev.filter((sh) => sh._id !== h._id)
+                                  : [...prev, h]
                               );
                             }}
                             className="w-5 h-5 accent-sky-500 rounded focus:ring-sky-500/50"
@@ -526,7 +569,7 @@ export default function Trainings() {
 
                 <button
                   onClick={() => {
-                    if (modalType === "add") add_song(selectedUser._id, { hymnIds: selectedHymnIds });
+                    if (modalType === "add") add_song(selectedUser._id, { hymns: selectedHymns });
                     else if (currentSongId) update_song(selectedUser._id, currentSongId, { song, scale, link });
                   }}
                   className={`mt-4 bg-linear-to-br from-sky-500 to-blue-600 py-3 rounded-xl text-white font-semibold transition shadow-lg shadow-blue-500/20
@@ -544,7 +587,7 @@ export default function Trainings() {
       {showLyricsModal && selectedLyricsHymn && (
         <Portal>
           <div
-            className={`fixed inset-0 z-[9999] flex justify-center items-center p-4 transition-all duration-300
+            className={`fixed inset-0 z-9999 flex justify-center items-center p-4 transition-all duration-300
                 ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/70"}`}
           >
             <div
@@ -578,6 +621,17 @@ export default function Trainings() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setShowChords(!showChords)}
+                    className={`p-2 rounded-lg transition-all ${showChords
+                      ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-200'
+                      }`}
+                    title={showChords ? "Hide Chords" : "Show Chords"}
+                  >
+                    <Guitar className="w-5 h-5" />
+                  </button>
+
                   {/* Font Size Controls */}
                   <div className={`flex items-center rounded-lg border ${lyricsTheme === 'warm' ? 'bg-white border-black/10' : 'bg-black/20 border-white/10'}`}>
                     <button
@@ -627,17 +681,16 @@ export default function Trainings() {
 
               {/* Content */}
               <div className="p-8 overflow-y-auto custom-scrollbar">
-                <p
+                <div
                   style={{
                     color: lyricsThemes[lyricsTheme].text,
-                    fontSize: `${fontSize}px`,
-                    lineHeight: 1.6
+                    lineHeight: 2.5
                   }}
-                  className="leading-relaxed whitespace-pre-wrap font-medium font-sans text-center transition-all duration-200"
+                  className="w-full font-medium font-sans transition-all duration-200"
                   dir="rtl"
                 >
-                  {selectedLyricsHymn.lyrics}
-                </p>
+                  {renderLyricsWithChords(selectedLyricsHymn.lyrics)}
+                </div>
               </div>
             </div>
 
@@ -646,7 +699,7 @@ export default function Trainings() {
               <Portal>
                 <div
                   id="showDataContainer"
-                  className="fixed inset-0 z-[10000] bg-black flex items-center justify-center"
+                  className="fixed inset-0 z-10000 bg-black flex items-center justify-center"
                 >
                   {/* Exit Button */}
                   <button
@@ -724,7 +777,7 @@ export default function Trainings() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
               onClick={() => setShowReportModal(false)}
             >
               <motion.div

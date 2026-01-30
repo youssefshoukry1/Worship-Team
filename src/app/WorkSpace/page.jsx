@@ -2,7 +2,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { transposeScale, transposeChords } from '../utils/musicUtils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PlayCircle, Trash2, Heart, Music, ListMusic, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor } from 'lucide-react';
+import { PlayCircle, Trash2, Heart, Music, ListMusic, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar } from 'lucide-react';
 import Metronome from '../Metronome/page';
 import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
@@ -43,6 +43,7 @@ export default function WorkSpace() {
     const [selectedLyricsHymn, setSelectedLyricsHymn] = useState(null);
     const [lyricsTheme, setLyricsTheme] = useState('main');
     const [fontSize, setFontSize] = useState(18);
+    const [showChords, setShowChords] = useState(true);
 
     const lyricsThemes = {
         warm: { bg: '#F8F5EE', text: '#222222', label: 'Warm' },
@@ -57,7 +58,8 @@ export default function WorkSpace() {
 
 
     const dataShowSlides = selectedLyricsHymn?.lyrics
-        ?.split('\n\n')
+        ?.replace(/\[.*?\]/g, '') // Remove chords
+        .split('\n\n')
         .map(b => b.trim())
         .filter(Boolean) || [];
 
@@ -65,6 +67,7 @@ export default function WorkSpace() {
         setSelectedLyricsHymn(hymn);
         setLyricsTheme('main');
         setFontSize(18);
+        setShowChords(true);
         setShowLyricsModal(true);
     };
 
@@ -158,6 +161,41 @@ export default function WorkSpace() {
         };
     }, [showDataShow, dataShowIndex, dataShowSlides.length]);
 
+    const renderLyricsWithChords = (text) => {
+        if (!text) return null;
+
+        return text.split('\n').map((line, i) => (
+            <div
+                key={i}
+                className="relative my-2 w-full text-center"
+                style={{ fontSize: `${fontSize}px`, minHeight: '1.5em' }}
+            >
+                {line ? line.split(/(\[.*?\])/g).map((part, j) => {
+                    if (part.startsWith('[') && part.endsWith(']')) {
+                        if (!showChords) return null;
+                        const chord = part.slice(1, -1);
+                        return (
+                            <span key={j} className="inline-block relative w-0 overflow-visible mx-0.5 align-top">
+                                <span
+                                    className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 font-bold whitespace-nowrap shadow-sm"
+                                    style={{
+                                        color: lyricsTheme === 'warm' ? '#0369a1' : '#38bdf8',
+                                        fontSize: `${fontSize * 0.75}px`,
+                                        textShadow: lyricsTheme === 'warm' ? 'none' : '0 1px 2px rgba(0,0,0,0.5)'
+                                    }}
+                                    dir="ltr"
+                                >
+                                    {chord}
+                                </span>
+                            </span>
+                        );
+                    }
+                    return <span key={j}>{part}</span>;
+                }) : <br />}
+            </div>
+        ));
+    };
+
     return (
         <section id='WorkSpace-section' className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
             {/* Background Gradients - Matching Category Page */}
@@ -220,7 +258,7 @@ export default function WorkSpace() {
                 {showLyricsModal && selectedLyricsHymn && (
                     <Portal>
                         <div
-                            className={`fixed inset-0 z-[9999] flex justify-center items-center p-4 transition-all duration-300
+                            className={`fixed inset-0 z-9999 flex justify-center items-center p-4 transition-all duration-300
                 ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/70"}`}
                         >
                             <div
@@ -254,6 +292,17 @@ export default function WorkSpace() {
                                     </div>
 
                                     <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => setShowChords(!showChords)}
+                                            className={`p-2 rounded-lg transition-all ${showChords
+                                                ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                                                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-200'
+                                                }`}
+                                            title={showChords ? "Hide Chords" : "Show Chords"}
+                                        >
+                                            <Guitar className="w-5 h-5" />
+                                        </button>
+
                                         {/* Font Size Controls */}
                                         <div className={`flex items-center rounded-lg border ${lyricsTheme === 'warm' ? 'bg-white border-black/10' : 'bg-black/20 border-white/10'}`}>
                                             <button
@@ -312,7 +361,7 @@ export default function WorkSpace() {
                                         className="leading-relaxed whitespace-pre-wrap font-medium font-sans text-center transition-all duration-200"
                                         dir="rtl"
                                     >
-                                        {selectedLyricsHymn.lyrics}
+                                        {renderLyricsWithChords(selectedLyricsHymn.lyrics)}
                                     </p>
                                 </div>
                             </div>
@@ -322,7 +371,7 @@ export default function WorkSpace() {
                                 <Portal>
                                     <div
                                         id="showDataContainer"
-                                        className="fixed inset-0 z-[10000] bg-black flex items-center justify-center"
+                                        className="fixed inset-0 z-10000 bg-black flex items-center justify-center"
                                     >
                                         {/* Exit Button */}
                                         <button

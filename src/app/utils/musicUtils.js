@@ -101,3 +101,10 @@ export const transposeChords = (chordsStr, semitones) => {
 
     return transposedParts.join('');
 };
+
+export const transposeLyrics = (lyrics, semitones) => {
+    if (!lyrics || !semitones) return lyrics;
+    return lyrics.replace(/\[(.*?)\]/g, (match, chord) => {
+        return `[${transposeChords(chord, semitones)}]`;
+    });
+};

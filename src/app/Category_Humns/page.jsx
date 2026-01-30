@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useContext } from 'react';
-import { transposeScale, transposeChords } from '../utils/musicUtils';
+import { transposeScale, transposeChords, transposeLyrics } from '../utils/musicUtils';
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,10 +8,12 @@ import Loading from '../loading';
 import Portal from '../Portal/Portal';
 import Metronome from '../Metronome/page';
 import { UserContext } from '../context/User_Context';
-import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor } from 'lucide-react';
+import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
 import { useEffect } from "react";
+
+
 
 export default function Category_Humns() {
   const queryClient = useQueryClient();
@@ -37,14 +39,18 @@ export default function Category_Humns() {
   const [selectedLyricsHymn, setSelectedLyricsHymn] = useState(null);
   const [lyricsTheme, setLyricsTheme] = useState('main');
   const [fontSize, setFontSize] = useState(18);
+  const [showChords, setShowChords] = useState(true); // Toggle for chords visibility
 
   //Data Show
   const [showDataShow, setShowDataShow] = useState(false);
   const [dataShowIndex, setDataShowIndex] = useState(0);
 
+  const lyricsInputRef = React.useRef(null); // Ref for the lyrics textarea
+
 
   const dataShowSlides = selectedLyricsHymn?.lyrics
-    ?.split('\n\n')
+    ?.replace(/\[.*?\]/g, '') // Remove chords
+    .split('\n\n')
     .map(b => b.trim())
     .filter(Boolean) || [];
 
@@ -121,8 +127,8 @@ export default function Category_Humns() {
     main: { bg: '#0E2238', text: '#EDEDED', label: 'Main' }
   };
 
-  const openLyrics = (hymn) => {
-    setSelectedLyricsHymn(hymn);
+  const openLyrics = (hymn, transposeStep = 0) => {
+    setSelectedLyricsHymn({ ...hymn, transposeStep });
     setLyricsTheme('main');
     setShowLyricsModal(true);
     setShowLyricsModal(true);
@@ -403,6 +409,46 @@ export default function Category_Humns() {
 
 
 
+  const renderLyricsWithChords = (text) => {
+    if (!text) return null;
+
+    return text.split('\n').map((line, i) => (
+      <div
+        key={i}
+        className="relative my-2 w-full text-center"
+        style={{ fontSize: `${fontSize}px`, minHeight: '1.5em' }}
+      >
+        {line ? line.split(/(\[.*?\])/g).map((part, j) => {
+          if (part.startsWith('[') && part.endsWith(']')) {
+            if (!showChords) return null;
+            const chord = part.slice(1, -1);
+            // Transpose the chord if a step is set
+            const transposedChord = selectedLyricsHymn.transposeStep
+              ? transposeChords(chord, selectedLyricsHymn.transposeStep)
+              : chord;
+
+            return (
+              <span key={j} className="inline-block relative w-0 overflow-visible mx-0.5 align-top">
+                <span
+                  className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 font-bold whitespace-nowrap shadow-sm"
+                  style={{
+                    color: lyricsTheme === 'warm' ? '#0369a1' : '#38bdf8',
+                    fontSize: `${fontSize * 0.75}px`, // Chords slightly smaller
+                    textShadow: lyricsTheme === 'warm' ? 'none' : '0 1px 2px rgba(0,0,0,0.5)'
+                  }}
+                  dir="ltr"
+                >
+                  {transposedChord}
+                </span>
+              </span>
+            );
+          }
+          return <span key={j}>{part}</span>;
+        }) : <br />}
+      </div>
+    ));
+  };
+
   return (
 
 
@@ -623,8 +669,41 @@ export default function Category_Humns() {
                       </div>
 
                       <div>
-                        <label className="block text-gray-400 text-sm mb-2">{t("lyrics")}</label>
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-gray-400 text-sm">{t("lyrics")}</label>
+                          {/* Chord Toolbar */}
+                          {formData.relatedChords && (
+                            <div className="flex gap-1.5 flex-wrap justify-end max-w-[70%]">
+                              {formData.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => {
+                                    const input = lyricsInputRef.current;
+                                    if (input) {
+                                      const start = input.selectionStart;
+                                      const end = input.selectionEnd;
+                                      const text = input.value;
+                                      const newText = text.substring(0, start) + `[${chord}]` + text.substring(end);
+                                      setFormData({ ...formData, lyrics: newText });
+
+                                      // Restore cursor position + move it after insertion
+                                      setTimeout(() => {
+                                        input.selectionStart = input.selectionEnd = start + chord.length + 2;
+                                        input.focus();
+                                      }, 0);
+                                    }
+                                  }}
+                                  className="text-xs font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 hover:bg-sky-500/40 hover:text-white transition-colors"
+                                  title={`Insert [${chord}]`}
+                                >
+                                  {chord}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                         <textarea
+                          ref={lyricsInputRef}
                           dir="rtl"  // ⬅️ ضيفنا دي عشان العربي يظهر صح بالأقواس
                           className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[150px] resize-y whitespace-pre-wrap" // ⬅️ ضيفنا whitespace-pre-wrap
                           placeholder="e.g. Amazing Grace"
@@ -768,10 +847,23 @@ export default function Category_Humns() {
                     <div className={`p-2 border-b border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 transition-colors duration-300
                       ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/5' : 'bg-black/5 backdrop-blur-md'}`}>
 
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 flex items-center gap-3">
                         <h2 className={`text-2xl font-bold truncate ${lyricsTheme === 'warm' ? 'text-gray-800' : 'bg-linear-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent'}`}>
                           {selectedLyricsHymn.title}
                         </h2>
+
+                        {/* Chords Toggle Button */}
+                        <button
+                          onClick={() => setShowChords(!showChords)}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border 
+                            ${showChords
+                              ? (lyricsTheme === 'warm' ? 'bg-sky-100 text-sky-700 border-sky-200' : 'bg-sky-500/20 text-sky-300 border-sky-500/30')
+                              : (lyricsTheme === 'warm' ? 'bg-gray-100 text-gray-500 border-gray-200' : 'bg-white/5 text-gray-400 border-white/10')
+                            }`}
+                        >
+                          {showChords ? <Guitar className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                          {showChords ? "Chords On" : "Chords Off"}
+                        </button>
                       </div>
 
                       <div className="flex items-center gap-3">
@@ -823,18 +915,17 @@ export default function Category_Humns() {
                     </div>
 
                     {/* Content */}
-                    <div className="p-8 overflow-y-auto custom-scrollbar">
-                      <p
+                    <div className="p-8 overflow-y-auto custom-scrollbar flex flex-col items-center">
+                      <div
                         style={{
                           color: lyricsThemes[lyricsTheme].text,
-                          fontSize: `${fontSize}px`,
-                          lineHeight: 1.6
+                          lineHeight: 2.5 // Increased line height for chords
                         }}
-                        className="leading-relaxed whitespace-pre-wrap font-medium font-sans text-center transition-all duration-200"
+                        className="w-full font-medium font-sans transition-all duration-200"
                         dir="rtl"
                       >
-                        {selectedLyricsHymn.lyrics}
-                      </p>
+                        {renderLyricsWithChords(selectedLyricsHymn.lyrics)}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -996,17 +1087,21 @@ function KeyDisplay({ scale, relatedChords, onTranspose }) {
 function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, canEdit, delete_Hymn, openEditModal, variants, t, openLyrics }) {
   const [transposeStep, setTransposeStep] = useState(0);
 
-  // Compute transposed values
+  // Handle adding to workspace with transposed values
+  // 1. Calculate transposed scale and chords
   const currentScale = transposeScale(humn.scale, transposeStep);
   const currentChords = transposeChords(humn.relatedChords, transposeStep);
 
   // Handle adding to workspace with transposed values
   const handleAddToWorkspace = () => {
+    // 2. Transpose chords embedded in lyrics
+    const transposedLyrics = transposeLyrics(humn.lyrics, transposeStep);
+
     addToWorkspace({
       ...humn,
       scale: currentScale,
       relatedChords: currentChords,
-      lyrics: humn.lyrics
+      lyrics: transposedLyrics
     });
   };
 
@@ -1118,7 +1213,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
 
         {humn.lyrics && (
           <button
-            onClick={() => openLyrics(humn)}
+            onClick={() => openLyrics(humn, transposeStep)}
             className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
           >
             <FileText className="w-4 h-4" />
