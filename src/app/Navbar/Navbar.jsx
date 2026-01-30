@@ -2,15 +2,16 @@
 import React, { useEffect, useRef, useState, useContext } from "react";
 import { motion, AnimatePresence, easeOut } from "framer-motion";
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, X, Globe, ChevronDown } from "lucide-react";
+import { Menu, X, Globe, ChevronDown, Mic, Music } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 import { translations } from "../i18n/translations";
 import { UserContext } from "../context/User_Context";
 
 export default function Navbar() {
     const { t, language, setLanguage } = useLanguage();
-    const { isLogin, UserRole } = useContext(UserContext);
+    const { isLogin, UserRole, vocalsMode, setVocalsMode } = useContext(UserContext);
     const [langMenuOpen, setLangMenuOpen] = useState(false);
+    const [modeMenuOpen, setModeMenuOpen] = useState(false);
 
     // Default Items
     const navItems = [
@@ -129,6 +130,60 @@ export default function Navbar() {
                         </motion.li>
                     )}
 
+                {/* Mode Switcher Desktop */}
+                <div className="relative">
+                    <button
+                        onClick={() => setModeMenuOpen(!modeMenuOpen)}
+                        className="flex items-center gap-1 text-gray-300 hover:text-sky-400 transition"
+                    >
+                        {vocalsMode ? <Mic size={20} /> : <Music size={20} />}
+                        <span className="text-xs sm:text-sm font-medium">{vocalsMode ? "Vocal" : "Musician"}</span>
+                        <ChevronDown size={14} />
+                    </button>
+
+                    <AnimatePresence>
+                        {modeMenuOpen && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                                className="absolute right-0 mt-2 w-48 bg-[#0f172a] border border-white/10 rounded-lg shadow-xl overflow-hidden py-1"
+                            >
+                                <button
+                                    onClick={() => {
+                                        setVocalsMode(true);
+                                        setModeMenuOpen(false);
+                                    }}
+                                    className={`block w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
+                      ${vocalsMode
+                                            ? "text-sky-400 font-bold bg-white/5"
+                                            : "text-gray-300"
+                                        }
+                    `}
+                                >
+                                    <Mic size={16} />
+                                    <span>Vocal Mood</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setVocalsMode(false);
+                                        setModeMenuOpen(false);
+                                    }}
+                                    className={`block w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
+                      ${!vocalsMode
+                                            ? "text-sky-400 font-bold bg-white/5"
+                                            : "text-gray-300"
+                                        }
+                    `}
+                                >
+                                    <Music size={16} />
+                                    <span>Musician Mood</span>
+                                </button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+
                 {/* Language Switcher Desktop */}
                 <div className="relative ">
                     <button
@@ -213,6 +268,71 @@ export default function Navbar() {
                             ))}
 
 
+
+                            {/* Mobile Mode Switcher */}
+                            <li className="w-full">
+                                <div className="relative w-full">
+                                    <button
+                                        onClick={() => setModeMenuOpen(!modeMenuOpen)}
+                                        className="flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all font-medium text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            {vocalsMode ? <Mic size={20} /> : <Music size={20} />}
+                                            <span>{vocalsMode ? "Vocal Mode" : "Musician Mode"}</span>
+                                        </span>
+                                        <ChevronDown
+                                            size={14}
+                                            className={`transition-transform ${modeMenuOpen ? "rotate-180" : ""
+                                                }`}
+                                        />
+                                    </button>
+
+                                    <AnimatePresence>
+                                        {modeMenuOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: "auto" }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="mt-1 bg-[#0f172a] border border-white/10 rounded-lg shadow-inner overflow-hidden py-1"
+                                            >
+                                                <button
+                                                    onClick={() => {
+                                                        setVocalsMode(true);
+                                                        setModeMenuOpen(false);
+                                                        setMenuOpen(false);
+                                                    }}
+                                                    className={`block w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
+                              ${vocalsMode
+                                                            ? "text-sky-400 font-bold bg-white/5"
+                                                            : "text-gray-300"
+                                                        }
+                    `}
+                                                >
+                                                    <Mic size={16} />
+                                                    <span>Vocal Mood</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setVocalsMode(false);
+                                                        setModeMenuOpen(false);
+                                                        setMenuOpen(false);
+                                                    }}
+                                                    className={`block w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
+                              ${!vocalsMode
+                                                            ? "text-sky-400 font-bold bg-white/5"
+                                                            : "text-gray-300"
+                                                        }
+                    `}
+                                                >
+                                                    <Music size={16} />
+                                                    <span>Musician Mood</span>
+                                                </button>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            </li>
 
                             {/* Mobile Language Switcher */}
                             <li className="w-full">

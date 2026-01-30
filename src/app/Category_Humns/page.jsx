@@ -17,7 +17,7 @@ import { useEffect } from "react";
 
 export default function Category_Humns() {
   const queryClient = useQueryClient();
-  const { isLogin, UserRole } = useContext(UserContext);
+  const { isLogin, UserRole, vocalsMode } = useContext(UserContext);
   const { addToWorkspace, isHymnInWorkspace } = useContext(HymnsContext)
   const { t, language, setLanguage } = useLanguage();
 
@@ -130,7 +130,7 @@ export default function Category_Humns() {
   const openLyrics = (hymn, transposeStep = 0) => {
     setSelectedLyricsHymn({ ...hymn, transposeStep });
     setLyricsTheme('main');
-    setShowLyricsModal(true);
+    setShowChords(vocalsMode ? false : true);
     setShowLyricsModal(true);
   };
 
@@ -604,6 +604,7 @@ export default function Category_Humns() {
                     variants={itemVariants}
                     openLyrics={openLyrics}
                     t={t}
+                    vocalsMode={vocalsMode}
                   />
                 ))
               ) : (
@@ -855,7 +856,8 @@ export default function Category_Humns() {
                         {/* Chords Toggle Button */}
                         <button
                           onClick={() => setShowChords(!showChords)}
-                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border 
+                          disabled={vocalsMode}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${vocalsMode ? 'opacity-0 pointer-events-none' : ''}
                             ${showChords
                               ? (lyricsTheme === 'warm' ? 'bg-sky-100 text-sky-700 border-sky-200' : 'bg-sky-500/20 text-sky-300 border-sky-500/30')
                               : (lyricsTheme === 'warm' ? 'bg-gray-100 text-gray-500 border-gray-200' : 'bg-white/5 text-gray-400 border-white/10')
@@ -1084,7 +1086,7 @@ function KeyDisplay({ scale, relatedChords, onTranspose }) {
   );
 }
 
-function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, canEdit, delete_Hymn, openEditModal, variants, t, openLyrics }) {
+function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, canEdit, delete_Hymn, openEditModal, variants, t, openLyrics, vocalsMode }) {
   const [transposeStep, setTransposeStep] = useState(0);
 
   // Handle adding to workspace with transposed values
@@ -1124,7 +1126,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
 
       {/* BPM and Time Signature Display */}
       {(humn.BPM || humn.timeSignature) && (
-        <div className="absolute lg:top-1 top-2 right-2 flex items-center gap-2 bg-black/40 pr-3 pl-1 py-0.5 rounded-full border border-white/5 z-20 backdrop-blur-sm">
+        <div className={`absolute lg:top-1 top-2 right-2 flex items-center gap-2 bg-black/40 pr-3 pl-1 py-0.5 rounded-full border border-white/5 z-20 backdrop-blur-sm transition-opacity ${vocalsMode ? 'opacity-0 pointer-events-none' : ''}`}>
           {humn.BPM && <Metronome id={humn._id} bpm={humn.BPM} timeSignature={humn.timeSignature || "4/4"} minimal={true} />}
           <div className="flex gap-2 text-[10px] font-mono text-gray-500">
             {humn.BPM && <span>{humn.BPM} bpm</span>}
@@ -1152,7 +1154,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       </div>
 
       {/* Key/Scale - Under Title on Mobile (Left Aligned), Center on Desktop */}
-      <div className="col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0 lg:top-2">
+      <div className={`col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0 lg:top-2 transition-opacity ${vocalsMode ? 'opacity-0 pointer-events-none' : ''}`}>
         <KeyDisplay
           scale={currentScale}
           relatedChords={currentChords}

@@ -12,6 +12,7 @@ export default function UserContextProvider({ children }) {
 
   const [churchId, setChurchId] = useState(null);
   const [HymnIds, setHymnIds] = useState([])
+  const [vocalsMode, setVocalsMode] = useState(false)
 
   // Check token stored in browser
 
@@ -50,7 +51,7 @@ export default function UserContextProvider({ children }) {
   })
 
   return (
-    <UserContext.Provider value={{ isLogin, setLogin, UserRole, setUserRole, user_id, setUser_id, churchId, setChurchId, HymnIds, setHymnIds }}>
+    <UserContext.Provider value={{ isLogin, setLogin, UserRole, setUserRole, user_id, setUser_id, churchId, setChurchId, HymnIds, setHymnIds, vocalsMode, setVocalsMode }}>
       {children}
     </UserContext.Provider>
   );

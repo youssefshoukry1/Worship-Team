@@ -10,7 +10,7 @@ import Portal from '../Portal/Portal';
 
 export default function WorkSpace() {
     const { workspace, removeFromWorkspace } = useContext(HymnsContext);
-    const { HymnIds, setHymnIds } = useContext(UserContext);
+    const { HymnIds, setHymnIds, vocalsMode } = useContext(UserContext);
 
     // Categories Configuration for Icon Lookup
     const categories = [
@@ -67,7 +67,7 @@ export default function WorkSpace() {
         setSelectedLyricsHymn(hymn);
         setLyricsTheme('main');
         setFontSize(18);
-        setShowChords(true);
+        setShowChords(vocalsMode ? false : true);
         setShowLyricsModal(true);
     };
 
@@ -242,6 +242,7 @@ export default function WorkSpace() {
                                     removeFromWorkspace={removeFromWorkspace}
                                     variants={itemVariants}
                                     openLyrics={openLyrics}
+                                    vocalsMode={vocalsMode}
                                 />
                             ))
                         ) : (
@@ -294,7 +295,8 @@ export default function WorkSpace() {
                                     <div className="flex items-center gap-3">
                                         <button
                                             onClick={() => setShowChords(!showChords)}
-                                            className={`p-2 rounded-lg transition-all ${showChords
+                                            disabled={vocalsMode}
+                                            className={`p-2 rounded-lg transition-all ${vocalsMode ? 'opacity-0 pointer-events-none' : ''} ${showChords
                                                 ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
                                                 : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-200'
                                                 }`}
@@ -512,7 +514,7 @@ function KeyDisplay({ scale, relatedChords, onTranspose }) {
     );
 }
 
-function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants, openLyrics }) {
+function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants, openLyrics, vocalsMode }) {
     const [transposeStep, setTransposeStep] = useState(0);
 
     const currentScale = transposeScale(hymn.scale, transposeStep);
@@ -534,7 +536,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
 
             {/* BPM and Time Signature Display */}
             {(hymn.BPM || hymn.timeSignature) && (
-                <div className="absolute lg:top-1 top-2 right-2 flex items-center gap-2 bg-black/40 pr-3 pl-1 py-0.5 rounded-full border border-white/5 z-20 backdrop-blur-sm">
+                <div className={`absolute lg:top-1 top-2 right-2 flex items-center gap-2 bg-black/40 pr-3 pl-1 py-0.5 rounded-full border border-white/5 z-20 backdrop-blur-sm transition-opacity ${vocalsMode ? 'opacity-0 pointer-events-none' : ''}`}>
                     {hymn.BPM && <Metronome id={hymn._id} bpm={hymn.BPM} timeSignature={hymn.timeSignature || "4/4"} minimal={true} />}
                     <div className="flex gap-2 text-[10px] font-mono text-gray-500">
                         {hymn.BPM && <span>{hymn.BPM} bpm</span>}
@@ -562,7 +564,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
             </div>
 
             {/* Key/Scale - Under Title on Mobile (Left Aligned), Center on Desktop */}
-            <div className="col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0 lg:top-2">
+            <div className={`col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0 lg:top-2 transition-opacity ${vocalsMode ? 'opacity-0 pointer-events-none' : ''}`}>
                 <KeyDisplay
                     scale={currentScale}
                     relatedChords={currentChords}
