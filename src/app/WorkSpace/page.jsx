@@ -71,6 +71,13 @@ export default function WorkSpace() {
         setShowLyricsModal(true);
     };
 
+    // Open presentation mode directly
+    const openPresentation = (hymn) => {
+        setSelectedLyricsHymn(hymn);
+        setShowDataShow(true);
+        setDataShowIndex(0);
+    };
+
     const closeLyricsModal = () => {
         setIsClosing(true);
         setTimeout(() => {
@@ -235,13 +242,14 @@ export default function WorkSpace() {
                         {workspace.length > 0 ? (
                             workspace.map((hymn, index) => (
                                 <WorkspaceItem
-                                    key={hymn._id || index}
+                                    key={hymn._id}
                                     hymn={hymn}
                                     index={index}
                                     categories={categories}
                                     removeFromWorkspace={removeFromWorkspace}
                                     variants={itemVariants}
                                     openLyrics={openLyrics}
+                                    openPresentation={openPresentation}
                                     vocalsMode={vocalsMode}
                                 />
                             ))
@@ -514,7 +522,7 @@ function KeyDisplay({ scale, relatedChords, onTranspose }) {
     );
 }
 
-function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants, openLyrics, vocalsMode }) {
+function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants, openLyrics, openPresentation, vocalsMode }) {
     const [transposeStep, setTransposeStep] = useState(0);
 
     const currentScale = transposeScale(hymn.scale, transposeStep);
@@ -585,7 +593,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
 
 
             {/* Media Link */}
-            <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-2 relative z-10 lg:top-2">
+            <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-1 relative z-10 lg:top-2">
 
 
                 {hymn.link && (
@@ -593,21 +601,35 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
                         href={hymn.link}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
+                        className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
                     >
                         <PlayCircle className="w-4 h-4" />
-                        <span className="text-sm font-medium">Listen</span>
+                        <span className="text-xs sm:text-sm font-medium hidden sm:inline">Listen</span>
                     </a>
                 )}
 
                 {hymn.lyrics && (
-                    <button
-                        onClick={() => openLyrics(hymn)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
-                    >
-                        <FileText className="w-4 h-4" />
-                        <span className="text-sm font-medium">Lyrics</span>
-                    </button>
+                    <>
+                        <button
+                            onClick={() => openLyrics(hymn)}
+                            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
+                        >
+                            <FileText className="w-4 h-4" />
+                            <span className="text-xs sm:text-sm font-medium hidden sm:inline">Lyrics</span>
+                        </button>
+
+                        {/* Presentation Button - Visible in Vocal Mode */}
+                        {vocalsMode && (
+                            <button
+                                onClick={() => openPresentation(hymn)}
+                                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all group-hover:shadow-lg group-hover:shadow-purple-500/10 w-full sm:w-auto justify-center"
+                                title="Open Presentation Mode"
+                            >
+                                <Monitor className="w-4 h-4 shrink-0" />
+                                <span className="text-xs sm:text-sm font-medium hidden sm:inline">Present</span>
+                            </button>
+                        )}
+                    </>
                 )}
 
 

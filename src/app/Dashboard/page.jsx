@@ -599,7 +599,7 @@ export default function Dashboard() {
                                   const isExpanded = expandedReports[`${user._id}-${index}`];
 
                                   return (
-                                    <div key={reportId || index} className="bg-white/3 rounded-lg overflow-hidden border border-white/5 hover:border-sky-500/20 transition-all text-xs">
+                                    <div key={report._id} className="bg-white/3 rounded-lg overflow-hidden border border-white/5 hover:border-sky-500/20 transition-all text-xs">
                                       {/* Report Header */}
                                       <div
                                         onClick={() => toggleReportExpand(user._id, index)}

@@ -336,7 +336,7 @@ export default function Trainings() {
         {filteredData.length > 0 ? (
           filteredData.map((m, i) => (
             <motion.div
-              key={i}
+              key={m._id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
@@ -354,7 +354,7 @@ export default function Trainings() {
                         <Mic className="w-3 h-3" /> Vocal
                       </span>
                       {m.trainingEvents?.map((event, idx) => event?.eventName && (
-                        <span key={idx} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
+                        <span key={event._id || idx} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
                                       bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
                           {event.eventName}
                         </span>
@@ -387,7 +387,7 @@ export default function Trainings() {
 
                       return (
                         <motion.button
-                          key={idx}
+                          key={report._id || idx}
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                           onClick={() => { setReportText(reportContent); setShowReportModal(true); }}
@@ -412,7 +412,7 @@ export default function Trainings() {
                           const hymn = p.hymnId ? { ...p.hymnId, ...p } : p;
                           return (
                             <div
-                              key={idx}
+                              key={p._id || idx}
                               className="group relative flex items-center gap-3 p-3 
                                       bg-[#13132b]/40 hover:bg-[#1a1a38] 
                                       border border-white/5 hover:border-sky-500/30 

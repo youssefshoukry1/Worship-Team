@@ -134,6 +134,13 @@ export default function Category_Humns() {
     setShowLyricsModal(true);
   };
 
+  // Open presentation mode directly
+  const openPresentation = (hymn, transposeStep = 0) => {
+    setSelectedLyricsHymn({ ...hymn, transposeStep });
+    setShowDataShow(true);
+    setDataShowIndex(0);
+  };
+
   const closeLyricsModal = () => {
     setIsClosing(true);
     setTimeout(() => {
@@ -593,7 +600,7 @@ export default function Category_Humns() {
               {humns.length > 0 ? (
                 humns.map((humn, index) => (
                   <HymnItem
-                    key={humn._id || index}
+                    key={humn._id}
                     humn={humn}
                     index={index}
                     categories={categories}
@@ -604,6 +611,7 @@ export default function Category_Humns() {
                     openEditModal={openEditModal}
                     variants={itemVariants}
                     openLyrics={openLyrics}
+                    openPresentation={openPresentation}
                     t={t}
                     vocalsMode={vocalsMode}
                   />
@@ -615,6 +623,7 @@ export default function Category_Humns() {
                 </div>
               )}
             </motion.div>
+
 
             {/* Load More Sentinel & Spinner */}
             {!debouncedSearch.trim() && hasNextPage && (
@@ -1087,7 +1096,7 @@ function KeyDisplay({ scale, relatedChords, onTranspose }) {
   );
 }
 
-function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, canEdit, delete_Hymn, openEditModal, variants, t, openLyrics, vocalsMode }) {
+function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, canEdit, delete_Hymn, openEditModal, variants, t, openLyrics, openPresentation, vocalsMode }) {
   const [transposeStep, setTransposeStep] = useState(0);
 
   // Handle adding to workspace with transposed values
@@ -1207,21 +1216,35 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
             href={humn.link}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
           >
             <PlayCircle className="w-4 h-4" />
-            <span className="text-sm font-medium">{t("listen")}</span>
+            <span className="text-xs sm:text-sm font-medium hidden sm:inline">{t("listen")}</span>
           </a>
         )}
 
         {humn.lyrics && (
-          <button
-            onClick={() => openLyrics(humn, transposeStep)}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
-          >
-            <FileText className="w-4 h-4" />
-            <span className="text-sm font-medium">{t("lyrics")}</span>
-          </button>
+          <>
+            <button
+              onClick={() => openLyrics(humn, transposeStep)}
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
+            >
+              <FileText className="w-4 h-4" />
+              <span className="text-xs sm:text-sm font-medium hidden sm:inline">{t("lyrics")}</span>
+            </button>
+
+            {/* Presentation Button - Visible in Vocal Mode */}
+            {vocalsMode && (
+              <button
+                onClick={() => openPresentation(humn, transposeStep)}
+                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all group-hover:shadow-lg group-hover:shadow-purple-500/10 w-full sm:w-auto justify-center"
+                title="Open Presentation Mode"
+              >
+                <Monitor className="w-4 h-4 shrink-0" />
+                <span className="text-xs sm:text-sm font-medium hidden sm:inline">Present</span>
+              </button>
+            )}
+          </>
         )}
 
         {!humn.link && !humn.lyrics && (
