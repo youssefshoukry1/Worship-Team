@@ -48,11 +48,21 @@ export default function Category_Humns() {
   const lyricsInputRef = React.useRef(null); // Ref for the lyrics textarea
 
 
-  const dataShowSlides = selectedLyricsHymn?.lyrics
-    ?.replace(/\[.*?\]/g, '') // Remove chords
-    .split('\n\n')
-    .map(b => b.trim())
-    .filter(Boolean) || [];
+
+  const dataShowSlides = React.useMemo(() => {
+    if (!selectedLyricsHymn?.lyrics) return [];
+
+    // Use transposed lyrics if transposeStep exists
+    const lyricsToUse = selectedLyricsHymn.transposeStep
+      ? transposeLyrics(selectedLyricsHymn.lyrics, selectedLyricsHymn.transposeStep)
+      : selectedLyricsHymn.lyrics;
+
+    return lyricsToUse
+      .replace(/\[.*?\]/g, '') // Remove chords
+      .split('\n\n')
+      .map(b => b.trim())
+      .filter(Boolean);
+  }, [selectedLyricsHymn?.lyrics, selectedLyricsHymn?.transposeStep]);
 
   //Data show Swipe - Native Touch Events (No Library)
   useEffect(() => {
@@ -1209,17 +1219,17 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
 
 
       {/* Media Link */}
-      <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-1 relative z-10 lg:top-2">
+      <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-1 sm:gap-2 relative z-10 lg:top-2">
 
         {humn.link && (
           <a
             href={humn.link}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
+            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
           >
-            <PlayCircle className="w-4 h-4" />
-            <span className="text-xs sm:text-sm font-medium hidden sm:inline">{t("listen")}</span>
+            <PlayCircle className="w-4 h-4 shrink-0" />
+            <span className="text-xs sm:text-sm font-medium">{t("listen")}</span>
           </a>
         )}
 
@@ -1227,21 +1237,20 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
           <>
             <button
               onClick={() => openLyrics(humn, transposeStep)}
-              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
+              className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
             >
-              <FileText className="w-4 h-4" />
-              <span className="text-xs sm:text-sm font-medium hidden sm:inline">{t("lyrics")}</span>
+              <FileText className="w-4 h-4 shrink-0" />
+              <span className="text-xs sm:text-sm font-medium">{t("lyrics")}</span>
             </button>
 
-            {/* Presentation Button - Visible in Vocal Mode */}
+            {/* Presentation Button - Icon Only, Visible in Vocal Mode */}
             {vocalsMode && (
               <button
                 onClick={() => openPresentation(humn, transposeStep)}
-                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all group-hover:shadow-lg group-hover:shadow-purple-500/10 w-full sm:w-auto justify-center"
+                className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all group-hover:shadow-lg group-hover:shadow-purple-500/10"
                 title="Open Presentation Mode"
               >
-                <Monitor className="w-4 h-4 shrink-0" />
-                <span className="text-xs sm:text-sm font-medium hidden sm:inline">Present</span>
+                <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             )}
           </>
