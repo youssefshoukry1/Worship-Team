@@ -382,78 +382,80 @@ export default function WorkSpace() {
                                 </div>
                             </div>
 
-                            {/* Data Show Modal */}
-                            {showDataShow && selectedLyricsHymn && (
-                                <Portal>
-                                    <div
-                                        id="showDataContainer"
-                                        className="fixed inset-0 z-10000 bg-black flex items-center justify-center"
-                                    >
-                                        {/* Exit Button */}
-                                        <button
-                                            onClick={() => setShowDataShow(false)}
-                                            className="absolute top-6 right-6 text-white/60 hover:text-white transition-all hover:scale-110 z-10 p-2 rounded-full hover:bg-white/10"
-                                        >
-                                            <X size={32} />
-                                        </button>
+                        </div>
 
-                                        {/* Counter */}
-                                        <div className="absolute bottom-6 text-white/50 text-sm font-mono z-10">
-                                            {dataShowIndex + 1} / {dataShowSlides.length}
-                                        </div>
+                    </Portal>
+                )}
 
-                                        {/* Navigation Arrows - LTR: Left=Next, Right=Previous */}
-                                        {dataShowIndex < dataShowSlides.length - 1 && (
-                                            <button
-                                                onClick={() => setDataShowIndex(i => i + 1)}
-                                                className="absolute left-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
-                                            </button>
-                                        )}
-                                        {dataShowIndex > 0 && (
-                                            <button
-                                                onClick={() => setDataShowIndex(i => i - 1)}
-                                                className="absolute right-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
-                                            </button>
-                                        )}
+                {/* --- Data Show (Presentation) Modal - Independent --- */}
+                {showDataShow && selectedLyricsHymn && (
+                    <Portal>
+                        <div
+                            id="showDataContainer"
+                            className="fixed inset-0 z-[10000] bg-black flex items-center justify-center"
+                        >
+                            {/* Exit Button */}
+                            <button
+                                onClick={() => setShowDataShow(false)}
+                                className="absolute top-6 right-6 text-white/60 hover:text-white transition-all hover:scale-110 z-10 p-2 rounded-full hover:bg-white/10"
+                            >
+                                <X size={32} />
+                            </button>
 
-                                        {/* Swipe Indicator (Mobile) */}
-                                        <div className="absolute top-6 left-1/2 -translate-x-1/2 text-white/30 text-xs flex items-center gap-2 sm:hidden">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
-                                            <span>Swipe to navigate</span>
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="rotate-180"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
-                                        </div>
+                            {/* Counter */}
+                            <div className="absolute bottom-6 text-white/50 text-sm font-mono z-10">
+                                {dataShowIndex + 1} / {dataShowSlides.length}
+                            </div>
 
-                                        {/* Slide with Fade */}
-
-
-                                        <AnimatePresence mode="wait">
-                                            <motion.div
-                                                key={dataShowIndex}
-                                                initial={{ opacity: 0, scale: 0.98 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                exit={{ opacity: 0, scale: 0.98 }}
-                                                transition={{ duration: 0.2, ease: "easeInOut" }}
-                                                className="w-full h-full flex items-center justify-center px-10 text-center"
-                                            >
-                                                <p
-                                                    className="text-white font-bold whitespace-pre-line select-none"
-                                                    style={{
-                                                        fontSize: "clamp(32px, 8vw, 64px)",
-                                                        lineHeight: 1.6
-                                                    }}
-                                                    dir="rtl"
-                                                >
-                                                    {dataShowSlides[dataShowIndex]}
-                                                </p>
-                                            </motion.div>
-                                        </AnimatePresence>
-                                    </div>
-                                </Portal>
+                            {/* Navigation Arrows - LTR: Left=Next, Right=Previous */}
+                            {dataShowIndex < dataShowSlides.length - 1 && (
+                                <button
+                                    onClick={() => setDataShowIndex(i => i + 1)}
+                                    className="absolute left-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                                </button>
                             )}
+                            {dataShowIndex > 0 && (
+                                <button
+                                    onClick={() => setDataShowIndex(i => i - 1)}
+                                    className="absolute right-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                                </button>
+                            )}
+
+                            {/* Swipe Indicator (Mobile) */}
+                            <div className="absolute top-6 left-1/2 -translate-x-1/2 text-white/30 text-xs flex items-center gap-2 sm:hidden">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+                                <span>Swipe to navigate</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="rotate-180"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+                            </div>
+
+                            {/* Slide with Fade */}
+
+
+                            <AnimatePresence mode="wait">
+                                <motion.div
+                                    key={dataShowIndex}
+                                    initial={{ opacity: 0, scale: 0.98 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.98 }}
+                                    transition={{ duration: 0.2, ease: "easeInOut" }}
+                                    className="w-full h-full flex items-center justify-center px-10 text-center"
+                                >
+                                    <p
+                                        className="text-white font-bold whitespace-pre-line select-none"
+                                        style={{
+                                            fontSize: "clamp(32px, 8vw, 64px)",
+                                            lineHeight: 1.6
+                                        }}
+                                        dir="rtl"
+                                    >
+                                        {dataShowSlides[dataShowIndex]}
+                                    </p>
+                                </motion.div>
+                            </AnimatePresence>
                         </div>
                     </Portal>
                 )}
