@@ -7,7 +7,7 @@ import UserContextProvider from "./context/User_Context";
 import QueryProvider from "../../QueryProvider";
 import HymnsContextProvider from "./context/Hymns_Context";
 import { LanguageProvider } from "./context/LanguageContext";
-
+import  SmoothScroll  from "./SmoothScroll"
 const geistSans = Geist({
     variable: "--font-geist-sans",
     subsets: ["latin"],
@@ -34,17 +34,20 @@ export default function RootLayout({
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
-                <LanguageProvider>
-                    <UserContextProvider>
-                        <HymnsContextProvider>
-                            <Navbar />
-                            <QueryProvider>
-                                <PageTransition>{children}</PageTransition>
-                            </QueryProvider>
-                            <Footer />
-                        </HymnsContextProvider>
-                    </UserContextProvider>
-                </LanguageProvider>
+                <SmoothScroll>
+                    <LanguageProvider>
+                        <UserContextProvider>
+                            <HymnsContextProvider>
+                                <Navbar />
+                                <QueryProvider>
+                                    <PageTransition>{children}</PageTransition>
+                                </QueryProvider>
+                                <Footer />
+                            </HymnsContextProvider>
+                        </UserContextProvider>
+                    </LanguageProvider>
+                </SmoothScroll>
+
             </body>
         </html>
     );
