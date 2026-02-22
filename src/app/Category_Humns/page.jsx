@@ -1112,10 +1112,12 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
 
   return (
     <motion.div
-      variants={variants}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true }}
+      initial={{ opacity: 0, y: 20, scale: 0.98, filter: 'blur(4px)' }}
+      animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+      transition={{
+        duration: 0.4,
+        ease: [0.23, 1, 0.32, 1] // Apple-like easeOutQuint
+      }}
       className="group relative grid grid-cols-12 gap-2 sm:gap-4 p-3 sm:p-5 items-center 
                  bg-[#13132b]/60 hover:bg-[#1a1a38] 
                  border border-white/5 hover:border-sky-500/30 
