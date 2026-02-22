@@ -1113,6 +1113,9 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
   return (
     <motion.div
       variants={variants}
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: true }}
       className="group relative grid grid-cols-12 gap-2 sm:gap-4 p-3 sm:p-5 items-center 
                  bg-[#13132b]/60 hover:bg-[#1a1a38] 
                  border border-white/5 hover:border-sky-500/30 
