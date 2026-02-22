@@ -131,6 +131,33 @@ export default function Dashboard() {
     } finally { setProcessingId(null); }
   };
 
+  const toggleUserAttendance = async (userId, eventId) => {
+    setProcessingId(`attend-${userId}-${eventId}`);
+    try {
+      await axios.patch(`${API_URL}/events/attend/${userId}/${eventId}`, {}, {
+        headers: { Authorization: `Bearer ${isLogin}` }
+      });
+      queryClient.invalidateQueries({ queryKey: ['data', isLogin] });
+    } catch (error) {
+      console.error("Attendance Toggle Error:", error);
+      alert("Failed to toggle attendance");
+    } finally { setProcessingId(null); }
+  };
+
+  const deleteAttendance = async (userId, attendId) => {
+    if (!confirm("Are you sure you want to delete this attendance record?")) return;
+    setProcessingId(`del-attend-${attendId}`);
+    try {
+      await axios.delete(`${API_URL}/events/attend/${userId}/${attendId}`, {
+        headers: { Authorization: `Bearer ${isLogin}` }
+      });
+      queryClient.invalidateQueries({ queryKey: ['data', isLogin] });
+    } catch (error) {
+      console.error("Delete Attendance Error:", error);
+      alert("Failed to delete attendance");
+    } finally { setProcessingId(null); }
+  };
+
   const handleStatusChange = async (userId, newStatus) => {
     setProcessingId(userId);
     try {
@@ -419,7 +446,7 @@ export default function Dashboard() {
             </h2>
             <div className="flex gap-2">
               <button onClick={() => setShowManageReports(true)} className="flex items-center gap-2 px-4 py-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded-lg transition-all text-sm">
-                <ClipboardList className="w-4 h-4" /> Manage Reports
+                <Users className="w-4 h-4" /> Manage Users
               </button>
               <button onClick={resetAllTraining} className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-lg transition-all text-sm">
                 <RefreshCw className={`w-4 h-4 ${processingId === "RESET_ALL" ? "animate-spin" : ""}`} /> Reset All Training
@@ -470,27 +497,49 @@ export default function Dashboard() {
                 {/* Event Tags Selection */}
                 <div className="space-y-3">
                   <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1">
-                    <Music className="w-3 h-3" /> Assign to Training Events
+                    <Music className="w-3 h-3" /> Assign vs. Mark Attended Events
                   </p>
-                  <div className="flex flex-wrap gap-2">
+
+                  <div className="flex flex-col gap-2">
                     {churchEvents.length === 0 && <span className="text-xs text-gray-600">No events created yet.</span>}
                     {churchEvents.map((event) => {
                       const isActive = user.trainingEvents?.some(e => e._id === event._id || e === event._id);
+                      // Calculate how many times this user has attended this event
+                      const attendCount = user.attends?.filter(a => a.eventId === event._id || a.eventId?._id === event._id || a.eventId === event._id.toString()).length || 0;
+
                       const isLocalProcessing = processingId === `${user._id}-${event._id}`;
+                      const isAttendProcessing = processingId === `attend-${user._id}-${event._id}`;
 
                       return (
-                        <button
-                          key={event._id}
-                          onClick={() => toggleUserInEvent(user._id, event._id)}
-                          disabled={isLocalProcessing}
-                          className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all flex items-center gap-1.5 ${isActive
-                            ? 'bg-sky-500/20 border-sky-500 text-sky-300 shadow-lg shadow-sky-500/10'
-                            : 'bg-white/5 border-white/10 text-gray-500 hover:border-white/30'
-                            }`}
-                        >
-                          {isLocalProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Calendar className="w-3 h-3" />}
-                          {event.eventName}
-                        </button>
+                        <div key={event._id} className="flex items-center gap-2 justify-between bg-white/5 border border-white/10 p-2 rounded-lg">
+                          <span className="text-xs font-bold truncate max-w-[120px]">{event.eventName}</span>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => toggleUserInEvent(user._id, event._id)}
+                              disabled={isLocalProcessing}
+                              className={`px-2 py-1 flex-1 rounded-md text-[10px] font-bold border transition-all flex items-center justify-center gap-1.5 ${isActive
+                                ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300 shadow-lg shadow-indigo-500/10'
+                                : 'bg-transparent border-white/10 text-gray-500 hover:border-white/30'
+                                }`}
+                              title="Assign to Training"
+                            >
+                              {isLocalProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Calendar className="w-3 h-3" />}
+                              Assign
+                            </button>
+                            <button
+                              onClick={() => toggleUserAttendance(user._id, event._id)}
+                              disabled={isAttendProcessing}
+                              className={`px-2 py-1 flex-1 rounded-md text-[10px] font-bold border transition-all flex items-center justify-center gap-1.5 ${attendCount > 0
+                                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-lg shadow-emerald-500/10 hover:bg-emerald-500/30'
+                                : 'bg-transparent border-white/10 text-gray-500 hover:border-white/30'
+                                }`}
+                              title="Add Attendance"
+                            >
+                              {isAttendProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                              Attend {attendCount > 0 ? `(${attendCount})` : ''}
+                            </button>
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
@@ -552,7 +601,7 @@ export default function Dashboard() {
                 >
                   <div className="px-4 py-3 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
                     <h2 className="text-lg font-bold flex items-center gap-2">
-                      <ClipboardList className="w-5 h-5 text-sky-400" /> Reports Management
+                      <Users className="w-5 h-5 text-sky-400" /> Users Management
                     </h2>
                     <button onClick={() => setShowManageReports(false)} className="text-gray-400 hover:text-white transition-colors p-1">
                       <X className="w-5 h-5" />
@@ -579,11 +628,18 @@ export default function Dashboard() {
                                   <p className="text-xs text-gray-400">{user.role}</p>
                                 </div>
                               </div>
-                              {user.reports && user.reports.length > 0 && (
-                                <div className="bg-sky-500/20 px-2 py-0.5 rounded-full border border-sky-500/30 flex-shrink-0">
-                                  <span className="text-xs font-medium text-sky-300">{user.reports.length}</span>
-                                </div>
-                              )}
+                              <div className="flex gap-1.5">
+                                {user.attends && user.attends.length > 0 && (
+                                  <div className="bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30 flex-shrink-0">
+                                    <span className="text-xs font-medium text-emerald-300">{user.attends.length} Attends</span>
+                                  </div>
+                                )}
+                                {user.reports && user.reports.length > 0 && (
+                                  <div className="bg-sky-500/20 px-2 py-0.5 rounded-full border border-sky-500/30 flex-shrink-0">
+                                    <span className="text-xs font-medium text-sky-300">{user.reports.length} Reports</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
 
                             {/* Reports List */}
@@ -679,6 +735,42 @@ export default function Dashboard() {
                                     </div>
                                   );
                                 })
+                              )}
+                            </div>
+
+                            {/* Attendance Section for Report Modal */}
+                            <div className="mt-3 pt-3 border-t border-white/10">
+                              <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-widest flex items-center gap-1 mb-2">
+                                <Check className="w-3 h-3" /> Attendance Log
+                              </h4>
+                              {!user.attends || user.attends.length === 0 ? (
+                                <p className="text-xs text-gray-500 text-center py-2">No attendance records</p>
+                              ) : (
+                                <div className="max-h-24 overflow-y-auto space-y-1">
+                                  {user.attends.map(att => {
+                                    // match the event id from the user object with the events we fetched
+                                    const eventObj = churchEvents.find(ce => ce._id === (att.eventId?._id || att.eventId));
+                                    const eventName = eventObj ? eventObj.eventName : 'Unknown Event';
+                                    const attendDate = new Date(att.date).toLocaleDateString();
+                                    const attendTime = new Date(att.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                                    return (
+                                      <div key={att._id} className="flex justify-between items-center text-xs bg-white/5 p-1.5 rounded border border-emerald-500/10 hover:border-emerald-500/30 transition-colors">
+                                        <div className="flex flex-col">
+                                          <span className="text-emerald-300 font-medium truncate max-w-[140px]">{eventName}</span>
+                                          <span className="text-gray-400 text-[10px]">{attendDate} at {attendTime}</span>
+                                        </div>
+                                        <button
+                                          onClick={() => deleteAttendance(user._id, att._id)}
+                                          disabled={processingId === `del-attend-${att._id}`}
+                                          className="text-red-400 hover:bg-red-500/20 p-1 rounded transition-colors"
+                                        >
+                                          {processingId === `del-attend-${att._id}` ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               )}
                             </div>
                           </motion.div>

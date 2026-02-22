@@ -169,8 +169,8 @@ export default function Trainings() {
     return text.split('\n').map((line, i) => (
       <div
         key={i}
-        className="relative my-2 w-full text-center"
-        style={{ fontSize: `${fontSize}px`, minHeight: '1.5em' }}
+        className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-6 mb-2' : 'my-2'}`}
+        style={{ fontSize: `${fontSize}px`, minHeight: '1.5em', lineHeight: '1.8' }}
       >
         {line ? line.split(/(\[.*?\])/g).map((part, j) => {
           if (part.startsWith('[') && part.endsWith(']')) {
@@ -178,9 +178,13 @@ export default function Trainings() {
             const chord = part.slice(1, -1);
 
             return (
-              <span key={j} className="inline-block relative w-0 overflow-visible mx-0.5 align-top">
+              <span key={j} className="inline-block relative overflow-visible mx-0.5 align-baseline" style={{ lineHeight: '1' }}>
+                {/* Hidden placeholder to reserve space and prevent overlapping */}
+                <span className="invisible whitespace-nowrap" style={{ fontSize: `${fontSize * 0.75}px` }} dir="ltr">
+                  {chord}
+                </span>
                 <span
-                  className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 font-bold whitespace-nowrap shadow-sm"
+                  className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap shadow-sm mb-1"
                   style={{
                     color: lyricsTheme === 'warm' ? '#0369a1' : '#38bdf8',
                     fontSize: `${fontSize * 0.75}px`,
