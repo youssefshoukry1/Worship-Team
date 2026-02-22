@@ -22,7 +22,8 @@ import {
   FileText,
   ChevronDown,
   ChevronUp,
-  ClipboardList
+  ClipboardList,
+  Filter
 } from 'lucide-react';
 import Portal from '../Portal/Portal';
 
@@ -41,6 +42,26 @@ export default function Dashboard() {
   const [expandedReports, setExpandedReports] = useState({});
   const [editingReport, setEditingReport] = useState(null);
   const [showManageReports, setShowManageReports] = useState(false);
+
+  const filterCurrentYear = new Date().getFullYear();
+  const filterYears = ["All", filterCurrentYear.toString(), (filterCurrentYear - 1).toString(), (filterCurrentYear - 2).toString(), (filterCurrentYear - 3).toString(), (filterCurrentYear - 4).toString()];
+  const filterMonths = [
+    { val: "All", label: "All Months" },
+    { val: "01", label: "January" },
+    { val: "02", label: "February" },
+    { val: "03", label: "March" },
+    { val: "04", label: "April" },
+    { val: "05", label: "May" },
+    { val: "06", label: "June" },
+    { val: "07", label: "July" },
+    { val: "08", label: "August" },
+    { val: "09", label: "September" },
+    { val: "10", label: "October" },
+    { val: "11", label: "November" },
+    { val: "12", label: "December" }
+  ];
+  const [filterYear, setFilterYear] = useState("All");
+  const [filterMonth, setFilterMonth] = useState("All");
 
   // --- 1. API Fetching Functions ---
 
@@ -608,6 +629,33 @@ export default function Dashboard() {
                     </button>
                   </div>
 
+                  {/* Filter Section */}
+                  <div className="px-4 py-3 border-b border-white/10 bg-black/20 flex flex-wrap items-center gap-4 shrink-0 shadow-inner">
+                    <div className="flex items-center gap-2 text-sky-400 font-semibold text-sm">
+                      <Filter className="w-4 h-4" /> Filters:
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={filterYear}
+                        onChange={(e) => setFilterYear(e.target.value)}
+                        className="bg-[#0f172a] border border-sky-500/30 rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors cursor-pointer"
+                      >
+                        {filterYears.map(year => (
+                          <option key={year} value={year}>{year === "All" ? "All Years" : year}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={filterMonth}
+                        onChange={(e) => setFilterMonth(e.target.value)}
+                        className="bg-[#0f172a] border border-sky-500/30 rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors cursor-pointer"
+                      >
+                        {filterMonths.map(month => (
+                          <option key={month.val} value={month.val}>{month.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   <div className="flex-1 overflow-y-auto p-3">
                     {UsersChurch.length === 0 ? (
                       <div className="flex items-center justify-center h-full text-gray-500">
@@ -615,166 +663,189 @@ export default function Dashboard() {
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                        {UsersChurch.map(user => (
-                          <motion.div key={user._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-white/5 to-white/3 rounded-xl p-3 border border-white/10 hover:border-sky-500/30 transition-all flex flex-col">
-                            {/* User Header */}
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                                  {user.Name.charAt(0).toUpperCase()}
-                                </div>
-                                <div className="min-w-0">
-                                  <h3 className="font-semibold text-white text-sm truncate">{user.Name}</h3>
-                                  <p className="text-xs text-gray-400">{user.role}</p>
-                                </div>
-                              </div>
-                              <div className="flex gap-1.5">
-                                {user.attends && user.attends.length > 0 && (
-                                  <div className="bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30 flex-shrink-0">
-                                    <span className="text-xs font-medium text-emerald-300">{user.attends.length} Attends</span>
+                        {UsersChurch.map(user => {
+                          const displayedReports = user.reports?.filter(report => {
+                            if (filterYear === "All" && filterMonth === "All") return true;
+                            const d = new Date(report.date || new Date());
+                            if (filterYear !== "All" && d.getFullYear().toString() !== filterYear) return false;
+                            if (filterMonth !== "All" && (d.getMonth() + 1).toString().padStart(2, '0') !== filterMonth) return false;
+                            return true;
+                          }) || [];
+
+                          const displayedAttends = user.attends?.filter(att => {
+                            if (filterYear === "All" && filterMonth === "All") return true;
+                            const d = new Date(att.date || new Date());
+                            if (filterYear !== "All" && d.getFullYear().toString() !== filterYear) return false;
+                            if (filterMonth !== "All" && (d.getMonth() + 1).toString().padStart(2, '0') !== filterMonth) return false;
+                            return true;
+                          }) || [];
+
+                          // Don't show the user card if filtering and no matching records
+                          if ((filterYear !== "All" || filterMonth !== "All") && displayedReports.length === 0 && displayedAttends.length === 0) {
+                            return null;
+                          }
+
+                          return (
+                            <motion.div key={user._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-white/5 to-white/3 rounded-xl p-3 border border-white/10 hover:border-sky-500/30 transition-all flex flex-col">
+                              {/* User Header */}
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                                    {user.Name.charAt(0).toUpperCase()}
                                   </div>
-                                )}
-                                {user.reports && user.reports.length > 0 && (
-                                  <div className="bg-sky-500/20 px-2 py-0.5 rounded-full border border-sky-500/30 flex-shrink-0">
-                                    <span className="text-xs font-medium text-sky-300">{user.reports.length} Reports</span>
+                                  <div className="min-w-0">
+                                    <h3 className="font-semibold text-white text-sm truncate">{user.Name}</h3>
+                                    <p className="text-xs text-gray-400">{user.role}</p>
                                   </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Reports List */}
-                            <div className="space-y-1 flex-1 overflow-y-auto">
-                              {!user.reports || user.reports.length === 0 ? (
-                                <div className="text-center py-2 px-2 rounded-lg bg-white/3 border border-dashed border-white/10">
-                                  <p className="text-xs text-gray-500">No reports</p>
                                 </div>
-                              ) : (
-                                user.reports.map((report, index) => {
-                                  const reportText = report.text || report.report || (typeof report === 'string' ? report : "");
-                                  const reportId = report._id;
-                                  const isExpanded = expandedReports[`${user._id}-${index}`];
-
-                                  return (
-                                    <div key={report._id} className="bg-white/3 rounded-lg overflow-hidden border border-white/5 hover:border-sky-500/20 transition-all text-xs">
-                                      {/* Report Header */}
-                                      <div
-                                        onClick={() => toggleReportExpand(user._id, index)}
-                                        className="flex items-center justify-between p-2 cursor-pointer hover:bg-white/5 transition-colors"
-                                      >
-                                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                                          <FileText className="w-3 h-3 text-sky-400 flex-shrink-0" />
-                                          {!isExpanded && reportText && (
-                                            <p className="text-gray-400 truncate">{reportText}</p>
-                                          )}
-                                          {isExpanded && (
-                                            <span className="text-gray-300 font-medium">Report {index + 1}</span>
-                                          )}
-                                        </div>
-                                        <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }} className="flex-shrink-0">
-                                          {isExpanded ? <ChevronUp className="w-3 h-3 text-gray-500" /> : <ChevronDown className="w-3 h-3 text-gray-500" />}
-                                        </motion.div>
-                                      </div>
-
-                                      {/* Report Content */}
-                                      <AnimatePresence>
-                                        {isExpanded && (
-                                          <motion.div
-                                            initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                                            transition={{ duration: 0.2 }}
-                                            className="border-t border-white/5"
-                                          >
-                                            {editingReport?.userId === user._id && editingReport?.index === index ? (
-                                              <div className="p-2 space-y-1">
-                                                <textarea
-                                                  value={editingReport.text}
-                                                  onChange={(e) => setEditingReport(prev => ({ ...prev, text: e.target.value }))}
-                                                  className="w-full bg-black/30 border border-white/10 rounded px-2 py-1 text-xs text-gray-300 outline-none focus:border-sky-500 focus:bg-black/40 resize-none"
-                                                  rows="2"
-                                                />
-                                                <div className="flex gap-1 justify-end">
-                                                  <button onClick={() => {
-                                                    handlePatchReport(user._id, reportId, editingReport.text);
-                                                    setEditingReport(null);
-                                                  }} className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-2 py-1 rounded transition-colors text-xs font-medium flex items-center gap-1">
-                                                    <Check className="w-2.5 h-2.5" /> Save
-                                                  </button>
-                                                  <button onClick={() => setEditingReport(null)} className="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-2 py-1 rounded transition-colors text-xs font-medium flex items-center gap-1">
-                                                    <X className="w-2.5 h-2.5" /> Cancel
-                                                  </button>
-                                                </div>
-                                              </div>
-                                            ) : (
-                                              <div className="p-2 space-y-1">
-                                                <p className="text-gray-300 whitespace-pre-wrap leading-snug max-h-24 overflow-hidden text-xs">{reportText}</p>
-
-                                                <div className="flex justify-end gap-1 pt-1 border-t border-white/5">
-                                                  <button
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      setEditingReport({ userId: user._id, index, text: reportText });
-                                                    }}
-                                                    className="text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 px-1.5 py-0.5 rounded transition-colors text-xs flex items-center gap-0.5"
-                                                  >
-                                                    <Edit className="w-2.5 h-2.5" /> Edit
-                                                  </button>
-                                                  <button
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      if (confirm("Delete this report?")) handleDeleteReport(user._id, reportId);
-                                                    }}
-                                                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10 px-1.5 py-0.5 rounded transition-colors text-xs flex items-center gap-0.5"
-                                                  >
-                                                    <Trash2 className="w-2.5 h-2.5" /> Delete
-                                                  </button>
-                                                </div>
-                                              </div>
-                                            )}
-                                          </motion.div>
-                                        )}
-                                      </AnimatePresence>
+                                <div className="flex gap-1.5">
+                                  {displayedAttends.length > 0 && (
+                                    <div className="bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30 flex-shrink-0">
+                                      <span className="text-xs font-medium text-emerald-300">{displayedAttends.length} Attends</span>
                                     </div>
-                                  );
-                                })
-                              )}
-                            </div>
+                                  )}
+                                  {displayedReports.length > 0 && (
+                                    <div className="bg-sky-500/20 px-2 py-0.5 rounded-full border border-sky-500/30 flex-shrink-0">
+                                      <span className="text-xs font-medium text-sky-300">{displayedReports.length} Reports</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
 
-                            {/* Attendance Section for Report Modal */}
-                            <div className="mt-3 pt-3 border-t border-white/10">
-                              <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-widest flex items-center gap-1 mb-2">
-                                <Check className="w-3 h-3" /> Attendance Log
-                              </h4>
-                              {!user.attends || user.attends.length === 0 ? (
-                                <p className="text-xs text-gray-500 text-center py-2">No attendance records</p>
-                              ) : (
-                                <div className="max-h-24 overflow-y-auto space-y-1">
-                                  {user.attends.map(att => {
-                                    // match the event id from the user object with the events we fetched
-                                    const eventObj = churchEvents.find(ce => ce._id === (att.eventId?._id || att.eventId));
-                                    const eventName = eventObj ? eventObj.eventName : 'Unknown Event';
-                                    const attendDate = new Date(att.date).toLocaleDateString();
-                                    const attendTime = new Date(att.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                              {/* Reports List */}
+                              <div className="space-y-1 flex-1 overflow-y-auto">
+                                {displayedReports.length === 0 ? (
+                                  <div className="text-center py-2 px-2 rounded-lg bg-white/3 border border-dashed border-white/10">
+                                    <p className="text-xs text-gray-500">No reports</p>
+                                  </div>
+                                ) : (
+                                  displayedReports.map((report, index) => {
+                                    const reportText = report.text || report.report || (typeof report === 'string' ? report : "");
+                                    const reportId = report._id;
+                                    const isExpanded = expandedReports[`${user._id}-${index}`];
 
                                     return (
-                                      <div key={att._id} className="flex justify-between items-center text-xs bg-white/5 p-1.5 rounded border border-emerald-500/10 hover:border-emerald-500/30 transition-colors">
-                                        <div className="flex flex-col">
-                                          <span className="text-emerald-300 font-medium truncate max-w-[140px]">{eventName}</span>
-                                          <span className="text-gray-400 text-[10px]">{attendDate} at {attendTime}</span>
-                                        </div>
-                                        <button
-                                          onClick={() => deleteAttendance(user._id, att._id)}
-                                          disabled={processingId === `del-attend-${att._id}`}
-                                          className="text-red-400 hover:bg-red-500/20 p-1 rounded transition-colors"
+                                      <div key={report._id} className="bg-white/3 rounded-lg overflow-hidden border border-white/5 hover:border-sky-500/20 transition-all text-xs">
+                                        {/* Report Header */}
+                                        <div
+                                          onClick={() => toggleReportExpand(user._id, index)}
+                                          className="flex items-center justify-between p-2 cursor-pointer hover:bg-white/5 transition-colors"
                                         >
-                                          {processingId === `del-attend-${att._id}` ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                        </button>
+                                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            <FileText className="w-3 h-3 text-sky-400 flex-shrink-0" />
+                                            {!isExpanded && reportText && (
+                                              <p className="text-gray-400 truncate">{reportText}</p>
+                                            )}
+                                            {isExpanded && (
+                                              <span className="text-gray-300 font-medium">Report {index + 1}</span>
+                                            )}
+                                          </div>
+                                          <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }} className="flex-shrink-0">
+                                            {isExpanded ? <ChevronUp className="w-3 h-3 text-gray-500" /> : <ChevronDown className="w-3 h-3 text-gray-500" />}
+                                          </motion.div>
+                                        </div>
+
+                                        {/* Report Content */}
+                                        <AnimatePresence>
+                                          {isExpanded && (
+                                            <motion.div
+                                              initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                                              transition={{ duration: 0.2 }}
+                                              className="border-t border-white/5"
+                                            >
+                                              {editingReport?.userId === user._id && editingReport?.index === index ? (
+                                                <div className="p-2 space-y-1">
+                                                  <textarea
+                                                    value={editingReport.text}
+                                                    onChange={(e) => setEditingReport(prev => ({ ...prev, text: e.target.value }))}
+                                                    className="w-full bg-black/30 border border-white/10 rounded px-2 py-1 text-xs text-gray-300 outline-none focus:border-sky-500 focus:bg-black/40 resize-none"
+                                                    rows="2"
+                                                  />
+                                                  <div className="flex gap-1 justify-end">
+                                                    <button onClick={() => {
+                                                      handlePatchReport(user._id, reportId, editingReport.text);
+                                                      setEditingReport(null);
+                                                    }} className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-2 py-1 rounded transition-colors text-xs font-medium flex items-center gap-1">
+                                                      <Check className="w-2.5 h-2.5" /> Save
+                                                    </button>
+                                                    <button onClick={() => setEditingReport(null)} className="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-2 py-1 rounded transition-colors text-xs font-medium flex items-center gap-1">
+                                                      <X className="w-2.5 h-2.5" /> Cancel
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              ) : (
+                                                <div className="p-2 space-y-1">
+                                                  <p className="text-gray-300 whitespace-pre-wrap leading-snug max-h-24 overflow-hidden text-xs">{reportText}</p>
+
+                                                  <div className="flex justify-end gap-1 pt-1 border-t border-white/5">
+                                                    <button
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setEditingReport({ userId: user._id, index, text: reportText });
+                                                      }}
+                                                      className="text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 px-1.5 py-0.5 rounded transition-colors text-xs flex items-center gap-0.5"
+                                                    >
+                                                      <Edit className="w-2.5 h-2.5" /> Edit
+                                                    </button>
+                                                    <button
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (confirm("Delete this report?")) handleDeleteReport(user._id, reportId);
+                                                      }}
+                                                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10 px-1.5 py-0.5 rounded transition-colors text-xs flex items-center gap-0.5"
+                                                    >
+                                                      <Trash2 className="w-2.5 h-2.5" /> Delete
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </motion.div>
+                                          )}
+                                        </AnimatePresence>
                                       </div>
                                     );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          </motion.div>
-                        ))}
+                                  })
+                                )}
+                              </div>
+
+                              {/* Attendance Section for Report Modal */}
+                              <div className="mt-3 pt-3 border-t border-white/10">
+                                <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-widest flex items-center gap-1 mb-2">
+                                  <Check className="w-3 h-3" /> Attendance Log
+                                </h4>
+                                {displayedAttends.length === 0 ? (
+                                  <p className="text-xs text-gray-500 text-center py-2">No attendance records</p>
+                                ) : (
+                                  <div className="max-h-24 overflow-y-auto space-y-1">
+                                    {displayedAttends.map(att => {
+                                      // match the event id from the user object with the events we fetched
+                                      const eventObj = churchEvents.find(ce => ce._id === (att.eventId?._id || att.eventId));
+                                      const eventName = eventObj ? eventObj.eventName : 'Unknown Event';
+                                      const attendDate = new Date(att.date).toLocaleDateString();
+                                      const attendTime = new Date(att.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                                      return (
+                                        <div key={att._id} className="flex justify-between items-center text-xs bg-white/5 p-1.5 rounded border border-emerald-500/10 hover:border-emerald-500/30 transition-colors">
+                                          <div className="flex flex-col">
+                                            <span className="text-emerald-300 font-medium truncate max-w-[140px]">{eventName}</span>
+                                            <span className="text-gray-400 text-[10px]">{attendDate} at {attendTime}</span>
+                                          </div>
+                                          <button
+                                            onClick={() => deleteAttendance(user._id, att._id)}
+                                            disabled={processingId === `del-attend-${att._id}`}
+                                            className="text-red-400 hover:bg-red-500/20 p-1 rounded transition-colors"
+                                          >
+                                            {processingId === `del-attend-${att._id}` ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
