@@ -7,6 +7,7 @@ import Metronome from '../Metronome/page';
 import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
 import Portal from '../Portal/Portal';
+import { Virtuoso } from 'react-virtuoso';
 
 export default function WorkSpace() {
     const { workspace, removeFromWorkspace } = useContext(HymnsContext);
@@ -242,35 +243,35 @@ export default function WorkSpace() {
                         <div className="col-span-3 text-center">Media</div>
                     </div>
 
-                    {/* List Body */}
-                    <motion.div
-                        className="flex flex-col gap-3 mt-2 pb-20"
-                        variants={containerVariants}
-                        initial="hidden"
-                        animate="show"
-                    >
-                        {workspace.length > 0 ? (
-                            workspace.map((hymn, index) => (
-                                <WorkspaceItem
-                                    key={hymn._id}
-                                    hymn={hymn}
-                                    index={index}
-                                    categories={categories}
-                                    removeFromWorkspace={removeFromWorkspace}
-                                    variants={itemVariants}
-                                    openLyrics={openLyrics}
-                                    openPresentation={openPresentation}
-                                    vocalsMode={vocalsMode}
-                                />
-                            ))
-                        ) : (
-                            <div className="p-20 text-center flex flex-col items-center justify-center text-gray-500 bg-white/5 rounded-3xl border border-white/5 border-dashed">
-                                <Heart className="w-12 h-12 mb-4 opacity-50 text-sky-400" />
-                                <h3 className="text-xl font-bold text-gray-300 mb-2">Your workspace is empty</h3>
-                                <p className="text-sm text-gray-500">Go to the Hymns Library to add some songs.</p>
-                            </div>
-                        )}
-                    </motion.div>
+                    {/* List Body with react-virtuoso */}
+                    {workspace.length > 0 ? (
+                        <div className="pb-20 mt-2">
+                            <Virtuoso
+                                useWindowScroll
+                                data={workspace}
+                                itemContent={(index, hymn) => (
+                                    <div className="pb-3">
+                                        <WorkspaceItem
+                                            hymn={hymn}
+                                            index={index}
+                                            categories={categories}
+                                            removeFromWorkspace={removeFromWorkspace}
+                                            variants={itemVariants}
+                                            openLyrics={openLyrics}
+                                            openPresentation={openPresentation}
+                                            vocalsMode={vocalsMode}
+                                        />
+                                    </div>
+                                )}
+                            />
+                        </div>
+                    ) : (
+                        <div className="p-20 text-center flex flex-col items-center justify-center text-gray-500 bg-white/5 rounded-3xl border border-white/5 border-dashed mt-2 pb-20">
+                            <Heart className="w-12 h-12 mb-4 opacity-50 text-sky-400" />
+                            <h3 className="text-xl font-bold text-gray-300 mb-2">Your workspace is empty</h3>
+                            <p className="text-sm text-gray-500">Go to the Hymns Library to add some songs.</p>
+                        </div>
+                    )}
                 </div>
 
                 {/* --- Lyrics Modal --- */}

@@ -12,6 +12,7 @@ import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, 
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
 import { useEffect } from "react";
+import { Virtuoso } from "react-virtuoso";
 
 
 
@@ -333,27 +334,7 @@ export default function Category_Humns() {
     ? Array.from(new Map(data.pages.flat().map(item => [item._id, item])).values())
     : [];
 
-  // Infinite Scroll Trigger
-  const loadMoreRef = React.useRef(null);
-
-  React.useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      },
-      { threshold: 0.1 } // Trigger when just starting to come into view
-    );
-
-    if (loadMoreRef.current) observer.observe(loadMoreRef.current);
-
-    return () => {
-      if (loadMoreRef.current) observer.unobserve(loadMoreRef.current);
-      observer.disconnect();
-    };
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
+  // Infinite Scroll Trigger is now handled by Virtuoso's endReached prop
   ///////////////////////////////// API proccess end here /////////////////////////////
 
   // --- Modal Helpers ---//
@@ -604,59 +585,57 @@ export default function Category_Humns() {
               <div className="col-span-3 text-center">{t("media")}</div>
             </div>
 
-            {/* List Body */}
-            <motion.div
-              className="flex flex-col gap-3 mt-2 pb-20"
-              variants={containerVariants}
-              initial="hidden"
-              animate="show"
-            >
-              {humns.length > 0 ? (
-                humns.map((humn, index) => (
-                  <HymnItem
-                    key={humn._id}
-                    humn={humn}
-                    index={index}
-                    categories={categories}
-                    addToWorkspace={addToWorkspace}
-                    isHymnInWorkspace={isHymnInWorkspace}
-                    canEdit={canEdit}
-                    delete_Hymn={delete_Hymn}
-                    openEditModal={openEditModal}
-                    variants={itemVariants}
-                    openLyrics={openLyrics}
-                    openPresentation={openPresentation}
-                    t={t}
-                    vocalsMode={vocalsMode}
-                  />
-                ))
-              ) : (
-                <div className="p-20 text-center flex flex-col items-center justify-center text-gray-500 bg-white/5 rounded-3xl border border-white/5 border-dashed">
-                  <Music className="w-12 h-12 mb-4 opacity-50" />
-                  <p className="text-lg font-medium">{t("NoHymnsfoundinthiscategory")}</p>
-                </div>
-              )}
-            </motion.div>
-
-
-            {/* Load More Sentinel & Spinner */}
-            {!debouncedSearch.trim() && hasNextPage && (
-              <div ref={loadMoreRef} className="py-8 flex justify-center w-full">
-                {/* بنظهر السبينر فقط لو فعلاً بنعمل Fetch حالياً */}
-                {isFetchingNextPage ? (
-                  <div className="w-8 h-8 border-4 border-sky-500/30 border-t-sky-500 rounded-full animate-spin" />
-                ) : (
-                  // مساحة فاضية صغيرة عشان الـ Observer يلقطها أول ما نوصلها
-                  <div className="h-4" />
-                )}
+            {/* List Body with react-virtuoso */}
+            {humns.length > 0 ? (
+              <div className="pb-20 mt-2">
+                <Virtuoso
+                  useWindowScroll
+                  data={humns}
+                  endReached={() => {
+                    if (hasNextPage && !isFetchingNextPage && !debouncedSearch.trim()) {
+                      fetchNextPage();
+                    }
+                  }}
+                  itemContent={(index, humn) => (
+                    <div className="pb-3">
+                      <HymnItem
+                        humn={humn}
+                        index={index}
+                        categories={categories}
+                        addToWorkspace={addToWorkspace}
+                        isHymnInWorkspace={isHymnInWorkspace}
+                        canEdit={canEdit}
+                        delete_Hymn={delete_Hymn}
+                        openEditModal={openEditModal}
+                        variants={itemVariants}
+                        openLyrics={openLyrics}
+                        openPresentation={openPresentation}
+                        t={t}
+                        vocalsMode={vocalsMode}
+                      />
+                    </div>
+                  )}
+                  components={{
+                    Footer: () => (
+                      <div className="py-8 flex justify-center w-full flex-col items-center">
+                        {isFetchingNextPage && (
+                          <div className="w-8 h-8 border-4 border-sky-500/30 border-t-sky-500 rounded-full animate-spin mb-4" />
+                        )}
+                        {!hasNextPage && humns.length > 0 && !debouncedSearch.trim() && (
+                          <p className="text-center text-gray-500 py-2 font-light italic w-full">
+                            — {t("endOfList")} —
+                          </p>
+                        )}
+                      </div>
+                    )
+                  }}
+                />
               </div>
-            )}
-
-            {/* رسالة اختيارية تظهر لما الترانيم تخلص خالص */}
-            {!hasNextPage && humns.length > 0 && !debouncedSearch.trim() && (
-              <p className="text-center text-gray-500 py-10 font-light italic">
-                — {t("endOfList")} —
-              </p>
+            ) : (
+              <div className="p-20 text-center flex flex-col items-center justify-center text-gray-500 bg-white/5 rounded-3xl border border-white/5 border-dashed mt-2 mb-20">
+                <Music className="w-12 h-12 mb-4 opacity-50" />
+                <p className="text-lg font-medium">{t("NoHymnsfoundinthiscategory")}</p>
+              </div>
             )}
 
             {/* --- Add Hymn Modal --- */}
