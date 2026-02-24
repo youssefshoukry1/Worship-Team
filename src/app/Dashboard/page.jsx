@@ -672,21 +672,32 @@ export default function Dashboard() {
                     ) : (
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                         {UsersChurch.map(user => {
-                          const displayedReports = user.reports?.filter(report => {
+                          // --- Merge live reports + archived reportHistory ---
+                          const allReports = [
+                            ...(user.reports || []).map(r => ({ ...r, isHistory: false })),
+                            ...(user.reportHistory || []).map(r => ({ ...r, isHistory: true })),
+                          ];
+
+                          const displayedReports = allReports.filter(report => {
                             if (filterYear === "All" && filterMonth === "All") return true;
-                            const d = new Date(report.date || new Date());
+                            const d = new Date(report.date || report.savedAt || new Date());
                             if (filterYear !== "All" && d.getFullYear().toString() !== filterYear) return false;
                             if (filterMonth !== "All" && (d.getMonth() + 1).toString().padStart(2, '0') !== filterMonth) return false;
                             return true;
-                          }).sort((a, b) => new Date(b.date || Date.now()) - new Date(a.date || Date.now())) || [];
+                          }).sort((a, b) => new Date(b.date || b.savedAt || Date.now()) - new Date(a.date || a.savedAt || Date.now()));
 
-                          const displayedAttends = user.attends?.filter(att => {
+                          // --- Merge live attends + archived attendHistory ---
+                          const allAttends = [
+                            ...(user.attends || []).map(a => ({ ...a, isHistory: false })),
+                            ...(user.attendHistory || []).map(a => ({ ...a, isHistory: true })),
+                          ];
+                          const displayedAttends = allAttends.filter(att => {
                             if (filterYear === "All" && filterMonth === "All") return true;
                             const d = new Date(att.date || new Date());
                             if (filterYear !== "All" && d.getFullYear().toString() !== filterYear) return false;
                             if (filterMonth !== "All" && (d.getMonth() + 1).toString().padStart(2, '0') !== filterMonth) return false;
                             return true;
-                          }).sort((a, b) => new Date(b.date || Date.now()) - new Date(a.date || Date.now())) || [];
+                          }).sort((a, b) => new Date(b.date || Date.now()) - new Date(a.date || Date.now()));
 
                           // Don't show the user card if filtering and no matching records
                           if ((filterYear !== "All" || filterMonth !== "All") && displayedReports.length === 0 && displayedAttends.length === 0) {
@@ -698,7 +709,7 @@ export default function Dashboard() {
                               {/* User Header */}
                               <div className="flex items-center justify-between gap-2 mb-2">
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs shrink-0">
                                     {user.Name.charAt(0).toUpperCase()}
                                   </div>
                                   <div className="min-w-0">
@@ -706,11 +717,19 @@ export default function Dashboard() {
                                     <p className="text-xs text-gray-400">{user.role}</p>
                                   </div>
                                 </div>
-                                <div className="flex gap-1.5">
+                                <div className="flex gap-1.5 flex-wrap justify-end">
+                                  {user.hymnHistory?.length > 0 && (
+                                    <div
+                                      onClick={() => toggleUserSection(user._id, 'hymns')}
+                                      className="bg-purple-500/20 px-2 py-0.5 rounded-full border border-purple-500/30 shrink-0 cursor-pointer hover:bg-purple-500/30 transition-colors"
+                                    >
+                                      <span className="text-xs font-medium text-purple-300">{user.hymnHistory.length} Hymns</span>
+                                    </div>
+                                  )}
                                   {displayedAttends.length > 0 && (
                                     <div
                                       onClick={() => toggleUserSection(user._id, 'attends')}
-                                      className="bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30 flex-shrink-0 cursor-pointer hover:bg-emerald-500/30 transition-colors"
+                                      className="bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30 shrink-0 cursor-pointer hover:bg-emerald-500/30 transition-colors"
                                     >
                                       <span className="text-xs font-medium text-emerald-300">{displayedAttends.length} Attends</span>
                                     </div>
@@ -718,7 +737,7 @@ export default function Dashboard() {
                                   {displayedReports.length > 0 && (
                                     <div
                                       onClick={() => toggleUserSection(user._id, 'reports')}
-                                      className="bg-sky-500/20 px-2 py-0.5 rounded-full border border-sky-500/30 flex-shrink-0 cursor-pointer hover:bg-sky-500/30 transition-colors"
+                                      className="bg-sky-500/20 px-2 py-0.5 rounded-full border border-sky-500/30 shrink-0 cursor-pointer hover:bg-sky-500/30 transition-colors"
                                     >
                                       <span className="text-xs font-medium text-sky-300">{displayedReports.length} Reports</span>
                                     </div>
@@ -748,7 +767,7 @@ export default function Dashboard() {
                                           const isExpanded = expandedReports[`${user._id}-${index}`];
 
                                           return (
-                                            <div key={report._id} className="bg-white/3 rounded-lg overflow-hidden border border-white/5 hover:border-sky-500/20 transition-all text-xs">
+                                            <div key={report._id || index} className="bg-white/3 rounded-lg overflow-hidden border border-white/5 hover:border-sky-500/20 transition-all text-xs">
                                               {/* Report Header */}
                                               <div
                                                 onClick={() => toggleReportExpand(user._id, index)}
@@ -761,6 +780,9 @@ export default function Dashboard() {
                                                   )}
                                                   {isExpanded && (
                                                     <span className="text-gray-300 font-medium">Report {index + 1}</span>
+                                                  )}
+                                                  {report.isHistory && (
+                                                    <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1 py-0.5 rounded shrink-0">archived</span>
                                                   )}
                                                 </div>
                                                 <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }} className="flex-shrink-0">
@@ -776,7 +798,7 @@ export default function Dashboard() {
                                                     transition={{ duration: 0.2 }}
                                                     className="border-t border-white/5"
                                                   >
-                                                    {editingReport?.userId === user._id && editingReport?.index === index ? (
+                                                    {editingReport?.userId === user._id && editingReport?.index === index && !report.isHistory ? (
                                                       <div className="p-2 space-y-1">
                                                         <textarea
                                                           value={editingReport.text}
@@ -800,26 +822,28 @@ export default function Dashboard() {
                                                       <div className="p-2 space-y-1">
                                                         <p className="text-gray-300 whitespace-pre-wrap leading-snug max-h-24 overflow-hidden text-xs">{reportText}</p>
 
-                                                        <div className="flex justify-end gap-1 pt-1 border-t border-white/5">
-                                                          <button
-                                                            onClick={(e) => {
-                                                              e.stopPropagation();
-                                                              setEditingReport({ userId: user._id, index, text: reportText });
-                                                            }}
-                                                            className="text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 px-1.5 py-0.5 rounded transition-colors text-xs flex items-center gap-0.5"
-                                                          >
-                                                            <Edit className="w-2.5 h-2.5" /> Edit
-                                                          </button>
-                                                          <button
-                                                            onClick={(e) => {
-                                                              e.stopPropagation();
-                                                              if (confirm("Delete this report?")) handleDeleteReport(user._id, reportId);
-                                                            }}
-                                                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 px-1.5 py-0.5 rounded transition-colors text-xs flex items-center gap-0.5"
-                                                          >
-                                                            <Trash2 className="w-2.5 h-2.5" /> Delete
-                                                          </button>
-                                                        </div>
+                                                        {!report.isHistory && (
+                                                          <div className="flex justify-end gap-1 pt-1 border-t border-white/5">
+                                                            <button
+                                                              onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setEditingReport({ userId: user._id, index, text: reportText });
+                                                              }}
+                                                              className="text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 px-1.5 py-0.5 rounded transition-colors text-xs flex items-center gap-0.5"
+                                                            >
+                                                              <Edit className="w-2.5 h-2.5" /> Edit
+                                                            </button>
+                                                            <button
+                                                              onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (confirm("Delete this report?")) handleDeleteReport(user._id, reportId);
+                                                              }}
+                                                              className="text-red-400 hover:text-red-300 hover:bg-red-500/10 px-1.5 py-0.5 rounded transition-colors text-xs flex items-center gap-0.5"
+                                                            >
+                                                              <Trash2 className="w-2.5 h-2.5" /> Delete
+                                                            </button>
+                                                          </div>
+                                                        )}
                                                       </div>
                                                     )}
                                                   </motion.div>
@@ -848,29 +872,73 @@ export default function Dashboard() {
                                       <p className="text-xs text-gray-500 text-center py-2">No attendance records</p>
                                     ) : (
                                       <div className="max-h-24 overflow-y-auto space-y-1">
-                                        {displayedAttends.map(att => {
-                                          // match the event id from the user object with the events we fetched
-                                          const eventObj = churchEvents.find(ce => ce._id === (att.eventId?._id || att.eventId));
-                                          const eventName = eventObj ? eventObj.eventName : 'Unknown Event';
+                                        {displayedAttends.map((att, i) => {
+                                          // For history entries, eventName is pre-resolved.
+                                          // For live entries, look up from churchEvents.
+                                          let eventName;
+                                          if (att.isHistory) {
+                                            eventName = att.eventName || 'Unknown Event';
+                                          } else {
+                                            const eventObj = churchEvents.find(ce => ce._id === (att.eventId?._id || att.eventId));
+                                            eventName = eventObj ? eventObj.eventName : 'Unknown Event';
+                                          }
                                           const attendDate = new Date(att.date).toLocaleDateString();
                                           const attendTime = new Date(att.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                                           return (
-                                            <div key={att._id} className="flex justify-between items-center text-xs bg-white/5 p-1.5 rounded border border-emerald-500/10 hover:border-emerald-500/30 transition-colors">
-                                              <div className="flex flex-col">
-                                                <span className="text-emerald-300 font-medium truncate max-w-[140px]">{eventName}</span>
+                                            <div key={att._id || i} className="flex justify-between items-center text-xs bg-white/5 p-1.5 rounded border border-emerald-500/10 hover:border-emerald-500/30 transition-colors">
+                                              <div className="flex flex-col gap-0.5">
+                                                <div className="flex items-center gap-1.5">
+                                                  <span className="text-emerald-300 font-medium truncate max-w-[120px]">{eventName}</span>
+                                                  {att.isHistory && (
+                                                    <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1 py-0.5 rounded shrink-0">archived</span>
+                                                  )}
+                                                </div>
                                                 <span className="text-gray-400 text-[10px]">{attendDate} at {attendTime}</span>
                                               </div>
-                                              <button
-                                                onClick={() => deleteAttendance(user._id, att._id)}
-                                                disabled={processingId === `del-attend-${att._id}`}
-                                                className="text-red-400 hover:bg-red-500/20 p-1 rounded transition-colors"
-                                              >
-                                                {processingId === `del-attend-${att._id}` ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                              </button>
+                                              {!att.isHistory && (
+                                                <button
+                                                  onClick={() => deleteAttendance(user._id, att._id)}
+                                                  disabled={processingId === `del-attend-${att._id}`}
+                                                  className="text-red-400 hover:bg-red-500/20 p-1 rounded transition-colors"
+                                                >
+                                                  {processingId === `del-attend-${att._id}` ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                                </button>
+                                              )}
                                             </div>
                                           );
                                         })}
+                                      </div>
+                                    )}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+
+                              {/* Hymn History Section */}
+                              <AnimatePresence>
+                                {activeUserSections[`${user._id}-hymns`] && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                                    className="border-t border-white/10 pt-3 mt-3 overflow-hidden"
+                                  >
+                                    <h4 className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex items-center gap-1 mb-2">
+                                      <Music className="w-3 h-3" /> Hymn History
+                                    </h4>
+                                    {user.hymnHistory?.length === 0 ? (
+                                      <p className="text-xs text-gray-500 text-center py-2">No hymn history</p>
+                                    ) : (
+                                      <div className="max-h-40 overflow-y-auto space-y-1">
+                                        {user.hymnHistory?.map((entry, i) => (
+                                          <div key={i} className="flex flex-col gap-0.5 text-xs bg-purple-500/5 p-2 rounded border border-purple-500/10 hover:border-purple-500/30 transition-colors">
+                                            <span className="text-purple-200 font-semibold truncate">{entry.title}</span>
+                                            <div className="flex items-center justify-between gap-2">
+                                              <span className="bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded text-[10px] font-medium truncate max-w-[120px]">{entry.eventName}</span>
+                                              <span className="text-gray-500 text-[10px] shrink-0">
+                                                {new Date(entry.savedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        ))}
                                       </div>
                                     )}
                                   </motion.div>
