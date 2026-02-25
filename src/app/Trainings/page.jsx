@@ -39,6 +39,7 @@ export default function Trainings() {
   const [currentSongId, setCurrentSongId] = useState(null);
   const [submitClicked, setSubmitClicked] = useState(false);
   const [selectedHymns, setSelectedHymns] = useState([]); // Store full hymn objects
+  const [selectedAddSongEventId, setSelectedAddSongEventId] = useState("");
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportText, setReportText] = useState("");
 
@@ -308,6 +309,7 @@ export default function Trainings() {
     setShowmodel(true);
     if (type === "add") {
       setSelectedHymns([]);
+      setSelectedAddSongEventId("");
     }
   }
 
@@ -429,9 +431,16 @@ export default function Trainings() {
 
                               {/* Title & Key */}
                               <div className="flex-1 min-w-0 flex flex-col gap-1">
-                                <h3 className="font-bold text-sm text-gray-200 group-hover:text-white transition-colors truncate">
-                                  {p.title}
-                                </h3>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-bold text-sm text-gray-200 group-hover:text-white transition-colors truncate">
+                                    {p.title}
+                                  </h3>
+                                  {p.eventId && m.trainingEvents?.some(e => (e._id || e) === p.eventId) && (
+                                    <span className="text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                                      {m.trainingEvents.find(e => (e._id || e) === p.eventId)?.eventName || 'Assigned Event'}
+                                    </span>
+                                  )}
+                                </div>
                                 <KeyDisplay humn_parameter={p} />
                               </div>
 
@@ -519,32 +528,48 @@ export default function Trainings() {
 
               <div className="flex flex-col gap-4">
                 {modalType === "add" ? (
-                  <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-2">
-                    {workspace.length === 0 ? (
-                      <div className="text-center text-gray-400 py-4">No hymns in Workspace yet.</div>
-                    ) : (
-                      workspace.map((h) => (
-                        <label key={h._id} className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition border border-white/5">
-                          <input
-                            type="checkbox"
-                            checked={selectedHymns.some(sh => sh._id === h._id)}
-                            onChange={() => {
-                              setSelectedHymns((prev) =>
-                                prev.some((sh) => sh._id === h._id)
-                                  ? prev.filter((sh) => sh._id !== h._id)
-                                  : [...prev, h]
-                              );
-                            }}
-                            className="w-5 h-5 accent-sky-500 rounded focus:ring-sky-500/50"
-                          />
-                          <div className="flex flex-col">
-                            <span className="font-medium text-white">{h.title}</span>
-                            <span className="text-xs text-sky-300/80">{h.scale}</span>
-                          </div>
-                        </label>
-                      ))
+                  <>
+                    {selectedUser?.trainingEvents?.length > 0 && (
+                      <select
+                        value={selectedAddSongEventId}
+                        onChange={(e) => setSelectedAddSongEventId(e.target.value)}
+                        className="p-3 rounded-lg bg-white/20 border border-white/30 text-white outline-none focus:ring-2 focus:ring-sky-400 mb-2"
+                      >
+                        <option value="" className="bg-[#0f172a] text-gray-400">Select Event (Optional)</option>
+                        {selectedUser.trainingEvents.map((ev) => (
+                          <option key={ev._id || ev} value={ev._id || ev} className="bg-[#0f172a] text-white">
+                            {ev.eventName || 'Unnamed Event'}
+                          </option>
+                        ))}
+                      </select>
                     )}
-                  </div>
+                    <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-2">
+                      {workspace.length === 0 ? (
+                        <div className="text-center text-gray-400 py-4">No hymns in Workspace yet.</div>
+                      ) : (
+                        workspace.map((h) => (
+                          <label key={h._id} className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition border border-white/5">
+                            <input
+                              type="checkbox"
+                              checked={selectedHymns.some(sh => sh._id === h._id)}
+                              onChange={() => {
+                                setSelectedHymns((prev) =>
+                                  prev.some((sh) => sh._id === h._id)
+                                    ? prev.filter((sh) => sh._id !== h._id)
+                                    : [...prev, h]
+                                );
+                              }}
+                              className="w-5 h-5 accent-sky-500 rounded focus:ring-sky-500/50"
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-medium text-white">{h.title}</span>
+                              <span className="text-xs text-sky-300/80">{h.scale}</span>
+                            </div>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  </>
                 ) : (
                   <>
                     <input
@@ -573,7 +598,13 @@ export default function Trainings() {
 
                 <button
                   onClick={() => {
-                    if (modalType === "add") add_song(selectedUser._id, { hymns: selectedHymns });
+                    if (modalType === "add") {
+                      const hymnsWithEvent = selectedHymns.map(h => ({
+                        ...h,
+                        eventId: selectedAddSongEventId || null
+                      }));
+                      add_song(selectedUser._id, { hymns: hymnsWithEvent });
+                    }
                     else if (currentSongId) update_song(selectedUser._id, currentSongId, { song, scale, link });
                   }}
                   className={`mt-4 bg-linear-to-br from-sky-500 to-blue-600 py-3 rounded-xl text-white font-semibold transition shadow-lg shadow-blue-500/20

@@ -39,6 +39,8 @@ export default function Dashboard() {
   const [editingEventId, setEditingEventId] = useState(null);
   const [editEventName, setEditEventName] = useState("");
   const [reportInputs, setReportInputs] = useState({});
+  const [reportEventInputs, setReportEventInputs] = useState({});
+  const [reportDateInputs, setReportDateInputs] = useState({});
   const [expandedReports, setExpandedReports] = useState({});
   const [editingReport, setEditingReport] = useState(null);
   const [showManageReports, setShowManageReports] = useState(false);
@@ -249,11 +251,11 @@ export default function Dashboard() {
 
   // frontend.js
 
-  const handleAddReport = async (userid, reportText) => {
+  const handleAddReport = async (userid, reportText, eventId, date) => {
     setProcessingId(userid);
     try {
       await axios.post(`${API_URL}/users/report`,
-        { userid: userid, text: reportText },
+        { userid: userid, text: reportText, eventId, date },
         { headers: { Authorization: `Bearer ${isLogin}` } }
       );
       queryClient.invalidateQueries({ queryKey: ['data', isLogin] });
@@ -580,26 +582,56 @@ export default function Dashboard() {
                     <FileText className="w-3 h-3" /> Reports
                   </h4>
 
-                  <div className="flex gap-2 mb-3">
-                    <input
-                      type="text"
-                      placeholder="Add a report..."
-                      value={reportInputs[user._id] || ""}
-                      onChange={(e) => setReportInputs(prev => ({ ...prev, [user._id]: e.target.value }))}
-                      className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-sky-500 text-gray-300"
-                    />
-                    <button
-                      onClick={async () => {
-                        const text = reportInputs[user._id];
-                        if (!text) return;
-                        await handleAddReport(user._id, text);
-                        setReportInputs(prev => ({ ...prev, [user._id]: "" }));
-                      }}
-                      disabled={processingId === user._id}
-                      className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 p-1.5 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      {processingId === user._id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <PlusCircle className="w-3 h-3" />}
-                    </button>
+                  <div className="flex flex-col gap-2 mb-3">
+                    <div className="flex gap-2">
+                      {/* Event Selection */}
+                      {user.trainingEvents?.length > 0 && (
+                        <select
+                          value={reportEventInputs[user._id] || ""}
+                          onChange={(e) => setReportEventInputs(prev => ({ ...prev, [user._id]: e.target.value }))}
+                          className="w-1/3 bg-black/20 border border-white/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-sky-500 text-gray-300"
+                        >
+                          <option value="" className="bg-[#0f172a] text-gray-400">Event (Optional)</option>
+                          {user.trainingEvents.map((ev) => (
+                            <option key={ev._id || ev} value={ev._id || ev} className="bg-[#0f172a] text-white">
+                              {ev.eventName || 'Unnamed Event'}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      {/* Date Selection */}
+                      <input
+                        type="date"
+                        value={reportDateInputs[user._id] || ""}
+                        onChange={(e) => setReportDateInputs(prev => ({ ...prev, [user._id]: e.target.value }))}
+                        className="w-1/3 bg-black/20 border border-white/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-sky-500 text-gray-300"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Add a report..."
+                        value={reportInputs[user._id] || ""}
+                        onChange={(e) => setReportInputs(prev => ({ ...prev, [user._id]: e.target.value }))}
+                        className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-sky-500 text-gray-300"
+                      />
+                      <button
+                        onClick={async () => {
+                          const text = reportInputs[user._id];
+                          const eventId = reportEventInputs[user._id];
+                          const date = reportDateInputs[user._id];
+                          if (!text) return;
+                          await handleAddReport(user._id, text, eventId, date);
+                          setReportInputs(prev => ({ ...prev, [user._id]: "" }));
+                          setReportEventInputs(prev => ({ ...prev, [user._id]: "" }));
+                          setReportDateInputs(prev => ({ ...prev, [user._id]: "" }));
+                        }}
+                        disabled={processingId === user._id}
+                        className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 p-1.5 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {processingId === user._id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <PlusCircle className="w-3 h-3" />}
+                      </button>
+                    </div>
                   </div>
 
 
@@ -686,7 +718,6 @@ export default function Dashboard() {
                             return true;
                           }).sort((a, b) => new Date(b.date || b.savedAt || Date.now()) - new Date(a.date || a.savedAt || Date.now()));
 
-                          // --- Merge live attends + archived attendHistory ---
                           const allAttends = [
                             ...(user.attends || []).map(a => ({ ...a, isHistory: false })),
                             ...(user.attendHistory || []).map(a => ({ ...a, isHistory: true })),
@@ -699,8 +730,29 @@ export default function Dashboard() {
                             return true;
                           }).sort((a, b) => new Date(b.date || Date.now()) - new Date(a.date || Date.now()));
 
+                          // --- Merge live hymns + archived hymnHistory ---
+                          const allHymns = [
+                            ...(user.songs_Array || []).map(h => {
+                              const eventObj = churchEvents.find(ce => ce._id === (h.eventId?._id || h.eventId));
+                              return {
+                                ...h,
+                                isHistory: false,
+                                eventName: eventObj ? eventObj.eventName : 'No Event',
+                                date: new Date() // Treat live hymns as current
+                              };
+                            }),
+                            ...(user.hymnHistory || []).map(h => ({ ...h, isHistory: true, date: h.savedAt })),
+                          ];
+                          const displayedHymns = allHymns.filter(h => {
+                            if (filterYear === "All" && filterMonth === "All") return true;
+                            const d = new Date(h.date || new Date());
+                            if (filterYear !== "All" && d.getFullYear().toString() !== filterYear) return false;
+                            if (filterMonth !== "All" && (d.getMonth() + 1).toString().padStart(2, '0') !== filterMonth) return false;
+                            return true;
+                          });
+
                           // Don't show the user card if filtering and no matching records
-                          if ((filterYear !== "All" || filterMonth !== "All") && displayedReports.length === 0 && displayedAttends.length === 0) {
+                          if ((filterYear !== "All" || filterMonth !== "All") && displayedReports.length === 0 && displayedAttends.length === 0 && displayedHymns.length === 0) {
                             return null;
                           }
 
@@ -718,12 +770,12 @@ export default function Dashboard() {
                                   </div>
                                 </div>
                                 <div className="flex gap-1.5 flex-wrap justify-end">
-                                  {user.hymnHistory?.length > 0 && (
+                                  {displayedHymns.length > 0 && (
                                     <div
                                       onClick={() => toggleUserSection(user._id, 'hymns')}
                                       className="bg-purple-500/20 px-2 py-0.5 rounded-full border border-purple-500/30 shrink-0 cursor-pointer hover:bg-purple-500/30 transition-colors"
                                     >
-                                      <span className="text-xs font-medium text-purple-300">{user.hymnHistory.length} Hymns</span>
+                                      <span className="text-xs font-medium text-purple-300">{displayedHymns.length} Hymns</span>
                                     </div>
                                   )}
                                   {displayedAttends.length > 0 && (
@@ -780,6 +832,16 @@ export default function Dashboard() {
                                                   )}
                                                   {isExpanded && (
                                                     <span className="text-gray-300 font-medium">Report {index + 1}</span>
+                                                  )}
+                                                  {report.eventId && user.trainingEvents?.some(e => (e._id || e) === report.eventId) && (
+                                                    <span className="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1 py-0.5 rounded shrink-0">
+                                                      {user.trainingEvents.find(e => (e._id || e) === report.eventId)?.eventName || 'Assigned Event'}
+                                                    </span>
+                                                  )}
+                                                  {report.date && (
+                                                    <span className="text-[9px] text-gray-500 shrink-0">
+                                                      {new Date(report.date).toLocaleDateString()}
+                                                    </span>
                                                   )}
                                                   {report.isHistory && (
                                                     <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1 py-0.5 rounded shrink-0">archived</span>
@@ -924,18 +986,21 @@ export default function Dashboard() {
                                     <h4 className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex items-center gap-1 mb-2">
                                       <Music className="w-3 h-3" /> Hymn History
                                     </h4>
-                                    {user.hymnHistory?.length === 0 ? (
-                                      <p className="text-xs text-gray-500 text-center py-2">No hymn history</p>
+                                    {displayedHymns.length === 0 ? (
+                                      <p className="text-xs text-gray-500 text-center py-2">No hymns</p>
                                     ) : (
                                       <div className="max-h-40 overflow-y-auto space-y-1">
-                                        {user.hymnHistory?.map((entry, i) => (
+                                        {displayedHymns.map((entry, i) => (
                                           <div key={i} className="flex flex-col gap-0.5 text-xs bg-purple-500/5 p-2 rounded border border-purple-500/10 hover:border-purple-500/30 transition-colors">
                                             <span className="text-purple-200 font-semibold truncate">{entry.title}</span>
                                             <div className="flex items-center justify-between gap-2">
                                               <span className="bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded text-[10px] font-medium truncate max-w-[120px]">{entry.eventName}</span>
                                               <span className="text-gray-500 text-[10px] shrink-0">
-                                                {new Date(entry.savedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                {new Date(entry.date || entry.savedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                                               </span>
+                                              {entry.isHistory && (
+                                                <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1 py-0.5 rounded shrink-0">archived</span>
+                                              )}
                                             </div>
                                           </div>
                                         ))}
