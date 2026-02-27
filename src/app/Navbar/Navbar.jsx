@@ -12,13 +12,12 @@ export default function Navbar() {
     const { isLogin, UserRole, vocalsMode, setVocalsMode } = useContext(UserContext);
     const [langMenuOpen, setLangMenuOpen] = useState(false);
     const [modeMenuOpen, setModeMenuOpen] = useState(false);
-
+    
     // Default Items
     const navItems = [
         { name: "hymns", path: "/", id: "home-section" },
         { name: "workspace", path: "/WorkSpace", id: "WorkSpace-section" },
         { name: "training", path: "/Trainings", id: "training-section" },
-        { name: "Dashboard", path: "/Dashboard", id: "Dashboard-section" },
     ];
 
     /* 
@@ -93,34 +92,31 @@ export default function Navbar() {
                 animate="visible"
             >
 
-                {(UserRole === 'USER'
-                    ? navItems.filter((item) => item.name !== 'Dashboard')
-                    : navItems
-                ).map(({ name, path, id }) => (
-                    <motion.li key={name} variants={itemVariants} className="list-none">
-                        <button
-                            onClick={() => handleNavClick(path, id)}
-                            className={`text-sm lg:text-base font-medium cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg hover:bg-white/5
+                {navItems
+                    .map(({ name, path, id }) => (
+                        <motion.li key={name} variants={itemVariants} className="list-none">
+                            <button
+                                onClick={() => handleNavClick(path, id)}
+                                className={`text-sm lg:text-base font-medium cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg hover:bg-white/5
             ${pathname === path
-                                    ? "text-sky-400 bg-white/5"
-                                    : "text-gray-300 hover:text-sky-300"
-                                }`}
-                        >
-                            {/* @ts-ignore */}
-                            {t(name)}
-                        </button>
-                    </motion.li>
-                ))}
+                                        ? "text-sky-400 bg-white/5"
+                                        : "text-gray-300 hover:text-sky-300"
+                                    }`}
+                            >
+                                {/* @ts-ignore */}
+                                {t(name)}
+                            </button>
+                        </motion.li>
+                    ))}
                 {/* Dashboard Link (Admin/Manager/Programmers) - Placed next to Language Switcher */}
-                {isLogin &&
-                    UserRole &&
-                    ["ADMIN", "MANEGER", "PEOGRAMER"].includes(UserRole) && (
+                {UserRole &&
+                    ["ADMIN", "MANEGER", "PROGRAMER"].includes(UserRole) && (
                         <motion.li variants={itemVariants} className="list-none">
                             <button
                                 onClick={() => router.push("/Dashboard")}
                                 className={`text-sm lg:text-base font-bold cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg border border-sky-500/30
                 ${pathname === "/Dashboard"
-                                        ? "text-sky-400 bg-sky-500/10 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
+                                        ? "text-sky-400 bg-sky-500/20 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
                                         : "text-sky-300 hover:text-white hover:bg-sky-500/20 hover:shadow-[0_0_10px_rgba(14,165,233,0.2)]"
                                     }`}
                             >
@@ -248,25 +244,40 @@ export default function Navbar() {
                             transition={{ duration: 0.2, ease: easeOut }}
                             className="absolute right-0 mt-4 w-56 bg-[#0f172a]/95 backdrop-blur-2xl text-white flex flex-col p-2 gap-1 rounded-2xl z-50 border border-white/10 shadow-2xl origin-top-right"
                         >
-                            {(UserRole === 'USER'
-                                ? navItems.filter((item) => item.name !== 'Dashboard')
-                                : navItems
-                            ).map(({ name, path, id }) => (
+                            {/* Mobile nav items */}
+                            {navItems.map(({ name, path, id }) => (
                                 <li key={name}>
                                     <button
                                         onClick={() => handleNavClick(path, id)}
                                         className={`block w-full text-left px-4 py-3 rounded-xl transition-all font-medium text-sm
-                      ${pathname === path
+                ${pathname === path
                                                 ? "bg-sky-500/20 text-sky-400"
                                                 : "text-gray-300 hover:bg-white/5 hover:text-white"
                                             }`}
                                     >
-                                        {/* @ts-ignore */}
                                         {t(name)}
                                     </button>
                                 </li>
                             ))}
 
+                            {/* ✅ ADD THIS — Mobile Dashboard Button */}
+                            {["ADMIN", "MANEGER", "PROGRAMER"].includes(UserRole) && (
+                                <li>
+                                    <button
+                                        onClick={() => {
+                                            router.push("/Dashboard");
+                                            setMenuOpen(false);
+                                        }}
+                                        className={`block w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-sky-500/30
+                ${pathname === "/Dashboard"
+                                                ? "bg-sky-500/20 text-sky-400"
+                                                : "text-sky-300 hover:bg-sky-500/20 hover:text-white"
+                                            }`}
+                                    >
+                                        {t("dashboard")}
+                                    </button>
+                                </li>
+                            )}
 
 
                             {/* Mobile Mode Switcher */}

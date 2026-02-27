@@ -8,9 +8,10 @@ import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
 import Portal from '../Portal/Portal';
 import { Virtuoso } from 'react-virtuoso';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://worship-team-api.vercel.app/api";
 
 export default function WorkSpace() {
-    const { workspace, removeFromWorkspace } = useContext(HymnsContext);
+    const { workspace, removeFromWorkspace, updateWorkspaceHymn } = useContext(HymnsContext);
     const { HymnIds, setHymnIds, vocalsMode } = useContext(UserContext);
 
     // Categories Configuration for Icon Lookup
@@ -44,7 +45,14 @@ export default function WorkSpace() {
     const [selectedLyricsHymn, setSelectedLyricsHymn] = useState(null);
     const [lyricsTheme, setLyricsTheme] = useState('main');
     const [fontSize, setFontSize] = useState(18);
-    const [showChords, setShowChords] = useState(true);
+    // Persist showChords state in localStorage for lyrics modal
+    const [showChords, setShowChords] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('workspace_showChords');
+            if (saved !== null) return saved === 'true';
+        }
+        return true;
+    });
 
     const lyricsThemes = {
         warm: { bg: '#F8F5EE', text: '#222222', label: 'Warm' },
@@ -56,6 +64,92 @@ export default function WorkSpace() {
     // Data Show State
     const [showDataShow, setShowDataShow] = useState(false);
     const [dataShowIndex, setDataShowIndex] = useState(0);
+
+    const [showSetlistModal, setShowSetlistModal] = useState(false);
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [isSavingEvent, setIsSavingEvent] = useState(false);
+
+    const saveAsEvent = async () => {
+        const eventName = prompt("Enter Event Name (e.g., Sunday Service):");
+        if (!eventName) return;
+
+        setIsSavingEvent(true);
+        try {
+            const response = await fetch(`${API_URL}/events/create`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('user_Taspe7_Token')}`
+                },
+                body: JSON.stringify({
+                    eventName,
+                    hymns: workspace
+                })
+            });
+
+            if (response.ok) {
+                alert('Event created successfully with this setlist!');
+            } else {
+                alert('Failed to save event');
+            }
+        } catch (error) {
+            console.error('Save error:', error);
+            alert('Error connecting to server');
+        } finally {
+            setIsSavingEvent(false);
+        }
+    };
+
+    const downloadSetlistPDF = async () => {
+        setIsDownloading(true);
+        try {
+            // Apply current transpose steps to workspace hymns before exporting to PDF
+            const transposedWorkspace = workspace.map(hymn => {
+                const transposeStep = parseInt(localStorage.getItem(`transpose_${hymn._id}`) || '0', 10);
+                if (transposeStep === 0) return hymn;
+
+                // Import and use transposeScale, transposeChords, transposeLyrics
+                const { transposeScale: ts, transposeChords: tc, transposeLyrics: tl } = require('../utils/musicUtils');
+                return {
+                    ...hymn,
+                    scale: ts(hymn.scale, transposeStep),
+                    relatedChords: tc(hymn.relatedChords, transposeStep),
+                    lyrics: tl(hymn.lyrics, transposeStep)
+                };
+            });
+
+            const response = await fetch(`${API_URL}/events/generate-pdf`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('user_Taspe7_Token')}`
+                },
+                body: JSON.stringify({
+                    hymns: transposedWorkspace,
+                    churchName: localStorage.getItem('user_Taspe7_ChurchName') || 'Taspe7',
+                    hideChords: !showChords
+                })
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Setlist-${new Date().getTime()}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } else {
+                alert('Failed to generate PDF');
+            }
+        } catch (error) {
+            console.error('Download error:', error);
+            alert('Error connecting to server');
+        } finally {
+            setIsDownloading(false);
+        }
+    };
 
 
 
@@ -74,9 +168,17 @@ export default function WorkSpace() {
         setSelectedLyricsHymn(hymn);
         setLyricsTheme('main');
         setFontSize(18);
-        setShowChords(vocalsMode ? false : true);
+        // Restore last showChords preference from localStorage
+        const saved = typeof window !== 'undefined' ? localStorage.getItem('workspace_showChords') : null;
+        setShowChords(saved !== null ? saved === 'true' : (vocalsMode ? false : true));
         setShowLyricsModal(true);
     };
+    // Persist showChords to localStorage when changed
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('workspace_showChords', showChords);
+        }
+    }, [showChords]);
 
     // Open presentation mode directly
     const openPresentation = (hymn) => {
@@ -230,6 +332,43 @@ export default function WorkSpace() {
                         My Workspace
                     </h1>
                     <p className="mt-2 text-gray-400">Manage your setlist for the service</p>
+
+                    {/* Action Buttons */}
+                    <div className="mt-6 flex flex-wrap justify-center gap-4">
+                        <button
+                            onClick={() => setShowSetlistModal(true)}
+                            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all font-bold text-sky-300"
+                        >
+                            <FileText className="w-5 h-5" />
+                            Setlist Intros & Notes
+                        </button>
+
+                        <button
+                            onClick={saveAsEvent}
+                            disabled={workspace.length === 0 || isSavingEvent}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all font-bold text-green-400 ${isSavingEvent ? 'opacity-50' : ''}`}
+                        >
+                            {isSavingEvent ? (
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <Music className="w-5 h-5" />
+                            )}
+                            Save as Event
+                        </button>
+
+                        <button
+                            onClick={downloadSetlistPDF}
+                            disabled={workspace.length === 0 || isDownloading}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-2xl bg-linear-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 transition-all font-bold shadow-lg shadow-sky-500/20 ${isDownloading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {isDownloading ? (
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <Monitor className="w-5 h-5" />
+                            )}
+                            Download PDF Summary
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content Table */}
@@ -397,7 +536,7 @@ export default function WorkSpace() {
                     <Portal>
                         <div
                             id="showDataContainer"
-                            className="fixed inset-0 z-[10000] bg-black flex items-center justify-center"
+                            className="fixed inset-0 z-10000 bg-black flex items-center justify-center"
                         >
                             {/* Exit Button */}
                             <button
@@ -461,6 +600,103 @@ export default function WorkSpace() {
                                     </p>
                                 </motion.div>
                             </AnimatePresence>
+                        </div>
+                    </Portal>
+                )}
+
+                {/* --- Setlist Notes Modal --- */}
+                {showSetlistModal && (
+                    <Portal>
+                        <div className="fixed inset-0 z-9999 flex justify-center items-center p-4 bg-black/70 backdrop-blur-md">
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="w-full max-w-4xl max-h-[90vh] bg-[#0E2238] border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+                            >
+                                <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-sky-400">Setlist Performance Notes</h2>
+                                        <p className="text-sm text-gray-400">Add instructions for the band and intros for each song</p>
+                                    </div>
+                                    <button onClick={() => setShowSetlistModal(false)} className="text-gray-400 hover:text-white">
+                                        <X size={24} />
+                                    </button>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+                                    {workspace.map((hymn, idx) => (
+                                        <div key={hymn._id} className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <span className="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center text-sky-400 font-bold text-sm">
+                                                    {idx + 1}
+                                                </span>
+                                                <h3 className="font-bold text-lg">{hymn.title}</h3>
+                                                <span className="text-xs px-2 py-1 rounded bg-white/10 text-gray-400">{hymn.scale}</span>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                {(hymn.musitionNotes || []).map((note, nIdx) => (
+                                                    <div key={nIdx} className="flex gap-2 items-center bg-black/20 p-2 rounded-xl border border-white/5">
+                                                        <select
+                                                            value={note.role}
+                                                            onChange={(e) => {
+                                                                const newNotes = [...hymn.musitionNotes];
+                                                                newNotes[nIdx].role = e.target.value;
+                                                                updateWorkspaceHymn(hymn._id, { musitionNotes: newNotes });
+                                                            }}
+                                                            className="bg-sky-900/40 text-xs font-bold text-sky-200 border-none rounded-lg p-1"
+                                                        >
+                                                            <option value="General">General</option>
+                                                            <option value="Guitar">Guitar</option>
+                                                            <option value="Piano">Piano</option>
+                                                            <option value="Drums">Drums</option>
+                                                            <option value="Bass">Bass</option>
+                                                            <option value="Vocals">Vocals</option>
+                                                        </select>
+                                                        <input
+                                                            value={note.note}
+                                                            onChange={(e) => {
+                                                                const newNotes = [...hymn.musitionNotes];
+                                                                newNotes[nIdx].note = e.target.value;
+                                                                updateWorkspaceHymn(hymn._id, { musitionNotes: newNotes });
+                                                            }}
+                                                            placeholder="Instruction (e.g., Start slow on Line 3)"
+                                                            className="flex-1 bg-transparent border-none text-sm focus:ring-0 placeholder:text-gray-600"
+                                                        />
+                                                        <button
+                                                            onClick={() => {
+                                                                const newNotes = hymn.musitionNotes.filter((_, i) => i !== nIdx);
+                                                                updateWorkspaceHymn(hymn._id, { musitionNotes: newNotes });
+                                                            }}
+                                                            className="text-red-400/50 hover:text-red-400 p-1"
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                <button
+                                                    onClick={() => {
+                                                        const newNotes = [...(hymn.musitionNotes || []), { role: 'General', note: '' }];
+                                                        updateWorkspaceHymn(hymn._id, { musitionNotes: newNotes });
+                                                    }}
+                                                    className="w-full py-2 border border-dashed border-white/10 rounded-xl text-xs text-gray-500 hover:text-sky-400 hover:border-sky-500/30 transition-all"
+                                                >
+                                                    + Add Instruction
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="p-6 border-t border-white/10 bg-white/5 text-right">
+                                    <button
+                                        onClick={() => setShowSetlistModal(false)}
+                                        className="bg-sky-500 hover:bg-sky-400 px-8 py-2 rounded-xl font-bold transition-all shadow-lg shadow-sky-500/20"
+                                    >
+                                        Apply & Close
+                                    </button>
+                                </div>
+                            </motion.div>
                         </div>
                     </Portal>
                 )}
@@ -536,10 +772,29 @@ function KeyDisplay({ scale, relatedChords, onTranspose }) {
 }
 
 function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants, openLyrics, openPresentation, vocalsMode }) {
-    const [transposeStep, setTransposeStep] = useState(0);
-
+    const [transposeStep, setTransposeStep] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem(`transpose_${hymn._id}`);
+            return saved ? parseInt(saved, 10) : 0;
+        }
+        return 0;
+    });
     const currentScale = transposeScale(hymn.scale, transposeStep);
     const currentChords = transposeChords(hymn.relatedChords, transposeStep);
+    // Transpose lyrics chords as well
+    const { transposeLyrics } = require('../utils/musicUtils');
+    const currentLyrics = hymn.lyrics ? transposeLyrics(hymn.lyrics, transposeStep) : '';
+
+    // Persist transpose step to localStorage
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            if (transposeStep === 0) {
+                localStorage.removeItem(`transpose_${hymn._id}`);
+            } else {
+                localStorage.setItem(`transpose_${hymn._id}`, transposeStep);
+            }
+        }
+    }, [transposeStep, hymn._id]);
 
     return (
         <motion.div
@@ -604,11 +859,8 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
                 </button>
             </div>
 
-
             {/* Media Link */}
             <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-1 sm:gap-2 relative z-10 lg:top-2">
-
-
                 {hymn.link && (
                     <a
                         href={hymn.link}
@@ -624,7 +876,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
                 {hymn.lyrics && (
                     <>
                         <button
-                            onClick={() => openLyrics(hymn)}
+                            onClick={() => openLyrics({ ...hymn, scale: currentScale, relatedChords: currentChords, lyrics: currentLyrics }, transposeStep)}
                             className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
                         >
                             <FileText className="w-4 h-4 shrink-0" />
@@ -634,7 +886,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
                         {/* Presentation Button - Icon Only, Visible in Vocal Mode */}
                         {vocalsMode && (
                             <button
-                                onClick={() => openPresentation(hymn)}
+                                onClick={() => openPresentation({ ...hymn, scale: currentScale, relatedChords: currentChords, lyrics: currentLyrics }, transposeStep)}
                                 className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all group-hover:shadow-lg group-hover:shadow-purple-500/10"
                                 title="Open Presentation Mode"
                             >
@@ -643,7 +895,6 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
                         )}
                     </>
                 )}
-
 
                 {!hymn.link && !hymn.lyrics && (
                     <span className="text-gray-700 text-xs">—</span>

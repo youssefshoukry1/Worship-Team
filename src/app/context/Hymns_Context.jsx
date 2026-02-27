@@ -48,8 +48,13 @@ export default function HymnsContextProvider({ children }) {
         setWorkspace(prev => prev.filter(h => h._id !== id));
     };
 
+    // Update specific hymn in workspace (e.g., add musician notes)
+    const updateWorkspaceHymn = (id, updates) => {
+        setWorkspace(prev => prev.map(h => h._id === id ? { ...h, ...updates } : h));
+    };
+
     return (
-        <HymnsContext.Provider value={{ workspace, addToWorkspace, removeFromWorkspace, isHymnInWorkspace }}>
+        <HymnsContext.Provider value={{ workspace, addToWorkspace, removeFromWorkspace, isHymnInWorkspace, updateWorkspaceHymn }}>
             {children}
         </HymnsContext.Provider>
     );
