@@ -2,7 +2,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { transposeScale, transposeChords } from '../utils/musicUtils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PlayCircle, Trash2, Heart, Music, ListMusic, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar } from 'lucide-react';
+import { PlayCircle, Trash2, Heart, Music, ListMusic, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle } from 'lucide-react';
 import Metronome from '../Metronome/page';
 import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
@@ -68,27 +68,66 @@ export default function WorkSpace() {
     const [showSetlistModal, setShowSetlistModal] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
     const [isSavingEvent, setIsSavingEvent] = useState(false);
+    const [showEventPicker, setShowEventPicker] = useState(false);
+    const [churchEvents, setChurchEvents] = useState([]);
+    const [isLoadingEvents, setIsLoadingEvents] = useState(false);
 
-    const saveAsEvent = async () => {
-        const eventName = prompt("Enter Event Name (e.g., Sunday Service):");
-        if (!eventName) return;
+    const fetchChurchEvents = async () => {
+        setIsLoadingEvents(true);
+        try {
+            const response = await fetch(`${API_URL}/events`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('user_Taspe7_Token')}`
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setChurchEvents(data);
+            }
+        } catch (error) {
+            console.error('Fetch events error:', error);
+        } finally {
+            setIsLoadingEvents(false);
+        }
+    };
 
+    const saveToEvent = async (eventId, eventName) => {
         setIsSavingEvent(true);
         try {
-            const response = await fetch(`${API_URL}/events/create`, {
-                method: 'POST',
+            // Create a snapshot with current transpositions applied
+            const snappedHymns = workspace.map(hymn => {
+                const transposeStep = parseInt(localStorage.getItem(`transpose_${hymn._id}`) || '0', 10);
+                if (transposeStep === 0) return hymn;
+
+                const { transposeScale: ts, transposeChords: tc, transposeLyrics: tl } = require('../utils/musicUtils');
+                return {
+                    ...hymn,
+                    scale: ts(hymn.scale, transposeStep),
+                    relatedChords: tc(hymn.relatedChords, transposeStep),
+                    lyrics: tl(hymn.lyrics, transposeStep)
+                };
+            });
+
+            // If eventId exists, we update (patch). If not, we might create (but user usually selects).
+            // Based on user request "I will choose", we primarily target existing events.
+            const url = eventId ? `${API_URL}/events/edit/${eventId}` : `${API_URL}/events/create`;
+            const method = eventId ? 'PATCH' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('user_Taspe7_Token')}`
                 },
                 body: JSON.stringify({
-                    eventName,
-                    hymns: workspace
+                    eventName: eventName,
+                    hymns: snappedHymns
                 })
             });
 
             if (response.ok) {
-                alert('Event created successfully with this setlist!');
+                setShowEventPicker(false);
+                alert('Event updated successfully with this setlist!');
             } else {
                 alert('Failed to save event');
             }
@@ -343,18 +382,24 @@ export default function WorkSpace() {
                             Setlist Intros & Notes
                         </button>
 
-                        <button
-                            onClick={saveAsEvent}
-                            disabled={workspace.length === 0 || isSavingEvent}
-                            className={`flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all font-bold text-green-400 ${isSavingEvent ? 'opacity-50' : ''}`}
-                        >
-                            {isSavingEvent ? (
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            ) : (
-                                <Music className="w-5 h-5" />
-                            )}
-                            Save as Event
-                        </button>
+                        {/* Only show for ADMIN, MANEGER, PROGRAMER */}
+                        {['ADMIN', 'MANEGER', 'PROGRAMER', 'Admin', 'Maneger', 'Programer'].includes(localStorage.getItem('user_Taspe7_Role')) && (
+                            <button
+                                onClick={() => {
+                                    fetchChurchEvents();
+                                    setShowEventPicker(true);
+                                }}
+                                disabled={workspace.length === 0 || isSavingEvent}
+                                className={`flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all font-bold text-green-400 ${isSavingEvent ? 'opacity-50' : ''}`}
+                            >
+                                {isSavingEvent ? (
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <Music className="w-5 h-5" />
+                                )}
+                                Save to Event
+                            </button>
+                        )}
 
                         <button
                             onClick={downloadSetlistPDF}
@@ -729,6 +774,67 @@ export default function WorkSpace() {
                                     >
                                         Apply & Close
                                     </button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    </Portal>
+                )}
+
+                {/* --- Event Picker Modal --- */}
+                {showEventPicker && (
+                    <Portal>
+                        <div className="fixed inset-0 z-9999 flex justify-center items-center p-4 bg-black/70 backdrop-blur-md text-white">
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="w-full max-w-lg bg-[#0E2238] border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+                            >
+                                <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+                                    <h2 className="text-xl font-bold text-sky-400">Select Event to Save Setlist</h2>
+                                    <button onClick={() => setShowEventPicker(false)} className="text-gray-400 hover:text-white transition-colors">
+                                        <X size={24} />
+                                    </button>
+                                </div>
+
+                                <div className="p-6 overflow-y-auto max-h-[60vh] space-y-3 custom-scrollbar text-white">
+                                    {isLoadingEvents ? (
+                                        <div className="flex justify-center p-10">
+                                            <div className="w-8 h-8 border-2 border-sky-500/30 border-t-sky-500 rounded-full animate-spin" />
+                                        </div>
+                                    ) : churchEvents.length > 0 ? (
+                                        churchEvents.map(event => (
+                                            <button
+                                                key={event._id}
+                                                onClick={() => saveToEvent(event._id, event.eventName)}
+                                                className="w-full text-left p-4 rounded-2xl bg-white/5 hover:bg-sky-500/10 border border-white/5 hover:border-sky-500/30 transition-all flex justify-between items-center group"
+                                            >
+                                                <span className="font-semibold text-gray-200 group-hover:text-white transition-colors">{event.eventName}</span>
+                                                <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                                                    <Calendar size={12} />
+                                                    {new Date(event.createdAt).toLocaleDateString()}
+                                                </div>
+                                            </button>
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-10 text-gray-500">
+                                            <Calendar className="w-10 h-10 mx-auto mb-2 opacity-20" />
+                                            <p>No events found for your church.</p>
+                                        </div>
+                                    )}
+
+                                    <div className="pt-4 border-t border-white/5">
+                                        <p className="text-[10px] text-gray-500 uppercase font-bold mb-2">Or create a new one:</p>
+                                        <button
+                                            onClick={() => {
+                                                const name = prompt("Enter New Event Name:");
+                                                if (name) saveToEvent(null, name);
+                                            }}
+                                            className="w-full p-4 rounded-2xl border border-dashed border-white/10 text-gray-400 hover:text-sky-300 hover:border-sky-500/40 hover:bg-sky-500/5 transition-all flex items-center justify-center gap-2 font-bold"
+                                        >
+                                            <PlusCircle size={18} />
+                                            New Service / Event
+                                        </button>
+                                    </div>
                                 </div>
                             </motion.div>
                         </div>

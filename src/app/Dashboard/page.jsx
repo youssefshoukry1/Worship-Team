@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { UserContext } from '../context/User_Context';
@@ -72,6 +72,8 @@ export default function Dashboard() {
   ];
   const [filterYear, setFilterYear] = useState("All");
   const [filterMonth, setFilterMonth] = useState("All");
+  const [clearingEventId, setClearingEventId] = useState(null);
+  const clearingTimeoutRef = useRef(null);
 
   // --- 1. API Fetching Functions ---
 
@@ -115,6 +117,32 @@ export default function Dashboard() {
     }
   };
 
+  const handleClearHymns = async (eventId) => {
+    if (clearingEventId !== eventId) {
+      setClearingEventId(eventId);
+      if (clearingTimeoutRef.current) clearTimeout(clearingTimeoutRef.current);
+      clearingTimeoutRef.current = setTimeout(() => {
+        setClearingEventId(null);
+      }, 3000);
+      return;
+    }
+
+    setProcessingId(`CLEAR_${eventId}`);
+    try {
+      await axios.patch(`${API_URL}/events/edit/${eventId}`,
+        { hymns: [] },
+        { headers: { Authorization: `Bearer ${isLogin}` } }
+      );
+      queryClient.invalidateQueries(['churchEvents']);
+      setClearingEventId(null);
+    } catch (error) {
+      console.error("Clear Error:", error);
+      alert("Failed to clear hymns");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const handleUpdateEvent = async (eventId) => {
     if (!editEventName) return;
     setProcessingId(`UPDATE_${eventId}`);
@@ -150,6 +178,43 @@ export default function Dashboard() {
       setNewEventName("");
       queryClient.invalidateQueries(['churchEvents']);
     } finally { setProcessingId(null); }
+  };
+
+  const downloadEventPDF = async (event) => {
+    setProcessingId(`PDF_${event._id}`);
+    try {
+      const response = await fetch(`${API_URL}/events/generate-pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${isLogin}`
+        },
+        body: JSON.stringify({
+          hymns: event.hymns,
+          churchName: localStorage.getItem('user_Taspe7_ChurchName') || 'Taspe7',
+          eventName: event.eventName,
+          hideChords: false // Default to showing chords for musician summaries
+        })
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Event-${event.eventName.replace(/\s+/g, '_')}-${new Date(event.createdAt).toLocaleDateString()}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } else {
+        alert('Failed to generate PDF');
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Error connecting to server');
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const toggleUserInEvent = async (userId, eventId) => {
@@ -396,6 +461,14 @@ export default function Dashboard() {
                                   className="flex gap-2 mt-3 pt-3 border-t border-white/10"
                                 >
                                   <button
+                                    onClick={() => downloadEventPDF(event)}
+                                    disabled={processingId === `PDF_${event._id}`}
+                                    className="flex-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                                  >
+                                    {processingId === `PDF_${event._id}` ? <RefreshCw className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
+                                    PDF Summary
+                                  </button>
+                                  <button
                                     onClick={() => startEditing(event)}
                                     className="flex-1 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
                                   >
@@ -412,6 +485,42 @@ export default function Dashboard() {
                                 </motion.div>
                               )}
                             </AnimatePresence>
+
+                            {/* Show hymns in this event */}
+                            {selectedEventId === event._id && event.hymns?.length > 0 && (
+                              <div className="mt-4 space-y-2 border-t border-white/10 pt-4">
+                                <div className="flex justify-between items-center mb-1">
+                                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                                    <Music className="w-3 h-3" /> Recorded Hymns:
+                                  </p>
+                                  <button
+                                    onClick={() => handleClearHymns(event._id)}
+                                    disabled={processingId === `CLEAR_${event._id}`}
+                                    className={`text-[10px] font-bold px-2 py-0.5 rounded transition-all flex items-center gap-1 ${clearingEventId === event._id
+                                        ? 'bg-red-500 text-white animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]'
+                                        : 'bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-500/10'
+                                      }`}
+                                  >
+                                    {processingId === `CLEAR_${event._id}` ? (
+                                      <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="w-2.5 h-2.5" />
+                                    )}
+                                    {clearingEventId === event._id ? 'Tap to Confirm' : 'Clear'}
+                                  </button>
+                                </div>
+                                {event.hymns.map((h, hIdx) => (
+                                  <div key={hIdx} className="flex justify-between items-center bg-black/20 p-2 rounded-lg text-xs">
+                                    <span className="font-medium text-gray-300">
+                                      {hIdx + 1}. {h.title}
+                                    </span>
+                                    <span className="text-sky-400 font-bold bg-sky-500/10 px-2 py-0.5 rounded text-[10px]">
+                                      {h.scale}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </>
                         )}
                       </div>
@@ -757,11 +866,11 @@ export default function Dashboard() {
                           }
 
                           return (
-                            <motion.div key={user._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-white/5 to-white/3 rounded-xl p-3 border border-white/10 hover:border-sky-500/30 transition-all flex flex-col">
+                            <motion.div key={user._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-linear-to-r from-white/5 to-white/3 rounded-xl p-3 border border-white/10 hover:border-sky-500/30 transition-all flex flex-col">
                               {/* User Header */}
                               <div className="flex items-center justify-between gap-2 mb-2">
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs shrink-0">
+                                  <div className="w-9 h-9 rounded-full bg-linear-to-br from-sky-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs shrink-0">
                                     {user.Name.charAt(0).toUpperCase()}
                                   </div>
                                   <div className="min-w-0">
