@@ -191,7 +191,7 @@ export default function Dashboard() {
         },
         body: JSON.stringify({
           hymns: event.hymns,
-          churchName: localStorage.getItem('user_Taspe7_ChurchName') || 'Taspe7',
+          churchName: (typeof window !== 'undefined' && localStorage.getItem('user_Taspe7_ChurchName')) || 'Taspe7',
           eventName: event.eventName,
           hideChords: false // Default to showing chords for musician summaries
         })
@@ -497,8 +497,8 @@ export default function Dashboard() {
                                     onClick={() => handleClearHymns(event._id)}
                                     disabled={processingId === `CLEAR_${event._id}`}
                                     className={`text-[10px] font-bold px-2 py-0.5 rounded transition-all flex items-center gap-1 ${clearingEventId === event._id
-                                        ? 'bg-red-500 text-white animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]'
-                                        : 'bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-500/10'
+                                      ? 'bg-red-500 text-white animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]'
+                                      : 'bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-500/10'
                                       }`}
                                   >
                                     {processingId === `CLEAR_${event._id}` ? (

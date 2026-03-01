@@ -1,6 +1,5 @@
 'use client';
 import React, { useContext, useState, useEffect } from 'react';
-import { transposeScale, transposeChords } from '../utils/musicUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PlayCircle, Trash2, Heart, Music, ListMusic, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle } from 'lucide-react';
 import Metronome from '../Metronome/page';
@@ -8,11 +7,12 @@ import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
 import Portal from '../Portal/Portal';
 import { Virtuoso } from 'react-virtuoso';
+import { transposeScale, transposeChords, transposeLyrics } from '../utils/musicUtils';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://worship-team-api.vercel.app/api";
 
 export default function WorkSpace() {
     const { workspace, removeFromWorkspace, updateWorkspaceHymn } = useContext(HymnsContext);
-    const { HymnIds, setHymnIds, vocalsMode } = useContext(UserContext);
+    const { isLogin, UserRole, vocalsMode } = useContext(UserContext);
 
     // Categories Configuration for Icon Lookup
     const categories = [
@@ -77,7 +77,7 @@ export default function WorkSpace() {
         try {
             const response = await fetch(`${API_URL}/events`, {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('user_Taspe7_Token')}`
+                    'Authorization': `Bearer ${isLogin}`
                 }
             });
             if (response.ok) {
@@ -96,15 +96,14 @@ export default function WorkSpace() {
         try {
             // Create a snapshot with current transpositions applied
             const snappedHymns = workspace.map(hymn => {
-                const transposeStep = parseInt(localStorage.getItem(`transpose_${hymn._id}`) || '0', 10);
+                const transposeStep = (typeof window !== 'undefined' && localStorage.getItem(`transpose_${hymn._id}`)) ? parseInt(localStorage.getItem(`transpose_${hymn._id}`), 10) : 0;
                 if (transposeStep === 0) return hymn;
 
-                const { transposeScale: ts, transposeChords: tc, transposeLyrics: tl } = require('../utils/musicUtils');
                 return {
                     ...hymn,
-                    scale: ts(hymn.scale, transposeStep),
-                    relatedChords: tc(hymn.relatedChords, transposeStep),
-                    lyrics: tl(hymn.lyrics, transposeStep)
+                    scale: transposeScale(hymn.scale, transposeStep),
+                    relatedChords: transposeChords(hymn.relatedChords, transposeStep),
+                    lyrics: transposeLyrics(hymn.lyrics, transposeStep)
                 };
             });
 
@@ -117,7 +116,7 @@ export default function WorkSpace() {
                 method: method,
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('user_Taspe7_Token')}`
+                    'Authorization': `Bearer ${isLogin}`
                 },
                 body: JSON.stringify({
                     eventName: eventName,
@@ -144,16 +143,14 @@ export default function WorkSpace() {
         try {
             // Apply current transpose steps to workspace hymns before exporting to PDF
             const transposedWorkspace = workspace.map(hymn => {
-                const transposeStep = parseInt(localStorage.getItem(`transpose_${hymn._id}`) || '0', 10);
+                const transposeStep = (typeof window !== 'undefined' && localStorage.getItem(`transpose_${hymn._id}`)) ? parseInt(localStorage.getItem(`transpose_${hymn._id}`), 10) : 0;
                 if (transposeStep === 0) return hymn;
 
-                // Import and use transposeScale, transposeChords, transposeLyrics
-                const { transposeScale: ts, transposeChords: tc, transposeLyrics: tl } = require('../utils/musicUtils');
                 return {
                     ...hymn,
-                    scale: ts(hymn.scale, transposeStep),
-                    relatedChords: tc(hymn.relatedChords, transposeStep),
-                    lyrics: tl(hymn.lyrics, transposeStep)
+                    scale: transposeScale(hymn.scale, transposeStep),
+                    relatedChords: transposeChords(hymn.relatedChords, transposeStep),
+                    lyrics: transposeLyrics(hymn.lyrics, transposeStep)
                 };
             });
 
@@ -161,11 +158,11 @@ export default function WorkSpace() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('user_Taspe7_Token')}`
+                    'Authorization': `Bearer ${isLogin}`
                 },
                 body: JSON.stringify({
                     hymns: transposedWorkspace,
-                    churchName: localStorage.getItem('user_Taspe7_ChurchName') || 'Taspe7',
+                    churchName: (typeof window !== 'undefined' && localStorage.getItem('user_Taspe7_ChurchName')) || 'Taspe7',
                     hideChords: !showChords
                 })
             });
@@ -383,7 +380,7 @@ export default function WorkSpace() {
                         </button>
 
                         {/* Only show for ADMIN, MANEGER, PROGRAMER */}
-                        {['ADMIN', 'MANEGER', 'PROGRAMER', 'Admin', 'Maneger', 'Programer'].includes(localStorage.getItem('user_Taspe7_Role')) && (
+                        {['ADMIN', 'MANEGER', 'PROGRAMER', 'Admin', 'Maneger', 'Programer'].includes(UserRole) && (
                             <button
                                 onClick={() => {
                                     fetchChurchEvents();
@@ -921,8 +918,6 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
     });
     const currentScale = transposeScale(hymn.scale, transposeStep);
     const currentChords = transposeChords(hymn.relatedChords, transposeStep);
-    // Transpose lyrics chords as well
-    const { transposeLyrics } = require('../utils/musicUtils');
     const currentLyrics = hymn.lyrics ? transposeLyrics(hymn.lyrics, transposeStep) : '';
 
     // Persist transpose step to localStorage
