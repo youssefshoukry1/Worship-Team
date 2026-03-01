@@ -10,6 +10,190 @@ import { Virtuoso } from 'react-virtuoso';
 import { transposeScale, transposeChords, transposeLyrics } from '../utils/musicUtils';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://worship-team-api.vercel.app/api";
 
+const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
+    const [localLyrics, setLocalLyrics] = useState(hymn.lyrics || '');
+    const [localFontSize, setLocalFontSize] = useState(hymn.customFontSize || 0); // 0 means auto
+    const [isEditingLyrics, setIsEditingLyrics] = useState(false);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (localLyrics !== hymn.lyrics || localFontSize !== (hymn.customFontSize || 0)) {
+                updateWorkspaceHymn(hymn._id, {
+                    lyrics: localLyrics,
+                    customFontSize: localFontSize === 0 ? null : localFontSize
+                });
+            }
+        }, 600);
+        return () => clearTimeout(timer);
+    }, [localLyrics, localFontSize, hymn._id, hymn.lyrics, hymn.customFontSize, updateWorkspaceHymn]);
+
+    return (
+        <div className="bg-white/5 p-5 rounded-2xl border border-white/5 hover:border-sky-500/40 hover:bg-white/10 transition-all duration-200">
+            <div className="flex flex-wrap flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                <div className="flex flex-wrap items-center gap-3">
+                    <span className="w-8 h-8 rounded-full bg-sky-500/15 flex items-center justify-center text-sky-300 font-bold text-sm">
+                        {idx + 1}
+                    </span>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                        <h3 className="font-semibold text-base sm:text-lg text-white">
+                            {hymn.title}
+                        </h3>
+                        <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30">
+                            Key: {hymn.scale || '-'}
+                        </span>
+                        {localFontSize > 0 && (
+                            <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                                Font Size: {localFontSize}px
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex bg-black/30 rounded-lg p-1 border border-white/10 shrink-0">
+                    <button
+                        onClick={() => setIsEditingLyrics(!isEditingLyrics)}
+                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${isEditingLyrics ? 'bg-sky-500 text-white' : 'text-gray-400 hover:text-white'}`}
+                    >
+                        Edit Lyrics
+                    </button>
+                    <div className="w-px bg-white/10 mx-1"></div>
+                    <div className="flex items-center gap-2 px-2 text-xs font-bold text-gray-400">
+                        <span>PDF Zoom:</span>
+                        <button
+                            onClick={() => setLocalFontSize(prev => prev === 0 ? 14 : Math.max(10, prev - 1))}
+                            className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 text-white flex items-center justify-center"
+                        >-</button>
+                        <span className="w-6 text-center text-white">{localFontSize === 0 ? 'A' : localFontSize}</span>
+                        <button
+                            onClick={() => setLocalFontSize(prev => prev === 0 ? 14 : Math.min(30, prev + 1))}
+                            className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 text-white flex items-center justify-center"
+                        >+</button>
+                        {localFontSize !== 0 && (
+                            <button
+                                onClick={() => setLocalFontSize(0)}
+                                className="w-6 h-6 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 flex items-center justify-center ml-1"
+                                title="Reset to Auto"
+                            ><X size={12} /></button>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {isEditingLyrics && (
+                <div className="mb-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex justify-between items-center mb-1">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-sky-400">
+                            Custom Lyrics (Edit & Print)
+                        </span>
+                        <span className="text-[10px] text-gray-500">Auto-saves as you type</span>
+                    </div>
+                    <textarea
+                        value={localLyrics}
+                        onChange={(e) => setLocalLyrics(e.target.value)}
+                        rows={6}
+                        className="w-full bg-black/40 border border-sky-500/30 rounded-xl text-sm px-4 py-3 focus:outline-none focus:ring-1 focus:ring-sky-400 text-white font-medium custom-scrollbar"
+                        dir="rtl"
+                    />
+                </div>
+            )}
+
+            <div className="space-y-3">
+                {(hymn.musitionNotes || []).map((note, nIdx) => (
+                    <div
+                        key={nIdx}
+                        className="bg-black/30 p-3 sm:p-4 rounded-2xl border border-white/5 flex flex-col gap-3"
+                    >
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <div className="sm:w-40 flex flex-col gap-1">
+                                <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                                    Role
+                                </span>
+                                <select
+                                    value={note.role}
+                                    onChange={(e) => {
+                                        const newNotes = [...hymn.musitionNotes];
+                                        newNotes[nIdx].role = e.target.value;
+                                        updateWorkspaceHymn(hymn._id, { musitionNotes: newNotes });
+                                    }}
+                                    className="w-full bg-sky-900/40 text-xs font-bold text-sky-200 border border-sky-500/40 rounded-xl px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                                >
+                                    <option value="General">General</option>
+                                    <option value="Guitar">Guitar</option>
+                                    <option value="Piano">Piano</option>
+                                    <option value="Drums">Drums</option>
+                                    <option value="Bass">Bass</option>
+                                    <option value="Vocals">Vocals</option>
+                                </select>
+                            </div>
+
+                            <div className="flex-1 flex flex-col gap-2">
+                                <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                                    Instruction / Intro
+                                </span>
+                                <textarea
+                                    value={note.note}
+                                    onChange={(e) => {
+                                        const newNotes = [...hymn.musitionNotes];
+                                        newNotes[nIdx].note = e.target.value;
+                                        updateWorkspaceHymn(hymn._id, { musitionNotes: newNotes });
+                                    }}
+                                    rows={2}
+                                    placeholder="e.g. Soft pad intro, drums enter on chorus, repeat bridge 2x..."
+                                    className="w-full bg-transparent border border-white/10 rounded-xl text-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Lyrics Reference / Line Input */}
+                        <div className="flex flex-col gap-2 mt-1">
+                            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                                Lyrics Reference (Optional)
+                            </span>
+                            <input
+                                type="text"
+                                value={note.line || ''}
+                                onChange={(e) => {
+                                    const newNotes = [...hymn.musitionNotes];
+                                    newNotes[nIdx].line = e.target.value;
+                                    updateWorkspaceHymn(hymn._id, { musitionNotes: newNotes });
+                                }}
+                                placeholder="e.g. Type some lyrics to reference here..."
+                                className="w-full bg-transparent border border-white/10 rounded-xl text-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600"
+                            />
+                        </div>
+
+                        <div className="flex justify-end">
+                            <button
+                                onClick={() => {
+                                    const newNotes = hymn.musitionNotes.filter((_, i) => i !== nIdx);
+                                    updateWorkspaceHymn(hymn._id, { musitionNotes: newNotes });
+                                }}
+                                className="inline-flex items-center gap-1 text-[11px] text-red-400/70 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all"
+                            >
+                                <X size={14} />
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                ))}
+
+                <button
+                    onClick={() => {
+                        const newNotes = [
+                            ...(hymn.musitionNotes || []),
+                            { role: 'General', note: '' }
+                        ];
+                        updateWorkspaceHymn(hymn._id, { musitionNotes: newNotes });
+                    }}
+                    className="w-full py-2.5 border border-dashed border-white/10 rounded-xl text-xs font-semibold text-gray-400 hover:text-sky-300 hover:border-sky-500/40 hover:bg-sky-500/10 transition-all"
+                >
+                    + Add Instruction / Intro
+                </button>
+            </div>
+        </div>
+    );
+};
+
 export default function WorkSpace() {
     const { workspace, removeFromWorkspace, updateWorkspaceHymn } = useContext(HymnsContext);
     const { isLogin, UserRole, vocalsMode } = useContext(UserContext);
@@ -667,100 +851,12 @@ export default function WorkSpace() {
 
                                 <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
                                     {workspace.map((hymn, idx) => (
-                                        <div
+                                        <SetlistCustomizerCard
                                             key={hymn._id}
-                                            className="bg-white/5 p-5 rounded-2xl border border-white/5 hover:border-sky-500/40 hover:bg-white/10 transition-all duration-200"
-                                        >
-                                            <div className="flex flex-wrap items-center gap-3 mb-4">
-                                                <span className="w-8 h-8 rounded-full bg-sky-500/15 flex items-center justify-center text-sky-300 font-bold text-sm">
-                                                    {idx + 1}
-                                                </span>
-                                                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                                                    <h3 className="font-semibold text-base sm:text-lg text-white">
-                                                        {hymn.title}
-                                                    </h3>
-                                                    <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30">
-                                                        Key: {hymn.scale || '-'}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-3">
-                                                {(hymn.musitionNotes || []).map((note, nIdx) => (
-                                                    <div
-                                                        key={nIdx}
-                                                        className="bg-black/30 p-3 sm:p-4 rounded-2xl border border-white/5 flex flex-col gap-3"
-                                                    >
-                                                        <div className="flex flex-col sm:flex-row gap-3">
-                                                            <div className="sm:w-40 flex flex-col gap-1">
-                                                                <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                                                                    Role
-                                                                </span>
-                                                                <select
-                                                                    value={note.role}
-                                                                    onChange={(e) => {
-                                                                        const newNotes = [...hymn.musitionNotes];
-                                                                        newNotes[nIdx].role = e.target.value;
-                                                                        updateWorkspaceHymn(hymn._id, { musitionNotes: newNotes });
-                                                                    }}
-                                                                    className="w-full bg-sky-900/40 text-xs font-bold text-sky-200 border border-sky-500/40 rounded-xl px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-400"
-                                                                >
-                                                                    <option value="General">General</option>
-                                                                    <option value="Guitar">Guitar</option>
-                                                                    <option value="Piano">Piano</option>
-                                                                    <option value="Drums">Drums</option>
-                                                                    <option value="Bass">Bass</option>
-                                                                    <option value="Vocals">Vocals</option>
-                                                                </select>
-                                                            </div>
-
-                                                            <div className="flex-1 flex flex-col gap-2">
-                                                                <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                                                                    Instruction / Intro
-                                                                </span>
-                                                                <textarea
-                                                                    value={note.note}
-                                                                    onChange={(e) => {
-                                                                        const newNotes = [...hymn.musitionNotes];
-                                                                        newNotes[nIdx].note = e.target.value;
-                                                                        updateWorkspaceHymn(hymn._id, { musitionNotes: newNotes });
-                                                                    }}
-                                                                    rows={2}
-                                                                    placeholder="e.g. Soft pad intro, drums enter on chorus, repeat bridge 2x..."
-                                                                    className="w-full bg-transparent border border-white/10 rounded-xl text-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600"
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex justify-end">
-                                                            <button
-                                                                onClick={() => {
-                                                                    const newNotes = hymn.musitionNotes.filter((_, i) => i !== nIdx);
-                                                                    updateWorkspaceHymn(hymn._id, { musitionNotes: newNotes });
-                                                                }}
-                                                                className="inline-flex items-center gap-1 text-[11px] text-red-400/70 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all"
-                                                            >
-                                                                <X size={14} />
-                                                                Remove
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ))}
-
-                                                <button
-                                                    onClick={() => {
-                                                        const newNotes = [
-                                                            ...(hymn.musitionNotes || []),
-                                                            { role: 'General', note: '' }
-                                                        ];
-                                                        updateWorkspaceHymn(hymn._id, { musitionNotes: newNotes });
-                                                    }}
-                                                    className="w-full py-2.5 border border-dashed border-white/10 rounded-xl text-xs font-semibold text-gray-400 hover:text-sky-300 hover:border-sky-500/40 hover:bg-sky-500/10 transition-all"
-                                                >
-                                                    + Add Instruction / Intro
-                                                </button>
-                                            </div>
-                                        </div>
+                                            hymn={hymn}
+                                            idx={idx}
+                                            updateWorkspaceHymn={updateWorkspaceHymn}
+                                        />
                                     ))}
                                 </div>
 
