@@ -8,11 +8,12 @@ import Loading from '../loading';
 import Portal from '../Portal/Portal';
 import Metronome from '../Metronome/page';
 import { UserContext } from '../context/User_Context';
-import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff } from 'lucide-react';
+import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2 } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
 import { useEffect } from "react";
 import { Virtuoso } from "react-virtuoso";
+import { usePresentation } from '../hooks/usePresentation';
 
 
 
@@ -45,6 +46,16 @@ export default function Category_Humns() {
   //Data Show
   const [showDataShow, setShowDataShow] = useState(false);
   const [dataShowIndex, setDataShowIndex] = useState(0);
+
+  // ── Live Presentation (Socket.io) ──────────────────────────────────
+  const [dataShowId, setDataShowId] = useState('');
+  const [dataShowIdInput, setDataShowIdInput] = useState('');
+  const [showSessionPanel, setShowSessionPanel] = useState(false);
+  const { isConnected, broadcastHymn, broadcastSlide, clearDisplay } = usePresentation(
+    dataShowId || null,
+    'controller'
+  );
+  // ──────────────────────────────────────────────────────────────────
 
   const lyricsInputRef = React.useRef(null); // Ref for the lyrics textarea
 
@@ -130,6 +141,33 @@ export default function Category_Humns() {
       }
     };
   }, [showDataShow, dataShowIndex, dataShowSlides.length]);
+
+  // Robust broadcast sync: whenever session connects or hymn/lyrics change while presentation is open
+  useEffect(() => {
+    if (showDataShow && dataShowId && selectedLyricsHymn && isConnected) {
+      const lyricsToUse = selectedLyricsHymn.transposeStep
+        ? transposeLyrics(selectedLyricsHymn.lyrics, selectedLyricsHymn.transposeStep)
+        : (selectedLyricsHymn.lyrics || '');
+
+      const slides = lyricsToUse
+        .replace(/\[.*?\]/g, '')
+        .split('\n\n')
+        .map(b => b.trim())
+        .filter(Boolean);
+
+      broadcastHymn(selectedLyricsHymn, slides);
+      broadcastSlide(dataShowIndex);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showDataShow, dataShowId, selectedLyricsHymn, isConnected, broadcastHymn]);
+
+  // Broadcast slide change whenever dataShowIndex moves exclusively
+  useEffect(() => {
+    if (showDataShow && dataShowId && selectedLyricsHymn && isConnected) {
+      broadcastSlide(dataShowIndex);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataShowIndex]);
 
 
   const lyricsThemes = {
@@ -566,6 +604,69 @@ export default function Category_Humns() {
               <PlusCircle className="w-5 h-5" />
               <span>{t("newHymn")}</span>
             </button>
+
+            {/* Live Session Panel */}
+            <div className="relative">
+              <button
+                onClick={() => setShowSessionPanel(p => !p)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all font-semibold text-sm border
+                  ${isConnected
+                    ? 'bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20'
+                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                  }`}
+              >
+                <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse' : ''}`} />
+                {isConnected ? (
+                  <><span className="text-[10px] text-green-500 font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
+                ) : 'Live Session'}
+              </button>
+
+              {showSessionPanel && (
+                <div className="absolute right-0 mt-2 z-50 p-4 bg-[#0c1627] border border-white/10 rounded-2xl shadow-2xl w-72">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Presentation Room</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={dataShowIdInput}
+                      onChange={e => setDataShowIdInput(e.target.value)}
+                      placeholder='e.g. "sunday-01"'
+                      className="flex-1 bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600"
+                      onKeyDown={e => { if (e.key === 'Enter' && dataShowIdInput.trim()) { setDataShowId(dataShowIdInput.trim()); setShowSessionPanel(false); } }}
+                    />
+                    <button
+                      onClick={() => { if (dataShowIdInput.trim()) { setDataShowId(dataShowIdInput.trim()); setShowSessionPanel(false); } }}
+                      className="px-4 py-2 bg-sky-500 hover:bg-sky-400 rounded-xl text-sm font-bold transition-all"
+                    >
+                      Join
+                    </button>
+                  </div>
+                  {dataShowId && (
+                    <div className="mt-3 flex flex-col gap-2">
+                      <a
+                        href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all"
+                      >
+                        <Tv2 size={13} /> Open Display Window
+                      </a>
+                      <a
+                        href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all"
+                      >
+                        <ExternalLink size={13} /> Mobile Remote
+                      </a>
+                      <button
+                        onClick={() => { clearDisplay(); setDataShowId(''); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all"
+                      >
+                        <X size={13} /> End Session
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -648,6 +749,7 @@ export default function Category_Humns() {
                   <div
                     className={`w-full max-w-md max-h-[90vh] bg-[#0c0c20] border border-white/10 rounded-2xl shadow-2xl overflow-y-auto relative transform transition-all duration-300
                   ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
+                    data-lenis-prevent-wheel
                   >
                     {/* Header */}
                     <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
@@ -920,7 +1022,7 @@ export default function Category_Humns() {
                     </div>
 
                     {/* Content */}
-                    <div className="p-8 overflow-y-auto custom-scrollbar flex flex-col items-center">
+                    <div className="p-8 overflow-y-auto custom-scrollbar flex flex-col items-center" data-lenis-prevent-wheel>
                       <div
                         style={{
                           color: lyricsThemes[lyricsTheme].text,

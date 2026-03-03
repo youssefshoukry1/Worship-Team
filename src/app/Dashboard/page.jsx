@@ -805,7 +805,7 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-3">
+                  <div className="flex-1 overflow-y-auto p-3" data-lenis-prevent-wheel>
                     {UsersChurch.length === 0 ? (
                       <div className="flex items-center justify-center h-full text-gray-500">
                         <p className="text-sm">No users found</p>
@@ -916,7 +916,7 @@ export default function Dashboard() {
                                     <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-widest flex items-center gap-1 mb-2">
                                       <FileText className="w-3 h-3" /> Reports Log
                                     </h4>
-                                    <div className="max-h-32 overflow-y-auto space-y-1">
+                                    <div className="max-h-32 overflow-y-auto space-y-1" data-lenis-prevent-wheel>
                                       {displayedReports.length === 0 ? (
                                         <div className="text-center py-2 px-2 rounded-lg bg-white/3 border border-dashed border-white/10">
                                           <p className="text-xs text-gray-500">No reports</p>
@@ -1042,7 +1042,7 @@ export default function Dashboard() {
                                     {displayedAttends.length === 0 ? (
                                       <p className="text-xs text-gray-500 text-center py-2">No attendance records</p>
                                     ) : (
-                                      <div className="max-h-24 overflow-y-auto space-y-1">
+                                      <div className="max-h-24 overflow-y-auto space-y-1" data-lenis-prevent-wheel>
                                         {displayedAttends.map((att, i) => {
                                           // For history entries, eventName is pre-resolved.
                                           // For live entries, look up from churchEvents.
@@ -1098,7 +1098,7 @@ export default function Dashboard() {
                                     {displayedHymns.length === 0 ? (
                                       <p className="text-xs text-gray-500 text-center py-2">No hymns</p>
                                     ) : (
-                                      <div className="max-h-40 overflow-y-auto space-y-1">
+                                      <div className="max-h-40 overflow-y-auto space-y-1" data-lenis-prevent-wheel>
                                         {displayedHymns.map((entry, i) => (
                                           <div key={i} className="flex flex-col gap-0.5 text-xs bg-purple-500/5 p-2 rounded border border-purple-500/10 hover:border-purple-500/30 transition-colors">
                                             <span className="text-purple-200 font-semibold truncate">{entry.title}</span>

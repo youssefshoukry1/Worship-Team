@@ -411,7 +411,7 @@ export default function Trainings() {
                 )}
 
                 <div className="flex-1 min-h-[150px] relative">
-                  <div className="absolute inset-0 overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="absolute inset-0 overflow-y-auto pr-2 custom-scrollbar" data-lenis-prevent-wheel>
                     <div className="flex flex-col gap-3 pb-2">
                       {m.songs_Array && m.songs_Array.length > 0 ? (
                         m.songs_Array.map((p, idx) => {
@@ -514,6 +514,7 @@ export default function Trainings() {
             <div
               className={`w-full max-w-md max-h-[90vh] bg-white/10 border border-white/20 backdrop-blur-xl p-6 rounded-2xl shadow-2xl overflow-y-auto relative transform transition-all duration-300
                 ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
+              data-lenis-prevent-wheel
             >
               <button
                 onClick={closeModal}
@@ -543,7 +544,7 @@ export default function Trainings() {
                         ))}
                       </select>
                     )}
-                    <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-2">
+                    <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-2" data-lenis-prevent-wheel>
                       {workspace.length === 0 ? (
                         <div className="text-center text-gray-400 py-4">No hymns in Workspace yet.</div>
                       ) : (
@@ -715,7 +716,7 @@ export default function Trainings() {
               </div>
 
               {/* Content */}
-              <div className="p-8 overflow-y-auto custom-scrollbar">
+              <div className="p-8 overflow-y-auto custom-scrollbar" data-lenis-prevent-wheel>
                 <div
                   style={{
                     color: lyricsThemes[lyricsTheme].text,
@@ -834,7 +835,7 @@ export default function Trainings() {
                   <h3 className="font-bold text-sm uppercase tracking-wider">User Report</h3>
                 </div>
 
-                <div className="max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
+                <div className="max-h-[60vh] overflow-y-auto custom-scrollbar pr-1" data-lenis-prevent-wheel>
                   <p className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">
                     {reportText}
                   </p>

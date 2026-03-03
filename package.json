@@ -22,6 +22,7 @@
     "react-dom": "^19.1.0",
     "react-icons": "^5.5.0",
     "react-virtuoso": "^4.18.1",
+    "socket.io-client": "^4.8.3",
     "yup": "^1.7.1"
   },
   "devDependencies": {
@@ -33,6 +34,7 @@
     "baseline-browser-mapping": "^2.10.0",
     "eslint": "^9",
     "eslint-config-next": "latest",
+    "playwright": "^1.58.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

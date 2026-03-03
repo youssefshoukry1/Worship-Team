@@ -67,6 +67,14 @@ html.lenis {
   overscroll-behavior: contain;
 }
 
+.lenis.lenis-smooth [data-lenis-prevent-wheel] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent-touch] {
+  overscroll-behavior: contain;
+}
+
 .lenis.lenis-stopped {
   overflow: hidden;
 }

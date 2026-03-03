@@ -1,13 +1,14 @@
 'use client';
 import React, { useContext, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PlayCircle, Trash2, Heart, Music, ListMusic, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle } from 'lucide-react';
+import { PlayCircle, Trash2, Heart, Music, ListMusic, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle, Radio, ExternalLink, Tv2 } from 'lucide-react';
 import Metronome from '../Metronome/page';
 import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
 import Portal from '../Portal/Portal';
 import { Virtuoso } from 'react-virtuoso';
 import { transposeScale, transposeChords, transposeLyrics } from '../utils/musicUtils';
+import { usePresentation } from '../hooks/usePresentation';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://worship-team-api.vercel.app/api";
 
 const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
@@ -248,6 +249,16 @@ export default function WorkSpace() {
     // Data Show State
     const [showDataShow, setShowDataShow] = useState(false);
     const [dataShowIndex, setDataShowIndex] = useState(0);
+
+    // ── Live Presentation (Socket.io) ──────────────────────────────────
+    const [dataShowId, setDataShowId] = useState('');
+    const [dataShowIdInput, setDataShowIdInput] = useState('');
+    const [showSessionPanel, setShowSessionPanel] = useState(false);
+    const { isConnected, broadcastHymn, broadcastSlide, clearDisplay } = usePresentation(
+        dataShowId || null,
+        'controller'
+    );
+    // ──────────────────────────────────────────────────────────────────
 
     const [showSetlistModal, setShowSetlistModal] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
@@ -497,6 +508,26 @@ export default function WorkSpace() {
         };
     }, [showDataShow, dataShowIndex, dataShowSlides.length]);
 
+    // Robust broadcast sync: whenever session connects or hymn changes while presentation is open
+    useEffect(() => {
+        if (showDataShow && dataShowId && selectedLyricsHymn && isConnected) {
+            const slides = selectedLyricsHymn.lyrics
+                ? selectedLyricsHymn.lyrics.replace(/\[.*?\]/g, '').split('\n\n').map(b => b.trim()).filter(Boolean)
+                : [];
+            broadcastHymn(selectedLyricsHymn, slides);
+            broadcastSlide(dataShowIndex);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showDataShow, dataShowId, selectedLyricsHymn, isConnected, broadcastHymn]);
+
+    // Broadcast slide change whenever dataShowIndex moves exclusively
+    useEffect(() => {
+        if (showDataShow && dataShowId && selectedLyricsHymn && isConnected) {
+            broadcastSlide(dataShowIndex);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dataShowIndex]);
+
     const renderLyricsWithChords = (text) => {
         if (!text) return null;
 
@@ -595,6 +626,78 @@ export default function WorkSpace() {
                             Download PDF Summary
                         </button>
                     </div>
+
+                    {/* ── Live Session Panel ───────────────────────────────────── */}
+                    <div className="mt-6">
+                        {/* Toggle button */}
+                        <button
+                            onClick={() => setShowSessionPanel(p => !p)}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl transition-all font-bold text-sm border
+                                ${isConnected
+                                    ? 'bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20'
+                                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                                }`}
+                        >
+                            <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse' : ''}`} />
+                            {isConnected ? (
+                                <><span className="text-[10px] text-green-500 font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
+                            ) : 'Start Live Session'}
+                        </button>
+
+                        {/* Session setup drawer */}
+                        {showSessionPanel && (
+                            <div className="mt-3 p-4 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm max-w-md mx-auto">
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Live Presentation Room</p>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={dataShowIdInput}
+                                        onChange={e => setDataShowIdInput(e.target.value)}
+                                        placeholder='Room code  e.g. "sunday-01"'
+                                        className="flex-1 bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600"
+                                        onKeyDown={e => { if (e.key === 'Enter' && dataShowIdInput.trim()) { setDataShowId(dataShowIdInput.trim()); setShowSessionPanel(false); } }}
+                                    />
+                                    <button
+                                        onClick={() => { if (dataShowIdInput.trim()) { setDataShowId(dataShowIdInput.trim()); setShowSessionPanel(false); } }}
+                                        className="px-4 py-2 bg-sky-500 hover:bg-sky-400 rounded-xl text-sm font-bold transition-all"
+                                    >
+                                        Join
+                                    </button>
+                                </div>
+
+                                {dataShowId && (
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {/* Open projector window */}
+                                        <a
+                                            href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all"
+                                        >
+                                            <Tv2 size={13} /> Open Display Window
+                                        </a>
+                                        {/* Open mobile remote */}
+                                        <a
+                                            href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all"
+                                        >
+                                            <ExternalLink size={13} /> Mobile Remote
+                                        </a>
+                                        {/* Disconnect */}
+                                        <button
+                                            onClick={() => { clearDisplay(); setDataShowId(''); }}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all"
+                                        >
+                                            <X size={13} /> End Session
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    {/* ──────────────────────────────────────────────────────────── */}
                 </div>
 
                 {/* Content Table */}
@@ -737,7 +840,7 @@ export default function WorkSpace() {
                                 </div>
 
                                 {/* Content */}
-                                <div className="p-8 overflow-y-auto custom-scrollbar">
+                                <div className="p-8 overflow-y-auto custom-scrollbar" data-lenis-prevent-wheel>
                                     <p
                                         style={{
                                             color: lyricsThemes[lyricsTheme].text,
@@ -849,7 +952,7 @@ export default function WorkSpace() {
                                     </button>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+                                <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar" data-lenis-prevent-wheel>
                                     {workspace.map((hymn, idx) => (
                                         <SetlistCustomizerCard
                                             key={hymn._id}
@@ -889,7 +992,7 @@ export default function WorkSpace() {
                                     </button>
                                 </div>
 
-                                <div className="p-6 overflow-y-auto max-h-[60vh] space-y-3 custom-scrollbar text-white">
+                                <div className="p-6 overflow-y-auto max-h-[60vh] space-y-3 custom-scrollbar text-white" data-lenis-prevent-wheel>
                                     {isLoadingEvents ? (
                                         <div className="flex justify-center p-10">
                                             <div className="w-8 h-8 border-2 border-sky-500/30 border-t-sky-500 rounded-full animate-spin" />
