@@ -1,7 +1,7 @@
 'use client';
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PlayCircle, Trash2, Heart, Music, ListMusic, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle, Radio, ExternalLink, Tv2 } from 'lucide-react';
+import { PlayCircle, Trash2, Heart, Music, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle, Radio, ExternalLink, Tv2, ChevronUp } from 'lucide-react';
 import Metronome from '../Metronome/page';
 import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
@@ -27,6 +27,8 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
         }, 600);
         return () => clearTimeout(timer);
     }, [localLyrics, localFontSize, hymn._id, hymn.lyrics, hymn.customFontSize, updateWorkspaceHymn]);
+
+
 
     return (
         <div className="bg-white/5 p-5 rounded-2xl border border-white/5 hover:border-sky-500/40 hover:bg-white/10 transition-all duration-200">
@@ -196,6 +198,41 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
 };
 
 export default function WorkSpace() {
+    //3 button ui & ux
+    // ── Smart Dock ─────────────────────────────────────────────────────
+    const [dockOpen, setDockOpen] = useState(false);
+    const [dockToast, setDockToast] = useState('');
+    const [dockToastVisible, setDockToastVisible] = useState(false);
+    const dlRef = useRef(null);
+    const saveRef = useRef(null);
+    const noteRef = useRef(null);
+
+    const showDockToast = (msg) => {
+        setDockToast(msg);
+        setDockToastVisible(true);
+        setTimeout(() => setDockToastVisible(false), 2200);
+    };
+
+    const addDockRipple = (e, ref) => {
+        const btn = ref.current;
+        if (!btn) return;
+        const rect = btn.getBoundingClientRect();
+        const el = document.createElement('span');
+        el.className = 'dock-ripple';
+        el.style.cssText = `left:${e.clientX - rect.left - 30}px;top:${e.clientY - rect.top - 30}px`;
+        btn.appendChild(el);
+        setTimeout(() => el.remove(), 500);
+    };
+
+    useEffect(() => {
+        if (!dockOpen) return;
+        const fn = (e) => {
+            if (!e.target.closest('.dock-pill') && !e.target.closest('.dock-fab')) setDockOpen(false);
+        };
+        document.addEventListener('pointerdown', fn);
+        return () => document.removeEventListener('pointerdown', fn);
+    }, [dockOpen]);
+    // ───────────────────────────────────────────────────────────────────
     const { workspace, removeFromWorkspace, updateWorkspaceHymn } = useContext(HymnsContext);
     const { isLogin, UserRole, vocalsMode } = useContext(UserContext);
 
@@ -442,6 +479,7 @@ export default function WorkSpace() {
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
+                showDockToast('✓ PDF downloaded');
             } else {
                 alert('Failed to generate PDF');
             }
@@ -685,57 +723,79 @@ export default function WorkSpace() {
             <div className="relative z-10 max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="text-center mb-10">
-                    <div className="inline-flex items-center justify-center p-3 bg-white/5 rounded-full mb-4 border border-white/10 backdrop-blur-xl">
-                        <ListMusic className="w-8 h-8 text-sky-400" />
-                    </div>
+
                     <h1 className="text-3xl sm:text-5xl font-extrabold bg-linear-to-br from-sky-300 via-blue-400 to-indigo-500 text-transparent bg-clip-text drop-shadow-lg">
                         My Workspace
                     </h1>
                     <p className="mt-2 text-gray-400">Manage your setlist for the service</p>
 
-                    {/* Action Buttons */}
-                    <div className="mt-6 flex flex-wrap justify-center gap-4">
-                        <button
-                            onClick={() => setShowSetlistModal(true)}
-                            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all font-bold text-sky-300"
-                        >
-                            <FileText className="w-5 h-5" />
-                            Setlist Intros & Notes
-                        </button>
+                    {/* Smart Floating Dock */}
+                    <div className="relative flex justify-center mt-6">
+                        <div className={`dock-toast-inline ${dockToastVisible ? 'visible' : ''}`}>{dockToast}</div>
 
-                        {/* Only show for ADMIN, MANEGER, PROGRAMER */}
-                        {['ADMIN', 'MANEGER', 'PROGRAMER', 'Admin', 'Maneger', 'Programer'].includes(UserRole) && (
-                            <button
-                                onClick={() => {
-                                    fetchChurchEvents();
-                                    setShowEventPicker(true);
-                                }}
-                                disabled={workspace.length === 0 || isSavingEvent}
-                                className={`flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all font-bold text-green-400 ${isSavingEvent ? 'opacity-50' : ''}`}
-                            >
-                                {isSavingEvent ? (
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                ) : (
-                                    <Music className="w-5 h-5" />
-                                )}
-                                Save to Event
-                            </button>
-                        )}
-
-                        <button
-                            onClick={downloadSetlistPDF}
-                            disabled={workspace.length === 0 || isDownloading}
-                            className={`flex items-center gap-2 px-6 py-3 rounded-2xl bg-linear-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 transition-all font-bold shadow-lg shadow-sky-500/20 ${isDownloading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                            {isDownloading ? (
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <div className="dock-wrapper-inline">
+                            {/* main button */}
+                            {!dockOpen ? (
+                                <button
+                                    className="dock-fab-sm"
+                                    onClick={() => setDockOpen(true)}
+                                    aria-label="Open actions"
+                                >
+                                    <ChevronUp size={16} className="dock-fab-icon" strokeWidth={2.5} />
+                                    <span className="dock-fab-label">Actions</span>
+                                </button>
                             ) : (
-                                <Monitor className="w-5 h-5" />
-                            )}
-                            Download PDF Summary
-                        </button>
-                    </div>
+                                <div className="dock-pill">
+                                    {/* notes button */}
+                                    <button
+                                        ref={noteRef}
+                                        className="act-btn act-btn--notes"
+                                        onClick={(e) => { addDockRipple(e, noteRef); setShowSetlistModal(true); setDockOpen(false); }}
+                                    >
+                                        <span className="act-icon"><FileText size={17} strokeWidth={2.2} /></span>
+                                        <span className="act-label">Notes</span>
+                                    </button>
 
+                                    <div className="dock-divider" />
+                                    {/* save event button */}
+                                    {['ADMIN', 'MANEGER', 'PROGRAMER', 'Admin', 'Maneger', 'Programer'].includes(UserRole) && (
+                                        <button
+                                            ref={saveRef}
+                                            className="act-btn act-btn--save"
+                                            disabled={workspace.length === 0 || isSavingEvent}
+                                            onClick={(e) => { addDockRipple(e, saveRef); fetchChurchEvents(); setShowEventPicker(true); setDockOpen(false); }}
+                                        >
+                                            {isSavingEvent
+                                                ? <span className="dock-btn-spinner" />
+                                                : <span className="act-icon"><Music size={17} strokeWidth={2.2} /></span>}
+                                            <span className="act-label">{isSavingEvent ? 'Saving…' : 'Save'}</span>
+                                        </button>
+                                    )}
+
+                                    <div className="dock-divider" />
+                                    {/* pdf download button */}
+                                    <button
+                                        ref={dlRef}
+                                        className="act-btn act-btn--download"
+                                        disabled={workspace.length === 0 || isDownloading}
+                                        onClick={(e) => { addDockRipple(e, dlRef); downloadSetlistPDF(); setDockOpen(false); }}
+                                    >
+                                        {isDownloading
+                                            ? <span className="dock-btn-spinner" />
+                                            : <span className="act-icon"><Monitor size={17} strokeWidth={2.2} /></span>}
+                                        <span className="act-label">{isDownloading ? 'Exporting…' : 'PDF'}</span>
+                                    </button>
+
+                                    <div className="dock-divider" />
+
+                                    <button className="dock-close-btn" onClick={() => setDockOpen(false)} aria-label="Close">
+                                        <X size={15} strokeWidth={2.5} />
+                                    </button>
+
+                                </div>
+                            )}
+                        </div>
+                    </div>
                     {/* ── Live Session Panel ───────────────────────────────────── */}
                     <div className="mt-6">
                         {/* Toggle button */}

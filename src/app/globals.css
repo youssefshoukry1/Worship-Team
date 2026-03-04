@@ -1,3 +1,5 @@
+  @import 'https://fonts.googleapis.com/css2?family=Outfit:wght@500;700&display=swap';
+
 @import "tailwindcss";
 
 body {
@@ -77,4 +79,233 @@ html.lenis {
 
 .lenis.lenis-stopped {
   overflow: hidden;
+}
+
+
+
+/* ── Smart Dock ───────────────────────────────────────────── */
+@keyframes dock-rise {
+  from { transform: translateY(120%) scale(0.92); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);    opacity: 1; }
+}
+@keyframes dock-ripple {
+  to { transform: scale(3.5); opacity: 0; }
+}
+@keyframes dock-spin { to { transform: rotate(360deg); } }
+
+.dock-wrapper {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  animation: dock-rise 0.45s cubic-bezier(.34,1.56,.64,1) both;
+}
+
+.dock-fab {
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  border: none; cursor: pointer;
+  background: linear-gradient(135deg, rgba(14,165,233,0.85), rgba(37,99,235,0.85));
+  box-shadow: 0 0 0 1px rgba(56,189,248,0.4), 0 8px 32px rgba(37,99,235,0.5), inset 0 1px 0 rgba(255,255,255,0.25);
+  backdrop-filter: blur(14px);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.2s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s ease;
+}
+.dock-fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 1px rgba(56,189,248,0.6), 0 12px 40px rgba(37,99,235,0.6), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.dock-fab:active { transform: scale(0.94); }
+.dock-fab-icon { transition: transform 0.3s cubic-bezier(.34,1.56,.64,1); }
+
+.dock-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 10px; border-radius: 999px;
+  background: rgba(10, 20, 40, 0.72);
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.05) inset, 0 20px 60px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3);
+  white-space: nowrap;
+  animation: dock-rise 0.35s cubic-bezier(.34,1.56,.64,1) both;
+}
+
+.act-btn {
+  position: relative; display: flex; align-items: center; gap: 0;
+  height: 42px; border-radius: 999px;
+  border: none; cursor: pointer; overflow: hidden;
+  padding: 0 14px;
+  transition: background 0.2s ease, box-shadow 0.2s ease,
+              padding 0.25s cubic-bezier(.34,1.56,.64,1),
+              gap 0.25s cubic-bezier(.34,1.56,.64,1);
+  -webkit-font-smoothing: antialiased;
+}
+.act-btn:disabled { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
+.act-btn:active   { transform: scale(0.95); }
+
+.act-icon {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px;
+  transition: transform 0.2s cubic-bezier(.34,1.56,.64,1);
+}
+.act-btn:hover .act-icon { transform: scale(1.15); }
+
+.act-label {
+  font-size: 13px; font-weight: 600; letter-spacing: 0.01em;
+  max-width: 0; overflow: hidden; opacity: 0; margin-left: 0;
+  pointer-events: none;
+  transition: max-width 0.28s cubic-bezier(.34,1.56,.64,1),
+              opacity 0.2s ease, margin 0.28s ease;
+}
+.act-btn:hover .act-label,
+.act-btn:focus .act-label { max-width: 140px; opacity: 1; margin-left: 6px; }
+
+.dock-ripple {
+  position: absolute; border-radius: 50%;
+  width: 60px; height: 60px;
+  background: rgba(255,255,255,0.15);
+  transform: scale(0); opacity: 1;
+  animation: dock-ripple 0.5s ease-out forwards;
+  pointer-events: none;
+}
+
+.act-btn--notes {
+  background: rgba(14,165,233,0.12); color: #7dd3fc;
+  box-shadow: 0 0 0 1px rgba(56,189,248,0.2) inset;
+}
+.act-btn--notes:hover {
+  background: rgba(14,165,233,0.22); color: #bae6fd;
+  box-shadow: 0 0 0 1px rgba(56,189,248,0.4) inset, 0 4px 20px rgba(14,165,233,0.2);
+}
+
+.act-btn--save {
+  background: rgba(16,185,129,0.12); color: #6ee7b7;
+  box-shadow: 0 0 0 1px rgba(52,211,153,0.2) inset;
+}
+.act-btn--save:hover {
+  background: rgba(16,185,129,0.22); color: #a7f3d0;
+  box-shadow: 0 0 0 1px rgba(52,211,153,0.4) inset, 0 4px 20px rgba(16,185,129,0.2);
+}
+
+.act-btn--download {
+  background: linear-gradient(135deg, rgba(14,165,233,0.7), rgba(37,99,235,0.7));
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(56,189,248,0.3) inset, 0 4px 20px rgba(37,99,235,0.3);
+}
+.act-btn--download:hover {
+  background: linear-gradient(135deg, rgba(56,189,248,0.8), rgba(59,130,246,0.8));
+  box-shadow: 0 0 0 1px rgba(56,189,248,0.5) inset, 0 6px 28px rgba(37,99,235,0.45);
+}
+
+.dock-divider {
+  width: 1px; height: 26px;
+  background: rgba(255,255,255,0.1);
+  flex-shrink: 0; border-radius: 999px;
+}
+
+.dock-close-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: none; cursor: pointer;
+  background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, color 0.15s, transform 0.2s;
+}
+.dock-close-btn:hover { background: rgba(255,255,255,0.12); color: #fff; transform: scale(1.1); }
+
+.dock-toast {
+  position: fixed; bottom: 94px;
+  left: 50%; transform: translateX(-50%) translateY(8px);
+  background: rgba(10,20,40,0.9);
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(16px); color: #e2e8f0;
+  font-size: 13px; font-weight: 500;
+  padding: 10px 18px; border-radius: 12px;
+  white-space: nowrap; opacity: 0; pointer-events: none;
+  transition: opacity 0.2s, transform 0.25s cubic-bezier(.34,1.56,.64,1);
+  z-index: 10000;
+}
+.dock-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.dock-btn-spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.25);
+  border-top-color: #fff; border-radius: 50%;
+  animation: dock-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+/* ─────────────────────────────────────────────────────────── */
+
+/* ── Inline dock (replaces fixed dock-wrapper) ── */
+.dock-wrapper-inline {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  animation: dock-rise 0.4s cubic-bezier(.34,1.56,.64,1) both;
+}
+
+/* ── Small modern FAB trigger ── */
+.dock-fab-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  cursor: pointer;
+  background: rgba(14, 165, 233, 0.08);
+  backdrop-filter: blur(12px);
+  color: #7dd3fc;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: transform 0.2s cubic-bezier(.34,1.56,.64,1),
+              background 0.2s ease,
+              box-shadow 0.2s ease,
+              border-color 0.2s ease;
+  box-shadow: 0 2px 12px rgba(14, 165, 233, 0.1);
+}
+.dock-fab-sm:hover {
+  background: rgba(14, 165, 233, 0.16);
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.2);
+  color: #bae6fd;
+  transform: translateY(-1px) scale(1.03);
+}
+.dock-fab-sm:active { transform: scale(0.96); }
+.dock-fab-sm .dock-fab-icon {
+  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
+}
+.dock-fab-sm:hover .dock-fab-icon { transform: translateY(-1px); }
+
+.dock-fab-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ── Inline toast (above the pill, not fixed) ── */
+.dock-toast-inline {
+  position: absolute;
+  top: -44px;
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  background: rgba(10, 20, 40, 0.9);
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(16px);
+  color: #e2e8f0;
+  font-size: 12px; font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 10px;
+  white-space: nowrap;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s, transform 0.25s cubic-bezier(.34,1.56,.64,1);
+  z-index: 100;
+}
+.dock-toast-inline.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
