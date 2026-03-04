@@ -20,6 +20,44 @@ function DisplayContent() {
     const totalSlides = displayState?.slides?.length ?? 0;
     const isCleared = displayState?.type === 'clear' || (!displayState?.currentHymnId && displayState?.type !== 'sync');
 
+    const renderSlideWithChords = (text) => {
+        if (!text) return null;
+
+        return text.split('\n').map((line, i) => (
+            <div
+                key={i}
+                className={`relative w-full text-center ${line.includes('[') ? 'mt-[1em] mb-2' : 'my-2'}`}
+                style={{ fontSize: 'clamp(30px, 7vw, 72px)', lineHeight: '1.65' }}
+                dir="rtl"
+            >
+                {line ? line.split(/(\[.*?\])/g).map((part, j) => {
+                    if (part.startsWith('[') && part.endsWith(']')) {
+                        const chord = part.slice(1, -1);
+                        return (
+                            <span key={j} className="inline-block relative overflow-visible mx-[0.1em] align-baseline text-white font-bold whitespace-pre-line leading-relaxed" style={{ lineHeight: '1' }}>
+                                {/* Hidden placeholder to reserve space and prevent overlapping */}
+                                <span className="invisible whitespace-nowrap" style={{ fontSize: '0.7em' }} dir="ltr">
+                                    {chord}
+                                </span>
+                                <span
+                                    className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap shadow-sm mb-1 text-sky-300"
+                                    style={{
+                                        fontSize: '0.7em',
+                                        textShadow: '0 2px 4px rgba(0,0,0,0.8)'
+                                    }}
+                                    dir="ltr"
+                                >
+                                    {chord}
+                                </span>
+                            </span>
+                        );
+                    }
+                    return <span key={j} className="text-white font-bold whitespace-pre-line leading-relaxed">{part}</span>;
+                }) : <br />}
+            </div>
+        ));
+    };
+
     return (
         <div
             className="fixed inset-0 bg-black flex flex-col items-center justify-center select-none overflow-hidden"
@@ -94,15 +132,9 @@ function DisplayContent() {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 1.02 }}
                         transition={{ duration: 0.25, ease: 'easeInOut' }}
-                        className="w-full h-full flex items-center justify-center px-12 text-center"
+                        className="w-full h-full flex flex-col items-center justify-center px-12 text-center"
                     >
-                        <p
-                            className="text-white font-bold whitespace-pre-line leading-relaxed"
-                            style={{ fontSize: 'clamp(30px, 7vw, 72px)', lineHeight: 1.65 }}
-                            dir="rtl"
-                        >
-                            {slide}
-                        </p>
+                        {renderSlideWithChords(slide)}
                     </motion.div>
                 )}
             </AnimatePresence>

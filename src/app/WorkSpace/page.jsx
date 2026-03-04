@@ -254,10 +254,81 @@ export default function WorkSpace() {
     const [dataShowId, setDataShowId] = useState('');
     const [dataShowIdInput, setDataShowIdInput] = useState('');
     const [showSessionPanel, setShowSessionPanel] = useState(false);
+
+    useEffect(() => {
+        const savedSession = localStorage.getItem('myLivePresentationId');
+        if (savedSession) {
+            const checkSession = async () => {
+                try {
+                    const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+                    const response = await fetch(`${BASE_URL}/presentation/check/${encodeURIComponent(savedSession)}`);
+                    const data = await response.json();
+                    if (data.exists) {
+                        setDataShowId(savedSession);
+                    } else {
+                        localStorage.removeItem('myLivePresentationId');
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            };
+            checkSession();
+        }
+    }, []);
+
     const { isConnected, broadcastHymn, broadcastSlide, clearDisplay } = usePresentation(
         dataShowId || null,
         'controller'
     );
+
+    const handleCreateSession = async () => {
+        if (dataShowId || localStorage.getItem('myLivePresentationId')) {
+            alert("You already have an active Live Presentation on this device. Please end it first.");
+            return;
+        }
+
+        const id = dataShowIdInput.trim();
+        if (!id) return;
+
+        try {
+            const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+            const response = await fetch(`${BASE_URL}/presentation/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dataShowId: id })
+            });
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                setDataShowId(id);
+                localStorage.setItem('myLivePresentationId', id);
+                setShowSessionPanel(false);
+            } else {
+                alert(data.error || "Failed to create session");
+            }
+        } catch (error) {
+            alert("Failed to create session");
+        }
+    };
+
+    const handleJoinSession = async () => {
+        const id = dataShowIdInput.trim();
+        if (!id) return;
+
+        try {
+            const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+            const response = await fetch(`${BASE_URL}/presentation/check/${encodeURIComponent(id)}`);
+            const data = await response.json();
+            if (data.exists) {
+                window.open(`/presentation/display?dataShowId=${encodeURIComponent(id)}`, '_blank');
+                setShowSessionPanel(false);
+            } else {
+                alert("Presentation room does not exist or has expired.");
+            }
+        } catch (error) {
+            alert("Failed to join session: could not connect to server");
+        }
+    };
     // ──────────────────────────────────────────────────────────────────
 
     const [showSetlistModal, setShowSetlistModal] = useState(false);
@@ -389,11 +460,11 @@ export default function WorkSpace() {
 
         // Lyrics in workspace are already transposed when added
         return selectedLyricsHymn.lyrics
-            .replace(/\[.*?\]/g, '') // Remove chords
             .split('\n\n')
             .map(b => b.trim())
-            .filter(Boolean);
-    }, [selectedLyricsHymn?.lyrics]);
+            .filter(Boolean)
+            .map(slide => showChords ? slide.replace(/\[/g, ' [') : slide.replace(/\[.*?\]/g, ''));
+    }, [selectedLyricsHymn?.lyrics, showChords]);
 
     const openLyrics = (hymn) => {
         setSelectedLyricsHymn(hymn);
@@ -512,13 +583,13 @@ export default function WorkSpace() {
     useEffect(() => {
         if (showDataShow && dataShowId && selectedLyricsHymn && isConnected) {
             const slides = selectedLyricsHymn.lyrics
-                ? selectedLyricsHymn.lyrics.replace(/\[.*?\]/g, '').split('\n\n').map(b => b.trim()).filter(Boolean)
+                ? selectedLyricsHymn.lyrics.replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '').split('\n\n').map(b => b.trim()).filter(Boolean)
                 : [];
             broadcastHymn(selectedLyricsHymn, slides);
             broadcastSlide(dataShowIndex);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [showDataShow, dataShowId, selectedLyricsHymn, isConnected, broadcastHymn]);
+    }, [showDataShow, dataShowId, selectedLyricsHymn, isConnected, broadcastHymn, showChords]);
 
     // Broadcast slide change whenever dataShowIndex moves exclusively
     useEffect(() => {
@@ -534,25 +605,26 @@ export default function WorkSpace() {
         return text.split('\n').map((line, i) => (
             <div
                 key={i}
-                className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-6 mb-2' : 'my-2'}`}
+                className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-[1.2rem] mb-2' : 'my-2'}`}
                 style={{ fontSize: `${fontSize}px`, minHeight: '1.5em', lineHeight: '1.8' }}
+                dir="rtl"
             >
                 {line ? line.split(/(\[.*?\])/g).map((part, j) => {
                     if (part.startsWith('[') && part.endsWith(']')) {
                         if (!showChords) return null;
                         const chord = part.slice(1, -1);
                         return (
-                            <span key={j} className="inline-block relative overflow-visible mx-0.5 align-baseline" style={{ lineHeight: '1' }}>
+                            <span key={j} className="inline-block relative overflow-visible mx-[0.1em] align-baseline whitespace-pre-line leading-relaxed" style={{ lineHeight: '1' }}>
                                 {/* Hidden placeholder to reserve space and prevent overlapping */}
-                                <span className="invisible whitespace-nowrap" style={{ fontSize: `${fontSize * 0.75}px` }} dir="ltr">
+                                <span className="invisible whitespace-nowrap" style={{ fontSize: `0.75em` }} dir="ltr">
                                     {chord}
                                 </span>
                                 <span
                                     className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap shadow-sm mb-1"
                                     style={{
                                         color: lyricsTheme === 'warm' ? '#0369a1' : '#38bdf8',
-                                        fontSize: `${fontSize * 0.75}px`,
-                                        textShadow: lyricsTheme === 'warm' ? 'none' : '0 1px 2px rgba(0,0,0,0.5)'
+                                        fontSize: `0.75em`,
+                                        textShadow: lyricsTheme === 'warm' ? 'none' : '0 2px 4px rgba(0,0,0,0.8)'
                                     }}
                                     dir="ltr"
                                 >
@@ -561,7 +633,44 @@ export default function WorkSpace() {
                             </span>
                         );
                     }
-                    return <span key={j}>{part}</span>;
+                    return <span key={j} className="whitespace-pre-line leading-relaxed">{part}</span>;
+                }) : <br />}
+            </div>
+        ));
+    };
+
+    const renderPresentationSlideWithChords = (text) => {
+        if (!text) return null;
+
+        return text.split('\n').map((line, i) => (
+            <div
+                key={i}
+                className={`relative w-full text-center ${line.includes('[') ? 'mt-[1em] mb-2' : 'my-2'}`}
+                style={{ fontSize: 'clamp(32px, 8vw, 64px)', lineHeight: '1.6' }}
+                dir="rtl"
+            >
+                {line ? line.split(/(\[.*?\])/g).map((part, j) => {
+                    if (part.startsWith('[') && part.endsWith(']')) {
+                        const chord = part.slice(1, -1);
+                        return (
+                            <span key={j} className="inline-block relative overflow-visible mx-[0.1em] align-baseline text-white font-bold whitespace-pre-line leading-relaxed select-none" style={{ lineHeight: '1' }}>
+                                <span className="invisible whitespace-nowrap" style={{ fontSize: '0.7em' }} dir="ltr">
+                                    {chord}
+                                </span>
+                                <span
+                                    className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap shadow-sm mb-1 text-sky-300 pointer-events-none"
+                                    style={{
+                                        fontSize: '0.7em',
+                                        textShadow: '0 2px 4px rgba(0,0,0,0.8)'
+                                    }}
+                                    dir="ltr"
+                                >
+                                    {chord}
+                                </span>
+                            </span>
+                        );
+                    }
+                    return <span key={j} className="text-white font-bold whitespace-pre-line leading-relaxed select-none">{part}</span>;
                 }) : <br />}
             </div>
         ));
@@ -646,33 +755,41 @@ export default function WorkSpace() {
 
                         {/* Session setup drawer */}
                         {showSessionPanel && (
-                            <div className="mt-3 p-4 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm max-w-md mx-auto">
+                            <div className="mt-3 p-4 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm mx-auto w-full sm:w-auto sm:min-w-[400px]">
                                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Live Presentation Room</p>
-                                <div className="flex gap-2">
+                                <div className="flex flex-col sm:flex-row gap-2">
                                     <input
                                         type="text"
                                         value={dataShowIdInput}
                                         onChange={e => setDataShowIdInput(e.target.value)}
                                         placeholder='Room code  e.g. "sunday-01"'
-                                        className="flex-1 bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600"
-                                        onKeyDown={e => { if (e.key === 'Enter' && dataShowIdInput.trim()) { setDataShowId(dataShowIdInput.trim()); setShowSessionPanel(false); } }}
+                                        className="flex-1 bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600 w-full"
+                                        onKeyDown={e => { if (e.key === 'Enter') handleJoinSession(); }}
                                     />
-                                    <button
-                                        onClick={() => { if (dataShowIdInput.trim()) { setDataShowId(dataShowIdInput.trim()); setShowSessionPanel(false); } }}
-                                        className="px-4 py-2 bg-sky-500 hover:bg-sky-400 rounded-xl text-sm font-bold transition-all"
-                                    >
-                                        Join
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handleCreateSession}
+                                            className="flex-1 sm:flex-none px-4 py-2 bg-sky-500 hover:bg-sky-400 rounded-xl text-sm font-bold transition-all whitespace-nowrap"
+                                        >
+                                            Create
+                                        </button>
+                                        <button
+                                            onClick={handleJoinSession}
+                                            className="flex-1 sm:flex-none px-4 py-2 bg-indigo-500 hover:bg-indigo-400 rounded-xl text-sm font-bold transition-all whitespace-nowrap"
+                                        >
+                                            Join
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {dataShowId && (
-                                    <div className="mt-3 flex flex-wrap gap-2">
+                                    <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-2">
                                         {/* Open projector window */}
                                         <a
                                             href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all"
+                                            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all flex-1"
                                         >
                                             <Tv2 size={13} /> Open Display Window
                                         </a>
@@ -681,14 +798,14 @@ export default function WorkSpace() {
                                             href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all"
+                                            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all flex-1"
                                         >
                                             <ExternalLink size={13} /> Mobile Remote
                                         </a>
                                         {/* Disconnect */}
                                         <button
-                                            onClick={() => { clearDisplay(); setDataShowId(''); }}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all"
+                                            onClick={() => { clearDisplay(); setDataShowId(''); localStorage.removeItem('myLivePresentationId'); }}
+                                            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all w-full sm:w-auto"
                                         >
                                             <X size={13} /> End Session
                                         </button>
@@ -914,19 +1031,10 @@ export default function WorkSpace() {
                                     initial={{ opacity: 0, scale: 0.98 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     exit={{ opacity: 0, scale: 0.98 }}
-                                    transition={{ duration: 0.2, ease: "easeInOut" }}
-                                    className="w-full h-full flex items-center justify-center px-10 text-center"
+                                    transition={{ duration: 0.1, ease: "easeInOut" }}
+                                    className="w-full h-full flex flex-col items-center justify-center px-10 text-center"
                                 >
-                                    <p
-                                        className="text-white font-bold whitespace-pre-line select-none"
-                                        style={{
-                                            fontSize: "clamp(32px, 8vw, 64px)",
-                                            lineHeight: 1.6
-                                        }}
-                                        dir="rtl"
-                                    >
-                                        {dataShowSlides[dataShowIndex]}
-                                    </p>
+                                    {renderPresentationSlideWithChords(dataShowSlides[dataShowIndex])}
                                 </motion.div>
                             </AnimatePresence>
                         </div>

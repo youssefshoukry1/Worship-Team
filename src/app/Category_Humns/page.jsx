@@ -51,10 +51,71 @@ export default function Category_Humns() {
   const [dataShowId, setDataShowId] = useState('');
   const [dataShowIdInput, setDataShowIdInput] = useState('');
   const [showSessionPanel, setShowSessionPanel] = useState(false);
+
+  useEffect(() => {
+    const savedSession = localStorage.getItem('myLivePresentationId');
+    if (savedSession) {
+      const checkSession = async () => {
+        try {
+          const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+          const response = await axios.get(`${BASE_URL}/presentation/check/${encodeURIComponent(savedSession)}`);
+          if (response.data.exists) {
+            setDataShowId(savedSession);
+          } else {
+            localStorage.removeItem('myLivePresentationId');
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+      checkSession();
+    }
+  }, []);
+
   const { isConnected, broadcastHymn, broadcastSlide, clearDisplay } = usePresentation(
     dataShowId || null,
     'controller'
   );
+
+  const handleCreateSession = async () => {
+    if (dataShowId || localStorage.getItem('myLivePresentationId')) {
+      alert("You already have an active Live Presentation on this device. Please end it first.");
+      return;
+    }
+
+    const id = dataShowIdInput.trim();
+    if (!id) return;
+
+    try {
+      const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const response = await axios.post(`${BASE_URL}/presentation/create`, { dataShowId: id });
+      if (response.data.success) {
+        setDataShowId(id);
+        localStorage.setItem('myLivePresentationId', id);
+        setShowSessionPanel(false);
+      }
+    } catch (error) {
+      alert(error.response?.data?.error || "Failed to create session");
+    }
+  };
+
+  const handleJoinSession = async () => {
+    const id = dataShowIdInput.trim();
+    if (!id) return;
+
+    try {
+      const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const response = await axios.get(`${BASE_URL}/presentation/check/${encodeURIComponent(id)}`);
+      if (response.data.exists) {
+        window.open(`/presentation/display?dataShowId=${encodeURIComponent(id)}`, '_blank');
+        setShowSessionPanel(false);
+      } else {
+        alert("Presentation room does not exist or has expired.");
+      }
+    } catch (error) {
+      alert("Failed to join session: could not connect to server");
+    }
+  };
   // ──────────────────────────────────────────────────────────────────
 
   const lyricsInputRef = React.useRef(null); // Ref for the lyrics textarea
@@ -70,11 +131,11 @@ export default function Category_Humns() {
       : selectedLyricsHymn.lyrics;
 
     return lyricsToUse
-      .replace(/\[.*?\]/g, '') // Remove chords
+      .replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
       .split('\n\n')
       .map(b => b.trim())
       .filter(Boolean);
-  }, [selectedLyricsHymn?.lyrics, selectedLyricsHymn?.transposeStep]);
+  }, [selectedLyricsHymn?.lyrics, selectedLyricsHymn?.transposeStep, showChords]);
 
   //Data show Swipe - Native Touch Events (No Library)
   useEffect(() => {
@@ -150,7 +211,7 @@ export default function Category_Humns() {
         : (selectedLyricsHymn.lyrics || '');
 
       const slides = lyricsToUse
-        .replace(/\[.*?\]/g, '')
+        .replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
         .split('\n\n')
         .map(b => b.trim())
         .filter(Boolean);
@@ -451,8 +512,9 @@ export default function Category_Humns() {
     return text.split('\n').map((line, i) => (
       <div
         key={i}
-        className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-6 mb-2' : 'my-2'}`}
+        className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-[1.2rem] mb-2' : 'my-2'}`}
         style={{ fontSize: `${fontSize}px`, minHeight: '1.5em', lineHeight: '1.8' }}
+        dir="rtl"
       >
         {line ? line.split(/(\[.*?\])/g).map((part, j) => {
           if (part.startsWith('[') && part.endsWith(']')) {
@@ -464,17 +526,17 @@ export default function Category_Humns() {
               : chord;
 
             return (
-              <span key={j} className="inline-block relative overflow-visible mx-0.5 align-baseline" style={{ lineHeight: '1' }}>
+              <span key={j} className="inline-block relative overflow-visible mx-[0.1em] align-baseline whitespace-pre-line leading-relaxed" style={{ lineHeight: '1' }}>
                 {/* Hidden placeholder to reserve space and prevent overlapping */}
-                <span className="invisible whitespace-nowrap" style={{ fontSize: `${fontSize * 0.75}px` }} dir="ltr">
+                <span className="invisible whitespace-nowrap" style={{ fontSize: `0.75em` }} dir="ltr">
                   {transposedChord}
                 </span>
                 <span
                   className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap shadow-sm mb-1"
                   style={{
                     color: lyricsTheme === 'warm' ? '#0369a1' : '#38bdf8',
-                    fontSize: `${fontSize * 0.75}px`, // Chords slightly smaller
-                    textShadow: lyricsTheme === 'warm' ? 'none' : '0 1px 2px rgba(0,0,0,0.5)'
+                    fontSize: `0.75em`, // Chords slightly smaller
+                    textShadow: lyricsTheme === 'warm' ? 'none' : '0 2px 4px rgba(0,0,0,0.8)'
                   }}
                   dir="ltr"
                 >
@@ -483,642 +545,676 @@ export default function Category_Humns() {
               </span>
             );
           }
-          return <span key={j}>{part}</span>;
+          return <span key={j} className="whitespace-pre-line leading-relaxed">{part}</span>;
         }) : <br />}
       </div>
     ));
   };
 
-  return (
+  const renderPresentationSlideWithChords = (text) => {
+    if (!text) return null;
+
+    return text.split('\n').map((line, i) => (
+      <div
+        key={i}
+        className={`relative w-full text-center ${line.includes('[') ? 'mt-[1em] mb-2' : 'my-2'}`}
+        style={{ fontSize: 'clamp(32px, 8vw, 64px)', lineHeight: '1.6' }}
+        dir="rtl"
+      >
+        {line ? line.split(/(\[.*?\])/g).map((part, j) => {
+          if (part.startsWith('[') && part.endsWith(']')) {
+            const chord = part.slice(1, -1);
+            return (
+              <span key={j} className="inline-block relative overflow-visible mx-[0.1em] align-baseline text-white font-bold whitespace-pre-line leading-relaxed select-none" style={{ lineHeight: '1' }}>
+                <span className="invisible whitespace-nowrap" style={{ fontSize: '0.7em' }} dir="ltr">
+                  {chord}
+                </span>
+                <span
+                  className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap shadow-sm mb-1 text-sky-300 pointer-events-none"
+                  style={{
+                    fontSize: '0.7em',
+                    textShadow: '0 2px 4px rgba(0,0,0,0.8)'
+                  }}
+                  dir="ltr"
+                >
+                  {chord}
+                </span>
+              </span>
+            );
+          }
+          return <span key={j} className="text-white font-bold whitespace-pre-line leading-relaxed select-none">{part}</span>;
+        }) : <br />}
+      </div>
+    ));
+  };
 
 
-    <section id="Category_Humns" className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-10 relative overflow-hidden">
-      {/* Background Gradients */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_70%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.15),transparent_70%)]" />
+  return (<section id="Category_Humns" className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-10 relative overflow-hidden">
+    {/* Background Gradients */}
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_70%)]" />
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.15),transparent_70%)]" />
 
-      <div className="relative z-10 max-w-7xl mx-auto">
+    <div className="relative z-10 max-w-7xl mx-auto">
 
 
-        {/* Search Section - Centered under Title */}
-        <div className="mb-8 flex items-center justify-center gap-3 relative z-20 h-12">
-          {/* Search Toggle (Icon Only) */}
-          <button
-            onClick={() => {
-              setShowSearchBar(!showSearchBar);
-              if (showSearchBar) {
-                setSearch(''); // Clear search when closing
-              }
-            }}
-            className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 border backdrop-blur-xl relative overflow-hidden group shadow-lg z-30
+      {/* Search Section - Centered under Title */}
+      <div className="mb-8 flex items-center justify-center gap-3 relative z-20 h-12">
+        {/* Search Toggle (Icon Only) */}
+        <button
+          onClick={() => {
+            setShowSearchBar(!showSearchBar);
+            if (showSearchBar) {
+              setSearch(''); // Clear search when closing
+            }
+          }}
+          className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 border backdrop-blur-xl relative overflow-hidden group shadow-lg z-30
                  ${showSearchBar
-                ? 'bg-red-500/10 border-red-500/20 text-red-400 rotate-90 scale-90'
-                : 'bg-white/5 border-white/20 text-sky-200 hover:bg-white/10 hover:text-white hover:border-sky-400/30 hover:shadow-[0_0_15px_rgba(56,189,248,0.3)]'
-              }`}
-            title={showSearchBar ? "Close Search" : "Search Hymns"}
+              ? 'bg-red-500/10 border-red-500/20 text-red-400 rotate-90 scale-90'
+              : 'bg-white/5 border-white/20 text-sky-200 hover:bg-white/10 hover:text-white hover:border-sky-400/30 hover:shadow-[0_0_15px_rgba(56,189,248,0.3)]'
+            }`}
+          title={showSearchBar ? "Close Search" : "Search Hymns"}
+        >
+          {showSearchBar ? (
+            <X className="w-5 h-5" />
+          ) : (
+            <Search className="w-5 h-5" />
+          )}
+        </button>
+
+        {/* Modern Side-by-Side Glass Input */}
+        <AnimatePresence>
+          {showSearchBar && (
+            <motion.div
+              initial={{ opacity: 0, width: 0, scale: 0.9 }}
+              animate={{ opacity: 1, width: '250px', scale: 1 }}
+              exit={{ opacity: 0, width: 0, scale: 0.9 }}
+              transition={{ duration: 0.3, type: "spring", stiffness: 200, damping: 25 }}
+              className="overflow-hidden flex items-center"
+            >
+              <div className="relative w-full h-10">
+                <div className="absolute inset-0 bg-white/5 border border-white/10 rounded-full backdrop-blur-xl shadow-inner" />
+
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t("searchPlaceholder")}
+                  className="w-full h-full pl-4 pr-8 py-2 bg-transparent text-sm text-white placeholder-gray-400/70 
+                                outline-none relative z-10 font-light tracking-wide"
+                  autoFocus
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-white/20 text-gray-400 hover:text-white transition-all z-20"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Categories Tabs */}
+      {
+        showSearchBar ?
+          (null) :
+          <div className="flex flex-wrap justify-center gap-4 mb-8">
+            {categories.map((cat) => {
+              const Icon = cat.icon;
+              const isActive = activeTab === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveTab(cat.id)}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 border backdrop-blur-md relative overflow-hidden group
+                  ${isActive
+                      ? 'bg-sky-500/20 border-sky-400/50 text-sky-200 shadow-[0_0_20px_rgba(56,189,248,0.3)]'
+                      : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                    }`}
+                >
+                  {isActive && (
+                    <div className="absolute inset-0 bg-sky-400/10 blur-xl rounded-full" />
+                  )}
+                  <Icon className={`w-5 h-5 relative z-10 ${isActive ? 'text-sky-300' : ''}`} />
+                  <span className="font-medium relative z-10">{cat.label}</span>
+                </button>
+              )
+            })}
+          </div>
+
+      }
+
+
+
+
+
+      {/* Admin Controls */}
+      {canEdit && (
+        <div className="flex flex-wrap justify-end items-center gap-3 mb-6">
+          <button
+            onClick={openModal}
+            className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-full hover:bg-gray-100 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_25px_rgba(255,255,255,0.5)] active:scale-95 font-semibold text-sm"
           >
-            {showSearchBar ? (
-              <X className="w-5 h-5" />
-            ) : (
-              <Search className="w-5 h-5" />
-            )}
+            <PlusCircle className="w-5 h-5" />
+            <span>{t("newHymn")}</span>
           </button>
 
-          {/* Modern Side-by-Side Glass Input */}
-          <AnimatePresence>
-            {showSearchBar && (
-              <motion.div
-                initial={{ opacity: 0, width: 0, scale: 0.9 }}
-                animate={{ opacity: 1, width: '250px', scale: 1 }}
-                exit={{ opacity: 0, width: 0, scale: 0.9 }}
-                transition={{ duration: 0.3, type: "spring", stiffness: 200, damping: 25 }}
-                className="overflow-hidden flex items-center"
-              >
-                <div className="relative w-full h-10">
-                  <div className="absolute inset-0 bg-white/5 border border-white/10 rounded-full backdrop-blur-xl shadow-inner" />
-
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder={t("searchPlaceholder")}
-                    className="w-full h-full pl-4 pr-8 py-2 bg-transparent text-sm text-white placeholder-gray-400/70 
-                                outline-none relative z-10 font-light tracking-wide"
-                    autoFocus
-                  />
-                  {search && (
-                    <button
-                      onClick={() => setSearch('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-white/20 text-gray-400 hover:text-white transition-all z-20"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Categories Tabs */}
-        {
-          showSearchBar ?
-            (null) :
-            <div className="flex flex-wrap justify-center gap-4 mb-8">
-              {categories.map((cat) => {
-                const Icon = cat.icon;
-                const isActive = activeTab === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    onClick={() => setActiveTab(cat.id)}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 border backdrop-blur-md relative overflow-hidden group
-                  ${isActive
-                        ? 'bg-sky-500/20 border-sky-400/50 text-sky-200 shadow-[0_0_20px_rgba(56,189,248,0.3)]'
-                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
-                      }`}
-                  >
-                    {isActive && (
-                      <div className="absolute inset-0 bg-sky-400/10 blur-xl rounded-full" />
-                    )}
-                    <Icon className={`w-5 h-5 relative z-10 ${isActive ? 'text-sky-300' : ''}`} />
-                    <span className="font-medium relative z-10">{cat.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-
-        }
-
-
-
-
-
-        {/* Admin Controls */}
-        {canEdit && (
-          <div className="flex flex-wrap justify-end items-center gap-3 mb-6">
+          {/* Live Session Panel */}
+          <div className="relative">
             <button
-              onClick={openModal}
-              className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-full hover:bg-gray-100 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_25px_rgba(255,255,255,0.5)] active:scale-95 font-semibold text-sm"
+              onClick={() => setShowSessionPanel(p => !p)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all font-semibold text-sm border
+                  ${isConnected
+                  ? 'bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20'
+                  : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                }`}
             >
-              <PlusCircle className="w-5 h-5" />
-              <span>{t("newHymn")}</span>
+              <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse' : ''}`} />
+              {isConnected ? (
+                <><span className="text-[10px] text-green-500 font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
+              ) : 'Live Session'}
             </button>
 
-            {/* Live Session Panel */}
-            <div className="relative">
-              <button
-                onClick={() => setShowSessionPanel(p => !p)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all font-semibold text-sm border
-                  ${isConnected
-                    ? 'bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20'
-                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
-                  }`}
-              >
-                <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse' : ''}`} />
-                {isConnected ? (
-                  <><span className="text-[10px] text-green-500 font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
-                ) : 'Live Session'}
-              </button>
-
-              {showSessionPanel && (
-                <div className="absolute right-0 mt-2 z-50 p-4 bg-[#0c1627] border border-white/10 rounded-2xl shadow-2xl w-72">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Presentation Room</p>
+            {showSessionPanel && (
+              <div className="absolute right-0 mt-2 z-50 p-4 bg-[#0c1627] border border-white/10 rounded-2xl shadow-2xl w-[90vw] sm:w-[400px]">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Presentation Room</p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={dataShowIdInput}
+                    onChange={e => setDataShowIdInput(e.target.value)}
+                    placeholder='e.g. "sunday-01"'
+                    className="flex-1 bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600 w-full"
+                    onKeyDown={e => { if (e.key === 'Enter') handleJoinSession(); }}
+                  />
                   <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={dataShowIdInput}
-                      onChange={e => setDataShowIdInput(e.target.value)}
-                      placeholder='e.g. "sunday-01"'
-                      className="flex-1 bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600"
-                      onKeyDown={e => { if (e.key === 'Enter' && dataShowIdInput.trim()) { setDataShowId(dataShowIdInput.trim()); setShowSessionPanel(false); } }}
-                    />
                     <button
-                      onClick={() => { if (dataShowIdInput.trim()) { setDataShowId(dataShowIdInput.trim()); setShowSessionPanel(false); } }}
-                      className="px-4 py-2 bg-sky-500 hover:bg-sky-400 rounded-xl text-sm font-bold transition-all"
+                      onClick={handleCreateSession}
+                      className="flex-1 sm:flex-none px-4 py-2 bg-sky-500 hover:bg-sky-400 rounded-xl text-sm font-bold transition-all whitespace-nowrap"
+                    >
+                      Create
+                    </button>
+                    <button
+                      onClick={handleJoinSession}
+                      className="flex-1 sm:flex-none px-4 py-2 bg-indigo-500 hover:bg-indigo-400 rounded-xl text-sm font-bold transition-all whitespace-nowrap"
                     >
                       Join
                     </button>
                   </div>
-                  {dataShowId && (
-                    <div className="mt-3 flex flex-col gap-2">
-                      <a
-                        href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
-                        target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all"
-                      >
-                        <Tv2 size={13} /> Open Display Window
-                      </a>
-                      <a
-                        href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`}
-                        target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all"
-                      >
-                        <ExternalLink size={13} /> Mobile Remote
-                      </a>
-                      <button
-                        onClick={() => { clearDisplay(); setDataShowId(''); }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all"
-                      >
-                        <X size={13} /> End Session
-                      </button>
-                    </div>
-                  )}
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Content Table/List */}
-        {isLoading ? (
-          <Loading />
-        ) : (
-          <div className="relative">
-            {/* Table Header - Hidden on small mobile for cleaner look */}
-            {/* Table Header - Hidden on small mobile for cleaner look */}
-            <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest bg-white/5 rounded-t-2xl border-b border-white/10 mx-2">
-              <div className="col-span-1 text-center">#</div>
-              <div className="col-span-11 sm:col-span-5 md:col-span-5">{t("songTitle")}</div>
-              <div className="col-span-2 text-center bg-white/5 rounded-lg py-1">{t("keyChords")}</div>
-              <div className="col-span-1 text-center">{t("action")}</div>
-
-              <div className="col-span-3 text-center">{t("media")}</div>
-            </div>
-
-            {/* List Body with react-virtuoso */}
-            {humns.length > 0 ? (
-              <div className="pb-20 mt-2">
-                <Virtuoso
-                  useWindowScroll
-                  data={humns}
-                  endReached={() => {
-                    if (hasNextPage && !isFetchingNextPage && !debouncedSearch.trim()) {
-                      fetchNextPage();
-                    }
-                  }}
-                  itemContent={(index, humn) => (
-                    <div className="pb-3">
-                      <HymnItem
-                        humn={humn}
-                        index={index}
-                        categories={categories}
-                        addToWorkspace={addToWorkspace}
-                        isHymnInWorkspace={isHymnInWorkspace}
-                        canEdit={canEdit}
-                        delete_Hymn={delete_Hymn}
-                        openEditModal={openEditModal}
-                        variants={itemVariants}
-                        openLyrics={openLyrics}
-                        openPresentation={openPresentation}
-                        t={t}
-                        vocalsMode={vocalsMode}
-                      />
-                    </div>
-                  )}
-                  components={{
-                    Footer: () => (
-                      <div className="py-8 flex justify-center w-full flex-col items-center">
-                        {isFetchingNextPage && (
-                          <div className="w-8 h-8 border-4 border-sky-500/30 border-t-sky-500 rounded-full animate-spin mb-4" />
-                        )}
-                        {!hasNextPage && humns.length > 0 && !debouncedSearch.trim() && (
-                          <p className="text-center text-gray-500 py-2 font-light italic w-full">
-                            — {t("endOfList")} —
-                          </p>
-                        )}
-                      </div>
-                    )
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="p-20 text-center flex flex-col items-center justify-center text-gray-500 bg-white/5 rounded-3xl border border-white/5 border-dashed mt-2 mb-20">
-                <Music className="w-12 h-12 mb-4 opacity-50" />
-                <p className="text-lg font-medium">{t("NoHymnsfoundinthiscategory")}</p>
+                {dataShowId && (
+                  <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-2">
+                    <a
+                      href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all flex-1"
+                    >
+                      <Tv2 size={13} /> Open Display Window
+                    </a>
+                    <a
+                      href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all flex-1"
+                    >
+                      <ExternalLink size={13} /> Mobile Remote
+                    </a>
+                    <button
+                      onClick={() => { clearDisplay(); setDataShowId(''); localStorage.removeItem('myLivePresentationId'); }}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all w-full sm:w-auto"
+                    >
+                      <X size={13} /> End Session
+                    </button>
+                  </div>
+                )}
               </div>
             )}
+          </div>
+        </div>
+      )}
 
-            {/* --- Add Hymn Modal --- */}
-            {showModal && (
-              <Portal>
-                <div
-                  className={`fixed inset-0 z-[9999] flex justify-center items-center p-4 transition-all duration-300
+      {/* Content Table/List */}
+      {isLoading ? (
+        <Loading />
+      ) : (
+        <div className="relative">
+          {/* Table Header - Hidden on small mobile for cleaner look */}
+          {/* Table Header - Hidden on small mobile for cleaner look */}
+          <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest bg-white/5 rounded-t-2xl border-b border-white/10 mx-2">
+            <div className="col-span-1 text-center">#</div>
+            <div className="col-span-11 sm:col-span-5 md:col-span-5">{t("songTitle")}</div>
+            <div className="col-span-2 text-center bg-white/5 rounded-lg py-1">{t("keyChords")}</div>
+            <div className="col-span-1 text-center">{t("action")}</div>
+
+            <div className="col-span-3 text-center">{t("media")}</div>
+          </div>
+
+          {/* List Body with react-virtuoso */}
+          {humns.length > 0 ? (
+            <div className="pb-20 mt-2">
+              <Virtuoso
+                useWindowScroll
+                data={humns}
+                endReached={() => {
+                  if (hasNextPage && !isFetchingNextPage && !debouncedSearch.trim()) {
+                    fetchNextPage();
+                  }
+                }}
+                itemContent={(index, humn) => (
+                  <div className="pb-3">
+                    <HymnItem
+                      humn={humn}
+                      index={index}
+                      categories={categories}
+                      addToWorkspace={addToWorkspace}
+                      isHymnInWorkspace={isHymnInWorkspace}
+                      canEdit={canEdit}
+                      delete_Hymn={delete_Hymn}
+                      openEditModal={openEditModal}
+                      variants={itemVariants}
+                      openLyrics={openLyrics}
+                      openPresentation={openPresentation}
+                      t={t}
+                      vocalsMode={vocalsMode}
+                    />
+                  </div>
+                )}
+                components={{
+                  Footer: () => (
+                    <div className="py-8 flex justify-center w-full flex-col items-center">
+                      {isFetchingNextPage && (
+                        <div className="w-8 h-8 border-4 border-sky-500/30 border-t-sky-500 rounded-full animate-spin mb-4" />
+                      )}
+                      {!hasNextPage && humns.length > 0 && !debouncedSearch.trim() && (
+                        <p className="text-center text-gray-500 py-2 font-light italic w-full">
+                          — {t("endOfList")} —
+                        </p>
+                      )}
+                    </div>
+                  )
+                }}
+              />
+            </div>
+          ) : (
+            <div className="p-20 text-center flex flex-col items-center justify-center text-gray-500 bg-white/5 rounded-3xl border border-white/5 border-dashed mt-2 mb-20">
+              <Music className="w-12 h-12 mb-4 opacity-50" />
+              <p className="text-lg font-medium">{t("NoHymnsfoundinthiscategory")}</p>
+            </div>
+          )}
+
+          {/* --- Add Hymn Modal --- */}
+          {showModal && (
+            <Portal>
+              <div
+                className={`fixed inset-0 z-[9999] flex justify-center items-center p-4 transition-all duration-300
                 ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/70"}`}
-                >
-                  <div
-                    className={`w-full max-w-md max-h-[90vh] bg-[#0c0c20] border border-white/10 rounded-2xl shadow-2xl overflow-y-auto relative transform transition-all duration-300
+              >
+                <div
+                  className={`w-full max-w-md max-h-[90vh] bg-[#0c0c20] border border-white/10 rounded-2xl shadow-2xl overflow-y-auto relative transform transition-all duration-300
                   ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
-                    data-lenis-prevent-wheel
+                  data-lenis-prevent-wheel
+                >
+                  {/* Header */}
+                  <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
+                      {editingHymnId ? `✏️ ${t("editHymn")}` : `🎵 ${t("addNewHymn")}`}
+                    </h2>
+                    <button onClick={closeModal} className="text-gray-400 hover:text-white transition">
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  {/* Form */}
+                  <div className="p-6 flex flex-col gap-4">
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">{t("songTitle")}</label>
+                      <input
+                        type="text"
+                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition"
+                        placeholder="e.g. Amazing Grace"
+                        value={formData.title}
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-gray-400 text-sm">{t("lyrics")}</label>
+                        {/* Chord Toolbar */}
+                        {formData.relatedChords && (
+                          <div className="flex gap-1.5 flex-wrap justify-end max-w-[70%]">
+                            {formData.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => {
+                                  const input = lyricsInputRef.current;
+                                  if (input) {
+                                    const start = input.selectionStart;
+                                    const end = input.selectionEnd;
+                                    const text = input.value;
+                                    const newText = text.substring(0, start) + `[${chord}]` + text.substring(end);
+                                    setFormData({ ...formData, lyrics: newText });
+
+                                    // Restore cursor position + move it after insertion
+                                    setTimeout(() => {
+                                      input.selectionStart = input.selectionEnd = start + chord.length + 2;
+                                      input.focus();
+                                    }, 0);
+                                  }
+                                }}
+                                className="text-xs font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 hover:bg-sky-500/40 hover:text-white transition-colors"
+                                title={`Insert [${chord}]`}
+                              >
+                                {chord}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <textarea
+                        ref={lyricsInputRef}
+                        dir="rtl"  // ⬅️ ضيفنا دي عشان العربي يظهر صح بالأقواس
+                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[150px] resize-y whitespace-pre-wrap" // ⬅️ ضيفنا whitespace-pre-wrap
+                        placeholder="e.g. Amazing Grace"
+                        value={formData.lyrics}
+                        onChange={(e) => setFormData({ ...formData, lyrics: e.target.value })}
+                      />
+                    </div>
+
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">{t("scale")}</label>
+                        <input
+                          type="text"
+                          className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition"
+                          placeholder="e.g. C Major"
+                          value={formData.scale}
+                          onChange={(e) => setFormData({ ...formData, scale: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">{t("category")}</label>
+                        <select
+                          className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition [&>option]:bg-gray-900"
+                          value={formData.party}
+                          onChange={(e) => setFormData({ ...formData, party: e.target.value })}
+                        >
+                          <option value="all">{t("allGeneral")}</option>
+                          <option value="christmass">{t("christmas")}</option>
+                          <option value="easter">{t("easter")}</option>
+                          <option value="newyear">{t("newYear")}</option>
+                          <option value="motherday">{t("motherDay")}</option>
+                          <option value="graduation">{t("graduation")}</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">{t("bpm")}</label>
+                        <input
+                          type="text"
+                          className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition"
+                          placeholder="e.g. 120"
+                          value={formData.BPM}
+                          onChange={(e) => setFormData({ ...formData, BPM: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">{t("timeSignature")}</label>
+                        <select
+                          className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition [&>option]:bg-gray-900"
+                          value={formData.timeSignature}
+                          onChange={(e) => setFormData({ ...formData, timeSignature: e.target.value })}
+                        >
+                          <option value="2/2">2/2</option>
+                          <option value="1/4">1/4</option>
+                          <option value="2/4">2/4</option>
+                          <option value="3/4">3/4</option>
+                          <option value="4/4">4/4</option>
+                          <option value="5/4">5/4</option>
+                          <option value="6/8">6/8</option>
+                          <option value="7/8">7/8</option>
+                          <option value="8/8">8/8</option>
+                          <option value="9/8">9/8</option>
+                          <option value="10/8">10/8</option>
+                        </select>
+                      </div>
+                    </div>
+
+
+
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">{t("relatedChords")}</label>
+                      <input
+                        type="text"
+                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition placeholder-gray-600"
+                        placeholder="e.g. G, C, D, Em"
+                        value={formData.relatedChords}
+                        onChange={(e) => setFormData({ ...formData, relatedChords: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">{t("youtubeLink")}</label>
+                      <input
+                        type="text"
+                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition"
+                        placeholder="https://youtube.com/..."
+                        value={formData.link}
+                        onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => editingHymnId ? edit_Hymn(editingHymnId) : add_Hymn()}
+                      disabled={isSubmitting || !formData.title}
+                      className={`mt-4 w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all
+                      ${isSubmitting
+                          ? 'bg-gray-600 cursor-not-allowed'
+                          : editingHymnId
+                            ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 hover:shadow-blue-500/25'
+                            : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 hover:shadow-sky-500/25'}`}
+                    >
+                      {isSubmitting ? (editingHymnId ? t("updating") : t("adding")) : (editingHymnId ? t("updateSong") : t("addSong"))}
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+            </Portal>
+          )}
+
+          {/* --- Lyrics Modal --- */}
+          {showLyricsModal && selectedLyricsHymn && (
+            <Portal>
+              <div
+                className={`fixed inset-0 z-[9999] flex justify-center items-center p-4 transition-all duration-300
+                ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/70"}`}
+              >
+                <div
+                  style={{ backgroundColor: lyricsThemes[lyricsTheme].bg }}
+                  className={`w-full max-w-2xl max-h-[85vh] border border-white/10 rounded-2xl shadow-2xl flex flex-col relative transform transition-all duration-300
+                  ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
+                >
+                  {/* Modern Data Show Button */}
+                  <button
+                    onClick={() => {
+                      setShowDataShow(true);
+                      setDataShowIndex(0);
+                    }}
+                    className="group flex items-center min-h-12 gap-2 px-4 rounded-xl text-sm font-semibold transition-all duration-300 border backdrop-blur-md relative overflow-hidden shadow-lg
+                                        bg-linear-to-r from-purple-500/10 to-pink-500/10 border-purple-400/30 text-purple-200 
+                                        hover:from-purple-500/20 hover:to-pink-500/20 hover:border-purple-400/50 hover:shadow-purple-500/25 hover:scale-105 active:scale-95"
                   >
-                    {/* Header */}
-                    <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                      <h2 className="text-2xl font-bold bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
-                        {editingHymnId ? `✏️ ${t("editHymn")}` : `🎵 ${t("addNewHymn")}`}
+                    <div className="absolute inset-0 bg-purple-400/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Monitor className="w-4 h-4 relative z-10 group-hover:scale-110 transition-transform" />
+                    <span className="relative z-10">Presentation</span>
+                  </button>
+
+                  <div className={`p-2 border-b border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 transition-colors duration-300
+                      ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/5' : 'bg-black/5 backdrop-blur-md'}`}>
+
+                    <div className="flex-1 min-w-0 flex items-center gap-3">
+                      <h2 className={`text-2xl font-bold truncate ${lyricsTheme === 'warm' ? 'text-gray-800' : 'bg-linear-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent'}`}>
+                        {selectedLyricsHymn.title}
                       </h2>
-                      <button onClick={closeModal} className="text-gray-400 hover:text-white transition">
+
+                      {/* Chords Toggle Button */}
+                      <button
+                        onClick={() => setShowChords(!showChords)}
+                        disabled={vocalsMode}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${vocalsMode ? 'opacity-0 pointer-events-none' : ''}
+                            ${showChords
+                            ? (lyricsTheme === 'warm' ? 'bg-sky-100 text-sky-700 border-sky-200' : 'bg-sky-500/20 text-sky-300 border-sky-500/30')
+                            : (lyricsTheme === 'warm' ? 'bg-gray-100 text-gray-500 border-gray-200' : 'bg-white/5 text-gray-400 border-white/10')
+                          }`}
+                      >
+                        {showChords ? <Guitar className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                        {showChords ? "Chords On" : "Chords Off"}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      {/* Font Size Controls */}
+                      <div className={`flex items-center rounded-lg border ${lyricsTheme === 'warm' ? 'bg-white border-black/10' : 'bg-black/20 border-white/10'}`}>
+                        <button
+                          onClick={() => setFontSize(prev => Math.max(14, prev - 2))}
+                          disabled={fontSize <= 14}
+                          className={`px-3 py-1.5 text-xs font-bold border-r ${lyricsTheme === 'warm' ? 'border-black/5 text-gray-600 hover:bg-black/5' : 'border-white/5 text-gray-300 hover:bg-white/10'} disabled:opacity-30`}
+                        >
+                          A-
+                        </button>
+                        <button
+                          onClick={() => setFontSize(prev => Math.min(36, prev + 2))}
+                          disabled={fontSize >= 36}
+                          className={`px-3 py-1.5 text-xs font-bold ${lyricsTheme === 'warm' ? 'text-gray-600 hover:bg-black/5' : 'text-gray-300 hover:bg-white/10'} disabled:opacity-30`}
+                        >
+                          A+
+                        </button>
+                      </div>
+
+                      {/* Theme Toggles */}
+                      <div className={`flex p-1 rounded-lg border ${lyricsTheme === 'warm' ? 'bg-white border-black/10' : 'bg-black/20 border-white/10'}`}>
+                        {Object.entries(lyricsThemes).map(([key, theme]) => (
+                          <button
+                            key={key}
+                            onClick={() => setLyricsTheme(key)}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200
+                                ${lyricsTheme === key
+                                ? 'shadow-sm transform scale-105'
+                                : 'opacity-50 hover:opacity-100'}`}
+                            style={{
+                              backgroundColor: lyricsTheme === key ? theme.text : 'transparent',
+                              color: lyricsTheme === key ? theme.bg : (lyricsTheme === 'warm' ? '#222' : '#fff')
+                            }}
+                          >
+                            {theme.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        onClick={closeLyricsModal}
+                        className={`transition ${lyricsTheme === 'warm' ? 'text-gray-400 hover:text-gray-700' : 'text-gray-400 hover:text-white'}`}
+                      >
                         <X className="w-6 h-6" />
                       </button>
                     </div>
-
-                    {/* Form */}
-                    <div className="p-6 flex flex-col gap-4">
-                      <div>
-                        <label className="block text-gray-400 text-sm mb-2">{t("songTitle")}</label>
-                        <input
-                          type="text"
-                          className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition"
-                          placeholder="e.g. Amazing Grace"
-                          value={formData.title}
-                          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        />
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <label className="text-gray-400 text-sm">{t("lyrics")}</label>
-                          {/* Chord Toolbar */}
-                          {formData.relatedChords && (
-                            <div className="flex gap-1.5 flex-wrap justify-end max-w-[70%]">
-                              {formData.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, idx) => (
-                                <button
-                                  key={idx}
-                                  onClick={() => {
-                                    const input = lyricsInputRef.current;
-                                    if (input) {
-                                      const start = input.selectionStart;
-                                      const end = input.selectionEnd;
-                                      const text = input.value;
-                                      const newText = text.substring(0, start) + `[${chord}]` + text.substring(end);
-                                      setFormData({ ...formData, lyrics: newText });
-
-                                      // Restore cursor position + move it after insertion
-                                      setTimeout(() => {
-                                        input.selectionStart = input.selectionEnd = start + chord.length + 2;
-                                        input.focus();
-                                      }, 0);
-                                    }
-                                  }}
-                                  className="text-xs font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 hover:bg-sky-500/40 hover:text-white transition-colors"
-                                  title={`Insert [${chord}]`}
-                                >
-                                  {chord}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <textarea
-                          ref={lyricsInputRef}
-                          dir="rtl"  // ⬅️ ضيفنا دي عشان العربي يظهر صح بالأقواس
-                          className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[150px] resize-y whitespace-pre-wrap" // ⬅️ ضيفنا whitespace-pre-wrap
-                          placeholder="e.g. Amazing Grace"
-                          value={formData.lyrics}
-                          onChange={(e) => setFormData({ ...formData, lyrics: e.target.value })}
-                        />
-                      </div>
-
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-gray-400 text-sm mb-2">{t("scale")}</label>
-                          <input
-                            type="text"
-                            className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition"
-                            placeholder="e.g. C Major"
-                            value={formData.scale}
-                            onChange={(e) => setFormData({ ...formData, scale: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-gray-400 text-sm mb-2">{t("category")}</label>
-                          <select
-                            className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition [&>option]:bg-gray-900"
-                            value={formData.party}
-                            onChange={(e) => setFormData({ ...formData, party: e.target.value })}
-                          >
-                            <option value="all">{t("allGeneral")}</option>
-                            <option value="christmass">{t("christmas")}</option>
-                            <option value="easter">{t("easter")}</option>
-                            <option value="newyear">{t("newYear")}</option>
-                            <option value="motherday">{t("motherDay")}</option>
-                            <option value="graduation">{t("graduation")}</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-gray-400 text-sm mb-2">{t("bpm")}</label>
-                          <input
-                            type="text"
-                            className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition"
-                            placeholder="e.g. 120"
-                            value={formData.BPM}
-                            onChange={(e) => setFormData({ ...formData, BPM: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-gray-400 text-sm mb-2">{t("timeSignature")}</label>
-                          <select
-                            className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition [&>option]:bg-gray-900"
-                            value={formData.timeSignature}
-                            onChange={(e) => setFormData({ ...formData, timeSignature: e.target.value })}
-                          >
-                            <option value="2/2">2/2</option>
-                            <option value="1/4">1/4</option>
-                            <option value="2/4">2/4</option>
-                            <option value="3/4">3/4</option>
-                            <option value="4/4">4/4</option>
-                            <option value="5/4">5/4</option>
-                            <option value="6/8">6/8</option>
-                            <option value="7/8">7/8</option>
-                            <option value="8/8">8/8</option>
-                            <option value="9/8">9/8</option>
-                            <option value="10/8">10/8</option>
-                          </select>
-                        </div>
-                      </div>
-
-
-
-                      <div>
-                        <label className="block text-gray-400 text-sm mb-2">{t("relatedChords")}</label>
-                        <input
-                          type="text"
-                          className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition placeholder-gray-600"
-                          placeholder="e.g. G, C, D, Em"
-                          value={formData.relatedChords}
-                          onChange={(e) => setFormData({ ...formData, relatedChords: e.target.value })}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-gray-400 text-sm mb-2">{t("youtubeLink")}</label>
-                        <input
-                          type="text"
-                          className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition"
-                          placeholder="https://youtube.com/..."
-                          value={formData.link}
-                          onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-                        />
-                      </div>
-
-                      <button
-                        onClick={() => editingHymnId ? edit_Hymn(editingHymnId) : add_Hymn()}
-                        disabled={isSubmitting || !formData.title}
-                        className={`mt-4 w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all
-                      ${isSubmitting
-                            ? 'bg-gray-600 cursor-not-allowed'
-                            : editingHymnId
-                              ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 hover:shadow-blue-500/25'
-                              : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 hover:shadow-sky-500/25'}`}
-                      >
-                        {isSubmitting ? (editingHymnId ? t("updating") : t("adding")) : (editingHymnId ? t("updateSong") : t("addSong"))}
-                      </button>
-                    </div>
-
                   </div>
-                </div>
-              </Portal>
-            )}
 
-            {/* --- Lyrics Modal --- */}
-            {showLyricsModal && selectedLyricsHymn && (
-              <Portal>
-                <div
-                  className={`fixed inset-0 z-[9999] flex justify-center items-center p-4 transition-all duration-300
-                ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/70"}`}
-                >
-                  <div
-                    style={{ backgroundColor: lyricsThemes[lyricsTheme].bg }}
-                    className={`w-full max-w-2xl max-h-[85vh] border border-white/10 rounded-2xl shadow-2xl flex flex-col relative transform transition-all duration-300
-                  ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
-                  >
-                    {/* Modern Data Show Button */}
-                    <button
-                      onClick={() => {
-                        setShowDataShow(true);
-                        setDataShowIndex(0);
+                  {/* Content */}
+                  <div className="p-8 overflow-y-auto custom-scrollbar flex flex-col items-center" data-lenis-prevent-wheel>
+                    <div
+                      style={{
+                        color: lyricsThemes[lyricsTheme].text,
+                        lineHeight: 2.5 // Increased line height for chords
                       }}
-                      className="group flex items-center min-h-12 gap-2 px-4 rounded-xl text-sm font-semibold transition-all duration-300 border backdrop-blur-md relative overflow-hidden shadow-lg
-                                        bg-linear-to-r from-purple-500/10 to-pink-500/10 border-purple-400/30 text-purple-200 
-                                        hover:from-purple-500/20 hover:to-pink-500/20 hover:border-purple-400/50 hover:shadow-purple-500/25 hover:scale-105 active:scale-95"
+                      className="w-full font-medium font-sans transition-all duration-200"
+                      dir="rtl"
                     >
-                      <div className="absolute inset-0 bg-purple-400/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <Monitor className="w-4 h-4 relative z-10 group-hover:scale-110 transition-transform" />
-                      <span className="relative z-10">Presentation</span>
-                    </button>
-
-                    <div className={`p-2 border-b border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 transition-colors duration-300
-                      ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/5' : 'bg-black/5 backdrop-blur-md'}`}>
-
-                      <div className="flex-1 min-w-0 flex items-center gap-3">
-                        <h2 className={`text-2xl font-bold truncate ${lyricsTheme === 'warm' ? 'text-gray-800' : 'bg-linear-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent'}`}>
-                          {selectedLyricsHymn.title}
-                        </h2>
-
-                        {/* Chords Toggle Button */}
-                        <button
-                          onClick={() => setShowChords(!showChords)}
-                          disabled={vocalsMode}
-                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${vocalsMode ? 'opacity-0 pointer-events-none' : ''}
-                            ${showChords
-                              ? (lyricsTheme === 'warm' ? 'bg-sky-100 text-sky-700 border-sky-200' : 'bg-sky-500/20 text-sky-300 border-sky-500/30')
-                              : (lyricsTheme === 'warm' ? 'bg-gray-100 text-gray-500 border-gray-200' : 'bg-white/5 text-gray-400 border-white/10')
-                            }`}
-                        >
-                          {showChords ? <Guitar className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                          {showChords ? "Chords On" : "Chords Off"}
-                        </button>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        {/* Font Size Controls */}
-                        <div className={`flex items-center rounded-lg border ${lyricsTheme === 'warm' ? 'bg-white border-black/10' : 'bg-black/20 border-white/10'}`}>
-                          <button
-                            onClick={() => setFontSize(prev => Math.max(14, prev - 2))}
-                            disabled={fontSize <= 14}
-                            className={`px-3 py-1.5 text-xs font-bold border-r ${lyricsTheme === 'warm' ? 'border-black/5 text-gray-600 hover:bg-black/5' : 'border-white/5 text-gray-300 hover:bg-white/10'} disabled:opacity-30`}
-                          >
-                            A-
-                          </button>
-                          <button
-                            onClick={() => setFontSize(prev => Math.min(36, prev + 2))}
-                            disabled={fontSize >= 36}
-                            className={`px-3 py-1.5 text-xs font-bold ${lyricsTheme === 'warm' ? 'text-gray-600 hover:bg-black/5' : 'text-gray-300 hover:bg-white/10'} disabled:opacity-30`}
-                          >
-                            A+
-                          </button>
-                        </div>
-
-                        {/* Theme Toggles */}
-                        <div className={`flex p-1 rounded-lg border ${lyricsTheme === 'warm' ? 'bg-white border-black/10' : 'bg-black/20 border-white/10'}`}>
-                          {Object.entries(lyricsThemes).map(([key, theme]) => (
-                            <button
-                              key={key}
-                              onClick={() => setLyricsTheme(key)}
-                              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200
-                                ${lyricsTheme === key
-                                  ? 'shadow-sm transform scale-105'
-                                  : 'opacity-50 hover:opacity-100'}`}
-                              style={{
-                                backgroundColor: lyricsTheme === key ? theme.text : 'transparent',
-                                color: lyricsTheme === key ? theme.bg : (lyricsTheme === 'warm' ? '#222' : '#fff')
-                              }}
-                            >
-                              {theme.label}
-                            </button>
-                          ))}
-                        </div>
-
-                        <button
-                          onClick={closeLyricsModal}
-                          className={`transition ${lyricsTheme === 'warm' ? 'text-gray-400 hover:text-gray-700' : 'text-gray-400 hover:text-white'}`}
-                        >
-                          <X className="w-6 h-6" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-8 overflow-y-auto custom-scrollbar flex flex-col items-center" data-lenis-prevent-wheel>
-                      <div
-                        style={{
-                          color: lyricsThemes[lyricsTheme].text,
-                          lineHeight: 2.5 // Increased line height for chords
-                        }}
-                        className="w-full font-medium font-sans transition-all duration-200"
-                        dir="rtl"
-                      >
-                        {renderLyricsWithChords(selectedLyricsHymn.lyrics)}
-                      </div>
+                      {renderLyricsWithChords(selectedLyricsHymn.lyrics)}
                     </div>
                   </div>
                 </div>
+              </div>
 
 
-              </Portal>
+            </Portal>
 
-            )}
+          )}
 
-            {/* --- Data Show (Presentation) Modal - Independent --- */}
-            {showDataShow && selectedLyricsHymn && (
-              <Portal>
-                <div
-                  id="showDataContainer"
-                  className="fixed inset-0 z-[10000] bg-black flex items-center justify-center"
+          {/* --- Data Show (Presentation) Modal - Independent --- */}
+          {showDataShow && selectedLyricsHymn && (
+            <Portal>
+              <div
+                id="showDataContainer"
+                className="fixed inset-0 z-[10000] bg-black flex items-center justify-center"
+              >
+
+                {/* Exit Button */}
+                <button
+                  onClick={() => setShowDataShow(false)}
+                  className="absolute top-6 right-6 text-white/60 hover:text-white transition-all hover:scale-110 z-10 p-2 rounded-full hover:bg-white/10"
                 >
+                  <X size={32} />
+                </button>
 
-                  {/* Exit Button */}
-                  <button
-                    onClick={() => setShowDataShow(false)}
-                    className="absolute top-6 right-6 text-white/60 hover:text-white transition-all hover:scale-110 z-10 p-2 rounded-full hover:bg-white/10"
-                  >
-                    <X size={32} />
-                  </button>
-
-                  {/* Counter */}
-                  <div className="absolute bottom-6 text-white/50 text-sm font-mono z-10">
-                    {dataShowIndex + 1} / {dataShowSlides.length}
-                  </div>
-
-                  {/* Navigation Arrows - LTR: Left=Next, Right=Previous */}
-                  {dataShowIndex < dataShowSlides.length - 1 && (
-                    <button
-                      onClick={() => setDataShowIndex(i => i + 1)}
-                      className="absolute left-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
-                    </button>
-                  )}
-                  {dataShowIndex > 0 && (
-                    <button
-                      onClick={() => setDataShowIndex(i => i - 1)}
-                      className="absolute right-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
-                    </button>
-                  )}
-
-                  {/* Swipe Indicator (Mobile) */}
-                  <div className="absolute top-6 left-1/2 -translate-x-1/2 text-white/30 text-xs flex items-center gap-2 sm:hidden">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
-                    <span>Swipe to navigate</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="rotate-180"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
-                  </div>
-
-                  {/* Slide with Fade */}
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={dataShowIndex}
-                      initial={{ opacity: 0, scale: 0.98 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.98 }}
-                      transition={{ duration: 0.1, ease: "easeInOut" }}
-                      className="w-full h-full flex items-center justify-center px-10 text-center"
-                    >
-                      <p
-                        className="text-white font-bold whitespace-pre-line select-none"
-                        style={{
-                          fontSize: "clamp(32px, 8vw, 64px)",
-                          lineHeight: 1.6
-                        }}
-                        dir="rtl"
-                      >
-                        {dataShowSlides[dataShowIndex]}
-                      </p>
-                    </motion.div>
-                  </AnimatePresence>
-
+                {/* Counter */}
+                <div className="absolute bottom-6 text-white/50 text-sm font-mono z-10">
+                  {dataShowIndex + 1} / {dataShowSlides.length}
                 </div>
-              </Portal>
-            )}
-          </div>
-        )}
-      </div>
 
-    </section >
+                {/* Navigation Arrows - LTR: Left=Next, Right=Previous */}
+                {dataShowIndex < dataShowSlides.length - 1 && (
+                  <button
+                    onClick={() => setDataShowIndex(i => i + 1)}
+                    className="absolute left-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                  </button>
+                )}
+                {dataShowIndex > 0 && (
+                  <button
+                    onClick={() => setDataShowIndex(i => i - 1)}
+                    className="absolute right-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                  </button>
+                )}
+
+                {/* Swipe Indicator (Mobile) */}
+                <div className="absolute top-6 left-1/2 -translate-x-1/2 text-white/30 text-xs flex items-center gap-2 sm:hidden">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+                  <span>Swipe to navigate</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="rotate-180"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+                </div>
+
+                {/* Slide with Fade */}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={dataShowIndex}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={{ duration: 0.1, ease: "easeInOut" }}
+                    className="w-full h-full flex flex-col items-center justify-center px-10 text-center"
+                  >
+                    {renderPresentationSlideWithChords(dataShowSlides[dataShowIndex])}
+                  </motion.div>
+                </AnimatePresence>
+
+              </div>
+            </Portal>
+          )}
+        </div>
+      )}
+    </div>
+
+  </section >
 
   )
 }

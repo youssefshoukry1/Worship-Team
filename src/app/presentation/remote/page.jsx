@@ -56,11 +56,25 @@ function RemoteContent() {
                 </button>
             </div>
 
+            {/* Next Slide Preview */}
+            <div className="w-full max-w-sm px-6">
+                <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-2 text-center">Next Slide</p>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 min-h-24 flex items-center justify-center text-center">
+                    {currentSlide < totalSlides - 1 && displayState?.slides ? (
+                        <p className="text-gray-400 text-sm whitespace-pre-line line-clamp-3" dir="rtl">
+                            {displayState.slides[currentSlide + 1].replace(/\[|\]/g, '')}
+                        </p>
+                    ) : (
+                        <p className="text-gray-600 text-sm italic">End of presentation</p>
+                    )}
+                </div>
+            </div>
+
             <button
                 onClick={clearDisplay}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-900/20 border border-red-700/30 text-red-400 text-sm hover:bg-red-900/40 active:scale-95 transition-all"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-900/20 border border-red-700/30 text-red-400 text-sm hover:bg-red-900/40 active:scale-95 transition-all mt-4"
             >
-                <XCircle size={16} /> Clear Display
+                <XCircle size={16} /> End/Clear Display
             </button>
         </div>
     );
