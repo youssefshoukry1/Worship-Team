@@ -1,7 +1,7 @@
 'use client';
 import React, { useContext, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PlayCircle, Trash2, Heart, Music, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle, Radio, ExternalLink, Tv2, ChevronUp } from 'lucide-react';
+import { PlayCircle, Trash2, Heart, Music, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle, Radio, ExternalLink, Tv2, ChevronUp, Mic, MicOff } from 'lucide-react';
 import Metronome from '../Metronome/page';
 import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
@@ -313,7 +313,7 @@ export default function WorkSpace() {
         }
     }, []);
 
-    const { isConnected, broadcastHymn, broadcastSlide, clearDisplay } = usePresentation(
+    const { isConnected, broadcastHymn, broadcastSlide, clearDisplay, toggleAudio, isAudioActive } = usePresentation(
         dataShowId || null,
         'controller'
     );
@@ -862,9 +862,27 @@ export default function WorkSpace() {
                                         >
                                             <ExternalLink size={13} /> Mobile Remote
                                         </a>
-                                        {/* Disconnect */}
+
+                                        {/* Microphone Toggle Button */}
                                         <button
-                                            onClick={() => { clearDisplay(); setDataShowId(''); localStorage.removeItem('myLivePresentationId'); }}
+                                            onClick={toggleAudio}
+                                            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all flex-1 ${isAudioActive
+                                                    ? 'bg-sky-500/10 border-sky-500/30 text-sky-400 hover:bg-sky-500/20'
+                                                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                                }`}
+                                        >
+                                            {isAudioActive ? <Mic size={13} className="text-sky-400 animate-pulse" /> : <MicOff size={13} />}
+                                            {isAudioActive ? 'Mic On' : 'Turn On Mic'}
+                                        </button>
+
+                                        {/* End Session Button */}
+                                        <button
+                                            onClick={() => {
+                                                if (isAudioActive) toggleAudio();
+                                                clearDisplay();
+                                                setDataShowId('');
+                                                localStorage.removeItem('myLivePresentationId');
+                                            }}
                                             className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all w-full sm:w-auto"
                                         >
                                             <X size={13} /> End Session

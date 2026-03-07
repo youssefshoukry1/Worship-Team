@@ -149,22 +149,23 @@ export default function Metronome({ bpm = 130, timeSignature = "4/4", minimal = 
             scheduleNote(currentBeatRef.current, nextNoteTimeRef.current);
 
             /**
-             * Universal beat-duration formula:
+             * Beat-duration formula:
              *
-             *   secondsPerBeat = 240 / (BPM × denominator)
+             *   secondsPerBeat = 60 / BPM
              *
-             * Why it works:
-             *  - BPM is always counted in quarter notes (the app convention).
-             *  - A quarter note lasts  60/BPM  seconds.
-             *  - The denominator note value lasts  (60/BPM) × (4/denominator)
-             *                                    = 240 / (BPM × denominator)
+             * BPM means "beats per minute for the denominator note value".
+             * The denominator tells you WHAT the beat unit is (half, quarter, eighth…),
+             * not HOW FAST — that is solely controlled by BPM.
              *
-             * Examples at BPM = 60:
-             *  /2  → 240/(60×2)  = 2.00 s per half-note click       ✓
-             *  /4  → 240/(60×4)  = 1.00 s per quarter-note click     ✓
-             *  /8  → 240/(60×8)  = 0.50 s per eighth-note click      ✓
+             * Examples at BPM = 120:
+             *  2/2  → beat = half note   → 60/120 = 0.50 s per click  ✓
+             *  4/4  → beat = quarter     → 60/120 = 0.50 s per click  ✓
+             *  3/4  → beat = quarter     → 60/120 = 0.50 s per click  ✓
+             *  6/8  → beat = eighth note → 60/120 = 0.50 s per click  ✓
+             *  7/8  → beat = eighth note → 60/120 = 0.50 s per click  ✓
+             *  9/8  → beat = eighth note → 60/120 = 0.50 s per click  ✓
              */
-            const secondsPerBeat = 240 / (bpmRef.current * denominatorRef.current);
+            const secondsPerBeat = 60 / bpmRef.current;
 
             nextNoteTimeRef.current += secondsPerBeat;
             currentBeatRef.current = (currentBeatRef.current + 1) % beatsRef.current;

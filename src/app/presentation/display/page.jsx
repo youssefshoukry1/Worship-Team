@@ -10,7 +10,15 @@ import { Suspense } from 'react';
 function DisplayContent() {
     const searchParams = useSearchParams();
     const dataShowId = searchParams.get('dataShowId') || '';
-    const { isConnected, displayState } = usePresentation(dataShowId, 'display');
+    const { isConnected, displayState, remoteAudioStream } = usePresentation(dataShowId, 'display');
+    const audioRef = useRef(null);
+
+    useEffect(() => {
+        if (audioRef.current && remoteAudioStream) {
+            audioRef.current.srcObject = remoteAudioStream;
+            audioRef.current.play().catch(e => console.log('Autoplay blocked:', e));
+        }
+    }, [remoteAudioStream]);
 
     // Local slide counter from state
     const slide =
@@ -77,6 +85,14 @@ function DisplayContent() {
                     </span>
                 )}
             </div>
+
+            {/* Audio Stream Player */}
+            {remoteAudioStream && (
+                <div className="absolute top-5 left-1/2 -translate-x-1/2 z-50 text-emerald-400 bg-emerald-900/30 border border-emerald-700/40 px-3 py-1 rounded-full text-xs animate-pulse flex items-center gap-1">
+                    🎤 Live Audio
+                </div>
+            )}
+            <audio ref={audioRef} autoPlay />
 
             {/* Slide counter (bottom center) */}
             {totalSlides > 0 && (

@@ -1,14 +1,23 @@
 'use client';
 import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import { usePresentation } from '../../hooks/usePresentation';
 import { ChevronLeft, ChevronRight, XCircle, Wifi, WifiOff } from 'lucide-react';
 
 function RemoteContent() {
     const searchParams = useSearchParams();
     const dataShowId = searchParams.get('dataShowId') || '';
-    const { isConnected, broadcastSlide, clearDisplay, displayState } =
+    const { isConnected, broadcastSlide, clearDisplay, displayState, remoteAudioStream } =
         usePresentation(dataShowId, 'remote');
+
+    const audioRef = useRef(null);
+
+    useEffect(() => {
+        if (audioRef.current && remoteAudioStream) {
+            audioRef.current.srcObject = remoteAudioStream;
+            audioRef.current.play().catch(e => console.log('Autoplay blocked:', e));
+        }
+    }, [remoteAudioStream]);
 
     const currentSlide = displayState?.currentSlide ?? 0;
     const totalSlides = displayState?.slides?.length ?? 0;
@@ -37,6 +46,13 @@ function RemoteContent() {
                 {isConnected ? <Wifi size={12} /> : <WifiOff size={12} />}
                 {isConnected ? `Live · ${dataShowId}` : 'Connecting…'}
             </div>
+
+            {remoteAudioStream && (
+                <div className="text-emerald-400 bg-emerald-900/20 border border-emerald-700/40 px-3 py-1 rounded-full text-xs font-bold animate-pulse flex items-center gap-1 mt-[-10px]">
+                    🎤 Host is broadcasting Audio
+                </div>
+            )}
+            <audio ref={audioRef} autoPlay />
 
             {/* Navigation */}
             <div className="flex items-center gap-6">
