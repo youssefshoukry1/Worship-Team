@@ -46,6 +46,34 @@ export default function Dashboard() {
   const [showManageReports, setShowManageReports] = useState(false);
   const [activeUserSections, setActiveUserSections] = useState({});
 
+    if (isLogin && UserRole === 'USER') {
+    return (
+      <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center text-white p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/5 backdrop-blur-xl border border-white/10 p-10 rounded-3xl text-center max-w-md shadow-2xl"
+        >
+          <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/20">
+            <X className="w-10 h-10 text-red-500" />
+          </div>
+          <h1 className="text-3xl font-bold mb-4 bg-linear-to-r from-red-400 to-orange-500 bg-clip-text text-transparent">
+            Access Denied
+          </h1>
+          <p className="text-gray-400 mb-8 leading-relaxed">
+            Your Role is Not An Athorization. Please contact your team administrator to gain access to the Dahboard section.
+          </p>
+          <button
+            onClick={() => window.location.href = "/"}
+            className="w-full py-4 px-6 rounded-2xl bg-linear-to-r from-sky-500 to-blue-600 font-bold hover:shadow-lg hover:shadow-sky-500/20 transition-all active:scale-95"
+          >
+            Return Home
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
   const toggleUserSection = (userId, section) => {
     setActiveUserSections(prev => ({
       ...prev,

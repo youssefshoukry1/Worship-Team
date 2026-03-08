@@ -220,7 +220,7 @@ export default function Category_Humns() {
       broadcastSlide(dataShowIndex);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showDataShow, dataShowId, selectedLyricsHymn, isConnected, broadcastHymn]);
+  }, [showDataShow, dataShowId, selectedLyricsHymn, isConnected, broadcastHymn, showChords]);
 
   // Broadcast slide change whenever dataShowIndex moves exclusively
   useEffect(() => {
@@ -229,6 +229,15 @@ export default function Category_Humns() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataShowIndex]);
+
+  // Sync showChords with vocalsMode
+  useEffect(() => {
+    if (vocalsMode) {
+      setShowChords(false);
+    } else {
+      setShowChords(true);
+    }
+  }, [vocalsMode]);
 
 
   const lyricsThemes = {
@@ -247,6 +256,7 @@ export default function Category_Humns() {
   // Open presentation mode directly
   const openPresentation = (hymn, transposeStep = 0) => {
     setSelectedLyricsHymn({ ...hymn, transposeStep });
+    setShowChords(vocalsMode ? false : true);
     setShowDataShow(true);
     setDataShowIndex(0);
   };
@@ -557,12 +567,13 @@ export default function Category_Humns() {
     return text.split('\n').map((line, i) => (
       <div
         key={i}
-        className={`relative w-full text-center ${line.includes('[') ? 'mt-[1em] mb-2' : 'my-2'}`}
+        className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-[1em] mb-2' : 'my-2'}`}
         style={{ fontSize: 'clamp(32px, 8vw, 64px)', lineHeight: '1.6' }}
         dir="rtl"
       >
         {line ? line.split(/(\[.*?\])/g).map((part, j) => {
           if (part.startsWith('[') && part.endsWith(']')) {
+            if (!showChords) return null;
             const chord = part.slice(1, -1);
             return (
               <span key={j} className="inline-block relative overflow-visible mx-[0.1em] align-baseline text-white font-bold whitespace-pre-line leading-relaxed select-none" style={{ lineHeight: '1' }}>
@@ -766,8 +777,8 @@ export default function Category_Humns() {
                     <button
                       onClick={toggleAudio}
                       className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all flex-1 ${isAudioActive
-                          ? 'bg-sky-500/10 border-sky-500/30 text-sky-400 hover:bg-sky-500/20'
-                          : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                        ? 'bg-sky-500/10 border-sky-500/30 text-sky-400 hover:bg-sky-500/20'
+                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
                         }`}
                     >
                       {isAudioActive ? <Mic size={13} className="text-sky-400 animate-pulse" /> : <MicOff size={13} />}
@@ -1184,7 +1195,7 @@ export default function Category_Humns() {
 
                 {/* Counter */}
                 <div className="absolute bottom-6 text-white/50 text-sm font-mono z-10">
-                  {dataShowIndex + 1} / {dataShowSlides.length}
+                  {dataShowSlides.length} / {dataShowIndex + 1}
                 </div>
 
                 {/* Navigation Arrows - LTR: Left=Next, Right=Previous */}
@@ -1339,6 +1350,16 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       {/* Hover Glow Gradient */}
       <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-sky-500/5 via-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
+      {vocalsMode && (
+        <button
+          onClick={() => openPresentation(humn, transposeStep)}
+          className="absolute bottom-3 right-3 sm:hidden p-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all z-30 backdrop-blur-md shadow-lg shadow-purple-500/10 active:scale-95"
+          title="Open Presentation Mode"
+        >
+          <Monitor className="w-5 h-5 text-purple-300" />
+        </button>
+      )}
+
       {/* Index */}
       <div className="col-span-1 sm:col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
         {(index + 1).toString().padStart(2, '0')}
@@ -1443,11 +1464,11 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
               <span className="text-xs sm:text-sm font-medium">{t("lyrics")}</span>
             </button>
 
-            {/* Presentation Button - Icon Only, Visible in Vocal Mode */}
+            {/* Presentation Button - Icon Only, Visible in Vocal Mode (Desktop Only) */}
             {vocalsMode && (
               <button
                 onClick={() => openPresentation(humn, transposeStep)}
-                className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all group-hover:shadow-lg group-hover:shadow-purple-500/10"
+                className="hidden sm:flex p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all group-hover:shadow-lg group-hover:shadow-purple-500/10"
                 title="Open Presentation Mode"
               >
                 <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />

@@ -523,6 +523,7 @@ export default function WorkSpace() {
     // Open presentation mode directly
     const openPresentation = (hymn) => {
         setSelectedLyricsHymn(hymn);
+        setShowChords(vocalsMode ? false : true);
         setShowDataShow(true);
         setDataShowIndex(0);
     };
@@ -637,6 +638,15 @@ export default function WorkSpace() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dataShowIndex]);
 
+    // Sync showChords with vocalsMode
+    useEffect(() => {
+        if (vocalsMode) {
+            setShowChords(false);
+        } else {
+            setShowChords(true);
+        }
+    }, [vocalsMode]);
+
     const renderLyricsWithChords = (text) => {
         if (!text) return null;
 
@@ -683,12 +693,13 @@ export default function WorkSpace() {
         return text.split('\n').map((line, i) => (
             <div
                 key={i}
-                className={`relative w-full text-center ${line.includes('[') ? 'mt-[1em] mb-2' : 'my-2'}`}
+                className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-[1em] mb-2' : 'my-2'}`}
                 style={{ fontSize: 'clamp(32px, 8vw, 64px)', lineHeight: '1.6' }}
                 dir="rtl"
             >
                 {line ? line.split(/(\[.*?\])/g).map((part, j) => {
                     if (part.startsWith('[') && part.endsWith(']')) {
+                        if (!showChords) return null;
                         const chord = part.slice(1, -1);
                         return (
                             <span key={j} className="inline-block relative overflow-visible mx-[0.1em] align-baseline text-white font-bold whitespace-pre-line leading-relaxed select-none" style={{ lineHeight: '1' }}>
@@ -867,8 +878,8 @@ export default function WorkSpace() {
                                         <button
                                             onClick={toggleAudio}
                                             className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all flex-1 ${isAudioActive
-                                                    ? 'bg-sky-500/10 border-sky-500/30 text-sky-400 hover:bg-sky-500/20'
-                                                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                                ? 'bg-sky-500/10 border-sky-500/30 text-sky-400 hover:bg-sky-500/20'
+                                                : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
                                                 }`}
                                         >
                                             {isAudioActive ? <Mic size={13} className="text-sky-400 animate-pulse" /> : <MicOff size={13} />}
@@ -1072,7 +1083,7 @@ export default function WorkSpace() {
 
                             {/* Counter */}
                             <div className="absolute bottom-6 text-white/50 text-sm font-mono z-10">
-                                {dataShowIndex + 1} / {dataShowSlides.length}
+                                {dataShowSlides.length} / {dataShowIndex + 1}
                             </div>
 
                             {/* Navigation Arrows - LTR: Left=Next, Right=Previous */}
@@ -1325,6 +1336,16 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
                                rounded-2xl transition-all duration-300 backdrop-blur-sm
                                hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
         >
+            {vocalsMode && (
+                <button
+                    onClick={() => openPresentation({ ...hymn, scale: currentScale, relatedChords: currentChords, lyrics: currentLyrics }, transposeStep)}
+                    className="absolute bottom-3 right-3 sm:hidden p-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all z-30 backdrop-blur-md shadow-lg shadow-purple-500/10 active:scale-95"
+                    title="Open Presentation Mode"
+                >
+                    <Monitor className="w-5 h-5" />
+                </button>
+            )}
+
             {/* Index */}
             <div className="col-span-1 sm:col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-sky-400 transition-colors">
                 {(index + 1).toString().padStart(2, '0')}
@@ -1403,11 +1424,11 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
                             <span className="text-xs sm:text-sm font-medium">Lyrics</span>
                         </button>
 
-                        {/* Presentation Button - Icon Only, Visible in Vocal Mode */}
+                        {/* Presentation Button - Icon Only, Visible in Vocal Mode (Desktop Only) */}
                         {vocalsMode && (
                             <button
                                 onClick={() => openPresentation({ ...hymn, scale: currentScale, relatedChords: currentChords, lyrics: currentLyrics }, transposeStep)}
-                                className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all group-hover:shadow-lg group-hover:shadow-purple-500/10"
+                                className="hidden sm:flex p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all group-hover:shadow-lg group-hover:shadow-purple-500/10"
                                 title="Open Presentation Mode"
                             >
                                 <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />

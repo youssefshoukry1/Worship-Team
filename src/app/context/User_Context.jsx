@@ -35,12 +35,17 @@ export default function UserContextProvider({ children }) {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [UserStatus, setUserStatus] = useState(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("user_Taspe7_Status")?.trim() || null;
+  });
+
   const [vocalsMode, setVocalsMode] = useState(false);
 
   // ✅ Remove ALL the old useEffects — no longer needed
 
   return (
-    <UserContext.Provider value={{ isLogin, setLogin, UserRole, setUserRole, user_id, setUser_id, churchId, setChurchId, HymnIds, setHymnIds, vocalsMode, setVocalsMode }}>
+    <UserContext.Provider value={{ isLogin, setLogin, UserRole, setUserRole, user_id, setUser_id, churchId, setChurchId, HymnIds, setHymnIds, vocalsMode, setVocalsMode, UserStatus, setUserStatus }}>
       {children}
     </UserContext.Provider>
   );

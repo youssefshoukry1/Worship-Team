@@ -25,9 +25,40 @@ import { useLanguage } from "../context/LanguageContext";
 
 export default function Trainings() {
   const queryClient = useQueryClient();
-  const { isLogin, UserRole, user_id, churchId } = useContext(UserContext);
+  const { isLogin, UserRole, user_id, churchId, UserStatus, vocalsMode } = useContext(UserContext);
   const { workspace } = useContext(HymnsContext);
   const { t, language, setLanguage } = useLanguage();
+
+  if (!isLogin) return <Login />;
+
+  // Access Control: Only 'approved' users can access the Training page
+  if (isLogin && UserStatus !== "approved") {
+    return (
+      <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center text-white p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/5 backdrop-blur-xl border border-white/10 p-10 rounded-3xl text-center max-w-md shadow-2xl"
+        >
+          <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/20">
+            <X className="w-10 h-10 text-red-500" />
+          </div>
+          <h1 className="text-3xl font-bold mb-4 bg-linear-to-r from-red-400 to-orange-500 bg-clip-text text-transparent">
+            Access Denied
+          </h1>
+          <p className="text-gray-400 mb-8 leading-relaxed">
+            Your account is currently pending approval. Please contact your team administrator to gain access to the Training section.
+          </p>
+          <button
+            onClick={() => window.location.href = "/"}
+            className="w-full py-4 px-6 rounded-2xl bg-linear-to-r from-sky-500 to-blue-600 font-bold hover:shadow-lg hover:shadow-sky-500/20 transition-all active:scale-95"
+          >
+            Return Home
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
 
   const [showModel, setShowmodel] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -50,6 +81,16 @@ export default function Trainings() {
   const [fontSize, setFontSize] = useState(18);
   const [showChords, setShowChords] = useState(true);
 
+  // Sync showChords with vocalsMode
+  useEffect(() => {
+    if (vocalsMode) {
+      setShowChords(false);
+    } else {
+      setShowChords(true);
+    }
+  }, [vocalsMode]);
+
+
   const lyricsThemes = {
     warm: { bg: '#F8F5EE', text: '#222222', label: 'Warm' },
     dark: { bg: '#14181f', text: '#f1f1f1', label: 'Dark' },
@@ -60,17 +101,22 @@ export default function Trainings() {
   const [showDataShow, setShowDataShow] = useState(false);
   const [dataShowIndex, setDataShowIndex] = useState(0);
 
-  const dataShowSlides = selectedLyricsHymn?.lyrics
-    ?.replace(/\[.*?\]/g, '') // Remove chords
-    .split('\n\n')
-    .map(b => b.trim())
-    .filter(Boolean) || [];
+  const dataShowSlides = React.useMemo(() => {
+    if (!selectedLyricsHymn?.lyrics) return [];
+
+    return selectedLyricsHymn.lyrics
+      .split('\n\n')
+      .map(b => b.trim())
+      .filter(Boolean)
+      .map(slide => showChords ? slide.replace(/\[/g, ' [') : slide.replace(/\[.*?\]/g, ''));
+  }, [selectedLyricsHymn?.lyrics, showChords]);
+
 
   const openLyrics = (hymn) => {
     setSelectedLyricsHymn(hymn);
     setLyricsTheme('main');
     setFontSize(18);
-    setShowChords(true);
+    setShowChords(vocalsMode ? false : true);
     setShowLyricsModal(true);
   };
 
@@ -164,18 +210,20 @@ export default function Trainings() {
     };
   }, [showDataShow, dataShowIndex, dataShowSlides.length]);
 
+  const currentShowChords = vocalsMode ? false : showChords;
+
   const renderLyricsWithChords = (text) => {
     if (!text) return null;
 
     return text.split('\n').map((line, i) => (
       <div
         key={i}
-        className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-6 mb-2' : 'my-2'}`}
+        className={`relative w-full text-center ${currentShowChords && line.includes('[') ? 'mt-6 mb-2' : 'my-2'}`}
         style={{ fontSize: `${fontSize}px`, minHeight: '1.5em', lineHeight: '1.8' }}
       >
         {line ? line.split(/(\[.*?\])/g).map((part, j) => {
           if (part.startsWith('[') && part.endsWith(']')) {
-            if (!showChords) return null;
+            if (!currentShowChords) return null;
             const chord = part.slice(1, -1);
 
             return (
@@ -659,7 +707,8 @@ export default function Trainings() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setShowChords(!showChords)}
-                    className={`p-2 rounded-lg transition-all ${showChords
+                    disabled={vocalsMode}
+                    className={`p-2 rounded-lg transition-all ${vocalsMode ? 'opacity-0 pointer-events-none' : ''} ${showChords
                       ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
                       : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-200'
                       }`}
@@ -747,7 +796,7 @@ export default function Trainings() {
 
                   {/* Counter */}
                   <div className="absolute bottom-6 text-white/50 text-sm font-mono z-10">
-                    {dataShowIndex + 1} / {dataShowSlides.length}
+                    {dataShowSlides.length} / {dataShowIndex + 1}
                   </div>
 
                   {/* Navigation Arrows - LTR: Left=Next, Right=Previous */}

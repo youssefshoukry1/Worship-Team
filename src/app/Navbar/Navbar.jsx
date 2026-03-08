@@ -9,15 +9,14 @@ import { UserContext } from "../context/User_Context";
 
 export default function Navbar() {
     const { t, language, setLanguage } = useLanguage();
-    const { isLogin, UserRole, vocalsMode, setVocalsMode } = useContext(UserContext);
+    const { isLogin, UserRole, user_id, churchId, UserStatus, vocalsMode } = useContext(UserContext);
     const [langMenuOpen, setLangMenuOpen] = useState(false);
     const [modeMenuOpen, setModeMenuOpen] = useState(false);
-    
+
     // Default Items
     const navItems = [
         { name: "hymns", path: "/", id: "home-section" },
         { name: "workspace", path: "/WorkSpace", id: "WorkSpace-section" },
-        { name: "training", path: "/Trainings", id: "training-section" },
     ];
 
     /* 
@@ -108,8 +107,25 @@ export default function Navbar() {
                             </button>
                         </motion.li>
                     ))}
+
+                {/* Training Link (Approved Users) - Placed next to Language Switcher like Dashboard */}
+                {isLogin && UserStatus === "approved" && (
+                    <motion.li variants={itemVariants} className="list-none">
+                        <button
+                            onClick={() => router.push("/Trainings")}
+                            className={`text-sm lg:text-base font-bold cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg border border-sky-500/30
+                ${pathname === "/Trainings"
+                                    ? "text-sky-400 bg-sky-500/20 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
+                                    : "text-sky-300 hover:text-white hover:bg-sky-500/20 hover:shadow-[0_0_10px_rgba(14,165,233,0.2)]"
+                                }`}
+                        >
+                            {t("training")}
+                        </button>
+                    </motion.li>
+                )}
+
                 {/* Dashboard Link (Admin/Manager/Programmers) - Placed next to Language Switcher */}
-                {UserRole &&
+                {isLogin && UserRole &&
                     ["ADMIN", "MANEGER", "PROGRAMER"].includes(UserRole) && (
                         <motion.li variants={itemVariants} className="list-none">
                             <button
@@ -150,7 +166,7 @@ export default function Navbar() {
                                         setVocalsMode(true);
                                         setModeMenuOpen(false);
                                     }}
-                                    className={`block w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
+                                    className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
                       ${vocalsMode
                                             ? "text-sky-400 font-bold bg-white/5"
                                             : "text-gray-300"
@@ -165,7 +181,7 @@ export default function Navbar() {
                                         setVocalsMode(false);
                                         setModeMenuOpen(false);
                                     }}
-                                    className={`block w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
+                                    className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
                       ${!vocalsMode
                                             ? "text-sky-400 font-bold bg-white/5"
                                             : "text-gray-300"
@@ -260,8 +276,27 @@ export default function Navbar() {
                                 </li>
                             ))}
 
-                            {/* ✅ ADD THIS — Mobile Dashboard Button */}
-                            {["ADMIN", "MANEGER", "PROGRAMER"].includes(UserRole) && (
+                            {/* Mobile Training Button */}
+                            {isLogin && UserStatus === "approved" && (
+                                <li>
+                                    <button
+                                        onClick={() => {
+                                            router.push("/Trainings");
+                                            setMenuOpen(false);
+                                        }}
+                                        className={`block w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-sky-500/30
+                ${pathname === "/Trainings"
+                                                ? "bg-sky-500/20 text-sky-400"
+                                                : "text-sky-300 hover:bg-sky-500/20 hover:text-white"
+                                            }`}
+                                    >
+                                        {t("training")}
+                                    </button>
+                                </li>
+                            )}
+
+                            {/* Mobile Dashboard Button */}
+                            {isLogin && UserRole && ["ADMIN", "MANEGER", "PROGRAMER"].includes(UserRole) && (
                                 <li>
                                     <button
                                         onClick={() => {
@@ -313,7 +348,7 @@ export default function Navbar() {
                                                         setModeMenuOpen(false);
                                                         setMenuOpen(false);
                                                     }}
-                                                    className={`block w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
+                                                    className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
                               ${vocalsMode
                                                             ? "text-sky-400 font-bold bg-white/5"
                                                             : "text-gray-300"
@@ -329,7 +364,7 @@ export default function Navbar() {
                                                         setModeMenuOpen(false);
                                                         setMenuOpen(false);
                                                     }}
-                                                    className={`block w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
+                                                    className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
                               ${!vocalsMode
                                                             ? "text-sky-400 font-bold bg-white/5"
                                                             : "text-gray-300"
