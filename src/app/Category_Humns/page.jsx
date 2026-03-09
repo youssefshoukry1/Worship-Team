@@ -57,7 +57,7 @@ export default function Category_Humns() {
     if (savedSession) {
       const checkSession = async () => {
         try {
-          const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+          const BASE_URL = "https://worship-team-api.onrender.com/api";
           const response = await axios.get(`${BASE_URL}/presentation/check/${encodeURIComponent(savedSession)}`);
           if (response.data.exists) {
             setDataShowId(savedSession);
@@ -87,7 +87,7 @@ export default function Category_Humns() {
     if (!id) return;
 
     try {
-      const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const BASE_URL = "https://worship-team-api.onrender.com/api";
       const response = await axios.post(`${BASE_URL}/presentation/create`, { dataShowId: id });
       if (response.data.success) {
         setDataShowId(id);
@@ -104,7 +104,7 @@ export default function Category_Humns() {
     if (!id) return;
 
     try {
-      const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const BASE_URL = "https://worship-team-api.onrender.com/api";
       const response = await axios.get(`${BASE_URL}/presentation/check/${encodeURIComponent(id)}`);
       if (response.data.exists) {
         window.open(`/presentation/display?dataShowId=${encodeURIComponent(id)}`, '_blank');
