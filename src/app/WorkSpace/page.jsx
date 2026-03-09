@@ -297,7 +297,7 @@ export default function WorkSpace() {
         if (savedSession) {
             const checkSession = async () => {
                 try {
-                    const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+                    const BASE_URL = "https://worship-team-api.onrender.com/api";
                     const response = await fetch(`${BASE_URL}/presentation/check/${encodeURIComponent(savedSession)}`);
                     const data = await response.json();
                     if (data.exists) {
@@ -328,7 +328,7 @@ export default function WorkSpace() {
         if (!id) return;
 
         try {
-            const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+            const BASE_URL = "https://worship-team-api.onrender.com/api";
             const response = await fetch(`${BASE_URL}/presentation/create`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -353,7 +353,7 @@ export default function WorkSpace() {
         if (!id) return;
 
         try {
-            const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+            const BASE_URL = "https://worship-team-api.onrender.com/api";
             const response = await fetch(`${BASE_URL}/presentation/check/${encodeURIComponent(id)}`);
             const data = await response.json();
             if (data.exists) {
