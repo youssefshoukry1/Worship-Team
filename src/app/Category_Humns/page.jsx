@@ -306,7 +306,7 @@ export default function Category_Humns() {
     if (debouncedSearch.trim()) {
       try {
         const { data } = await axios.get(
-          `https://worship-team-api.vercel.app/api/hymns/search?q=${encodeURIComponent(debouncedSearch)}`
+          `https://worship-team-api.onrender.com/api/hymns/search?q=${encodeURIComponent(debouncedSearch)}`
         );
         return data;
       } catch (error) {
@@ -316,7 +316,7 @@ export default function Category_Humns() {
     }
 
     // Otherwise, fetch by category with pagination
-    const baseUrl = "https://worship-team-api.vercel.app/api/hymns";
+    const baseUrl = "https://worship-team-api.onrender.com/api/hymns";
     let endpoint = "";
 
     switch (activeTab) {
@@ -346,7 +346,7 @@ export default function Category_Humns() {
     setIsSubmitting(true);
     try {
       // User: Replace this URL with your actual Create/Post API endpoint
-      const url = "https://worship-team-api.vercel.app/api/hymns/create";
+      const url = "https://worship-team-api.onrender.com/api/hymns/create";
 
       await axios.post(url, formData, { //formData is req.body
         headers: { Authorization: `Bearer ${isLogin}` }
@@ -367,7 +367,7 @@ export default function Category_Humns() {
     if (!isLogin) return;
     setIsSubmitting(true);
     try {
-      const url = `https://worship-team-api.vercel.app/api/hymns/${id}`;
+      const url = `https://worship-team-api.onrender.com/api/hymns/${id}`;
 
       await axios.patch(url, formData, { //formData is req.body
         headers: { Authorization: `Bearer ${isLogin}` }
@@ -391,7 +391,7 @@ export default function Category_Humns() {
 
     try {
       // User: Replace this URL with your actual Delete API endpoint
-      const url = `https://worship-team-api.vercel.app/api/hymns/${id}`;
+      const url = `https://worship-team-api.onrender.com/api/hymns/${id}`;
 
       await axios.delete(url, {
         headers: { Authorization: `Bearer ${isLogin}` }

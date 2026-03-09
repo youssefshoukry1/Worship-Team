@@ -2,7 +2,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { io } from 'socket.io-client';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_URL = "https://worship-team-api.onrender.com/api";
 const SOCKET_URL = API_URL.replace(/\/api\/?$/, '');
 
 const ICE_SERVERS = {

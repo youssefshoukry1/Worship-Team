@@ -9,7 +9,7 @@ import { Trash2, Edit2, Plus, Church as ChurchIcon, Users, Loader2, X, Save } fr
 import Loading from '../loading'
 import Portal from '../Portal/Portal'
 
-const API_URL = "https://worship-team-api.vercel.app/api";
+const API_URL = "https://worship-team-api.onrender.com/api";
 
 export default function ChurchS_Dashboards() {
   const queryClient = useQueryClient();

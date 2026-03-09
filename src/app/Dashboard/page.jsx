@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import Portal from '../Portal/Portal';
 
-const API_URL = "https://worship-team-api.vercel.app/api";
+const API_URL = "https://worship-team-api.onrender.com/api";
 
 export default function Dashboard() {
   const { isLogin, UserRole, churchId } = useContext(UserContext);
@@ -46,7 +46,7 @@ export default function Dashboard() {
   const [showManageReports, setShowManageReports] = useState(false);
   const [activeUserSections, setActiveUserSections] = useState({});
 
-    if (isLogin && UserRole === 'USER') {
+  if (isLogin && UserRole === 'USER') {
     return (
       <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center text-white p-6">
         <motion.div

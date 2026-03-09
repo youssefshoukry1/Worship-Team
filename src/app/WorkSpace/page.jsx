@@ -9,7 +9,7 @@ import Portal from '../Portal/Portal';
 import { Virtuoso } from 'react-virtuoso';
 import { transposeScale, transposeChords, transposeLyrics } from '../utils/musicUtils';
 import { usePresentation } from '../hooks/usePresentation';
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://worship-team-api.vercel.app/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://worship-team-api.onrender.com/api";
 
 const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
     const [localLyrics, setLocalLyrics] = useState(hymn.lyrics || '');
