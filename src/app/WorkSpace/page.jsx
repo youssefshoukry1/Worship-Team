@@ -1,7 +1,7 @@
 'use client';
 import React, { useContext, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PlayCircle, Trash2, Heart, Music, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle, Radio, ExternalLink, Tv2, ChevronUp, Mic, MicOff } from 'lucide-react';
+import { PlayCircle, Trash2, Heart, Music, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle, Radio, ExternalLink, Tv2, ChevronUp, Mic, MicOff, EyeOff } from 'lucide-react';
 import Metronome from '../Metronome/page';
 import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
@@ -277,9 +277,30 @@ export default function WorkSpace() {
     });
 
     const lyricsThemes = {
-        warm: { bg: '#F8F5EE', text: '#222222', label: 'Warm' },
-        dark: { bg: '#14181f', text: '#f1f1f1', label: 'Dark' },
-        main: { bg: '#0E2238', text: '#EDEDED', label: 'Main' }
+        warm: {
+            bg: '#FDFBF7',
+            text: '#1A1A1A',
+            label: 'Warm',
+            accent: '#0F172A',
+            chord: '#2563EB',
+            border: 'rgba(0,0,0,0.05)'
+        },
+        dark: {
+            bg: '#0F172A',
+            text: '#F1F5F9',
+            label: 'Dark',
+            accent: '#38BDF8',
+            chord: '#7DD3FC',
+            border: 'rgba(255,255,255,0.05)'
+        },
+        main: {
+            bg: '#0E2238',
+            text: '#F8F9FA',
+            label: 'Main',
+            accent: '#60A5FA',
+            chord: '#38BDF8',
+            border: 'rgba(96,165,250,0.1)'
+        }
     };
     const [isClosing, setIsClosing] = useState(false);
 
@@ -650,39 +671,46 @@ export default function WorkSpace() {
     const renderLyricsWithChords = (text) => {
         if (!text) return null;
 
+        const currentTheme = lyricsThemes[lyricsTheme];
+
         return text.split('\n').map((line, i) => (
             <div
                 key={i}
-                className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-[1.2rem] mb-2' : 'my-2'}`}
-                style={{ fontSize: `${fontSize}px`, minHeight: '1.5em', lineHeight: '1.8' }}
+                className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-8 mb-2' : 'my-2'}`}
+                style={{ fontSize: `${fontSize}px`, minHeight: '1.5em' }}
                 dir="rtl"
             >
-                {line ? line.split(/(\[.*?\])/g).map((part, j) => {
-                    if (part.startsWith('[') && part.endsWith(']')) {
-                        if (!showChords) return null;
-                        const chord = part.slice(1, -1);
+                <div className="flex flex-wrap justify-center items-baseline leading-relaxed tracking-wide">
+                    {line ? line.split(/(\[.*?\])/g).map((part, j) => {
+                        if (part.startsWith('[') && part.endsWith(']')) {
+                            if (!showChords) return null;
+                            const chord = part.slice(1, -1);
+                            // Workspace hymns are pre-transposed, but we apply local display logic
+                            return (
+                                <span key={j} className="inline-block relative overflow-visible mx-1 align-baseline">
+                                    <span className="invisible whitespace-nowrap" style={{ fontSize: '0.7em' }} dir="ltr">
+                                        {chord}
+                                    </span>
+                                    <span
+                                        className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap mb-1 transition-colors duration-300"
+                                        style={{
+                                            color: currentTheme.chord,
+                                            fontSize: `0.7em`,
+                                        }}
+                                        dir="ltr"
+                                    >
+                                        {chord}
+                                    </span>
+                                </span>
+                            );
+                        }
                         return (
-                            <span key={j} className="inline-block relative overflow-visible mx-[0.1em] align-baseline whitespace-pre-line leading-relaxed" style={{ lineHeight: '1' }}>
-                                {/* Hidden placeholder to reserve space and prevent overlapping */}
-                                <span className="invisible whitespace-nowrap" style={{ fontSize: `0.75em` }} dir="ltr">
-                                    {chord}
-                                </span>
-                                <span
-                                    className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap shadow-sm mb-1"
-                                    style={{
-                                        color: lyricsTheme === 'warm' ? '#0369a1' : '#38bdf8',
-                                        fontSize: `0.75em`,
-                                        textShadow: lyricsTheme === 'warm' ? 'none' : '0 2px 4px rgba(0,0,0,0.8)'
-                                    }}
-                                    dir="ltr"
-                                >
-                                    {chord}
-                                </span>
+                            <span key={j} className="whitespace-pre transition-colors duration-300" style={{ color: currentTheme.text }}>
+                                {part}
                             </span>
                         );
-                    }
-                    return <span key={j} className="whitespace-pre-line leading-relaxed">{part}</span>;
-                }) : <br />}
+                    }) : <div className="h-4" />}
+                </div>
             </div>
         ));
     };
@@ -952,120 +980,148 @@ export default function WorkSpace() {
                 {showLyricsModal && selectedLyricsHymn && (
                     <Portal>
                         <div
-                            className={`fixed inset-0 z-9999 flex justify-center items-center p-4 transition-all duration-300
-                ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/70"}`}
+                            className={`fixed inset-0 z-[9999] flex justify-center items-end sm:items-center transition-all duration-300
+                ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/60"}`}
                         >
-                            <div
-                                style={{ backgroundColor: lyricsThemes[lyricsTheme].bg }}
-                                className={`w-full max-w-2xl max-h-[85vh] border border-white/10 rounded-2xl shadow-2xl flex flex-col relative transform transition-all duration-300
-                  ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
+                            <motion.div
+                                initial={{ y: "100%", opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                exit={{ y: "100%", opacity: 0 }}
+                                style={{
+                                    backgroundColor: lyricsThemes[lyricsTheme].bg,
+                                    boxShadow: lyricsTheme === 'warm' ? '0 10px 40px rgba(0, 0, 0, 0.1)' : '0 10px 40px rgba(0, 0, 0, 0.5)'
+                                }}
+                                className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative transition-colors duration-500 overflow-hidden`}
                             >
-                                {/* Modern Data Show Button */}
-                                <button
-                                    onClick={() => {
-                                        setShowDataShow(true);
-                                        setDataShowIndex(0);
-                                    }}
-                                    className="group flex items-center min-h-12 gap-2 px-4 rounded-xl text-sm font-semibold transition-all duration-300 border backdrop-blur-md relative overflow-hidden shadow-lg
-                                        bg-linear-to-r from-purple-500/10 to-pink-500/10 border-purple-400/30 text-purple-200 
-                                        hover:from-purple-500/20 hover:to-pink-500/20 hover:border-purple-400/50 hover:shadow-purple-500/25 hover:scale-105 active:scale-95"
-                                >
-                                    <div className="absolute inset-0 bg-purple-400/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    <Monitor className="w-4 h-4 relative z-10 group-hover:scale-110 transition-transform" />
-                                    <span className="relative z-10">Presentation</span>
-                                </button>
+                                {/* Decorative Pull Bar for Mobile */}
+                                <div className="sm:hidden w-12 h-1.5 bg-gray-400/20 rounded-full mx-auto mt-4 mb-2 shrink-0" />
 
-                                {/* Header */}
-                                <div className={`p-6 border-b border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 transition-colors duration-300
-                      ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/5' : 'bg-white/5'}`}>
+                                {/* Header Content */}
+                                <div className={`px-6 py-4 flex flex-col gap-4 border-b shrink-0 transition-colors duration-300
+                      ${lyricsTheme === 'warm' ? 'border-amber-900/10' : 'border-white/5'}`}>
 
-                                    <div className="flex-1 min-w-0">
-                                        <h2 className={`text-2xl font-bold truncate ${lyricsTheme === 'warm' ? 'text-gray-800' : 'bg-linear-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent'}`}>
-                                            {selectedLyricsHymn.title}
-                                        </h2>
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                        <button
-                                            onClick={() => setShowChords(!showChords)}
-                                            disabled={vocalsMode}
-                                            className={`p-2 rounded-lg transition-all ${vocalsMode ? 'opacity-0 pointer-events-none' : ''} ${showChords
-                                                ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                                                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-200'
-                                                }`}
-                                            title={showChords ? "Hide Chords" : "Show Chords"}
-                                        >
-                                            <Guitar className="w-5 h-5" />
-                                        </button>
-
-                                        {/* Font Size Controls */}
-                                        <div className={`flex items-center rounded-lg border ${lyricsTheme === 'warm' ? 'bg-white border-black/10' : 'bg-black/20 border-white/10'}`}>
-                                            <button
-                                                onClick={() => setFontSize(prev => Math.max(14, prev - 2))}
-                                                disabled={fontSize <= 14}
-                                                className={`px-3 py-1.5 text-xs font-bold border-r ${lyricsTheme === 'warm' ? 'border-black/5 text-gray-600 hover:bg-black/5' : 'border-white/5 text-gray-300 hover:bg-white/10'} disabled:opacity-30`}
-                                            >
-                                                A-
-                                            </button>
-                                            <button
-                                                onClick={() => setFontSize(prev => Math.min(36, prev + 2))}
-                                                disabled={fontSize >= 36}
-                                                className={`px-3 py-1.5 text-xs font-bold ${lyricsTheme === 'warm' ? 'text-gray-600 hover:bg-black/5' : 'text-gray-300 hover:bg-white/10'} disabled:opacity-30`}
-                                            >
-                                                A+
-                                            </button>
+                                    <div className="flex justify-between items-center gap-4">
+                                        <div className="flex flex-col min-w-0">
+                                            <h2 className={`text-2xl sm:text-3xl font-bold truncate tracking-tight transition-colors duration-300 ${lyricsTheme === 'warm' ? 'text-[#1A1A1A]' : 'text-white'}`}>
+                                                {selectedLyricsHymn.title}
+                                            </h2>
+                                            <div className={`text-xs uppercase tracking-[0.2em] font-bold opacity-50 ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}>
+                                                Lyrics & Chords
+                                            </div>
                                         </div>
 
-                                        {/* Theme Toggles */}
-                                        <div className={`flex p-1 rounded-lg border ${lyricsTheme === 'warm' ? 'bg-white border-black/10' : 'bg-black/20 border-white/10'}`}>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    setShowDataShow(true);
+                                                    setDataShowIndex(0);
+                                                }}
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all
+                                      ${lyricsTheme === 'warm'
+                                                        ? 'bg-black/5 text-black hover:bg-black/10'
+                                                        : 'bg-white/5 text-white hover:bg-white/10'}`}
+                                            >
+                                                <Monitor className="w-4 h-4" />
+                                                <span className="hidden sm:inline">Presentation</span>
+                                            </button>
+
+                                            <button
+                                                onClick={closeLyricsModal}
+                                                className={`p-2 rounded-full transition-all ${lyricsTheme === 'warm' ? 'hover:bg-black/5 text-black/40 hover:text-black' : 'hover:bg-white/5 text-white/40 hover:text-white'}`}
+                                            >
+                                                <X className="w-6 h-6" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Toolbar */}
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2">
+                                            {/* Chords Toggle */}
+                                            <button
+                                                onClick={() => setShowChords(!showChords)}
+                                                disabled={vocalsMode}
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${vocalsMode ? 'hidden' : ''}
+                              ${showChords
+                                                        ? (lyricsTheme === 'warm' ? 'bg-black text-white border-black' : 'bg-sky-500 text-white border-sky-500')
+                                                        : (lyricsTheme === 'warm' ? 'bg-transparent text-black/50 border-black/20' : 'bg-transparent text-white/30 border-white/10')
+                                                    }`}
+                                            >
+                                                {showChords ? <Guitar className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                                                {showChords ? "Chords On" : "Chords Off"}
+                                            </button>
+
+                                            {/* Font Controls */}
+                                            <div className={`flex items-center rounded-xl border transition-colors duration-300 ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/10' : 'bg-white/5 border-white/10'}`}>
+                                                <button
+                                                    onClick={() => setFontSize(prev => Math.max(14, prev - 2))}
+                                                    disabled={fontSize <= 14}
+                                                    className={`p-2 transition-all disabled:opacity-20 ${lyricsTheme === 'warm' ? 'hover:text-black' : 'hover:text-white text-white/60'}`}
+                                                >
+                                                    <span className="text-xs font-black">A-</span>
+                                                </button>
+                                                <div className={`w-px h-4 ${lyricsTheme === 'warm' ? 'bg-black/10' : 'bg-white/10'}`} />
+                                                <button
+                                                    onClick={() => setFontSize(prev => Math.min(48, prev + 2))}
+                                                    disabled={fontSize >= 48}
+                                                    className={`p-2 transition-all disabled:opacity-20 ${lyricsTheme === 'warm' ? 'hover:text-black' : 'hover:text-white text-white/60'}`}
+                                                >
+                                                    <span className="text-sm font-black">A+</span>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Theme Selector */}
+                                        <div className={`flex p-1 rounded-xl border transition-colors duration-300 ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/10' : 'bg-white/5 border-white/10'}`}>
                                             {Object.entries(lyricsThemes).map(([key, theme]) => (
                                                 <button
                                                     key={key}
                                                     onClick={() => setLyricsTheme(key)}
-                                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200
+                                                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 relative overflow-hidden
                                 ${lyricsTheme === key
-                                                            ? 'shadow-sm transform scale-105'
-                                                            : 'opacity-50 hover:opacity-100'}`}
+                                                            ? 'shadow-lg scale-100 z-10'
+                                                            : 'opacity-40 hover:opacity-100 scale-95'}`}
                                                     style={{
-                                                        backgroundColor: lyricsTheme === key ? theme.text : 'transparent',
-                                                        color: lyricsTheme === key ? theme.bg : (lyricsTheme === 'warm' ? '#222' : '#fff')
+                                                        backgroundColor: lyricsTheme === key ? theme.bg : 'transparent',
+                                                        color: lyricsTheme === key ? theme.text : (lyricsTheme === 'warm' ? '#1A1A1A' : '#fff'),
+                                                        border: lyricsTheme === key ? `1px solid ${theme.border || 'transparent'}` : 'none'
                                                     }}
                                                 >
                                                     {theme.label}
+                                                    {lyricsTheme === key && (
+                                                        <motion.div layoutId="activeTheme" className="absolute inset-0 rounded-lg border-2 border-sky-400/20" />
+                                                    )}
                                                 </button>
                                             ))}
                                         </div>
-
-                                        <button
-                                            onClick={closeLyricsModal}
-                                            className={`transition ${lyricsTheme === 'warm' ? 'text-gray-400 hover:text-gray-700' : 'text-gray-400 hover:text-white'}`}
-                                        >
-                                            <X className="w-6 h-6" />
-                                        </button>
                                     </div>
                                 </div>
 
-                                {/* Content */}
-                                <div className="p-8 overflow-y-auto custom-scrollbar" data-lenis-prevent-wheel>
-                                    <p
-                                        style={{
-                                            color: lyricsThemes[lyricsTheme].text,
-                                            fontSize: `${fontSize}px`,
-                                            lineHeight: 1.6
-                                        }}
-                                        className="leading-relaxed whitespace-pre-wrap font-medium font-sans text-center transition-all duration-200"
+                                {/* Content Area */}
+                                <div className="flex-1 overflow-y-auto custom-scrollbar px-6 sm:px-10 py-10" data-lenis-prevent-wheel>
+                                    <div
+                                        className="w-full max-w-2xl mx-auto transition-all duration-500"
                                         dir="rtl"
                                     >
                                         {renderLyricsWithChords(selectedLyricsHymn.lyrics)}
-                                    </p>
+                                    </div>
+                                    {/* Extra spacing at bottom for better scrolling feel */}
+                                    <div className="h-20" />
                                 </div>
-                            </div>
 
+                                {/* Aesthetic Footer Gradient */}
+                                <div className={`absolute bottom-0 left-0 right-0 h-12 pointer-events-none transition-colors duration-500
+                    ${lyricsTheme === 'warm'
+                                        ? 'bg-linear-to-t from-[#FDFBF7] to-transparent'
+                                        : lyricsTheme === 'dark'
+                                            ? 'bg-linear-to-t from-[#0F172A] to-transparent'
+                                            : 'bg-linear-to-t from-[#0E2238] to-transparent'
+                                    }`}
+                                />
+                            </motion.div>
                         </div>
-
                     </Portal>
                 )}
-
                 {/* --- Data Show (Presentation) Modal - Independent --- */}
                 {showDataShow && selectedLyricsHymn && (
                     <Portal>

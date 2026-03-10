@@ -237,6 +237,25 @@ html.lenis {
 }
 /* ─────────────────────────────────────────────────────────── */
 
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(120, 120, 120, 0.1);
+  border-radius: 20px;
+  border: 1px solid transparent;
+  background-clip: content-box;
+}
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(120, 120, 120, 0.3);
+  background-clip: content-box;
+}
+
+/* ─────────────────────────────────────────────────────────── */
+
 /* ── Inline dock (replaces fixed dock-wrapper) ── */
 .dock-wrapper-inline {
   position: relative;
