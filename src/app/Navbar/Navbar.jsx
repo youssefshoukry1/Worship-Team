@@ -9,7 +9,7 @@ import { UserContext } from "../context/User_Context";
 
 export default function Navbar() {
     const { t, language, setLanguage } = useLanguage();
-    const { isLogin, UserRole, user_id, churchId, UserStatus, vocalsMode } = useContext(UserContext);
+    const { isLogin, UserRole,UserStatus, vocalsMode,setVocalsMode } = useContext(UserContext);
     const [langMenuOpen, setLangMenuOpen] = useState(false);
     const [modeMenuOpen, setModeMenuOpen] = useState(false);
 

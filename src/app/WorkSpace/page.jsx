@@ -747,7 +747,7 @@ export default function WorkSpace() {
                             </span>
                         );
                     }
-                    return <span key={j} className="text-white font-bold whitespace-pre-line leading-relaxed select-none">{part}</span>;
+                    return <span key={j} className="text-white font-bold whitespace-pre-wrap leading-relaxed select-none">{part}</span>;
                 }) : <br />}
             </div>
         ));
@@ -1395,7 +1395,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
             {vocalsMode && (
                 <button
                     onClick={() => openPresentation({ ...hymn, scale: currentScale, relatedChords: currentChords, lyrics: currentLyrics }, transposeStep)}
-                    className="absolute bottom-3 right-3 sm:hidden p-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all z-30 backdrop-blur-md shadow-lg shadow-purple-500/10 active:scale-95"
+                    className="absolute top-3 right-3 sm:hidden p-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all z-30 backdrop-blur-md shadow-lg shadow-purple-500/10 active:scale-95"
                     title="Open Presentation Mode"
                 >
                     <Monitor className="w-5 h-5" />

@@ -895,7 +895,7 @@ export default function Trainings() {
                 className="w-full h-full flex items-center justify-center px-10 text-center"
               >
                 <p
-                  className="text-white font-bold whitespace-pre-line select-none"
+                  className="text-white font-bold whitespace-pre-wrap select-none"
                   style={{
                     fontSize: "clamp(32px, 8vw, 64px)",
                     lineHeight: 1.6
