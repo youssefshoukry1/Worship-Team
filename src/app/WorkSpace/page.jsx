@@ -705,7 +705,7 @@ export default function WorkSpace() {
                             );
                         }
                         return (
-                            <span key={j} className="whitespace-pre transition-colors duration-300" style={{ color: currentTheme.text }}>
+                            <span key={j} className="whitespace-pre-wrap transition-colors duration-300" style={{ color: currentTheme.text }}>
                                 {part}
                             </span>
                         );
