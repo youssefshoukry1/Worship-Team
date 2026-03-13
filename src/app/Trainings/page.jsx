@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from 'framer-motion';
 import Login from '../login/page'
 
@@ -81,6 +81,8 @@ export default function Trainings() {
   const [lyricsTheme, setLyricsTheme] = useState('main');
   const [fontSize, setFontSize] = useState(18);
   const [showChords, setShowChords] = useState(true);
+  const [lyricsScrolled, setLyricsScrolled] = useState(false); // Track scroll for controls hide
+  const lyricsScrollRef = useRef(null); // Ref for lyrics scroll container
 
   // Sync showChords with vocalsMode
   useEffect(() => {
@@ -139,17 +141,26 @@ export default function Trainings() {
     setLyricsTheme('main');
     setFontSize(18);
     setShowChords(vocalsMode ? false : true);
+    setLyricsScrolled(false); // Reset scroll state for fresh open
     setShowLyricsModal(true);
   };
 
   const closeLyricsModal = () => {
     setIsClosing(true);
+    setLyricsScrolled(false);
     setTimeout(() => {
       setShowLyricsModal(false);
       setSelectedLyricsHymn(null);
       setIsClosing(false);
     }, 300);
   };
+
+  // Handle lyrics scroll
+  const handleLyricsScroll = useCallback(() => {
+    const el = lyricsScrollRef.current;
+    if (!el) return;
+    setLyricsScrolled(el.scrollTop > 40);
+  }, []);
 
   // Prevent background scrolling when lyrics modal is open
   React.useEffect(() => {
@@ -276,6 +287,45 @@ export default function Trainings() {
             );
           }) : <div className="h-4" />}
         </div>
+      </div>
+    ));
+  };
+
+  const renderPresentationSlideWithChords = (text) => {
+    if (!text) return null;
+
+    return text.split('\n').map((line, i) => (
+      <div
+        key={i}
+        className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-[1em] mb-2' : 'my-2'}`}
+        style={{ fontSize: 'clamp(32px, 8vw, 64px)', lineHeight: '1.6' }}
+        dir="rtl"
+      >
+        {line ? line.split(/(\[.*?\])/g).map((part, j) => {
+          if (part.startsWith('[') && part.endsWith(']')) {
+            if (!showChords) return null;
+            const chord = part.slice(1, -1);
+            return (
+              <span key={j} className="inline-block relative overflow-visible mx-[0.1em] align-baseline text-white font-bold whitespace-pre-line leading-relaxed select-none" style={{ lineHeight: '1' }}>
+                {/* Invisible placeholder reserves the width so text spacing is correct */}
+                <span className="invisible whitespace-nowrap" style={{ fontSize: '0.7em' }} dir="ltr">
+                  {chord}
+                </span>
+                <span
+                  className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap mb-1 text-sky-300 pointer-events-none"
+                  style={{
+                    fontSize: '0.7em',
+                    textShadow: '0 2px 4px rgba(0,0,0,0.8)'
+                  }}
+                  dir="ltr"
+                >
+                  {chord}
+                </span>
+              </span>
+            );
+          }
+          return <span key={j} className="text-white font-bold whitespace-pre-wrap leading-relaxed select-none">{part}</span>;
+        }) : <br />}
       </div>
     ));
   };
@@ -713,20 +763,29 @@ export default function Trainings() {
               className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative transition-colors duration-500 overflow-hidden`}
             >
               {/* Decorative Pull Bar for Mobile */}
-              <div className="sm:hidden w-12 h-1.5 bg-gray-400/20 rounded-full mx-auto mt-4 mb-2 shrink-0" />
+              <motion.div
+                animate={{ opacity: lyricsScrolled ? 0 : 1, height: lyricsScrolled ? 0 : undefined, marginTop: lyricsScrolled ? 0 : undefined, marginBottom: lyricsScrolled ? 0 : undefined }}
+                transition={{ duration: 0.35, ease: 'easeInOut' }}
+                className="sm:hidden w-12 h-1.5 bg-gray-400/20 rounded-full mx-auto mt-4 mb-2 shrink-0 overflow-hidden"
+              />
 
               {/* Header Content */}
-              <div className={`px-6 py-4 flex flex-col gap-4 border-b shrink-0 transition-colors duration-300
+              <div className={`px-6 flex flex-col border-b shrink-0 transition-colors duration-300
                       ${lyricsTheme === 'warm' ? 'border-amber-900/10' : 'border-white/5'}`}>
 
-                <div className="flex justify-between items-center gap-4">
+                {/* Always-visible title row */}
+                <div className="flex justify-between items-center gap-4 py-4">
                   <div className="flex flex-col min-w-0">
                     <h2 className={`text-2xl sm:text-3xl font-bold truncate tracking-tight transition-colors duration-300 ${lyricsTheme === 'warm' ? 'text-[#1A1A1A]' : 'text-white'}`}>
                       {selectedLyricsHymn.title}
                     </h2>
-                    <div className={`text-xs uppercase tracking-[0.2em] font-bold opacity-50 ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}>
+                    <motion.div
+                      animate={{ opacity: lyricsScrolled ? 0 : 0.5, height: lyricsScrolled ? 0 : 'auto' }}
+                      transition={{ duration: 0.3, ease: 'easeInOut' }}
+                      className={`text-xs uppercase tracking-[0.2em] font-bold overflow-hidden ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}
+                    >
                       Lyrics & Chords
-                    </div>
+                    </motion.div>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -753,8 +812,17 @@ export default function Trainings() {
                   </div>
                 </div>
 
-                {/* Toolbar */}
-                <div className="flex flex-wrap items-center justify-between gap-3">
+                {/* Toolbar — hidden on scroll */}
+                <motion.div
+                  animate={{
+                    opacity: lyricsScrolled ? 0 : 1,
+                    height: lyricsScrolled ? 0 : 'auto',
+                    marginBottom: lyricsScrolled ? 0 : 12,
+                    pointerEvents: lyricsScrolled ? 'none' : 'auto',
+                  }}
+                  transition={{ duration: 0.35, ease: 'easeInOut' }}
+                  className="flex flex-wrap items-center justify-between gap-3 overflow-hidden"
+                >
                   <div className="flex items-center gap-2">
                     {/* Chords Toggle */}
                     <button
@@ -813,19 +881,38 @@ export default function Trainings() {
                       </button>
                     ))}
                   </div>
-                </div>
+                </motion.div>
               </div>
 
               {/* Content Area */}
-              <div className="flex-1 overflow-y-auto custom-scrollbar px-6 sm:px-10 py-10" data-lenis-prevent-wheel>
+              <div
+                ref={lyricsScrollRef}
+                onScroll={handleLyricsScroll}
+                className="flex-1 overflow-y-auto custom-scrollbar relative"
+                data-lenis-prevent-wheel
+              >
+                {/* Top fade-out gradient — appears when scrolled */}
                 <div
-                  className="w-full max-w-2xl mx-auto transition-all duration-500"
-                  dir="rtl"
-                >
-                  {renderLyricsWithChords(selectedLyricsHymn.lyrics)}
+                  className="sticky top-0 left-0 right-0 h-8 pointer-events-none z-10 transition-opacity duration-400"
+                  style={{
+                    opacity: lyricsScrolled ? 1 : 0,
+                    background: lyricsTheme === 'warm'
+                      ? 'linear-gradient(to bottom, #FDFBF7, transparent)'
+                      : lyricsTheme === 'dark'
+                        ? 'linear-gradient(to bottom, #0F172A, transparent)'
+                        : 'linear-gradient(to bottom, #0E2238, transparent)'
+                  }}
+                />
+                <div className="px-6 sm:px-10 py-10">
+                  <div
+                    className="w-full max-w-2xl mx-auto transition-all duration-500"
+                    dir="rtl"
+                  >
+                    {renderLyricsWithChords(selectedLyricsHymn.lyrics)}
+                  </div>
+                  {/* Extra spacing at bottom for better scrolling feel */}
+                  <div className="h-20" />
                 </div>
-                {/* Extra spacing at bottom for better scrolling feel */}
-                <div className="h-20" />
               </div>
 
               {/* Aesthetic Footer Gradient */}
@@ -892,18 +979,9 @@ export default function Trainings() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.98 }}
                 transition={{ duration: 0.2, ease: "easeInOut" }}
-                className="w-full h-full flex items-center justify-center px-10 text-center"
+                className="w-full h-full flex flex-col items-center justify-center px-10 text-center"
               >
-                <p
-                  className="text-white font-bold whitespace-pre-wrap select-none"
-                  style={{
-                    fontSize: "clamp(32px, 8vw, 64px)",
-                    lineHeight: 1.6
-                  }}
-                  dir="rtl"
-                >
-                  {dataShowSlides[dataShowIndex]}
-                </p>
+                {renderPresentationSlideWithChords(dataShowSlides[dataShowIndex])}
               </motion.div>
             </AnimatePresence>
 

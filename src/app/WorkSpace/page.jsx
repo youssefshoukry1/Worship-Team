@@ -267,6 +267,8 @@ export default function WorkSpace() {
     const [selectedLyricsHymn, setSelectedLyricsHymn] = useState(null);
     const [lyricsTheme, setLyricsTheme] = useState('main');
     const [fontSize, setFontSize] = useState(18);
+    const [lyricsScrolled, setLyricsScrolled] = useState(false); // Track scroll for controls hide
+    const lyricsScrollRef = useRef(null); // Ref for lyrics scroll container
     // Persist showChords state in localStorage for lyrics modal
     const [showChords, setShowChords] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -529,6 +531,7 @@ export default function WorkSpace() {
         setSelectedLyricsHymn(hymn);
         setLyricsTheme('main');
         setFontSize(18);
+        setLyricsScrolled(false); // Reset scroll state for fresh open
         // Restore last showChords preference from localStorage
         const saved = typeof window !== 'undefined' ? localStorage.getItem('workspace_showChords') : null;
         setShowChords(saved !== null ? saved === 'true' : (vocalsMode ? false : true));
@@ -541,6 +544,13 @@ export default function WorkSpace() {
         }
     }, [showChords]);
 
+    // Handle lyrics scroll
+    const handleLyricsScroll = React.useCallback(() => {
+        const el = lyricsScrollRef.current;
+        if (!el) return;
+        setLyricsScrolled(el.scrollTop > 40);
+    }, []);
+
     // Open presentation mode directly
     const openPresentation = (hymn) => {
         setSelectedLyricsHymn(hymn);
@@ -551,6 +561,7 @@ export default function WorkSpace() {
 
     const closeLyricsModal = () => {
         setIsClosing(true);
+        setLyricsScrolled(false);
         setTimeout(() => {
             setShowLyricsModal(false);
             setSelectedLyricsHymn(null);
@@ -994,20 +1005,29 @@ export default function WorkSpace() {
                                 className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative transition-colors duration-500 overflow-hidden`}
                             >
                                 {/* Decorative Pull Bar for Mobile */}
-                                <div className="sm:hidden w-12 h-1.5 bg-gray-400/20 rounded-full mx-auto mt-4 mb-2 shrink-0" />
+                                <motion.div
+                                    animate={{ opacity: lyricsScrolled ? 0 : 1, height: lyricsScrolled ? 0 : undefined, marginTop: lyricsScrolled ? 0 : undefined, marginBottom: lyricsScrolled ? 0 : undefined }}
+                                    transition={{ duration: 0.35, ease: 'easeInOut' }}
+                                    className="sm:hidden w-12 h-1.5 bg-gray-400/20 rounded-full mx-auto mt-4 mb-2 shrink-0 overflow-hidden"
+                                />
 
                                 {/* Header Content */}
-                                <div className={`px-6 py-4 flex flex-col gap-4 border-b shrink-0 transition-colors duration-300
+                                <div className={`px-6 flex flex-col border-b shrink-0 transition-colors duration-300
                       ${lyricsTheme === 'warm' ? 'border-amber-900/10' : 'border-white/5'}`}>
 
-                                    <div className="flex justify-between items-center gap-4">
+                                    {/* Always-visible title row */}
+                                    <div className="flex justify-between items-center gap-4 py-4">
                                         <div className="flex flex-col min-w-0">
                                             <h2 className={`text-2xl sm:text-3xl font-bold truncate tracking-tight transition-colors duration-300 ${lyricsTheme === 'warm' ? 'text-[#1A1A1A]' : 'text-white'}`}>
                                                 {selectedLyricsHymn.title}
                                             </h2>
-                                            <div className={`text-xs uppercase tracking-[0.2em] font-bold opacity-50 ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}>
+                                            <motion.div
+                                                animate={{ opacity: lyricsScrolled ? 0 : 0.5, height: lyricsScrolled ? 0 : 'auto' }}
+                                                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                                className={`text-xs uppercase tracking-[0.2em] font-bold overflow-hidden ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}
+                                            >
                                                 Lyrics & Chords
-                                            </div>
+                                            </motion.div>
                                         </div>
 
                                         <div className="flex items-center gap-2">
@@ -1034,15 +1054,24 @@ export default function WorkSpace() {
                                         </div>
                                     </div>
 
-                                    {/* Toolbar */}
-                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                    {/* Toolbar — hidden on scroll */}
+                                    <motion.div
+                                        animate={{
+                                            opacity: lyricsScrolled ? 0 : 1,
+                                            height: lyricsScrolled ? 0 : 'auto',
+                                            marginBottom: lyricsScrolled ? 0 : 12,
+                                            pointerEvents: lyricsScrolled ? 'none' : 'auto',
+                                        }}
+                                        transition={{ duration: 0.35, ease: 'easeInOut' }}
+                                        className="flex flex-wrap items-center justify-between gap-3 overflow-hidden"
+                                    >
                                         <div className="flex items-center gap-2">
                                             {/* Chords Toggle */}
                                             <button
                                                 onClick={() => setShowChords(!showChords)}
                                                 disabled={vocalsMode}
                                                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${vocalsMode ? 'hidden' : ''}
-                              ${showChords
+                               ${showChords
                                                         ? (lyricsTheme === 'warm' ? 'bg-black text-white border-black' : 'bg-sky-500 text-white border-sky-500')
                                                         : (lyricsTheme === 'warm' ? 'bg-transparent text-black/50 border-black/20' : 'bg-transparent text-white/30 border-white/10')
                                                     }`}
@@ -1078,7 +1107,7 @@ export default function WorkSpace() {
                                                     key={key}
                                                     onClick={() => setLyricsTheme(key)}
                                                     className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 relative overflow-hidden
-                                ${lyricsTheme === key
+                                 ${lyricsTheme === key
                                                             ? 'shadow-lg scale-100 z-10'
                                                             : 'opacity-40 hover:opacity-100 scale-95'}`}
                                                     style={{
@@ -1094,19 +1123,38 @@ export default function WorkSpace() {
                                                 </button>
                                             ))}
                                         </div>
-                                    </div>
+                                    </motion.div>
                                 </div>
 
                                 {/* Content Area */}
-                                <div className="flex-1 overflow-y-auto custom-scrollbar px-6 sm:px-10 py-10" data-lenis-prevent-wheel>
+                                <div
+                                    ref={lyricsScrollRef}
+                                    onScroll={handleLyricsScroll}
+                                    className="flex-1 overflow-y-auto custom-scrollbar relative"
+                                    data-lenis-prevent-wheel
+                                >
+                                    {/* Top fade-out gradient — appears when scrolled */}
                                     <div
-                                        className="w-full max-w-2xl mx-auto transition-all duration-500"
-                                        dir="rtl"
-                                    >
-                                        {renderLyricsWithChords(selectedLyricsHymn.lyrics)}
+                                        className="sticky top-0 left-0 right-0 h-8 pointer-events-none z-10 transition-opacity duration-400"
+                                        style={{
+                                            opacity: lyricsScrolled ? 1 : 0,
+                                            background: lyricsTheme === 'warm'
+                                                ? 'linear-gradient(to bottom, #FDFBF7, transparent)'
+                                                : lyricsTheme === 'dark'
+                                                    ? 'linear-gradient(to bottom, #0F172A, transparent)'
+                                                    : 'linear-gradient(to bottom, #0E2238, transparent)'
+                                        }}
+                                    />
+                                    <div className="px-6 sm:px-10 py-10">
+                                        <div
+                                            className="w-full max-w-2xl mx-auto transition-all duration-500"
+                                            dir="rtl"
+                                        >
+                                            {renderLyricsWithChords(selectedLyricsHymn.lyrics)}
+                                        </div>
+                                        {/* Extra spacing at bottom for better scrolling feel */}
+                                        <div className="h-20" />
                                     </div>
-                                    {/* Extra spacing at bottom for better scrolling feel */}
-                                    <div className="h-20" />
                                 </div>
 
                                 {/* Aesthetic Footer Gradient */}

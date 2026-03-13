@@ -42,6 +42,8 @@ export default function Category_Humns() {
   const [lyricsTheme, setLyricsTheme] = useState('main');
   const [fontSize, setFontSize] = useState(18);
   const [showChords, setShowChords] = useState(true); // Toggle for chords visibility
+  const [lyricsScrolled, setLyricsScrolled] = useState(false); // Track scroll for controls hide
+  const lyricsScrollRef = React.useRef(null); // Ref for lyrics scroll container
 
   //Data Show
   const [showDataShow, setShowDataShow] = useState(false);
@@ -271,6 +273,7 @@ export default function Category_Humns() {
     setSelectedLyricsHymn({ ...hymn, transposeStep });
     setLyricsTheme('main');
     setShowChords(vocalsMode ? false : true);
+    setLyricsScrolled(false); // Reset scroll state for fresh open
     setShowLyricsModal(true);
   };
 
@@ -284,12 +287,20 @@ export default function Category_Humns() {
 
   const closeLyricsModal = () => {
     setIsClosing(true);
+    setLyricsScrolled(false);
     setTimeout(() => {
       setShowLyricsModal(false);
       setSelectedLyricsHymn(null);
       setIsClosing(false);
     }, 300);
   };
+
+  // Handle lyrics scroll — use RAF for performance, no state updates in tight loop
+  const handleLyricsScroll = React.useCallback(() => {
+    const el = lyricsScrollRef.current;
+    if (!el) return;
+    setLyricsScrolled(el.scrollTop > 40);
+  }, []);
 
   // Prevent background scrolling when lyrics modal is open
   React.useEffect(() => {
@@ -594,30 +605,38 @@ export default function Category_Humns() {
     return text.split('\n').map((line, i) => (
       <div
         key={i}
-        className={`relative w-full text-center flex flex-col items-center justify-center ${showChords && line.includes('[') ? 'mt-[1.5em] mb-4' : 'my-4'}`}
-        style={{ fontSize: 'clamp(32px, 8vw, 68px)', lineHeight: '1.4' }}
+        className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-[1em] mb-2' : 'my-2'}`}
+        style={{ fontSize: 'clamp(32px, 8vw, 64px)', lineHeight: '1.6' }}
         dir="rtl"
       >
-        <div className="flex flex-wrap justify-center items-end">
-          {line ? line.split(/(\[.*?\])/g).map((part, j) => {
-            if (part.startsWith('[') && part.endsWith(']')) {
-              if (!showChords) return null;
-              const chord = part.slice(1, -1);
-              return (
-                <span key={j} className="inline-block relative h-0 w-0 overflow-visible mx-[0.2em] align-baseline">
-                  <span
-                    className="absolute bottom-[0.8em] left-1/2 -translate-x-1/2 font-black whitespace-nowrap text-sky-300 pointer-events-none drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
-                    style={{ fontSize: '0.65em' }}
-                    dir="ltr"
-                  >
-                    {chord}
-                  </span>
+        {line ? line.split(/(\[.*?\])/g).map((part, j) => {
+          if (part.startsWith('[') && part.endsWith(']')) {
+            if (!showChords) return null;
+            const chord = part.slice(1, -1);
+            const transposedChord = selectedLyricsHymn?.transposeStep
+              ? transposeChords(chord, selectedLyricsHymn.transposeStep)
+              : chord;
+            return (
+              <span key={j} className="inline-block relative overflow-visible mx-[0.1em] align-baseline text-white font-bold whitespace-pre-line leading-relaxed select-none" style={{ lineHeight: '1' }}>
+                {/* Invisible placeholder reserves the width so text spacing is correct */}
+                <span className="invisible whitespace-nowrap" style={{ fontSize: '0.7em' }} dir="ltr">
+                  {transposedChord}
                 </span>
-              );
-            }
-            return <span key={j} className="text-white font-bold whitespace-pre-wrap drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] select-none tracking-tight">{part}</span>;
-          }) : <div className="h-8" />}
-        </div>
+                <span
+                  className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap mb-1 text-sky-300 pointer-events-none"
+                  style={{
+                    fontSize: '0.7em',
+                    textShadow: '0 2px 4px rgba(0,0,0,0.8)'
+                  }}
+                  dir="ltr"
+                >
+                  {transposedChord}
+                </span>
+              </span>
+            );
+          }
+          return <span key={j} className="text-white font-bold whitespace-pre-wrap leading-relaxed select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight">{part}</span>;
+        }) : <br />}
       </div>
     ));
   };
@@ -1101,20 +1120,29 @@ export default function Category_Humns() {
                   className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative transition-colors duration-500 overflow-hidden`}
                 >
                   {/* Decorative Pull Bar for Mobile */}
-                  <div className="sm:hidden w-12 h-1.5 bg-gray-400/20 rounded-full mx-auto mt-4 mb-2 shrink-0" />
+                  <motion.div
+                    animate={{ opacity: lyricsScrolled ? 0 : 1, height: lyricsScrolled ? 0 : undefined, marginTop: lyricsScrolled ? 0 : undefined, marginBottom: lyricsScrolled ? 0 : undefined }}
+                    transition={{ duration: 0.35, ease: 'easeInOut' }}
+                    className="sm:hidden w-12 h-1.5 bg-gray-400/20 rounded-full mx-auto mt-4 mb-2 shrink-0 overflow-hidden"
+                  />
 
                   {/* Header Content */}
-                  <div className={`px-6 py-4 flex flex-col gap-4 border-b shrink-0 transition-colors duration-300
+                  <div className={`px-6 flex flex-col border-b shrink-0 transition-colors duration-300
                       ${lyricsTheme === 'warm' ? 'border-amber-900/10' : 'border-white/5'}`}>
 
-                    <div className="flex justify-between items-center gap-4">
+                    {/* Always-visible title row */}
+                    <div className="flex justify-between items-center gap-4 py-4">
                       <div className="flex flex-col min-w-0">
                         <h2 className={`text-2xl sm:text-3xl font-bold truncate tracking-tight transition-colors duration-300 ${lyricsTheme === 'warm' ? 'text-[#1A1A1A]' : 'text-white'}`}>
                           {selectedLyricsHymn.title}
                         </h2>
-                        <div className={`text-xs uppercase tracking-[0.2em] font-bold opacity-50 ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}>
+                        <motion.div
+                          animate={{ opacity: lyricsScrolled ? 0 : 0.5, height: lyricsScrolled ? 0 : 'auto' }}
+                          transition={{ duration: 0.3, ease: 'easeInOut' }}
+                          className={`text-xs uppercase tracking-[0.2em] font-bold overflow-hidden ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}
+                        >
                           Lyrics & Chords
-                        </div>
+                        </motion.div>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -1141,8 +1169,17 @@ export default function Category_Humns() {
                       </div>
                     </div>
 
-                    {/* Toolbar */}
-                    <div className="flex flex-wrap items-center justify-between gap-3">
+                    {/* Toolbar — hidden on scroll */}
+                    <motion.div
+                      animate={{
+                        opacity: lyricsScrolled ? 0 : 1,
+                        height: lyricsScrolled ? 0 : 'auto',
+                        marginBottom: lyricsScrolled ? 0 : 12,
+                        pointerEvents: lyricsScrolled ? 'none' : 'auto',
+                      }}
+                      transition={{ duration: 0.35, ease: 'easeInOut' }}
+                      className="flex flex-wrap items-center justify-between gap-3 overflow-hidden"
+                    >
                       <div className="flex items-center gap-2">
                         {/* Chords Toggle */}
                         <button
@@ -1202,19 +1239,38 @@ export default function Category_Humns() {
                           </button>
                         ))}
                       </div>
-                    </div>
+                    </motion.div>
                   </div>
 
                   {/* Content Area */}
-                  <div className="flex-1 overflow-y-auto custom-scrollbar px-6 sm:px-10 py-10" data-lenis-prevent-wheel>
+                  <div
+                    ref={lyricsScrollRef}
+                    onScroll={handleLyricsScroll}
+                    className="flex-1 overflow-y-auto custom-scrollbar relative"
+                    data-lenis-prevent-wheel
+                  >
+                    {/* Top fade-out gradient — appears when scrolled */}
                     <div
-                      className="w-full max-w-2xl mx-auto transition-all duration-500"
-                      dir="rtl"
-                    >
-                      {renderLyricsWithChords(selectedLyricsHymn.lyrics)}
+                      className="sticky top-0 left-0 right-0 h-8 pointer-events-none z-10 transition-opacity duration-400"
+                      style={{
+                        opacity: lyricsScrolled ? 1 : 0,
+                        background: lyricsTheme === 'warm'
+                          ? 'linear-gradient(to bottom, #FDFBF7, transparent)'
+                          : lyricsTheme === 'dark'
+                            ? 'linear-gradient(to bottom, #0F172A, transparent)'
+                            : 'linear-gradient(to bottom, #0E2238, transparent)'
+                      }}
+                    />
+                    <div className="px-6 sm:px-10 py-10">
+                      <div
+                        className="w-full max-w-2xl mx-auto transition-all duration-500"
+                        dir="rtl"
+                      >
+                        {renderLyricsWithChords(selectedLyricsHymn.lyrics)}
+                      </div>
+                      {/* Extra spacing at bottom for better scrolling feel */}
+                      <div className="h-20" />
                     </div>
-                    {/* Extra spacing at bottom for better scrolling feel */}
-                    <div className="h-20" />
                   </div>
 
                   {/* Aesthetic Footer Gradient */}
