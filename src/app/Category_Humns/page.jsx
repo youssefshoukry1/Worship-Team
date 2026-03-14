@@ -32,7 +32,7 @@ export default function Category_Humns() {
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [formData, setFormData] = useState({ title: '', lyrics: '', scale: '', relatedChords: '', link: '', party: 'All', BPM: '', timeSignature: '2/2' });
+  const [formData, setFormData] = useState({ title: '', lyrics: '', scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: '2/2' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingHymnId, setEditingHymnId] = useState(null); // Track which hymn is being edited
 
@@ -43,6 +43,7 @@ export default function Category_Humns() {
   const [fontSize, setFontSize] = useState(18);
   const [showChords, setShowChords] = useState(true); // Toggle for chords visibility
   const [lyricsScrolled, setLyricsScrolled] = useState(false); // Track scroll for controls hide
+  const isScrolledRef = React.useRef(false); // Track state to avoid redundant renders
   const lyricsScrollRef = React.useRef(null); // Ref for lyrics scroll container
 
   //Data Show
@@ -273,6 +274,7 @@ export default function Category_Humns() {
     setSelectedLyricsHymn({ ...hymn, transposeStep });
     setLyricsTheme('main');
     setShowChords(vocalsMode ? false : true);
+    isScrolledRef.current = false; // Reset ref
     setLyricsScrolled(false); // Reset scroll state for fresh open
     setShowLyricsModal(true);
   };
@@ -299,7 +301,11 @@ export default function Category_Humns() {
   const handleLyricsScroll = React.useCallback(() => {
     const el = lyricsScrollRef.current;
     if (!el) return;
-    setLyricsScrolled(el.scrollTop > 40);
+    const isScrolled = el.scrollTop > 40;
+    if (isScrolledRef.current !== isScrolled) {
+      isScrolledRef.current = isScrolled;
+      setLyricsScrolled(isScrolled);
+    }
   }, []);
 
   // Prevent background scrolling when lyrics modal is open
@@ -386,7 +392,7 @@ export default function Category_Humns() {
 
       queryClient.invalidateQueries(["humns"]);
       closeModal();
-      setFormData({ title: '', lyrics: '', scale: '', relatedChords: '', link: '', BPM: '', timeSignature: '2/2', party: 'All' });
+      setFormData({ title: '', lyrics: '', scale: '', relatedChords: '', link: '', BPM: '', timeSignature: '2/2', party: ['all'] });
     } catch (error) {
       console.error("Error adding hymn:", error);
     } finally {
@@ -407,7 +413,7 @@ export default function Category_Humns() {
 
       queryClient.invalidateQueries(["humns"]);
       closeModal();
-      setFormData({ title: '', lyrics: '', scale: '', relatedChords: '', link: '', party: 'All', BPM: '', timeSignature: '2/2' });
+      setFormData({ title: '', lyrics: '', scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: '2/2' });
       setEditingHymnId(null);
     } catch (error) {
       console.error("Error editing hymn:", error);
@@ -483,12 +489,12 @@ export default function Category_Humns() {
     // Pre-fill party based on active tab if specific
     setFormData(prev => ({
       ...prev,
-      party: activeTab === 'all' ? 'all' :
-        activeTab === 'christmass' ? 'christmass' :
-          activeTab === 'easter' ? 'easter' :
-            activeTab === 'newyear' ? 'newyear' :
-              activeTab === 'motherday' ? 'motherday' :
-                activeTab === 'graduation' ? 'graduation' : 'all'
+      party: activeTab === 'all' ? ['all'] :
+        activeTab === 'christmass' ? ['christmass'] :
+          activeTab === 'easter' ? ['easter'] :
+            activeTab === 'newyear' ? ['newyear'] :
+              activeTab === 'motherday' ? ['motherday'] :
+                activeTab === 'graduation' ? ['graduation'] : ['all']
     }));
     setEditingHymnId(null); // Reset editing mode
     setShowModal(true);
@@ -502,7 +508,7 @@ export default function Category_Humns() {
       scale: hymn.scale || '',
       relatedChords: hymn.relatedChords || '',
       link: hymn.link || '',
-      party: hymn.party || 'All',
+      party: Array.isArray(hymn.party) ? hymn.party : [hymn.party || 'all'],
       BPM: hymn.BPM || '',
       timeSignature: hymn.timeSignature || '2/2'
     });
@@ -921,8 +927,8 @@ export default function Category_Humns() {
           {/* --- Add Hymn Modal --- */}
           {showModal && (
             <Portal>
-              <div
-                className={`fixed inset-0 z-[9999] flex justify-center items-center p-4 transition-all duration-300
+            <div
+                className={`fixed inset-0 z-9999 flex justify-center items-center p-4 transition-all duration-300
                 ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/70"}`}
               >
                 <div
@@ -932,7 +938,7 @@ export default function Category_Humns() {
                 >
                   {/* Header */}
                   <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                    <h2 className="text-2xl font-bold bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
+                    <h2 className="text-2xl font-bold bg-linear-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
                       {editingHymnId ? `✏️ ${t("editHymn")}` : `🎵 ${t("addNewHymn")}`}
                     </h2>
                     <button onClick={closeModal} className="text-gray-400 hover:text-white transition">
@@ -1011,18 +1017,41 @@ export default function Category_Humns() {
                       </div>
                       <div>
                         <label className="block text-gray-400 text-sm mb-2">{t("category")}</label>
-                        <select
-                          className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition [&>option]:bg-gray-900"
-                          value={formData.party}
-                          onChange={(e) => setFormData({ ...formData, party: e.target.value })}
-                        >
-                          <option value="all">{t("allGeneral")}</option>
-                          <option value="christmass">{t("christmas")}</option>
-                          <option value="easter">{t("easter")}</option>
-                          <option value="newyear">{t("newYear")}</option>
-                          <option value="motherday">{t("motherDay")}</option>
-                          <option value="graduation">{t("graduation")}</option>
-                        </select>
+                        <div className="flex flex-wrap gap-2 p-3 rounded-xl bg-white/5 border border-white/10">
+                          {categories.map((cat) => {
+                            const isSelected = formData.party.includes(cat.id);
+                            return (
+                              <button
+                                key={cat.id}
+                                type="button"
+                                onClick={() => {
+                                  let newParty;
+                                  if (isSelected) {
+                                    newParty = formData.party.filter(p => p !== cat.id);
+                                    if (newParty.length === 0) newParty = ['all'];
+                                  } else {
+                                    // If selecting something other than 'all', remove 'all' if it's there
+                                    if (cat.id !== 'all') {
+                                      newParty = [...formData.party.filter(p => p !== 'all'), cat.id];
+                                    } else {
+                                      // If selecting 'all', remove everything else
+                                      newParty = ['all'];
+                                    }
+                                  }
+                                  setFormData({ ...formData, party: newParty });
+                                }}
+                                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border flex items-center gap-1.5
+                                  ${isSelected
+                                    ? 'bg-sky-500/20 border-sky-400/50 text-sky-200 shadow-[0_0_10px_rgba(56,189,248,0.2)]'
+                                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                                  }`}
+                              >
+                                <cat.icon className="w-3 h-3" />
+                                {cat.label}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
 
@@ -1090,8 +1119,8 @@ export default function Category_Humns() {
                       ${isSubmitting
                           ? 'bg-gray-600 cursor-not-allowed'
                           : editingHymnId
-                            ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 hover:shadow-blue-500/25'
-                            : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 hover:shadow-sky-500/25'}`}
+                            ? 'bg-linear-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 hover:shadow-blue-500/25'
+                            : 'bg-linear-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 hover:shadow-sky-500/25'}`}
                     >
                       {isSubmitting ? (editingHymnId ? t("updating") : t("adding")) : (editingHymnId ? t("updateSong") : t("addSong"))}
                     </button>
@@ -1106,7 +1135,7 @@ export default function Category_Humns() {
           {showLyricsModal && selectedLyricsHymn && (
             <Portal>
               <div
-                className={`fixed inset-0 z-[9999] flex justify-center items-end sm:items-center transition-all duration-300
+                className={`fixed inset-0 z-9999 flex justify-center items-end sm:items-center transition-all duration-300
                 ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/60"}`}
               >
                 <motion.div
@@ -1121,9 +1150,15 @@ export default function Category_Humns() {
                 >
                   {/* Decorative Pull Bar for Mobile */}
                   <motion.div
-                    animate={{ opacity: lyricsScrolled ? 0 : 1, height: lyricsScrolled ? 0 : undefined, marginTop: lyricsScrolled ? 0 : undefined, marginBottom: lyricsScrolled ? 0 : undefined }}
-                    transition={{ duration: 0.35, ease: 'easeInOut' }}
-                    className="sm:hidden w-12 h-1.5 bg-gray-400/20 rounded-full mx-auto mt-4 mb-2 shrink-0 overflow-hidden"
+                    animate={{ 
+                      opacity: lyricsScrolled ? 0 : 1, 
+                      scaleY: lyricsScrolled ? 0 : 1,
+                      height: lyricsScrolled ? 0 : 6,
+                      marginTop: lyricsScrolled ? 0 : 16, 
+                      marginBottom: lyricsScrolled ? 0 : 8 
+                    }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className="sm:hidden w-12 bg-gray-400/20 rounded-full mx-auto shrink-0 overflow-hidden will-change-transform"
                   />
 
                   {/* Header Content */}
@@ -1137,9 +1172,13 @@ export default function Category_Humns() {
                           {selectedLyricsHymn.title}
                         </h2>
                         <motion.div
-                          animate={{ opacity: lyricsScrolled ? 0 : 0.5, height: lyricsScrolled ? 0 : 'auto' }}
-                          transition={{ duration: 0.3, ease: 'easeInOut' }}
-                          className={`text-xs uppercase tracking-[0.2em] font-bold overflow-hidden ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}
+                          animate={{ 
+                            opacity: lyricsScrolled ? 0 : 0.5, 
+                            height: lyricsScrolled ? 0 : 'auto',
+                            y: lyricsScrolled ? -5 : 0 
+                          }}
+                          transition={{ duration: 0.2, ease: 'easeOut' }}
+                          className={`text-xs uppercase tracking-[0.2em] font-bold overflow-hidden will-change-transform ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}
                         >
                           Lyrics & Chords
                         </motion.div>
@@ -1174,11 +1213,12 @@ export default function Category_Humns() {
                       animate={{
                         opacity: lyricsScrolled ? 0 : 1,
                         height: lyricsScrolled ? 0 : 'auto',
+                        y: lyricsScrolled ? -10 : 0,
                         marginBottom: lyricsScrolled ? 0 : 12,
                         pointerEvents: lyricsScrolled ? 'none' : 'auto',
                       }}
-                      transition={{ duration: 0.35, ease: 'easeInOut' }}
-                      className="flex flex-wrap items-center justify-between gap-3 overflow-hidden"
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                      className="flex flex-wrap items-center justify-between gap-3 overflow-hidden will-change-transform"
                     >
                       <div className="flex items-center gap-2">
                         {/* Chords Toggle */}
@@ -1251,9 +1291,10 @@ export default function Category_Humns() {
                   >
                     {/* Top fade-out gradient — appears when scrolled */}
                     <div
-                      className="sticky top-0 left-0 right-0 h-8 pointer-events-none z-10 transition-opacity duration-400"
+                      className="sticky top-0 left-0 right-0 h-8 pointer-events-none z-10 transition-opacity duration-300"
                       style={{
                         opacity: lyricsScrolled ? 1 : 0,
+                        transform: 'translateZ(0)', // Force GPU layer
                         background: lyricsTheme === 'warm'
                           ? 'linear-gradient(to bottom, #FDFBF7, transparent)'
                           : lyricsTheme === 'dark'
@@ -1292,7 +1333,7 @@ export default function Category_Humns() {
             <Portal>
               <div
                 id="showDataContainer"
-                className="fixed inset-0 z-[10000] bg-black flex items-center justify-center"
+                className="fixed inset-0 z-10000 bg-black flex items-center justify-center"
               >
 
                 {/* Exit Button */}
@@ -1458,7 +1499,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
                  hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
     >
       {/* Hover Glow Gradient */}
-      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-sky-500/5 via-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      <div className="absolute inset-0 rounded-2xl bg-linear-to-r from-sky-500/5 via-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
       {vocalsMode && (
         <button
@@ -1489,16 +1530,19 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
 
       {/* Song Title */}
       <div className="col-span-11 sm:col-span-5 md:col-span-5 relative z-10 flex items-center gap-2  py-4">
-        {(() => {
-          const matchedCat = categories.find(c => c.id === humn.party) || { icon: Music };
-          const CatIcon = matchedCat.icon;
-          return (
-            <CatIcon
-              className="w-4 h-4 text-gray-500 group-hover:text-sky-300 transition-colors shrink-0"
-              title={matchedCat.label}
-            />
-          );
-        })()}
+        <div className="flex -space-x-1.5 overflow-hidden p-1">
+          {(Array.isArray(humn.party) ? humn.party : [humn.party]).map((p, idx) => {
+            const matchedCat = categories.find(c => c.id === p) || { icon: Music };
+            const CatIcon = matchedCat.icon;
+            return (
+              <CatIcon
+                key={idx}
+                className="w-4 h-4 text-gray-400 group-hover:text-sky-300 transition-colors shrink-0 bg-[#0c0c20] rounded-full ring-2 ring-[#13132b]"
+                title={matchedCat.label}
+              />
+            );
+          })}
+        </div>
         <h3 className="font-bold text-base sm:text-lg text-gray-200 group-hover:text-white transition-colors tracking-wide">
           {humn.title}
         </h3>
