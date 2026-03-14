@@ -32,7 +32,7 @@ export default function Category_Humns() {
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [formData, setFormData] = useState({ title: '', lyrics: '', scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: '2/2' });
+  const [formData, setFormData] = useState({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: '2/2' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingHymnId, setEditingHymnId] = useState(null); // Track which hymn is being edited
 
@@ -126,16 +126,41 @@ export default function Category_Humns() {
   const dataShowSlides = React.useMemo(() => {
     if (!selectedLyricsHymn?.lyrics) return [];
 
-    // Use transposed lyrics if transposeStep exists
-    const lyricsToUse = selectedLyricsHymn.transposeStep
-      ? transposeLyrics(selectedLyricsHymn.lyrics, selectedLyricsHymn.transposeStep)
-      : selectedLyricsHymn.lyrics;
+    let lyricsArray = selectedLyricsHymn.lyrics;
+    
+    // If lyrics is still a string (legacy), split it
+    if (typeof lyricsArray === 'string') {
+      const lyricsToUse = selectedLyricsHymn.transposeStep
+        ? transposeLyrics(lyricsArray, selectedLyricsHymn.transposeStep)
+        : lyricsArray;
 
-    return lyricsToUse
-      .replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
-      .split('\n\n')
-      .map(b => b.trim())
-      .filter(Boolean);
+      return lyricsToUse
+        .replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
+        .split('\n\n')
+        .map(b => b.trim())
+        .filter(Boolean);
+    }
+
+    // Handles the new Array of objects format
+    if (Array.isArray(lyricsArray)) {
+        const lyricsToUse = selectedLyricsHymn.transposeStep
+            ? transposeLyrics(lyricsArray, selectedLyricsHymn.transposeStep)
+            : lyricsArray;
+            
+        const slides = [];
+        lyricsToUse.forEach(stanza => {
+            // Split the stanza text into blocks by empty lines
+            const blocks = stanza.text.split(/\n\s*\n/).filter(b => b.trim() !== '');
+            blocks.forEach(block => {
+                const text = block.replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '');
+                slides.push({ title: stanza.title, type: stanza.type, text });
+            });
+        });
+        return slides;
+    }
+    
+    return [];
+
   }, [selectedLyricsHymn?.lyrics, selectedLyricsHymn?.transposeStep, showChords]);
 
   //Data show Swipe - Native Touch Events (No Library)
@@ -207,15 +232,33 @@ export default function Category_Humns() {
   // Robust broadcast sync: whenever session connects or hymn/lyrics change while presentation is open
   useEffect(() => {
     if (showDataShow && dataShowId && selectedLyricsHymn && isConnected) {
-      const lyricsToUse = selectedLyricsHymn.transposeStep
-        ? transposeLyrics(selectedLyricsHymn.lyrics, selectedLyricsHymn.transposeStep)
-        : (selectedLyricsHymn.lyrics || '');
+      let slides = [];
+      if (Array.isArray(selectedLyricsHymn.lyrics)) {
+        const lyricsToUse = selectedLyricsHymn.transposeStep
+            ? transposeLyrics(selectedLyricsHymn.lyrics, selectedLyricsHymn.transposeStep)
+            : selectedLyricsHymn.lyrics;
+        
+        lyricsToUse.forEach(stanza => {
+            const blocks = stanza.text.split(/\n\s*\n/).filter(b => b.trim() !== '');
+            blocks.forEach(block => {
+                slides.push({
+                    title: stanza.title,
+                    type: stanza.type,
+                    text: block.replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
+                });
+            });
+        });
+      } else {
+        const lyricsToUse = selectedLyricsHymn.transposeStep
+            ? transposeLyrics(selectedLyricsHymn.lyrics, selectedLyricsHymn.transposeStep)
+            : (selectedLyricsHymn.lyrics || '');
 
-      const slides = lyricsToUse
-        .replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
-        .split('\n\n')
-        .map(b => b.trim())
-        .filter(Boolean);
+        slides = lyricsToUse
+            .replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
+            .split('\n\n')
+            .map(b => b.trim())
+            .filter(Boolean);
+      }
 
       broadcastHymn(selectedLyricsHymn, slides);
       broadcastSlide(dataShowIndex);
@@ -381,7 +424,7 @@ export default function Category_Humns() {
 
       queryClient.invalidateQueries(["humns"]);
       closeModal();
-      setFormData({ title: '', lyrics: '', scale: '', relatedChords: '', link: '', BPM: '', timeSignature: '2/2', party: ['all'] });
+      setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', BPM: '', timeSignature: '2/2', party: ['all'] });
     } catch (error) {
       console.error("Error adding hymn:", error);
     } finally {
@@ -402,7 +445,7 @@ export default function Category_Humns() {
 
       queryClient.invalidateQueries(["humns"]);
       closeModal();
-      setFormData({ title: '', lyrics: '', scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: '2/2' });
+      setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: '2/2' });
       setEditingHymnId(null);
     } catch (error) {
       console.error("Error editing hymn:", error);
@@ -493,7 +536,7 @@ export default function Category_Humns() {
     // Pre-fill form with hymn data for editing
     setFormData({
       title: hymn.title || '',
-      lyrics: hymn.lyrics || '',
+      lyrics: Array.isArray(hymn.lyrics) ? hymn.lyrics : (hymn.lyrics ? [{ type: 'verse', title: '1', text: hymn.lyrics }] : []),
       scale: hymn.scale || '',
       relatedChords: hymn.relatedChords || '',
       link: hymn.link || '',
@@ -543,67 +586,100 @@ export default function Category_Humns() {
 
 
 
-  const renderLyricsWithChords = (text) => {
-    if (!text) return null;
+  const renderLyricsWithChords = (lyricsData) => {
+    if (!lyricsData) return null;
 
     const currentTheme = lyricsThemes[lyricsTheme];
 
-    return text.split('\n').map((line, i) => (
-      <div
-        key={i}
-        className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-8 mb-2' : 'my-2'}`}
-        style={{ fontSize: `${fontSize}px`, minHeight: '1.5em' }}
-        dir="rtl"
-      >
-        <div className="flex flex-wrap justify-center items-baseline leading-relaxed tracking-wide">
-          {line ? line.split(/(\[.*?\])/g).map((part, j) => {
-            if (part.startsWith('[') && part.endsWith(']')) {
-              if (!showChords) return null;
-              const chord = part.slice(1, -1);
-              const transposedChord = selectedLyricsHymn.transposeStep
-                ? transposeChords(chord, selectedLyricsHymn.transposeStep)
-                : chord;
+    // Helper to render a single text block
+    const renderBlock = (text, stanzaType) => {
+      const isChorus = stanzaType === 'chorus';
+      const textColor = isChorus ? currentTheme.chord : currentTheme.text;
+      const fontWeight = isChorus ? 'font-bold' : 'font-medium';
+      
+      return text.split('\n').map((line, i) => (
+        <div
+          key={i}
+          className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-8 mb-2' : 'my-2'} ${fontWeight}`}
+          style={{ fontSize: `${fontSize}px`, minHeight: '1.5em' }}
+          dir="rtl"
+        >
+          <div className="flex flex-wrap justify-center items-baseline leading-relaxed tracking-wide">
+            {line ? line.split(/(\[.*?\])/g).map((part, j) => {
+              if (part.startsWith('[') && part.endsWith(']')) {
+                if (!showChords) return null;
+                const chord = part.slice(1, -1);
+                const transposedChord = selectedLyricsHymn?.transposeStep
+                  ? transposeChords(chord, selectedLyricsHymn.transposeStep)
+                  : chord;
 
+                return (
+                  <span key={j} className="inline-block relative overflow-visible mx-1 align-baseline">
+                    {/* Invisible placeholder for width consistency */}
+                    <span className="invisible whitespace-nowrap opacity-0" style={{ fontSize: '0.7em' }} dir="ltr">
+                      {transposedChord}
+                    </span>
+                    <span
+                      className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap mb-1 transition-colors duration-300 pointer-events-none"
+                      style={{
+                        color: isChorus ? currentTheme.text : currentTheme.chord,
+                        fontSize: `0.7em`,
+                      }}
+                      dir="ltr"
+                    >
+                      {transposedChord}
+                    </span>
+                  </span>
+                );
+              }
               return (
-                <span key={j} className="inline-block relative overflow-visible mx-1 align-baseline">
-                  {/* Invisible placeholder for width consistency */}
-                  <span className="invisible whitespace-nowrap" style={{ fontSize: '0.7em' }} dir="ltr">
-                    {transposedChord}
-                  </span>
-                  <span
-                    className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap mb-1 transition-colors duration-300"
-                    style={{
-                      color: currentTheme.chord,
-                      fontSize: `0.7em`,
-                    }}
-                    dir="ltr"
-                  >
-                    {transposedChord}
-                  </span>
+                <span key={j} className="whitespace-pre-wrap transition-colors duration-300" style={{ color: textColor }}>
+                  {part}
                 </span>
               );
-            }
-            return (
-              <span key={j} className="whitespace-pre-wrap transition-colors duration-300" style={{ color: currentTheme.text }}>
-                {part}
-              </span>
-            );
-          }) : <div className="h-4" />}
+            }) : <div className="h-4" />}
+          </div>
         </div>
-      </div>
-    ));
+      ));
+    };
+
+    if (Array.isArray(lyricsData)) {
+      return lyricsData.map((stanza, idx) => (
+        <div key={idx} className={`mb-12 flex flex-col items-center ${stanza.type === 'chorus' ? 'bg-white/5 py-4 px-2 rounded-2xl mx-[-1rem] sm:mx-0' : ''}`}>
+          {stanza.title && <div className={`text-xs mb-4 font-bold tracking-widest px-3 py-1 rounded-full border ${stanza.type === 'chorus' ? 'text-sky-300 border-sky-400/30 bg-sky-500/10' : 'text-gray-400 border-white/10 bg-white/5'}`}>{stanza.title}</div>}
+          {renderBlock(stanza.text, stanza.type)}
+        </div>
+      ));
+    }
+    
+    // Legacy single string rendering
+    return <div className="mb-12">{renderBlock(lyricsData, 'verse')}</div>;
   };
 
-  const renderPresentationSlideWithChords = (text) => {
-    if (!text) return null;
+  const renderPresentationSlideWithChords = (slideData) => {
+    if (!slideData) return null;
 
-    return text.split('\n').map((line, i) => (
-      <div
-        key={i}
-        className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-[1em] mb-2' : 'my-2'}`}
-        style={{ fontSize: 'clamp(32px, 8vw, 64px)', lineHeight: '1.6' }}
-        dir="rtl"
-      >
+    // Handle string or object {type, title, text}
+    const text = typeof slideData === 'string' ? slideData : slideData.text;
+    const title = typeof slideData !== 'string' ? slideData.title : null;
+    const type = typeof slideData !== 'string' ? slideData.type : 'verse';
+    
+    const isChorus = type === 'chorus';
+
+    return (
+        <>
+            {title && (
+                 <div className="absolute top-8 left-1/2 -translate-x-1/2 text-white/50 text-sm sm:text-lg font-black tracking-widest px-4 py-1.5 rounded-full border border-white/10 bg-white/5 uppercase" dir="rtl">
+                    {title}
+                 </div>
+            )}
+            {text.split('\n').map((line, i) => (
+              <div
+                key={i}
+                className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-[1em] mb-2' : 'my-2'}`}
+                style={{ fontSize: 'clamp(32px, 8vw, 64px)', lineHeight: '1.6' }}
+                dir="rtl"
+              >
         {line ? line.split(/(\[.*?\])/g).map((part, j) => {
           if (part.startsWith('[') && part.endsWith(']')) {
             if (!showChords) return null;
@@ -630,11 +706,13 @@ export default function Category_Humns() {
               </span>
             );
           }
-          return <span key={j} className="text-white font-bold whitespace-pre-wrap leading-relaxed select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight">{part}</span>;
+          return <span key={j} className={`font-bold whitespace-pre-wrap leading-relaxed select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight ${isChorus ? 'text-yellow-300 drop-shadow-[0_2px_15px_rgba(253,224,71,0.4)]' : 'text-white'}`}>{part}</span>;
         }) : <br />}
       </div>
-    ));
-  };
+    ))}
+    </>
+  );
+};
 
 
   return (<section id="Category_Humns" className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-10 relative overflow-hidden">
@@ -948,48 +1026,122 @@ export default function Category_Humns() {
                       />
                     </div>
 
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="text-gray-400 text-sm">{t("lyrics")}</label>
-                        {/* Chord Toolbar */}
-                        {formData.relatedChords && (
-                          <div className="flex gap-1.5 flex-wrap justify-end max-w-[70%]">
-                            {formData.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => {
-                                  const input = lyricsInputRef.current;
-                                  if (input) {
-                                    const start = input.selectionStart;
-                                    const end = input.selectionEnd;
-                                    const text = input.value;
-                                    const newText = text.substring(0, start) + `[${chord}]` + text.substring(end);
-                                    setFormData({ ...formData, lyrics: newText });
-
-                                    // Restore cursor position + move it after insertion
-                                    setTimeout(() => {
-                                      input.selectionStart = input.selectionEnd = start + chord.length + 2;
-                                      input.focus();
-                                    }, 0);
-                                  }
-                                }}
-                                className="text-xs font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 hover:bg-sky-500/40 hover:text-white transition-colors"
-                                title={`Insert [${chord}]`}
-                              >
-                                {chord}
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                    {/* Lyrics Structure Builder */}
+                    <div className="flex flex-col gap-3">
+                      <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/10">
+                        <label className="text-gray-200 text-sm font-semibold">{t("lyrics")}</label>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newArray = Array.isArray(formData.lyrics) ? [...formData.lyrics] : [];
+                              newArray.push({ type: 'verse', title: String(newArray.filter(l => l.type === 'verse').length + 1), text: '' });
+                              setFormData({ ...formData, lyrics: newArray });
+                            }}
+                            className="text-xs font-bold px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 text-white transition-colors flex items-center gap-1.5 shadow-sm"
+                          >
+                            <PlusCircle className="w-4 h-4" /> العدد
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newArray = Array.isArray(formData.lyrics) ? [...formData.lyrics] : [];
+                              newArray.push({ type: 'chorus', title: 'القرار', text: '' });
+                              setFormData({ ...formData, lyrics: newArray });
+                            }}
+                            className="text-xs font-bold px-3 py-1.5 rounded-lg bg-sky-500/20 border border-sky-500/30 hover:bg-sky-500/30 text-sky-200 transition-colors flex items-center gap-1.5 shadow-sm shadow-sky-500/10"
+                          >
+                            <PlusCircle className="w-4 h-4" /> القرار
+                          </button>
+                        </div>
                       </div>
-                      <textarea
-                        ref={lyricsInputRef}
-                        dir="rtl"  // ⬅️ ضيفنا دي عشان العربي يظهر صح بالأقواس
-                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[150px] resize-y whitespace-pre-wrap" // ⬅️ ضيفنا whitespace-pre-wrap
-                        placeholder="e.g. Amazing Grace"
-                        value={formData.lyrics}
-                        onChange={(e) => setFormData({ ...formData, lyrics: e.target.value })}
-                      />
+
+                      {Array.isArray(formData.lyrics) && formData.lyrics.map((stanza, idx) => (
+                        <div key={idx} className={`p-4 rounded-xl border relative flex flex-col gap-3 transition-colors ${stanza.type === 'chorus' ? 'bg-sky-500/10 border-sky-500/30 shadow-[inset_0_0_20px_rgba(56,189,248,0.05)]' : 'bg-[#151525] border-white/10'}`}>
+                          
+                          <div className="flex justify-between items-center gap-2 pb-2 border-b border-white/5">
+                            <input 
+                              type="text" 
+                              value={stanza.title}
+                              onChange={(e) => {
+                                const newArray = [...formData.lyrics];
+                                newArray[idx].title = e.target.value;
+                                setFormData({ ...formData, lyrics: newArray });
+                              }}
+                              className={`text-sm font-bold bg-transparent border-none outline-none w-32 px-1 focus:ring-0 ${stanza.type === 'chorus' ? 'text-sky-300 placeholder-sky-300/50' : 'text-gray-300 placeholder-gray-500'}`}
+                              placeholder={stanza.type === 'chorus' ? "القرار" : "1"}
+                              dir="rtl"
+                            />
+                            
+                            <div className="flex items-center gap-3 flex-wrap flex-row-reverse">
+                              {/* Chord Toolbar for this specific text area */}
+                              {formData.relatedChords && (
+                                <div className="flex gap-1.5 flex-wrap justify-end pl-3 border-l border-white/10">
+                                  {formData.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, cIdx) => (
+                                    <button
+                                      key={cIdx}
+                                      onClick={() => {
+                                        const textareaId = `lyrics-textarea-${idx}`;
+                                        const input = document.getElementById(textareaId);
+                                        if (input) {
+                                          const start = input.selectionStart;
+                                          const end = input.selectionEnd;
+                                          const text = input.value;
+                                          const newText = text.substring(0, start) + `[${chord}]` + text.substring(end);
+                                          const newArray = [...formData.lyrics];
+                                          newArray[idx].text = newText;
+                                          setFormData({ ...formData, lyrics: newArray });
+                                          setTimeout(() => {
+                                            input.selectionStart = input.selectionEnd = start + chord.length + 2;
+                                            input.focus();
+                                          }, 0);
+                                        }
+                                      }}
+                                      className="text-[11px] font-bold px-2 py-0.5 rounded cursor-pointer select-none bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/40 hover:text-white transition-colors"
+                                      type="button"
+                                    >
+                                      {chord}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if(!confirm('هل تريد مسح هذا المقطع؟')) return;
+                                  const newArray = formData.lyrics.filter((_, i) => i !== idx);
+                                  setFormData({ ...formData, lyrics: newArray });
+                                }}
+                                className="text-gray-500 hover:text-red-400 transition-colors p-1.5 rounded-full hover:bg-red-500/10"
+                                title="Remove section"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <textarea
+                            id={`lyrics-textarea-${idx}`}
+                            dir="rtl"
+                            className="w-full p-3 rounded-lg bg-black/40 border border-black/50 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[100px] resize-y whitespace-pre-wrap text-sm leading-relaxed custom-scrollbar shadow-inner"
+                            placeholder="كلمات المقطع هنا..."
+                            value={stanza.text}
+                            onChange={(e) => {
+                              const newArray = [...formData.lyrics];
+                              newArray[idx].text = e.target.value;
+                              setFormData({ ...formData, lyrics: newArray });
+                            }}
+                          />
+                        </div>
+                      ))}
+
+                      {(!formData.lyrics || formData.lyrics.length === 0) && (
+                        <div className="text-center p-8 border border-dashed border-white/10 rounded-xl bg-white/5">
+                          <Music className="w-8 h-8 text-gray-500 mx-auto mb-3 opacity-50" />
+                          <p className="text-gray-400 text-sm font-medium">اضغط على <span className="text-sky-400">القرار</span> أو <span className="text-white">العدد</span> للبدء في كتابة الترتيلة</p>
+                        </div>
+                      )}
                     </div>
 
 

@@ -21,15 +21,20 @@ function DisplayContent() {
     }, [remoteAudioStream]);
 
     // Local slide counter from state
-    const slide =
+    const slideData =
         displayState?.slides?.[displayState?.currentSlide] ?? null;
+    const slideText = typeof slideData === 'string' ? slideData : slideData?.text;
+    const slideTitle = typeof slideData === 'string' ? null : slideData?.title;
+    const slideType = typeof slideData === 'string' ? 'verse' : slideData?.type;
+
     const hymnTitle = displayState?.currentHymnTitle ?? null;
     const currentSlide = displayState?.currentSlide ?? 0;
     const totalSlides = displayState?.slides?.length ?? 0;
     const isCleared = displayState?.type === 'clear' || (!displayState?.currentHymnId && displayState?.type !== 'sync');
 
-    const renderSlideWithChords = (text) => {
+    const renderSlideWithChords = (text, type) => {
         if (!text) return null;
+        const isChorus = type === 'chorus';
 
         return text.split('\n').map((line, i) => (
             <div
@@ -60,11 +65,12 @@ function DisplayContent() {
                             </span>
                         );
                     }
-                    return <span key={j} className="text-white font-bold whitespace-pre-line leading-relaxed">{part}</span>;
+                    return <span key={j} className={`font-bold whitespace-pre-line leading-relaxed drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${isChorus ? 'text-yellow-300 drop-shadow-[0_2px_15px_rgba(253,224,71,0.4)]' : 'text-white'}`}>{part}</span>;
                 }) : <br />}
             </div>
         ));
     };
+
 
     return (
         <div
@@ -150,7 +156,12 @@ function DisplayContent() {
                         transition={{ duration: 0.25, ease: 'easeInOut' }}
                         className="w-full h-full flex flex-col items-center justify-center px-12 text-center"
                     >
-                        {renderSlideWithChords(slide)}
+                         {slideTitle && (
+                            <div className="absolute top-10 left-1/2 -translate-x-1/2 text-white/40 text-lg sm:text-2xl font-black tracking-[0.4em] px-8 py-2 rounded-full border border-white/5 bg-white/5 uppercase" dir="rtl">
+                                {slideTitle}
+                            </div>
+                        )}
+                        {renderSlideWithChords(slideText, slideType)}
                     </motion.div>
                 )}
             </AnimatePresence>

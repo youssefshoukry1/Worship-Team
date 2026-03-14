@@ -78,7 +78,11 @@ function RemoteContent() {
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-4 min-h-24 flex items-center justify-center text-center">
                     {currentSlide < totalSlides - 1 && displayState?.slides ? (
                         <p className="text-gray-400 text-sm whitespace-pre-line line-clamp-3" dir="rtl">
-                            {displayState.slides[currentSlide + 1].replace(/\[|\]/g, '')}
+                            {(() => {
+                                const nextSlide = displayState.slides[currentSlide + 1];
+                                const text = typeof nextSlide === 'string' ? nextSlide : nextSlide.text;
+                                return text.replace(/\[|\]/g, '');
+                            })()}
                         </p>
                     ) : (
                         <p className="text-gray-600 text-sm italic">End of presentation</p>

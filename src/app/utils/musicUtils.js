@@ -104,7 +104,18 @@ export const transposeChords = (chordsStr, semitones) => {
 
 export const transposeLyrics = (lyrics, semitones) => {
     if (!lyrics || !semitones) return lyrics;
-    return lyrics.replace(/\[(.*?)\]/g, (match, chord) => {
-        return `[${transposeChords(chord, semitones)}]`;
-    });
+    if (typeof lyrics === 'string') {
+        return lyrics.replace(/\[(.*?)\]/g, (match, chord) => {
+            return `[${transposeChords(chord, semitones)}]`;
+        });
+    }
+    if (Array.isArray(lyrics)) {
+        return lyrics.map(stanza => ({
+            ...stanza,
+            text: stanza.text.replace(/\[(.*?)\]/g, (match, chord) => {
+                return `[${transposeChords(chord, semitones)}]`;
+            })
+        }));
+    }
+    return lyrics;
 };
