@@ -267,13 +267,7 @@ export default function WorkSpace() {
     const [selectedLyricsHymn, setSelectedLyricsHymn] = useState(null);
     const [lyricsTheme, setLyricsTheme] = useState('main');
     const [fontSize, setFontSize] = useState(18);
-    const isScrolledRef = React.useRef(false); // Track scroll for controls hide
     const lyricsScrollRef = useRef(null); // Ref for lyrics scroll container
-    // Refs for direct DOM manipulation to avoid lag on mobile
-    const pullBarRef = React.useRef(null);
-    const subtitleRef = React.useRef(null);
-    const toolbarRef = React.useRef(null);
-    const fadeRef = React.useRef(null);
     // Persist showChords state in localStorage for lyrics modal
     const [showChords, setShowChords] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -536,7 +530,6 @@ export default function WorkSpace() {
         setSelectedLyricsHymn(hymn);
         setLyricsTheme('main');
         setFontSize(18);
-        isScrolledRef.current = false; // Reset scroll state for fresh open
         // Restore last showChords preference from localStorage
         const saved = typeof window !== 'undefined' ? localStorage.getItem('workspace_showChords') : null;
         setShowChords(saved !== null ? saved === 'true' : (vocalsMode ? false : true));
@@ -549,19 +542,6 @@ export default function WorkSpace() {
         }
     }, [showChords]);
 
-    // Handle lyrics scroll
-    const handleLyricsScroll = React.useCallback(() => {
-        const el = lyricsScrollRef.current;
-        if (!el) return;
-        const isScrolled = el.scrollTop > 40;
-        // Use direct DOM manipulation to bypass React state updates and avoid lag
-        if (pullBarRef.current) pullBarRef.current.style.display = isScrolled ? 'none' : 'block';
-        if (subtitleRef.current) subtitleRef.current.style.display = isScrolled ? 'none' : 'block';
-        if (toolbarRef.current) toolbarRef.current.style.display = isScrolled ? 'none' : 'flex';
-        if (fadeRef.current) fadeRef.current.style.opacity = isScrolled ? '1' : '0';
-    }, []);
-
-    // Open presentation mode directly
     const openPresentation = (hymn) => {
         setSelectedLyricsHymn(hymn);
         setShowChords(vocalsMode ? false : true);
@@ -1015,63 +995,71 @@ export default function WorkSpace() {
                                 }}
                                 className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative transition-colors duration-500 overflow-hidden`}
                             >
-                                {/* Decorative Pull Bar for Mobile — instant hide, no latency */}
+                                {/* Content Area - Now wraps everything so headers can naturally scroll away! */}
                                 <div
-                                    ref={pullBarRef}
-                                    className="sm:hidden w-12 bg-gray-400/20 rounded-full mx-auto shrink-0 h-1.5 mt-4 mb-2"
-                                    style={{ display: isScrolledRef.current ? 'none' : 'block' }}
-                                />
+                                    ref={lyricsScrollRef}
+                                    className="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col"
+                                    data-lenis-prevent-wheel
+                                >
+                                    {/* Sticky Header - Title, Presentation & Close Buttons (Always visible) */}
+                                    <div 
+                                        className={`sticky top-0 z-50 pt-2 pb-4 flex flex-col shrink-0 transition-colors duration-500`}
+                                        style={{ 
+                                            backgroundColor: lyricsThemes[lyricsTheme].bg,
+                                            borderBottom: `1px solid ${lyricsTheme === 'warm' ? 'rgba(120,50,0,0.05)' : 'rgba(255,255,255,0.05)'}`
+                                        }}
+                                    >
+                                        {/* Decorative Pull Bar for Mobile */}
+                                        <div className="sm:hidden w-12 bg-gray-400/20 rounded-full mx-auto shrink-0 h-1.5 mb-4" />
 
-                                {/* Header Content */}
-                                <div className={`px-6 flex flex-col border-b shrink-0 transition-colors duration-300
-                      ${lyricsTheme === 'warm' ? 'border-amber-900/10' : 'border-white/5'}`}>
+                                        <div className="px-6 flex justify-between items-center gap-4">
+                                            <div className="flex flex-col min-w-0">
+                                                <h2 className={`text-2xl sm:text-3xl font-bold truncate tracking-tight transition-colors duration-300 ${lyricsTheme === 'warm' ? 'text-[#1A1A1A]' : 'text-white'}`}>
+                                                    {selectedLyricsHymn.title}
+                                                </h2>
+                                                <div className={`text-xs uppercase tracking-[0.2em] font-bold opacity-50 ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}>
+                                                    Lyrics & Chords
+                                                </div>
+                                            </div>
 
-                                    {/* Always-visible title row */}
-                                    <div className="flex justify-between items-center gap-4 py-4">
-                                        <div className="flex flex-col min-w-0">
-                                            <h2 className={`text-2xl sm:text-3xl font-bold truncate tracking-tight transition-colors duration-300 ${lyricsTheme === 'warm' ? 'text-[#1A1A1A]' : 'text-white'}`}>
-                                                {selectedLyricsHymn.title}
-                                            </h2>
-                                            {/* Subtitle — instant hide, no latency */}
-                                            <div
-                                                ref={subtitleRef}
-                                                className={`text-xs uppercase tracking-[0.2em] font-bold opacity-50 ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}
-                                                style={{ display: isScrolledRef.current ? 'none' : 'block' }}
-                                            >
-                                                Lyrics & Chords
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => {
+                                                        setShowDataShow(true);
+                                                        setDataShowIndex(0);
+                                                    }}
+                                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all
+                                                                ${lyricsTheme === 'warm'
+                                                        ? 'bg-black/5 text-black hover:bg-black/10'
+                                                        : 'bg-white/5 text-white hover:bg-white/10'}`}
+                                                >
+                                                    <Monitor className="w-4 h-4" />
+                                                    <span className="hidden sm:inline">Presentation</span>
+                                                </button>
+
+                                                <button
+                                                    onClick={closeLyricsModal}
+                                                    className={`p-2 rounded-full transition-all ${lyricsTheme === 'warm' ? 'hover:bg-black/5 text-black/40 hover:text-black' : 'hover:bg-white/5 text-white/40 hover:text-white'}`}
+                                                >
+                                                    <X className="w-6 h-6" />
+                                                </button>
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => {
-                                                    setShowDataShow(true);
-                                                    setDataShowIndex(0);
-                                                }}
-                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all
-                                      ${lyricsTheme === 'warm'
-                                                        ? 'bg-black/5 text-black hover:bg-black/10'
-                                                        : 'bg-white/5 text-white hover:bg-white/10'}`}
-                                            >
-                                                <Monitor className="w-4 h-4" />
-                                                <span className="hidden sm:inline">Presentation</span>
-                                            </button>
-
-                                            <button
-                                                onClick={closeLyricsModal}
-                                                className={`p-2 rounded-full transition-all ${lyricsTheme === 'warm' ? 'hover:bg-black/5 text-black/40 hover:text-black' : 'hover:bg-white/5 text-white/40 hover:text-white'}`}
-                                            >
-                                                <X className="w-6 h-6" />
-                                            </button>
-                                        </div>
+                                        {/* Smooth transparent gradient shadow covering text rolling under */}
+                                        <div className="absolute top-full left-0 right-0 h-6 pointer-events-none"
+                                             style={{
+                                                 background: lyricsTheme === 'warm'
+                                                     ? 'linear-gradient(to bottom, #FDFBF7, transparent)'
+                                                     : lyricsTheme === 'dark'
+                                                         ? 'linear-gradient(to bottom, #0F172A, transparent)'
+                                                         : 'linear-gradient(to bottom, #0E2238, transparent)'
+                                             }}
+                                        />
                                     </div>
 
-                                    {/* Toolbar — instant hide, no latency */}
-                                    <div
-                                        ref={toolbarRef}
-                                        className="flex flex-wrap items-center justify-between gap-3 mb-3"
-                                        style={{ display: isScrolledRef.current ? 'none' : 'flex' }}
-                                    >
+                                    {/* Naturally Scrolling Toolbar - Elegantly slides under Sticky Header when scrolled */}
+                                    <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 shrink-0">
                                         <div className="flex items-center gap-2">
                                             {/* Chords Toggle */}
                                             <button
@@ -1131,28 +1119,7 @@ export default function WorkSpace() {
                                             ))}
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* Content Area */}
-                                <div
-                                    ref={lyricsScrollRef}
-                                    onScroll={handleLyricsScroll}
-                                    className="flex-1 overflow-y-auto custom-scrollbar relative"
-                                    data-lenis-prevent-wheel
-                                >
-                                    {/* Top fade-out gradient — appears when scrolled */}
-                                    <div
-                                        ref={fadeRef}
-                                        className="sticky top-0 left-0 right-0 h-8 pointer-events-none z-10"
-                                        style={{
-                                            opacity: isScrolledRef.current ? 1 : 0,
-                                            background: lyricsTheme === 'warm'
-                                                ? 'linear-gradient(to bottom, #FDFBF7, transparent)'
-                                                : lyricsTheme === 'dark'
-                                                    ? 'linear-gradient(to bottom, #0F172A, transparent)'
-                                                    : 'linear-gradient(to bottom, #0E2238, transparent)'
-                                        }}
-                                    />
                                     <div className="px-6 sm:px-10 py-10">
                                         <div
                                             className="w-full max-w-2xl mx-auto transition-all duration-500"
