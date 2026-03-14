@@ -1148,17 +1148,11 @@ export default function Category_Humns() {
                   }}
                   className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative transition-colors duration-500 overflow-hidden`}
                 >
-                  {/* Decorative Pull Bar for Mobile */}
-                  <motion.div
-                    animate={{ 
-                      opacity: lyricsScrolled ? 0 : 1, 
-                      scaleY: lyricsScrolled ? 0 : 1,
-                      height: lyricsScrolled ? 0 : 6,
-                      marginTop: lyricsScrolled ? 0 : 16, 
-                      marginBottom: lyricsScrolled ? 0 : 8 
-                    }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
-                    className="sm:hidden w-12 bg-gray-400/20 rounded-full mx-auto shrink-0 overflow-hidden will-change-transform"
+                  {/* Decorative Pull Bar for Mobile — pure CSS, no JS animation */}
+                  <div
+                    className={`sm:hidden w-12 bg-gray-400/20 rounded-full mx-auto shrink-0 transition-all duration-200 ease-out ${
+                      lyricsScrolled ? 'h-0 mt-0 mb-0 opacity-0' : 'h-1.5 mt-4 mb-2 opacity-100'
+                    }`}
                   />
 
                   {/* Header Content */}
@@ -1171,17 +1165,15 @@ export default function Category_Humns() {
                         <h2 className={`text-2xl sm:text-3xl font-bold truncate tracking-tight transition-colors duration-300 ${lyricsTheme === 'warm' ? 'text-[#1A1A1A]' : 'text-white'}`}>
                           {selectedLyricsHymn.title}
                         </h2>
-                        <motion.div
-                          animate={{ 
-                            opacity: lyricsScrolled ? 0 : 0.5, 
-                            height: lyricsScrolled ? 0 : 'auto',
-                            y: lyricsScrolled ? -5 : 0 
-                          }}
-                          transition={{ duration: 0.2, ease: 'easeOut' }}
-                          className={`text-xs uppercase tracking-[0.2em] font-bold overflow-hidden will-change-transform ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}
+                        {/* Subtitle — pure CSS opacity+transform, no height change */}
+                        <div
+                          className={`text-xs uppercase tracking-[0.2em] font-bold overflow-hidden transition-all duration-200 ease-out ${
+                            lyricsScrolled ? 'opacity-0 -translate-y-1 max-h-0' : 'opacity-50 translate-y-0 max-h-8'
+                          } ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}
+                          style={{ willChange: 'opacity, transform' }}
                         >
                           Lyrics & Chords
-                        </motion.div>
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -1208,17 +1200,14 @@ export default function Category_Humns() {
                       </div>
                     </div>
 
-                    {/* Toolbar — hidden on scroll */}
-                    <motion.div
-                      animate={{
-                        opacity: lyricsScrolled ? 0 : 1,
-                        height: lyricsScrolled ? 0 : 'auto',
-                        y: lyricsScrolled ? -10 : 0,
-                        marginBottom: lyricsScrolled ? 0 : 12,
-                        pointerEvents: lyricsScrolled ? 'none' : 'auto',
-                      }}
-                      transition={{ duration: 0.2, ease: 'easeOut' }}
-                      className="flex flex-wrap items-center justify-between gap-3 overflow-hidden will-change-transform"
+                    {/* Toolbar — hidden on scroll. CSS max-height clip: zero layout reflow */}
+                    <div
+                      className={`flex flex-wrap items-center justify-between gap-3 overflow-hidden transition-all duration-200 ease-out ${
+                        lyricsScrolled
+                          ? 'max-h-0 opacity-0 mb-0 pointer-events-none -translate-y-2'
+                          : 'max-h-40 opacity-100 mb-3 pointer-events-auto translate-y-0'
+                      }`}
+                      style={{ willChange: 'opacity, transform' }}
                     >
                       <div className="flex items-center gap-2">
                         {/* Chords Toggle */}
@@ -1279,7 +1268,7 @@ export default function Category_Humns() {
                           </button>
                         ))}
                       </div>
-                    </motion.div>
+                    </div>
                   </div>
 
                   {/* Content Area */}
