@@ -309,31 +309,23 @@ export default function Category_Humns() {
       isScrolledRef.current = isScrolled;
       // Use direct DOM manipulation to bypass React state updates and avoid lag
       if (pullBarRef.current) {
-        if (isScrolled) {
-          pullBarRef.current.classList.add('h-0', 'mt-0', 'mb-0', 'opacity-0');
-          pullBarRef.current.classList.remove('h-1.5', 'mt-4', 'mb-2', 'opacity-100');
-        } else {
-          pullBarRef.current.classList.remove('h-0', 'mt-0', 'mb-0', 'opacity-0');
-          pullBarRef.current.classList.add('h-1.5', 'mt-4', 'mb-2', 'opacity-100');
-        }
+          pullBarRef.current.style.transform = isScrolled ? 'translateY(-10px) scaleY(0)' : 'translateY(0) scaleY(1)';
+          pullBarRef.current.style.opacity = isScrolled ? '0' : '1';
+          pullBarRef.current.style.height = isScrolled ? '0px' : '6px';
+          pullBarRef.current.style.marginTop = isScrolled ? '0px' : '16px';
+          pullBarRef.current.style.marginBottom = isScrolled ? '0px' : '8px';
       }
       if (subtitleRef.current) {
-        if (isScrolled) {
-          subtitleRef.current.classList.add('opacity-0', '-translate-y-1', 'max-h-0');
-          subtitleRef.current.classList.remove('opacity-50', 'translate-y-0', 'max-h-8');
-        } else {
-          subtitleRef.current.classList.remove('opacity-0', '-translate-y-1', 'max-h-0');
-          subtitleRef.current.classList.add('opacity-50', 'translate-y-0', 'max-h-8');
-        }
+          subtitleRef.current.style.transform = isScrolled ? 'translateY(-10px) translateZ(0)' : 'translateY(0) translateZ(0)';
+          subtitleRef.current.style.opacity = isScrolled ? '0' : '0.5';
+          subtitleRef.current.style.maxHeight = isScrolled ? '0px' : '32px';
       }
       if (toolbarRef.current) {
-        if (isScrolled) {
-          toolbarRef.current.classList.add('max-h-0', 'opacity-0', 'mb-0', 'pointer-events-none', '-translate-y-2');
-          toolbarRef.current.classList.remove('max-h-40', 'opacity-100', 'mb-3', 'pointer-events-auto', 'translate-y-0');
-        } else {
-          toolbarRef.current.classList.remove('max-h-0', 'opacity-0', 'mb-0', 'pointer-events-none', '-translate-y-2');
-          toolbarRef.current.classList.add('max-h-40', 'opacity-100', 'mb-3', 'pointer-events-auto', 'translate-y-0');
-        }
+          toolbarRef.current.style.transform = isScrolled ? 'translateY(-10px) translateZ(0)' : 'translateY(0) translateZ(0)';
+          toolbarRef.current.style.opacity = isScrolled ? '0' : '1';
+          toolbarRef.current.style.maxHeight = isScrolled ? '0px' : '160px';
+          toolbarRef.current.style.marginBottom = isScrolled ? '0px' : '12px';
+          toolbarRef.current.style.pointerEvents = isScrolled ? 'none' : 'auto';
       }
       if (fadeRef.current) {
         fadeRef.current.style.opacity = isScrolled ? '1' : '0';
@@ -1185,10 +1177,16 @@ export default function Category_Humns() {
                 >
                   {/* Decorative Pull Bar for Mobile — pure CSS, no JS animation */}
                   <div
-                    ref={pullBarRef}
-                    className={`sm:hidden w-12 bg-gray-400/20 rounded-full mx-auto shrink-0 transition-all duration-200 ease-out ${
-                      isScrolledRef.current ? 'h-0 mt-0 mb-0 opacity-0' : 'h-1.5 mt-4 mb-2 opacity-100'
-                    }`}
+                      ref={pullBarRef}
+                      className="sm:hidden w-12 bg-gray-400/20 rounded-full mx-auto shrink-0 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
+                      style={{
+                          willChange: 'transform, opacity, height, margin',
+                          height: isScrolledRef.current ? '0px' : '6px',
+                          marginTop: isScrolledRef.current ? '0px' : '16px',
+                          marginBottom: isScrolledRef.current ? '0px' : '8px',
+                          opacity: isScrolledRef.current ? 0 : 1,
+                          transform: isScrolledRef.current ? 'translateY(-10px) scaleY(0)' : 'translateY(0) scaleY(1)'
+                      }}
                   />
 
                   {/* Header Content */}
@@ -1203,13 +1201,16 @@ export default function Category_Humns() {
                         </h2>
                         {/* Subtitle — pure CSS opacity+transform, no height change */}
                         <div
-                          ref={subtitleRef}
-                          className={`text-xs uppercase tracking-[0.2em] font-bold overflow-hidden transition-all duration-200 ease-out ${
-                            isScrolledRef.current ? 'opacity-0 -translate-y-1 max-h-0' : 'opacity-50 translate-y-0 max-h-8'
-                          } ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}
-                          style={{ willChange: 'opacity, transform' }}
+                            ref={subtitleRef}
+                            className={`text-xs uppercase tracking-[0.2em] font-bold overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}
+                            style={{
+                                willChange: 'opacity, transform, max-height',
+                                opacity: isScrolledRef.current ? 0 : 0.5,
+                                maxHeight: isScrolledRef.current ? '0px' : '32px',
+                                transform: isScrolledRef.current ? 'translateY(-10px) translateZ(0)' : 'translateY(0) translateZ(0)'
+                            }}
                         >
-                          Lyrics & Chords
+                            Lyrics & Chords
                         </div>
                       </div>
 
@@ -1239,13 +1240,16 @@ export default function Category_Humns() {
 
                     {/* Toolbar — hidden on scroll. CSS max-height clip: zero layout reflow */}
                     <div
-                      ref={toolbarRef}
-                      className={`flex flex-wrap items-center justify-between gap-3 overflow-hidden transition-all duration-200 ease-out ${
-                        isScrolledRef.current
-                          ? 'max-h-0 opacity-0 mb-0 pointer-events-none -translate-y-2'
-                          : 'max-h-40 opacity-100 mb-3 pointer-events-auto translate-y-0'
-                      }`}
-                      style={{ willChange: 'opacity, transform' }}
+                        ref={toolbarRef}
+                        className="flex flex-wrap items-center justify-between gap-3 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
+                        style={{
+                            willChange: 'opacity, transform, max-height, margin',
+                            opacity: isScrolledRef.current ? 0 : 1,
+                            maxHeight: isScrolledRef.current ? '0px' : '160px',
+                            marginBottom: isScrolledRef.current ? '0px' : '12px',
+                            pointerEvents: isScrolledRef.current ? 'none' : 'auto',
+                            transform: isScrolledRef.current ? 'translateY(-10px) translateZ(0)' : 'translateY(0) translateZ(0)'
+                        }}
                     >
                       <div className="flex items-center gap-2">
                         {/* Chords Toggle */}
