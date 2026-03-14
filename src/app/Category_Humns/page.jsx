@@ -42,9 +42,14 @@ export default function Category_Humns() {
   const [lyricsTheme, setLyricsTheme] = useState('main');
   const [fontSize, setFontSize] = useState(18);
   const [showChords, setShowChords] = useState(true); // Toggle for chords visibility
-  const [lyricsScrolled, setLyricsScrolled] = useState(false); // Track scroll for controls hide
   const isScrolledRef = React.useRef(false); // Track state to avoid redundant renders
   const lyricsScrollRef = React.useRef(null); // Ref for lyrics scroll container
+  
+  // Refs for direct DOM manipulation to avoid lag on mobile
+  const pullBarRef = React.useRef(null);
+  const subtitleRef = React.useRef(null);
+  const toolbarRef = React.useRef(null);
+  const fadeRef = React.useRef(null);
 
   //Data Show
   const [showDataShow, setShowDataShow] = useState(false);
@@ -275,7 +280,6 @@ export default function Category_Humns() {
     setLyricsTheme('main');
     setShowChords(vocalsMode ? false : true);
     isScrolledRef.current = false; // Reset ref
-    setLyricsScrolled(false); // Reset scroll state for fresh open
     setShowLyricsModal(true);
   };
 
@@ -289,7 +293,6 @@ export default function Category_Humns() {
 
   const closeLyricsModal = () => {
     setIsClosing(true);
-    setLyricsScrolled(false);
     setTimeout(() => {
       setShowLyricsModal(false);
       setSelectedLyricsHymn(null);
@@ -304,26 +307,41 @@ export default function Category_Humns() {
     const isScrolled = el.scrollTop > 40;
     if (isScrolledRef.current !== isScrolled) {
       isScrolledRef.current = isScrolled;
-      setLyricsScrolled(isScrolled);
+      // Use direct DOM manipulation to bypass React state updates and avoid lag
+      if (pullBarRef.current) {
+        if (isScrolled) {
+          pullBarRef.current.classList.add('h-0', 'mt-0', 'mb-0', 'opacity-0');
+          pullBarRef.current.classList.remove('h-1.5', 'mt-4', 'mb-2', 'opacity-100');
+        } else {
+          pullBarRef.current.classList.remove('h-0', 'mt-0', 'mb-0', 'opacity-0');
+          pullBarRef.current.classList.add('h-1.5', 'mt-4', 'mb-2', 'opacity-100');
+        }
+      }
+      if (subtitleRef.current) {
+        if (isScrolled) {
+          subtitleRef.current.classList.add('opacity-0', '-translate-y-1', 'max-h-0');
+          subtitleRef.current.classList.remove('opacity-50', 'translate-y-0', 'max-h-8');
+        } else {
+          subtitleRef.current.classList.remove('opacity-0', '-translate-y-1', 'max-h-0');
+          subtitleRef.current.classList.add('opacity-50', 'translate-y-0', 'max-h-8');
+        }
+      }
+      if (toolbarRef.current) {
+        if (isScrolled) {
+          toolbarRef.current.classList.add('max-h-0', 'opacity-0', 'mb-0', 'pointer-events-none', '-translate-y-2');
+          toolbarRef.current.classList.remove('max-h-40', 'opacity-100', 'mb-3', 'pointer-events-auto', 'translate-y-0');
+        } else {
+          toolbarRef.current.classList.remove('max-h-0', 'opacity-0', 'mb-0', 'pointer-events-none', '-translate-y-2');
+          toolbarRef.current.classList.add('max-h-40', 'opacity-100', 'mb-3', 'pointer-events-auto', 'translate-y-0');
+        }
+      }
+      if (fadeRef.current) {
+        fadeRef.current.style.opacity = isScrolled ? '1' : '0';
+      }
     }
   }, []);
 
-  // Attach the scroll listener as PASSIVE — deferred via rAF so the Portal has fully mounted
-  React.useEffect(() => {
-    if (!showLyricsModal) return;
-    let rafId;
-    // rAF guarantees the Portal DOM node is painted and lyricsScrollRef.current is set
-    rafId = requestAnimationFrame(() => {
-      const el = lyricsScrollRef.current;
-      if (!el) return;
-      el.addEventListener('scroll', handleLyricsScroll, { passive: true });
-    });
-    return () => {
-      cancelAnimationFrame(rafId);
-      const el = lyricsScrollRef.current;
-      if (el) el.removeEventListener('scroll', handleLyricsScroll);
-    };
-  }, [showLyricsModal, handleLyricsScroll]);
+  // Attached via onScroll prop to guarantee firing in Portals
 
   // Prevent background scrolling when lyrics modal is open
   React.useEffect(() => {
@@ -1167,8 +1185,9 @@ export default function Category_Humns() {
                 >
                   {/* Decorative Pull Bar for Mobile — pure CSS, no JS animation */}
                   <div
+                    ref={pullBarRef}
                     className={`sm:hidden w-12 bg-gray-400/20 rounded-full mx-auto shrink-0 transition-all duration-200 ease-out ${
-                      lyricsScrolled ? 'h-0 mt-0 mb-0 opacity-0' : 'h-1.5 mt-4 mb-2 opacity-100'
+                      isScrolledRef.current ? 'h-0 mt-0 mb-0 opacity-0' : 'h-1.5 mt-4 mb-2 opacity-100'
                     }`}
                   />
 
@@ -1184,8 +1203,9 @@ export default function Category_Humns() {
                         </h2>
                         {/* Subtitle — pure CSS opacity+transform, no height change */}
                         <div
+                          ref={subtitleRef}
                           className={`text-xs uppercase tracking-[0.2em] font-bold overflow-hidden transition-all duration-200 ease-out ${
-                            lyricsScrolled ? 'opacity-0 -translate-y-1 max-h-0' : 'opacity-50 translate-y-0 max-h-8'
+                            isScrolledRef.current ? 'opacity-0 -translate-y-1 max-h-0' : 'opacity-50 translate-y-0 max-h-8'
                           } ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}
                           style={{ willChange: 'opacity, transform' }}
                         >
@@ -1219,8 +1239,9 @@ export default function Category_Humns() {
 
                     {/* Toolbar — hidden on scroll. CSS max-height clip: zero layout reflow */}
                     <div
+                      ref={toolbarRef}
                       className={`flex flex-wrap items-center justify-between gap-3 overflow-hidden transition-all duration-200 ease-out ${
-                        lyricsScrolled
+                        isScrolledRef.current
                           ? 'max-h-0 opacity-0 mb-0 pointer-events-none -translate-y-2'
                           : 'max-h-40 opacity-100 mb-3 pointer-events-auto translate-y-0'
                       }`}
@@ -1291,15 +1312,17 @@ export default function Category_Humns() {
                   {/* Content Area */}
                   <div
                     ref={lyricsScrollRef}
+                    onScroll={handleLyricsScroll}
                     className="flex-1 overflow-y-auto custom-scrollbar relative"
                     style={{ WebkitOverflowScrolling: 'touch' }}
                     data-lenis-prevent-wheel
                   >
                     {/* Top fade-out gradient — appears when scrolled */}
                     <div
+                      ref={fadeRef}
                       className="sticky top-0 left-0 right-0 h-8 pointer-events-none z-10 transition-opacity duration-300"
                       style={{
-                        opacity: lyricsScrolled ? 1 : 0,
+                        opacity: isScrolledRef.current ? 1 : 0,
                         transform: 'translateZ(0)', // Force GPU layer
                         background: lyricsTheme === 'warm'
                           ? 'linear-gradient(to bottom, #FDFBF7, transparent)'

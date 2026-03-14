@@ -81,8 +81,13 @@ export default function Trainings() {
   const [lyricsTheme, setLyricsTheme] = useState('main');
   const [fontSize, setFontSize] = useState(18);
   const [showChords, setShowChords] = useState(true);
-  const [lyricsScrolled, setLyricsScrolled] = useState(false); // Track scroll for controls hide
+  const isScrolledRef = React.useRef(false); // Track scroll for controls hide
   const lyricsScrollRef = useRef(null); // Ref for lyrics scroll container
+  // Refs for direct DOM manipulation to avoid lag on mobile
+  const pullBarRef = React.useRef(null);
+  const subtitleRef = React.useRef(null);
+  const toolbarRef = React.useRef(null);
+  const fadeRef = React.useRef(null);
 
   // Sync showChords with vocalsMode
   useEffect(() => {
@@ -141,13 +146,12 @@ export default function Trainings() {
     setLyricsTheme('main');
     setFontSize(18);
     setShowChords(vocalsMode ? false : true);
-    setLyricsScrolled(false); // Reset scroll state for fresh open
+    isScrolledRef.current = false; // Reset scroll state for fresh open
     setShowLyricsModal(true);
   };
 
   const closeLyricsModal = () => {
     setIsClosing(true);
-    setLyricsScrolled(false);
     setTimeout(() => {
       setShowLyricsModal(false);
       setSelectedLyricsHymn(null);
@@ -159,8 +163,44 @@ export default function Trainings() {
   const handleLyricsScroll = useCallback(() => {
     const el = lyricsScrollRef.current;
     if (!el) return;
-    setLyricsScrolled(el.scrollTop > 40);
+    const isScrolled = el.scrollTop > 40;
+    if (isScrolledRef.current !== isScrolled) {
+        isScrolledRef.current = isScrolled;
+        // Use direct DOM manipulation to bypass React state updates and avoid lag
+        if (pullBarRef.current) {
+            if (isScrolled) {
+                pullBarRef.current.classList.add('h-0', 'mt-0', 'mb-0', 'opacity-0');
+                pullBarRef.current.classList.remove('h-1.5', 'mt-4', 'mb-2', 'opacity-100');
+            } else {
+                pullBarRef.current.classList.remove('h-0', 'mt-0', 'mb-0', 'opacity-0');
+                pullBarRef.current.classList.add('h-1.5', 'mt-4', 'mb-2', 'opacity-100');
+            }
+        }
+        if (subtitleRef.current) {
+            if (isScrolled) {
+                subtitleRef.current.classList.add('opacity-0', '-translate-y-1', 'max-h-0');
+                subtitleRef.current.classList.remove('opacity-50', 'translate-y-0', 'max-h-8');
+            } else {
+                subtitleRef.current.classList.remove('opacity-0', '-translate-y-1', 'max-h-0');
+                subtitleRef.current.classList.add('opacity-50', 'translate-y-0', 'max-h-8');
+            }
+        }
+        if (toolbarRef.current) {
+            if (isScrolled) {
+                toolbarRef.current.classList.add('max-h-0', 'opacity-0', 'mb-0', 'pointer-events-none', '-translate-y-2');
+                toolbarRef.current.classList.remove('max-h-40', 'opacity-100', 'mb-3', 'pointer-events-auto', 'translate-y-0');
+            } else {
+                toolbarRef.current.classList.remove('max-h-0', 'opacity-0', 'mb-0', 'pointer-events-none', '-translate-y-2');
+                toolbarRef.current.classList.add('max-h-40', 'opacity-100', 'mb-3', 'pointer-events-auto', 'translate-y-0');
+            }
+        }
+        if (fadeRef.current) {
+            fadeRef.current.style.opacity = isScrolled ? '1' : '0';
+        }
+    }
   }, []);
+
+  // Attached via onScroll prop to guarantee firing in Portals
 
   // Prevent background scrolling when lyrics modal is open
   React.useEffect(() => {
@@ -762,11 +802,12 @@ export default function Trainings() {
               }}
               className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative transition-colors duration-500 overflow-hidden`}
             >
-              {/* Decorative Pull Bar for Mobile */}
-              <motion.div
-                animate={{ opacity: lyricsScrolled ? 0 : 1, height: lyricsScrolled ? 0 : undefined, marginTop: lyricsScrolled ? 0 : undefined, marginBottom: lyricsScrolled ? 0 : undefined }}
-                transition={{ duration: 0.35, ease: 'easeInOut' }}
-                className="sm:hidden w-12 h-1.5 bg-gray-400/20 rounded-full mx-auto mt-4 mb-2 shrink-0 overflow-hidden"
+              {/* Decorative Pull Bar for Mobile — pure CSS, no JS animation */}
+              <div
+                  ref={pullBarRef}
+                  className={`sm:hidden w-12 bg-gray-400/20 rounded-full mx-auto shrink-0 transition-all duration-200 ease-out ${
+                      isScrolledRef.current ? 'h-0 mt-0 mb-0 opacity-0' : 'h-1.5 mt-4 mb-2 opacity-100'
+                  }`}
               />
 
               {/* Header Content */}
@@ -779,13 +820,16 @@ export default function Trainings() {
                     <h2 className={`text-2xl sm:text-3xl font-bold truncate tracking-tight transition-colors duration-300 ${lyricsTheme === 'warm' ? 'text-[#1A1A1A]' : 'text-white'}`}>
                       {selectedLyricsHymn.title}
                     </h2>
-                    <motion.div
-                      animate={{ opacity: lyricsScrolled ? 0 : 0.5, height: lyricsScrolled ? 0 : 'auto' }}
-                      transition={{ duration: 0.3, ease: 'easeInOut' }}
-                      className={`text-xs uppercase tracking-[0.2em] font-bold overflow-hidden ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}
+                    {/* Subtitle — pure CSS opacity+transform, no height change */}
+                    <div
+                        ref={subtitleRef}
+                        className={`text-xs uppercase tracking-[0.2em] font-bold overflow-hidden transition-all duration-200 ease-out ${
+                            isScrolledRef.current ? 'opacity-0 -translate-y-1 max-h-0' : 'opacity-50 translate-y-0 max-h-8'
+                        } ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}
+                        style={{ willChange: 'opacity, transform' }}
                     >
-                      Lyrics & Chords
-                    </motion.div>
+                        Lyrics & Chords
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -812,16 +856,15 @@ export default function Trainings() {
                   </div>
                 </div>
 
-                {/* Toolbar — hidden on scroll */}
-                <motion.div
-                  animate={{
-                    opacity: lyricsScrolled ? 0 : 1,
-                    height: lyricsScrolled ? 0 : 'auto',
-                    marginBottom: lyricsScrolled ? 0 : 12,
-                    pointerEvents: lyricsScrolled ? 'none' : 'auto',
-                  }}
-                  transition={{ duration: 0.35, ease: 'easeInOut' }}
-                  className="flex flex-wrap items-center justify-between gap-3 overflow-hidden"
+                {/* Toolbar — hidden on scroll. CSS max-height clip: zero layout reflow */}
+                <div
+                    ref={toolbarRef}
+                    className={`flex flex-wrap items-center justify-between gap-3 overflow-hidden transition-all duration-200 ease-out ${
+                        isScrolledRef.current
+                            ? 'max-h-0 opacity-0 mb-0 pointer-events-none -translate-y-2'
+                            : 'max-h-40 opacity-100 mb-3 pointer-events-auto translate-y-0'
+                    }`}
+                    style={{ willChange: 'opacity, transform' }}
                 >
                   <div className="flex items-center gap-2">
                     {/* Chords Toggle */}
@@ -881,7 +924,7 @@ export default function Trainings() {
                       </button>
                     ))}
                   </div>
-                </motion.div>
+                </div>
               </div>
 
               {/* Content Area */}
@@ -893,9 +936,11 @@ export default function Trainings() {
               >
                 {/* Top fade-out gradient — appears when scrolled */}
                 <div
+                  ref={fadeRef}
                   className="sticky top-0 left-0 right-0 h-8 pointer-events-none z-10 transition-opacity duration-400"
                   style={{
-                    opacity: lyricsScrolled ? 1 : 0,
+                    opacity: isScrolledRef.current ? 1 : 0,
+                    transform: 'translateZ(0)', // Force GPU layer
                     background: lyricsTheme === 'warm'
                       ? 'linear-gradient(to bottom, #FDFBF7, transparent)'
                       : lyricsTheme === 'dark'
