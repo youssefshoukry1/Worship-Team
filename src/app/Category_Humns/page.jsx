@@ -297,7 +297,7 @@ export default function Category_Humns() {
     }, 300);
   };
 
-  // Handle lyrics scroll — use RAF for performance, no state updates in tight loop
+  // Handle lyrics scroll — passive listener so it NEVER blocks native scroll thread
   const handleLyricsScroll = React.useCallback(() => {
     const el = lyricsScrollRef.current;
     if (!el) return;
@@ -307,6 +307,23 @@ export default function Category_Humns() {
       setLyricsScrolled(isScrolled);
     }
   }, []);
+
+  // Attach the scroll listener as PASSIVE — deferred via rAF so the Portal has fully mounted
+  React.useEffect(() => {
+    if (!showLyricsModal) return;
+    let rafId;
+    // rAF guarantees the Portal DOM node is painted and lyricsScrollRef.current is set
+    rafId = requestAnimationFrame(() => {
+      const el = lyricsScrollRef.current;
+      if (!el) return;
+      el.addEventListener('scroll', handleLyricsScroll, { passive: true });
+    });
+    return () => {
+      cancelAnimationFrame(rafId);
+      const el = lyricsScrollRef.current;
+      if (el) el.removeEventListener('scroll', handleLyricsScroll);
+    };
+  }, [showLyricsModal, handleLyricsScroll]);
 
   // Prevent background scrolling when lyrics modal is open
   React.useEffect(() => {
@@ -1135,8 +1152,8 @@ export default function Category_Humns() {
           {showLyricsModal && selectedLyricsHymn && (
             <Portal>
               <div
-                className={`fixed inset-0 z-9999 flex justify-center items-end sm:items-center transition-all duration-300
-                ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/60"}`}
+                className={`fixed inset-0 z-9999 flex justify-center items-end sm:items-center transition-opacity duration-300
+                ${isClosing ? 'opacity-0' : 'opacity-100'} bg-black/70`}
               >
                 <motion.div
                   initial={{ y: "100%", opacity: 0 }}
@@ -1146,7 +1163,7 @@ export default function Category_Humns() {
                     backgroundColor: lyricsThemes[lyricsTheme].bg,
                     boxShadow: lyricsTheme === 'warm' ? '0 10px 40px rgba(139, 94, 60, 0.15)' : '0 10px 40px rgba(0, 0, 0, 0.5)'
                   }}
-                  className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative transition-colors duration-500 overflow-hidden`}
+                  className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative overflow-hidden`}
                 >
                   {/* Decorative Pull Bar for Mobile — pure CSS, no JS animation */}
                   <div
@@ -1274,8 +1291,8 @@ export default function Category_Humns() {
                   {/* Content Area */}
                   <div
                     ref={lyricsScrollRef}
-                    onScroll={handleLyricsScroll}
                     className="flex-1 overflow-y-auto custom-scrollbar relative"
+                    style={{ WebkitOverflowScrolling: 'touch' }}
                     data-lenis-prevent-wheel
                   >
                     {/* Top fade-out gradient — appears when scrolled */}
