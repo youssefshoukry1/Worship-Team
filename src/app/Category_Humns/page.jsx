@@ -308,28 +308,10 @@ export default function Category_Humns() {
     if (isScrolledRef.current !== isScrolled) {
       isScrolledRef.current = isScrolled;
       // Use direct DOM manipulation to bypass React state updates and avoid lag
-      if (pullBarRef.current) {
-          pullBarRef.current.style.transform = isScrolled ? 'translateY(-10px) scaleY(0)' : 'translateY(0) scaleY(1)';
-          pullBarRef.current.style.opacity = isScrolled ? '0' : '1';
-          pullBarRef.current.style.height = isScrolled ? '0px' : '6px';
-          pullBarRef.current.style.marginTop = isScrolled ? '0px' : '16px';
-          pullBarRef.current.style.marginBottom = isScrolled ? '0px' : '8px';
-      }
-      if (subtitleRef.current) {
-          subtitleRef.current.style.transform = isScrolled ? 'translateY(-10px) translateZ(0)' : 'translateY(0) translateZ(0)';
-          subtitleRef.current.style.opacity = isScrolled ? '0' : '0.5';
-          subtitleRef.current.style.maxHeight = isScrolled ? '0px' : '32px';
-      }
-      if (toolbarRef.current) {
-          toolbarRef.current.style.transform = isScrolled ? 'translateY(-10px) translateZ(0)' : 'translateY(0) translateZ(0)';
-          toolbarRef.current.style.opacity = isScrolled ? '0' : '1';
-          toolbarRef.current.style.maxHeight = isScrolled ? '0px' : '160px';
-          toolbarRef.current.style.marginBottom = isScrolled ? '0px' : '12px';
-          toolbarRef.current.style.pointerEvents = isScrolled ? 'none' : 'auto';
-      }
-      if (fadeRef.current) {
-        fadeRef.current.style.opacity = isScrolled ? '1' : '0';
-      }
+      if (pullBarRef.current) pullBarRef.current.style.display = isScrolled ? 'none' : 'block';
+      if (subtitleRef.current) subtitleRef.current.style.display = isScrolled ? 'none' : 'block';
+      if (toolbarRef.current) toolbarRef.current.style.display = isScrolled ? 'none' : 'flex';
+      if (fadeRef.current) fadeRef.current.style.opacity = isScrolled ? '1' : '0';
     }
   }, []);
 
@@ -1175,18 +1157,11 @@ export default function Category_Humns() {
                   }}
                   className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative overflow-hidden`}
                 >
-                  {/* Decorative Pull Bar for Mobile — pure CSS, no JS animation */}
+                  {/* Decorative Pull Bar for Mobile — instant hide, no latency */}
                   <div
                       ref={pullBarRef}
-                      className="sm:hidden w-12 bg-gray-400/20 rounded-full mx-auto shrink-0 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
-                      style={{
-                          willChange: 'transform, opacity, height, margin',
-                          height: isScrolledRef.current ? '0px' : '6px',
-                          marginTop: isScrolledRef.current ? '0px' : '16px',
-                          marginBottom: isScrolledRef.current ? '0px' : '8px',
-                          opacity: isScrolledRef.current ? 0 : 1,
-                          transform: isScrolledRef.current ? 'translateY(-10px) scaleY(0)' : 'translateY(0) scaleY(1)'
-                      }}
+                      className="sm:hidden w-12 bg-gray-400/20 rounded-full mx-auto shrink-0 h-1.5 mt-4 mb-2"
+                      style={{ display: isScrolledRef.current ? 'none' : 'block' }}
                   />
 
                   {/* Header Content */}
@@ -1199,16 +1174,11 @@ export default function Category_Humns() {
                         <h2 className={`text-2xl sm:text-3xl font-bold truncate tracking-tight transition-colors duration-300 ${lyricsTheme === 'warm' ? 'text-[#1A1A1A]' : 'text-white'}`}>
                           {selectedLyricsHymn.title}
                         </h2>
-                        {/* Subtitle — pure CSS opacity+transform, no height change */}
+                        {/* Subtitle — instant hide, no latency */}
                         <div
                             ref={subtitleRef}
-                            className={`text-xs uppercase tracking-[0.2em] font-bold overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}
-                            style={{
-                                willChange: 'opacity, transform, max-height',
-                                opacity: isScrolledRef.current ? 0 : 0.5,
-                                maxHeight: isScrolledRef.current ? '0px' : '32px',
-                                transform: isScrolledRef.current ? 'translateY(-10px) translateZ(0)' : 'translateY(0) translateZ(0)'
-                            }}
+                            className={`text-xs uppercase tracking-[0.2em] font-bold opacity-50 ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}
+                            style={{ display: isScrolledRef.current ? 'none' : 'block' }}
                         >
                             Lyrics & Chords
                         </div>
@@ -1238,18 +1208,11 @@ export default function Category_Humns() {
                       </div>
                     </div>
 
-                    {/* Toolbar — hidden on scroll. CSS max-height clip: zero layout reflow */}
+                    {/* Toolbar — instant hide, no latency */}
                     <div
                         ref={toolbarRef}
-                        className="flex flex-wrap items-center justify-between gap-3 overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
-                        style={{
-                            willChange: 'opacity, transform, max-height, margin',
-                            opacity: isScrolledRef.current ? 0 : 1,
-                            maxHeight: isScrolledRef.current ? '0px' : '160px',
-                            marginBottom: isScrolledRef.current ? '0px' : '12px',
-                            pointerEvents: isScrolledRef.current ? 'none' : 'auto',
-                            transform: isScrolledRef.current ? 'translateY(-10px) translateZ(0)' : 'translateY(0) translateZ(0)'
-                        }}
+                        className="flex flex-wrap items-center justify-between gap-3 mb-3"
+                        style={{ display: isScrolledRef.current ? 'none' : 'flex' }}
                     >
                       <div className="flex items-center gap-2">
                         {/* Chords Toggle */}
@@ -1324,10 +1287,9 @@ export default function Category_Humns() {
                     {/* Top fade-out gradient — appears when scrolled */}
                     <div
                       ref={fadeRef}
-                      className="sticky top-0 left-0 right-0 h-8 pointer-events-none z-10 transition-opacity duration-300"
+                      className="sticky top-0 left-0 right-0 h-8 pointer-events-none z-10"
                       style={{
                         opacity: isScrolledRef.current ? 1 : 0,
-                        transform: 'translateZ(0)', // Force GPU layer
                         background: lyricsTheme === 'warm'
                           ? 'linear-gradient(to bottom, #FDFBF7, transparent)'
                           : lyricsTheme === 'dark'
