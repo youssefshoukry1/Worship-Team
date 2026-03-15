@@ -36,27 +36,34 @@ function DisplayContent() {
         if (!text) return null;
         const isChorus = type === 'chorus';
 
-        return text.split('\n').map((line, i) => (
+        const lines = text.split('\n');
+        return (
+            <div className="w-full h-full flex flex-col items-center justify-center space-y-0">
+                {lines.map((line, i) => (
             <div
                 key={i}
-                className={`relative w-full text-center ${line.includes('[') ? 'mt-[1em] mb-2' : 'my-2'}`}
-                style={{ fontSize: 'clamp(30px, 7vw, 72px)', lineHeight: '1.65' }}
+                className={`relative w-full text-center ${line.includes('[') ? 'pt-8 pb-2' : 'py-2'}`}
+                style={{ fontSize: 'clamp(30px, 7vw, 72px)', lineHeight: '1.2' }}
                 dir="rtl"
             >
                 {line ? line.split(/(\[.*?\])/g).map((part, j) => {
                     if (part.startsWith('[') && part.endsWith(']')) {
                         const chord = part.slice(1, -1);
                         return (
-                            <span key={j} className="inline-block relative overflow-visible mx-[0.1em] align-baseline text-white font-bold whitespace-pre-line leading-relaxed" style={{ lineHeight: '1' }}>
-                                {/* Hidden placeholder to reserve space and prevent overlapping */}
-                                <span className="invisible whitespace-nowrap" style={{ fontSize: '0.7em' }} dir="ltr">
-                                    {chord}
-                                </span>
+                            <span
+                                key={j}
+                                className="inline-block relative h-0 w-0 align-baseline"
+                                style={{ margin: '0 0.15em' }}
+                            >
                                 <span
-                                    className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap shadow-sm mb-1 text-sky-300"
+                                    className="absolute left-1/2 -translate-x-1/2 font-bold whitespace-nowrap text-sky-300 pointer-events-none"
                                     style={{
-                                        fontSize: '0.7em',
-                                        textShadow: '0 2px 4px rgba(0,0,0,0.8)'
+                                        fontSize: '0.5em',
+                                        textShadow: '0 2px 8px rgba(0,0,0,0.9)',
+                                        bottom: '100%',
+                                        marginBottom: '0.3em',
+                                        lineHeight: '1',
+                                        transform: 'translateX(-50%)',
                                     }}
                                     dir="ltr"
                                 >
@@ -65,10 +72,12 @@ function DisplayContent() {
                             </span>
                         );
                     }
-                    return <span key={j} className={`font-bold whitespace-pre-line leading-relaxed drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${isChorus ? 'text-yellow-300 drop-shadow-[0_2px_15px_rgba(253,224,71,0.4)]' : 'text-white'}`}>{part}</span>;
+                    return <span key={j} className={`whitespace-pre-line drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${isChorus ? 'text-yellow-300 drop-shadow-[0_2px_15px_rgba(253,224,71,0.4)]' : 'text-white'}`}>{part}</span>;
                 }) : <br />}
             </div>
-        ));
+                ))}
+            </div>
+        );
     };
 
 
@@ -156,7 +165,7 @@ function DisplayContent() {
                         transition={{ duration: 0.25, ease: 'easeInOut' }}
                         className="w-full h-full flex flex-col items-center justify-center px-12 text-center"
                     >
-                         {slideTitle && (
+                        {slideTitle && (
                             <div className="absolute top-10 left-1/2 -translate-x-1/2 text-white/40 text-lg sm:text-2xl font-black tracking-[0.4em] px-8 py-2 rounded-full border border-white/5 bg-white/5 uppercase" dir="rtl">
                                 {slideTitle}
                             </div>

@@ -32,7 +32,7 @@ export default function Category_Humns() {
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [formData, setFormData] = useState({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: '2/2' });
+  const [formData, setFormData] = useState({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: 'None' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingHymnId, setEditingHymnId] = useState(null); // Track which hymn is being edited
 
@@ -127,7 +127,7 @@ export default function Category_Humns() {
     if (!selectedLyricsHymn?.lyrics) return [];
 
     let lyricsArray = selectedLyricsHymn.lyrics;
-    
+
     // If lyrics is still a string (legacy), split it
     if (typeof lyricsArray === 'string') {
       const lyricsToUse = selectedLyricsHymn.transposeStep
@@ -143,22 +143,22 @@ export default function Category_Humns() {
 
     // Handles the new Array of objects format
     if (Array.isArray(lyricsArray)) {
-        const lyricsToUse = selectedLyricsHymn.transposeStep
-            ? transposeLyrics(lyricsArray, selectedLyricsHymn.transposeStep)
-            : lyricsArray;
-            
-        const slides = [];
-        lyricsToUse.forEach(stanza => {
-            // Split the stanza text into blocks by empty lines
-            const blocks = stanza.text.split(/\n\s*\n/).filter(b => b.trim() !== '');
-            blocks.forEach(block => {
-                const text = block.replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '');
-                slides.push({ title: stanza.title, type: stanza.type, text });
-            });
+      const lyricsToUse = selectedLyricsHymn.transposeStep
+        ? transposeLyrics(lyricsArray, selectedLyricsHymn.transposeStep)
+        : lyricsArray;
+
+      const slides = [];
+      lyricsToUse.forEach(stanza => {
+        // Split the stanza text into blocks by empty lines
+        const blocks = stanza.text.split(/\n\s*\n/).filter(b => b.trim() !== '');
+        blocks.forEach(block => {
+          const text = block.replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '');
+          slides.push({ title: stanza.title, type: stanza.type, text });
         });
-        return slides;
+      });
+      return slides;
     }
-    
+
     return [];
 
   }, [selectedLyricsHymn?.lyrics, selectedLyricsHymn?.transposeStep, showChords]);
@@ -235,29 +235,29 @@ export default function Category_Humns() {
       let slides = [];
       if (Array.isArray(selectedLyricsHymn.lyrics)) {
         const lyricsToUse = selectedLyricsHymn.transposeStep
-            ? transposeLyrics(selectedLyricsHymn.lyrics, selectedLyricsHymn.transposeStep)
-            : selectedLyricsHymn.lyrics;
-        
+          ? transposeLyrics(selectedLyricsHymn.lyrics, selectedLyricsHymn.transposeStep)
+          : selectedLyricsHymn.lyrics;
+
         lyricsToUse.forEach(stanza => {
-            const blocks = stanza.text.split(/\n\s*\n/).filter(b => b.trim() !== '');
-            blocks.forEach(block => {
-                slides.push({
-                    title: stanza.title,
-                    type: stanza.type,
-                    text: block.replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
-                });
+          const blocks = stanza.text.split(/\n\s*\n/).filter(b => b.trim() !== '');
+          blocks.forEach(block => {
+            slides.push({
+              title: stanza.title,
+              type: stanza.type,
+              text: block.replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
             });
+          });
         });
       } else {
         const lyricsToUse = selectedLyricsHymn.transposeStep
-            ? transposeLyrics(selectedLyricsHymn.lyrics, selectedLyricsHymn.transposeStep)
-            : (selectedLyricsHymn.lyrics || '');
+          ? transposeLyrics(selectedLyricsHymn.lyrics, selectedLyricsHymn.transposeStep)
+          : (selectedLyricsHymn.lyrics || '');
 
         slides = lyricsToUse
-            .replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
-            .split('\n\n')
-            .map(b => b.trim())
-            .filter(Boolean);
+          .replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
+          .split('\n\n')
+          .map(b => b.trim())
+          .filter(Boolean);
       }
 
       broadcastHymn(selectedLyricsHymn, slides);
@@ -424,7 +424,7 @@ export default function Category_Humns() {
 
       queryClient.invalidateQueries(["humns"]);
       closeModal();
-      setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', BPM: '', timeSignature: '2/2', party: ['all'] });
+      setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', BPM: '', timeSignature: 'None', party: ['all'] });
     } catch (error) {
       console.error("Error adding hymn:", error);
     } finally {
@@ -445,7 +445,7 @@ export default function Category_Humns() {
 
       queryClient.invalidateQueries(["humns"]);
       closeModal();
-      setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: '2/2' });
+      setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: 'None' });
       setEditingHymnId(null);
     } catch (error) {
       console.error("Error editing hymn:", error);
@@ -542,7 +542,7 @@ export default function Category_Humns() {
       link: hymn.link || '',
       party: Array.isArray(hymn.party) ? hymn.party : [hymn.party || 'all'],
       BPM: hymn.BPM || '',
-      timeSignature: hymn.timeSignature || '2/2'
+      timeSignature: hymn.timeSignature || 'None'
     });
     setEditingHymnId(hymn._id); // Set the ID of the hymn being edited
     setShowModal(true);
@@ -594,9 +594,9 @@ export default function Category_Humns() {
     // Helper to render a single text block
     const renderBlock = (text, stanzaType) => {
       const isChorus = stanzaType === 'chorus';
-      const textColor = isChorus ? currentTheme.chord : currentTheme.text;
+      const textColor = currentTheme.text;
       const fontWeight = isChorus ? 'font-bold' : 'font-medium';
-      
+
       return text.split('\n').map((line, i) => (
         <div
           key={i}
@@ -614,16 +614,21 @@ export default function Category_Humns() {
                   : chord;
 
                 return (
-                  <span key={j} className="inline-block relative overflow-visible mx-1 align-baseline">
-                    {/* Invisible placeholder for width consistency */}
-                    <span className="invisible whitespace-nowrap opacity-0" style={{ fontSize: '0.7em' }} dir="ltr">
+                  <span key={j} className="inline-flex flex-col-reverse items-center align-baseline mx-1.5 select-none translate-y-[0.1em]">
+                    {/* Invisible anchor to reserve width and define baseline */}
+                    <span className="invisible whitespace-nowrap leading-none px-2" style={{ fontSize: '0.7em' }} dir="ltr">
                       {transposedChord}
                     </span>
+                    {/* The Chord: Responsive flex layout prevents overlap and alignment issues */}
                     <span
-                      className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap mb-1 transition-colors duration-300 pointer-events-none"
+                      className="font-bold whitespace-nowrap mb-1 px-2 py-0.5 rounded-md border transition-colors duration-300"
                       style={{
-                        color: isChorus ? currentTheme.text : currentTheme.chord,
+                        backgroundColor: isChorus ? 'rgba(255,255,255,0.1)' : 'rgba(56, 189, 248, 0.1)',
+                        borderColor: isChorus ? 'rgba(255,255,255,0.2)' : 'rgba(56, 189, 248, 0.2)',
+                        color: currentTheme.chord,
                         fontSize: `0.7em`,
+                        lineHeight: '1',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                       }}
                       dir="ltr"
                     >
@@ -651,7 +656,7 @@ export default function Category_Humns() {
         </div>
       ));
     }
-    
+
     // Legacy single string rendering
     return <div className="mb-12">{renderBlock(lyricsData, 'verse')}</div>;
   };
@@ -663,56 +668,57 @@ export default function Category_Humns() {
     const text = typeof slideData === 'string' ? slideData : slideData.text;
     const title = typeof slideData !== 'string' ? slideData.title : null;
     const type = typeof slideData !== 'string' ? slideData.type : 'verse';
-    
+
     const isChorus = type === 'chorus';
 
     return (
-        <>
-            {title && (
-                 <div className="absolute top-8 left-1/2 -translate-x-1/2 text-white/50 text-sm sm:text-lg font-black tracking-widest px-4 py-1.5 rounded-full border border-white/10 bg-white/5 uppercase" dir="rtl">
-                    {title}
-                 </div>
-            )}
-            {text.split('\n').map((line, i) => (
-              <div
-                key={i}
-                className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-[1em] mb-2' : 'my-2'}`}
-                style={{ fontSize: 'clamp(32px, 8vw, 64px)', lineHeight: '1.6' }}
-                dir="rtl"
-              >
-        {line ? line.split(/(\[.*?\])/g).map((part, j) => {
-          if (part.startsWith('[') && part.endsWith(']')) {
-            if (!showChords) return null;
-            const chord = part.slice(1, -1);
-            const transposedChord = selectedLyricsHymn?.transposeStep
-              ? transposeChords(chord, selectedLyricsHymn.transposeStep)
-              : chord;
-            return (
-              <span key={j} className="inline-block relative overflow-visible mx-[0.1em] align-baseline text-white font-bold whitespace-pre-line leading-relaxed select-none" style={{ lineHeight: '1' }}>
-                {/* Invisible placeholder reserves the width so text spacing is correct */}
-                <span className="invisible whitespace-nowrap" style={{ fontSize: '0.7em' }} dir="ltr">
-                  {transposedChord}
-                </span>
-                <span
-                  className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap mb-1 text-sky-300 pointer-events-none"
-                  style={{
-                    fontSize: '0.7em',
-                    textShadow: '0 2px 4px rgba(0,0,0,0.8)'
-                  }}
-                  dir="ltr"
-                >
-                  {transposedChord}
-                </span>
-              </span>
-            );
-          }
-          return <span key={j} className={`font-bold whitespace-pre-wrap leading-relaxed select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight ${isChorus ? 'text-yellow-300 drop-shadow-[0_2px_15px_rgba(253,224,71,0.4)]' : 'text-white'}`}>{part}</span>;
-        }) : <br />}
-      </div>
-    ))}
-    </>
-  );
-};
+      <>
+        {title && (
+          <div className="absolute top-8 left-1/2 -translate-x-1/2 text-white/50 text-sm sm:text-lg font-black tracking-widest px-4 py-1.5 rounded-full border border-white/10 bg-white/5 uppercase" dir="rtl">
+            {title}
+          </div>
+        )}
+        {text.split('\n').map((line, i) => (
+          <div
+            key={i}
+            className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-4 mb-2' : 'my-2'}`}
+            style={{ fontSize: 'clamp(32px, 8vw, 64px)', lineHeight: '1.6' }}
+            dir="rtl"
+          >
+            {line ? line.split(/(\[.*?\])/g).map((part, j) => {
+              if (part.startsWith('[') && part.endsWith(']')) {
+                if (!showChords) return null;
+                const chord = part.slice(1, -1);
+                const transposedChord = selectedLyricsHymn?.transposeStep
+                  ? transposeChords(chord, selectedLyricsHymn.transposeStep)
+                  : chord;
+                return (
+                  <span key={j} className="inline-flex flex-col-reverse items-center align-baseline relative mx-[0.15em] select-none translate-y-[0.1em]">
+                    {/* Invisible placeholder reserves the width */}
+                    <span className="invisible whitespace-nowrap leading-none" style={{ fontSize: '0.5em' }} dir="ltr">
+                      {transposedChord}
+                    </span>
+                    {/* The Chord: Flex-based positioning ensures it stays above text and pushes lines apart naturally to prevent overlap */}
+                    <span
+                      className="font-black whitespace-nowrap mb-[0.2em] text-sky-300 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+                      style={{
+                        fontSize: '0.5em',
+                        lineHeight: '1',
+                      }}
+                      dir="ltr"
+                    >
+                      {transposedChord}
+                    </span>
+                  </span>
+                );
+              }
+              return <span key={j} className={`font-bold whitespace-pre-wrap leading-relaxed select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight text-white`}>{part}</span>;
+            }) : <br />}
+          </div>
+        ))}
+      </>
+    );
+  };
 
 
   return (<section id="Category_Humns" className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-10 relative overflow-hidden">
@@ -994,7 +1000,7 @@ export default function Category_Humns() {
           {/* --- Add Hymn Modal --- */}
           {showModal && (
             <Portal>
-            <div
+              <div
                 className={`fixed inset-0 z-9999 flex justify-center items-center p-4 transition-all duration-300
                 ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/70"}`}
               >
@@ -1058,21 +1064,21 @@ export default function Category_Humns() {
 
                       {Array.isArray(formData.lyrics) && formData.lyrics.map((stanza, idx) => (
                         <div key={idx} className={`p-4 rounded-xl border relative flex flex-col gap-3 transition-colors ${stanza.type === 'chorus' ? 'bg-sky-500/10 border-sky-500/30 shadow-[inset_0_0_20px_rgba(56,189,248,0.05)]' : 'bg-[#151525] border-white/10'}`}>
-                          
+
                           <div className="flex justify-between items-center gap-2 pb-2 border-b border-white/5">
-                            <input 
-                              type="text" 
+                            <input
+                              type="text"
                               value={stanza.title}
                               onChange={(e) => {
                                 const newArray = [...formData.lyrics];
                                 newArray[idx].title = e.target.value;
                                 setFormData({ ...formData, lyrics: newArray });
                               }}
-                              className={`text-sm font-bold bg-transparent border-none outline-none w-32 px-1 focus:ring-0 ${stanza.type === 'chorus' ? 'text-sky-300 placeholder-sky-300/50' : 'text-gray-300 placeholder-gray-500'}`}
+                              className={`text-sm font-bold bg-transparent border-none outline-none w-32 px-1 focus:ring-0 ${stanza.type === 'chorus' ? 'text-white placeholder-white/50' : 'text-gray-300 placeholder-gray-500'}`}
                               placeholder={stanza.type === 'chorus' ? "القرار" : "1"}
                               dir="rtl"
                             />
-                            
+
                             <div className="flex items-center gap-3 flex-wrap flex-row-reverse">
                               {/* Chord Toolbar for this specific text area */}
                               {formData.relatedChords && (
@@ -1097,7 +1103,7 @@ export default function Category_Humns() {
                                           }, 0);
                                         }
                                       }}
-                                      className="text-[11px] font-bold px-2 py-0.5 rounded cursor-pointer select-none bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/40 hover:text-white transition-colors"
+                                      className="text-[10px] font-black px-2.5 py-1 rounded-md cursor-pointer select-none bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 hover:text-white transition-all shadow-sm active:scale-95"
                                       type="button"
                                     >
                                       {chord}
@@ -1109,7 +1115,7 @@ export default function Category_Humns() {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  if(!confirm('هل تريد مسح هذا المقطع؟')) return;
+                                  if (!confirm('هل تريد مسح هذا المقطع؟')) return;
                                   const newArray = formData.lyrics.filter((_, i) => i !== idx);
                                   setFormData({ ...formData, lyrics: newArray });
                                 }}
@@ -1214,6 +1220,7 @@ export default function Category_Humns() {
                           value={formData.timeSignature}
                           onChange={(e) => setFormData({ ...formData, timeSignature: e.target.value })}
                         >
+                          <option value="None">None</option>
                           <option value="2/2">2/2</option>
                           <option value="1/4">1/4</option>
                           <option value="2/4">2/4</option>
@@ -1235,11 +1242,20 @@ export default function Category_Humns() {
                       <label className="block text-gray-400 text-sm mb-2">{t("relatedChords")}</label>
                       <input
                         type="text"
-                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition placeholder-gray-600"
+                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition placeholder-gray-600 mb-2"
                         placeholder="e.g. G, C, D, Em"
                         value={formData.relatedChords}
                         onChange={(e) => setFormData({ ...formData, relatedChords: e.target.value })}
                       />
+                      {formData.relatedChords && (
+                        <div className="flex flex-wrap gap-1.5 px-1">
+                          {formData.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, i) => (
+                            <span key={i} className="text-[10px] font-bold text-green-300 bg-green-500/10 px-2 py-0.5 rounded-lg border border-green-500/20">
+                              {chord}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -1289,144 +1305,155 @@ export default function Category_Humns() {
                   }}
                   className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative overflow-hidden`}
                 >
-                  {/* Content Area - Now wraps everything so headers can naturally scroll away! */}
-                  <div
-                    ref={lyricsScrollRef}
-                    className="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col"
-                    style={{ WebkitOverflowScrolling: 'touch' }}
-                    data-lenis-prevent-wheel
-                  >
-                    {/* Sticky Header - Title, Presentation & Close Buttons (Always visible) */}
-                    <div 
-                        className={`sticky top-0 z-50 pt-2 pb-4 flex flex-col shrink-0 transition-colors duration-500`}
-                        style={{ 
+                  {(() => {
+                    const hasChords = selectedLyricsHymn?.lyrics ? (
+                      typeof selectedLyricsHymn.lyrics === 'string'
+                        ? selectedLyricsHymn.lyrics.includes('[')
+                        : (Array.isArray(selectedLyricsHymn.lyrics) && selectedLyricsHymn.lyrics.some(s => s.text.includes('[')))
+                    ) : false;
+
+                    return (
+                      <div
+                        ref={lyricsScrollRef}
+                        className="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col"
+                        style={{ WebkitOverflowScrolling: 'touch' }}
+                        data-lenis-prevent-wheel
+                      >
+                        {/* Sticky Header - Title, Presentation & Close Buttons (Always visible) */}
+                        <div
+                          className={`sticky top-0 z-50 pt-2 pb-4 flex flex-col shrink-0 transition-colors duration-500`}
+                          style={{
                             backgroundColor: lyricsThemes[lyricsTheme].bg,
                             borderBottom: `1px solid ${lyricsTheme === 'warm' ? 'rgba(120,50,0,0.05)' : 'rgba(255,255,255,0.05)'}`
-                        }}
-                    >
-                        {/* Decorative Pull Bar for Mobile */}
-                        <div className="sm:hidden w-12 bg-gray-400/20 rounded-full mx-auto shrink-0 h-1.5 mb-4" />
+                          }}
+                        >
+                          {/* Decorative Pull Bar for Mobile */}
+                          <div className="sm:hidden w-12 bg-gray-400/20 rounded-full mx-auto shrink-0 h-1.5 mb-4" />
 
-                        <div className="px-6 flex justify-between items-center gap-4">
+                          <div className="px-6 flex justify-between items-center gap-4">
                             <div className="flex flex-col min-w-0">
-                                <h2 className={`text-2xl sm:text-3xl font-bold truncate tracking-tight transition-colors duration-300 ${lyricsTheme === 'warm' ? 'text-[#1A1A1A]' : 'text-white'}`}>
-                                    {selectedLyricsHymn.title}
-                                </h2>
-                                <div className={`text-xs uppercase tracking-[0.2em] font-bold opacity-50 ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}>
-                                    Lyrics & Chords
-                                </div>
+                              <h2 className={`text-2xl sm:text-3xl font-bold truncate tracking-tight transition-colors duration-300 ${lyricsTheme === 'warm' ? 'text-[#1A1A1A]' : 'text-white'}`}>
+                                {selectedLyricsHymn.title}
+                              </h2>
+                              <div className={`text-xs uppercase tracking-[0.2em] font-bold opacity-50 ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}>
+                                Lyrics {hasChords ? "& Chords" : ""}
+                              </div>
                             </div>
 
                             <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => {
-                                        setShowDataShow(true);
-                                        setDataShowIndex(0);
-                                    }}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all
-                                                ${lyricsTheme === 'warm'
-                                        ? 'bg-black/5 text-black hover:bg-black/10'
-                                        : 'bg-white/5 text-white hover:bg-white/10'}`}
-                                >
-                                    <Monitor className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Presentation</span>
-                                </button>
+                              <button
+                                onClick={() => {
+                                  setShowDataShow(true);
+                                  setDataShowIndex(0);
+                                }}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all
+                                                                      ${lyricsTheme === 'warm'
+                                    ? 'bg-black/5 text-black hover:bg-black/10'
+                                    : 'bg-white/5 text-white hover:bg-white/10'}`}
+                              >
+                                <Monitor className="w-4 h-4" />
+                                <span className="hidden sm:inline">Presentation</span>
+                              </button>
 
-                                <button
-                                    onClick={closeLyricsModal}
-                                    className={`p-2 rounded-full transition-all ${lyricsTheme === 'warm' ? 'hover:bg-black/5 text-black/40 hover:text-black' : 'hover:bg-white/5 text-white/40 hover:text-white'}`}
-                                >
-                                    <X className="w-6 h-6" />
-                                </button>
+                              <button
+                                onClick={closeLyricsModal}
+                                className={`p-2 rounded-full transition-all ${lyricsTheme === 'warm' ? 'hover:bg-black/5 text-black/40 hover:text-black' : 'hover:bg-white/5 text-white/40 hover:text-white'}`}
+                              >
+                                <X className="w-6 h-6" />
+                              </button>
                             </div>
-                        </div>
+                          </div>
 
-                        {/* Smooth transparent gradient shadow covering text rolling under */}
-                        <div className="absolute top-full left-0 right-0 h-6 pointer-events-none"
-                             style={{
-                                 background: lyricsTheme === 'warm'
-                                     ? 'linear-gradient(to bottom, #FDFBF7, transparent)'
-                                     : lyricsTheme === 'dark'
-                                         ? 'linear-gradient(to bottom, #0F172A, transparent)'
-                                         : 'linear-gradient(to bottom, #0E2238, transparent)'
-                             }}
-                        />
-                    </div>
-
-                    {/* Naturally Scrolling Toolbar - Elegantly slides under Sticky Header when scrolled */}
-                    <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 shrink-0">
-                      <div className="flex items-center gap-2">
-                        {/* Chords Toggle */}
-                        <button
-                          onClick={() => setShowChords(!showChords)}
-                          disabled={vocalsMode}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${vocalsMode ? 'hidden' : ''}
-                              ${showChords
-                              ? (lyricsTheme === 'warm' ? 'bg-black text-white border-black' : 'bg-sky-500 text-white border-sky-500')
-                              : (lyricsTheme === 'warm' ? 'bg-transparent text-black/50 border-black/20' : 'bg-transparent text-white/30 border-white/10')
-                            }`}
-                        >
-                          {showChords ? <Guitar className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                          {showChords ? "Chords On" : "Chords Off"}
-                        </button>
-
-                        {/* Font Controls */}
-                        <div className={`flex items-center rounded-xl border transition-colors duration-300 ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/10' : 'bg-white/5 border-white/10'}`}>
-                          <button
-                            onClick={() => setFontSize(prev => Math.max(14, prev - 2))}
-                            disabled={fontSize <= 14}
-                            className={`p-2 transition-all disabled:opacity-20 ${lyricsTheme === 'warm' ? 'hover:text-black' : 'hover:text-white text-white/60'}`}
-                          >
-                            <span className="text-xs font-black">A-</span>
-                          </button>
-                          <div className={`w-px h-4 ${lyricsTheme === 'warm' ? 'bg-black/10' : 'bg-white/10'}`} />
-                          <button
-                            onClick={() => setFontSize(prev => Math.min(48, prev + 2))}
-                            disabled={fontSize >= 48}
-                            className={`p-2 transition-all disabled:opacity-20 ${lyricsTheme === 'warm' ? 'hover:text-black' : 'hover:text-white text-white/60'}`}
-                          >
-                            <span className="text-sm font-black">A+</span>
-                          </button>
-                        </div>
-                      </div>
-
-
-                      {/* Theme Selector */}
-                      <div className={`flex p-1 rounded-xl border transition-colors duration-300 ${lyricsTheme === 'warm' ? 'bg-amber-900/5 border-amber-900/10' : 'bg-white/5 border-white/10'}`}>
-                        {Object.entries(lyricsThemes).map(([key, theme]) => (
-                          <button
-                            key={key}
-                            onClick={() => setLyricsTheme(key)}
-                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 relative overflow-hidden
-                                ${lyricsTheme === key
-                                ? 'shadow-lg scale-100 z-10'
-                                : 'opacity-40 hover:opacity-100 scale-95'}`}
+                          {/* Smooth transparent gradient shadow covering text rolling under */}
+                          <div className="absolute top-full left-0 right-0 h-6 pointer-events-none"
                             style={{
-                              backgroundColor: lyricsTheme === key ? theme.bg : 'transparent',
-                              color: lyricsTheme === key ? theme.text : (lyricsTheme === 'warm' ? '#2D2926' : '#fff'),
-                              border: lyricsTheme === key ? `1px solid ${theme.border || 'transparent'}` : 'none'
+                              background: lyricsTheme === 'warm'
+                                ? 'linear-gradient(to bottom, #FDFBF7, transparent)'
+                                : lyricsTheme === 'dark'
+                                  ? 'linear-gradient(to bottom, #0F172A, transparent)'
+                                  : 'linear-gradient(to bottom, #0E2238, transparent)'
                             }}
+                          />
+                        </div>
+
+                        {/* Naturally Scrolling Toolbar - Elegantly slides under Sticky Header when scrolled */}
+                        <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                          <div className="flex items-center gap-2">
+                            {/* Chords Toggle */}
+                            <button
+                              onClick={() => setShowChords(!showChords)}
+                              disabled={vocalsMode || !hasChords}
+                              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${vocalsMode ? 'hidden' : ''}
+                                                    ${!hasChords
+                                  ? (lyricsTheme === 'warm' ? 'bg-black/5 text-black/20 border-black/10 cursor-not-allowed' : 'bg-white/5 text-white/10 border-white/5 cursor-not-allowed')
+                                  : (showChords
+                                    ? (lyricsTheme === 'warm' ? 'bg-black text-white border-black' : 'bg-sky-500 text-white border-sky-500')
+                                    : (lyricsTheme === 'warm' ? 'bg-transparent text-black/50 border-black/20' : 'bg-transparent text-white/30 border-white/10'))
+                                }`}
+                            >
+                              {!hasChords ? <Mic className="w-3.5 h-3.5 opacity-40" /> : (showChords ? <Guitar className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />)}
+                              {!hasChords ? "Chords coming soon" : (showChords ? "Chords On" : "Chords Off")}
+                            </button>
+
+                            {/* Font Controls */}
+                            <div className={`flex items-center rounded-xl border transition-colors duration-300 ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/10' : 'bg-white/5 border-white/10'}`}>
+                              <button
+                                onClick={() => setFontSize(prev => Math.max(14, prev - 2))}
+                                disabled={fontSize <= 14}
+                                className={`p-2 transition-all disabled:opacity-20 ${lyricsTheme === 'warm' ? 'hover:text-black' : 'hover:text-white text-white/60'}`}
+                              >
+                                <span className="text-xs font-black">A-</span>
+                              </button>
+                              <div className={`w-px h-4 ${lyricsTheme === 'warm' ? 'bg-black/10' : 'bg-white/10'}`} />
+                              <button
+                                onClick={() => setFontSize(prev => Math.min(48, prev + 2))}
+                                disabled={fontSize >= 48}
+                                className={`p-2 transition-all disabled:opacity-20 ${lyricsTheme === 'warm' ? 'hover:text-black' : 'hover:text-white text-white/60'}`}
+                              >
+                                <span className="text-sm font-black">A+</span>
+                              </button>
+                            </div>
+                          </div>
+
+
+                          {/* Theme Selector */}
+                          <div className={`flex p-1 rounded-xl border transition-colors duration-300 ${lyricsTheme === 'warm' ? 'bg-amber-900/5 border-amber-900/10' : 'bg-white/5 border-white/10'}`}>
+                            {Object.entries(lyricsThemes).map(([key, theme]) => (
+                              <button
+                                key={key}
+                                onClick={() => setLyricsTheme(key)}
+                                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 relative overflow-hidden
+                                ${lyricsTheme === key
+                                    ? 'shadow-lg scale-100 z-10'
+                                    : 'opacity-40 hover:opacity-100 scale-95'}`}
+                                style={{
+                                  backgroundColor: lyricsTheme === key ? theme.bg : 'transparent',
+                                  color: lyricsTheme === key ? theme.text : (lyricsTheme === 'warm' ? '#2D2926' : '#fff'),
+                                  border: lyricsTheme === key ? `1px solid ${theme.border || 'transparent'}` : 'none'
+                                }}
+                              >
+                                {theme.label}
+                                {lyricsTheme === key && (
+                                  <motion.div layoutId="activeTheme" className="absolute inset-0 rounded-lg border-2 border-sky-400/20" />
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="px-6 sm:px-10 py-10">
+                          <div
+                            className="w-full max-w-2xl mx-auto transition-all duration-500"
+                            dir="rtl"
                           >
-                            {theme.label}
-                            {lyricsTheme === key && (
-                              <motion.div layoutId="activeTheme" className="absolute inset-0 rounded-lg border-2 border-sky-400/20" />
-                            )}
-                          </button>
-                        ))}
+                            {renderLyricsWithChords(selectedLyricsHymn.lyrics)}
+                          </div>
+                          {/* Extra spacing at bottom for better scrolling feel */}
+                          <div className="h-20" />
+                        </div>
                       </div>
-                    </div>
-                    
-                    <div className="px-6 sm:px-10 py-10">
-                      <div
-                        className="w-full max-w-2xl mx-auto transition-all duration-500"
-                        dir="rtl"
-                      >
-                        {renderLyricsWithChords(selectedLyricsHymn.lyrics)}
-                      </div>
-                      {/* Extra spacing at bottom for better scrolling feel */}
-                      <div className="h-20" />
-                    </div>
-                  </div>
+                    );
+                  })()}
 
                   {/* Aesthetic Footer Gradient */}
                   <div className={`absolute bottom-0 left-0 right-0 h-12 pointer-events-none transition-colors duration-500
@@ -1631,13 +1658,13 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       </div>
 
       {/* BPM and Time Signature Display */}
-      {(humn.BPM || humn.timeSignature) && (
+      {((humn.BPM && humn.BPM !== "None") || (humn.timeSignature && humn.timeSignature !== "None")) && (
         <div className={`absolute lg:top-1 top-2 right-2 flex items-center gap-2 bg-black/40 pr-3 pl-1 py-0.5 rounded-full border border-white/5 z-20 backdrop-blur-sm transition-opacity ${vocalsMode ? 'opacity-0 pointer-events-none' : ''}`}>
-          {humn.BPM && <Metronome id={humn._id} bpm={humn.BPM} timeSignature={humn.timeSignature || "4/4"} minimal={true} />}
+          {humn.BPM && <Metronome id={humn._id} bpm={humn.BPM} timeSignature={(humn.timeSignature && humn.timeSignature !== "None") ? humn.timeSignature : "4/4"} minimal={true} />}
           <div className="flex gap-2 text-[10px] font-mono text-gray-500">
             {humn.BPM && <span>{humn.BPM} bpm</span>}
-            {humn.BPM && humn.timeSignature && <span className="text-gray-600">|</span>}
-            {humn.timeSignature && <span>{humn.timeSignature}</span>}
+            {humn.BPM && humn.timeSignature && humn.timeSignature !== "None" && <span className="text-gray-600">|</span>}
+            {humn.timeSignature && humn.timeSignature !== "None" && <span>{humn.timeSignature}</span>}
           </div>
         </div>
       )}
@@ -1710,7 +1737,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       {/* Media Link */}
       <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-1 sm:gap-2 relative z-10 lg:top-2">
 
-        {humn.link && (
+        {humn.link ? (
           <a
             href={humn.link}
             target="_blank"
@@ -1720,6 +1747,11 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
             <PlayCircle className="w-4 h-4 shrink-0" />
             <span className="text-xs sm:text-sm font-medium">{t("listen")}</span>
           </a>
+        ) : (
+          <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-white/5 text-gray-600 border border-white/5 w-full sm:w-auto justify-center cursor-default group/soon relative overflow-hidden">
+            <PlayCircle className="w-4 h-4 shrink-0 opacity-20" />
+            <span className="text-xs sm:text-sm font-medium">Coming soon</span>
+          </div>
         )}
 
         {humn.lyrics && (

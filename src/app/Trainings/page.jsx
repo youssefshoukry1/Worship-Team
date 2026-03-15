@@ -255,15 +255,21 @@ export default function Trainings() {
               if (!showChords) return null;
               const chord = part.slice(1, -1);
               return (
-                <span key={j} className="inline-block relative overflow-visible mx-1 align-baseline">
-                  <span className="invisible whitespace-nowrap" style={{ fontSize: '0.7em' }} dir="ltr">
+                <span key={j} className="inline-flex flex-col-reverse items-center align-baseline mx-1.5 select-none translate-y-[0.1em]">
+                  {/* Invisible anchor to reserve width and define baseline */}
+                  <span className="invisible whitespace-nowrap leading-none px-2" style={{ fontSize: '0.7em' }} dir="ltr">
                     {chord}
                   </span>
+                  {/* The Chord: Responsive flex layout prevents overlap and alignment issues */}
                   <span
-                    className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap mb-1 transition-colors duration-300"
+                    className="font-bold whitespace-nowrap mb-1 px-2 py-0.5 rounded-md border transition-colors duration-300"
                     style={{
+                      backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                      borderColor: 'rgba(56, 189, 248, 0.2)',
                       color: currentTheme.chord,
                       fontSize: `0.7em`,
+                      lineHeight: '1',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                     }}
                     dir="ltr"
                   >
@@ -289,7 +295,7 @@ export default function Trainings() {
     return text.split('\n').map((line, i) => (
       <div
         key={i}
-        className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-[1em] mb-2' : 'my-2'}`}
+        className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-4 mb-2' : 'my-2'}`}
         style={{ fontSize: 'clamp(32px, 8vw, 64px)', lineHeight: '1.6' }}
         dir="rtl"
       >
@@ -298,16 +304,17 @@ export default function Trainings() {
             if (!showChords) return null;
             const chord = part.slice(1, -1);
             return (
-              <span key={j} className="inline-block relative overflow-visible mx-[0.1em] align-baseline text-white font-bold whitespace-pre-line leading-relaxed select-none" style={{ lineHeight: '1' }}>
-                {/* Invisible placeholder reserves the width so text spacing is correct */}
-                <span className="invisible whitespace-nowrap" style={{ fontSize: '0.7em' }} dir="ltr">
+              <span key={j} className="inline-flex flex-col-reverse items-center align-baseline relative mx-[0.15em] select-none translate-y-[0.1em]">
+                {/* Invisible placeholder reserves the width */}
+                <span className="invisible whitespace-nowrap leading-none" style={{ fontSize: '0.5em' }} dir="ltr">
                   {chord}
                 </span>
+                {/* The Chord: Flex-based positioning ensures it stays above text and pushes lines apart naturally to prevent overlap */}
                 <span
-                  className="absolute bottom-full left-1/2 -translate-x-1/2 font-bold whitespace-nowrap mb-1 text-sky-300 pointer-events-none"
+                  className="font-black whitespace-nowrap mb-[0.2em] text-sky-300 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
                   style={{
-                    fontSize: '0.7em',
-                    textShadow: '0 2px 4px rgba(0,0,0,0.8)'
+                    fontSize: '0.5em',
+                    lineHeight: '1',
                   }}
                   dir="ltr"
                 >
@@ -760,124 +767,124 @@ export default function Trainings() {
                 className="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col"
                 data-lenis-prevent-wheel
               >
-                  {/* Sticky Header - Title, Presentation & Close Buttons (Always visible) */}
-                  <div 
-                      className={`sticky top-0 z-50 pt-2 pb-4 flex flex-col shrink-0 transition-colors duration-500`}
-                      style={{ 
-                          backgroundColor: lyricsThemes[lyricsTheme].bg,
-                          borderBottom: `1px solid ${lyricsTheme === 'warm' ? 'rgba(120,50,0,0.05)' : 'rgba(255,255,255,0.05)'}`
-                      }}
-                  >
-                      {/* Decorative Pull Bar for Mobile */}
-                      <div className="sm:hidden w-12 bg-gray-400/20 rounded-full mx-auto shrink-0 h-1.5 mb-4" />
+                {/* Sticky Header - Title, Presentation & Close Buttons (Always visible) */}
+                <div
+                  className={`sticky top-0 z-50 pt-2 pb-4 flex flex-col shrink-0 transition-colors duration-500`}
+                  style={{
+                    backgroundColor: lyricsThemes[lyricsTheme].bg,
+                    borderBottom: `1px solid ${lyricsTheme === 'warm' ? 'rgba(120,50,0,0.05)' : 'rgba(255,255,255,0.05)'}`
+                  }}
+                >
+                  {/* Decorative Pull Bar for Mobile */}
+                  <div className="sm:hidden w-12 bg-gray-400/20 rounded-full mx-auto shrink-0 h-1.5 mb-4" />
 
-                      <div className="px-6 flex justify-between items-center gap-4">
-                        <div className="flex flex-col min-w-0">
-                            <h2 className={`text-2xl sm:text-3xl font-bold truncate tracking-tight transition-colors duration-300 ${lyricsTheme === 'warm' ? 'text-[#1A1A1A]' : 'text-white'}`}>
-                              {selectedLyricsHymn.title}
-                            </h2>
-                            <div className={`text-xs uppercase tracking-[0.2em] font-bold opacity-50 ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}>
-                                Lyrics & Chords
-                            </div>
-                        </div>
+                  <div className="px-6 flex justify-between items-center gap-4">
+                    <div className="flex flex-col min-w-0">
+                      <h2 className={`text-2xl sm:text-3xl font-bold truncate tracking-tight transition-colors duration-300 ${lyricsTheme === 'warm' ? 'text-[#1A1A1A]' : 'text-white'}`}>
+                        {selectedLyricsHymn.title}
+                      </h2>
+                      <div className={`text-xs uppercase tracking-[0.2em] font-bold opacity-50 ${lyricsTheme === 'warm' ? 'text-gray-500' : 'text-sky-400'}`}>
+                        Lyrics & Chords
+                      </div>
+                    </div>
 
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => {
-                                    setShowDataShow(true);
-                                    setDataShowIndex(0);
-                                }}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setShowDataShow(true);
+                          setDataShowIndex(0);
+                        }}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all
                                               ${lyricsTheme === 'warm'
-                                    ? 'bg-black/5 text-black hover:bg-black/10'
-                                    : 'bg-white/5 text-white hover:bg-white/10'}`}
-                            >
-                                <Monitor className="w-4 h-4" />
-                                <span className="hidden sm:inline">Presentation</span>
-                            </button>
+                            ? 'bg-black/5 text-black hover:bg-black/10'
+                            : 'bg-white/5 text-white hover:bg-white/10'}`}
+                      >
+                        <Monitor className="w-4 h-4" />
+                        <span className="hidden sm:inline">Presentation</span>
+                      </button>
 
-                            <button
-                                onClick={closeLyricsModal}
-                                className={`p-2 rounded-full transition-all ${lyricsTheme === 'warm' ? 'hover:bg-black/5 text-black/40 hover:text-black' : 'hover:bg-white/5 text-white/40 hover:text-white'}`}
-                            >
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
-                      </div>
-
-                      {/* Smooth transparent gradient shadow covering text rolling under */}
-                      <div className="absolute top-full left-0 right-0 h-6 pointer-events-none"
-                           style={{
-                               background: lyricsTheme === 'warm'
-                                   ? 'linear-gradient(to bottom, #FDFBF7, transparent)'
-                                   : lyricsTheme === 'dark'
-                                       ? 'linear-gradient(to bottom, #0F172A, transparent)'
-                                       : 'linear-gradient(to bottom, #0E2238, transparent)'
-                           }}
-                      />
+                      <button
+                        onClick={closeLyricsModal}
+                        className={`p-2 rounded-full transition-all ${lyricsTheme === 'warm' ? 'hover:bg-black/5 text-black/40 hover:text-black' : 'hover:bg-white/5 text-white/40 hover:text-white'}`}
+                      >
+                        <X className="w-6 h-6" />
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Naturally Scrolling Toolbar - Elegantly slides under Sticky Header when scrolled */}
-                  <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 shrink-0">
-                      <div className="flex items-center gap-2">
-                        {/* Chords Toggle */}
-                        <button
-                          onClick={() => setShowChords(!showChords)}
-                          disabled={vocalsMode}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${vocalsMode ? 'hidden' : ''}
+                  {/* Smooth transparent gradient shadow covering text rolling under */}
+                  <div className="absolute top-full left-0 right-0 h-6 pointer-events-none"
+                    style={{
+                      background: lyricsTheme === 'warm'
+                        ? 'linear-gradient(to bottom, #FDFBF7, transparent)'
+                        : lyricsTheme === 'dark'
+                          ? 'linear-gradient(to bottom, #0F172A, transparent)'
+                          : 'linear-gradient(to bottom, #0E2238, transparent)'
+                    }}
+                  />
+                </div>
+
+                {/* Naturally Scrolling Toolbar - Elegantly slides under Sticky Header when scrolled */}
+                <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                  <div className="flex items-center gap-2">
+                    {/* Chords Toggle */}
+                    <button
+                      onClick={() => setShowChords(!showChords)}
+                      disabled={vocalsMode}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${vocalsMode ? 'hidden' : ''}
                                   ${showChords
-                              ? (lyricsTheme === 'warm' ? 'bg-black text-white border-black' : 'bg-sky-500 text-white border-sky-500')
-                              : (lyricsTheme === 'warm' ? 'bg-transparent text-black/50 border-black/20' : 'bg-transparent text-white/30 border-white/10')
-                            }`}
-                        >
-                          {showChords ? <Guitar className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                          {showChords ? "Chords On" : "Chords Off"}
-                        </button>
+                          ? (lyricsTheme === 'warm' ? 'bg-black text-white border-black' : 'bg-sky-500 text-white border-sky-500')
+                          : (lyricsTheme === 'warm' ? 'bg-transparent text-black/50 border-black/20' : 'bg-transparent text-white/30 border-white/10')
+                        }`}
+                    >
+                      {showChords ? <Guitar className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                      {showChords ? "Chords On" : "Chords Off"}
+                    </button>
 
-                        {/* Font Controls */}
-                        <div className={`flex items-center rounded-xl border transition-colors duration-300 ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/10' : 'bg-white/5 border-white/10'}`}>
-                          <button
-                            onClick={() => setFontSize(prev => Math.max(14, prev - 2))}
-                            disabled={fontSize <= 14}
-                            className={`p-2 transition-all disabled:opacity-20 ${lyricsTheme === 'warm' ? 'hover:text-black' : 'hover:text-white text-white/60'}`}
-                          >
-                            <span className="text-xs font-black">A-</span>
-                          </button>
-                          <div className={`w-px h-4 ${lyricsTheme === 'warm' ? 'bg-black/10' : 'bg-white/10'}`} />
-                          <button
-                            onClick={() => setFontSize(prev => Math.min(48, prev + 2))}
-                            disabled={fontSize >= 48}
-                            className={`p-2 transition-all disabled:opacity-20 ${lyricsTheme === 'warm' ? 'hover:text-black' : 'hover:text-white text-white/60'}`}
-                          >
-                            <span className="text-sm font-black">A+</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Theme Selector */}
-                      <div className={`flex p-1 rounded-xl border transition-colors duration-300 ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/10' : 'bg-white/5 border-white/10'}`}>
-                        {Object.entries(lyricsThemes).map(([key, theme]) => (
-                          <button
-                            key={key}
-                            onClick={() => setLyricsTheme(key)}
-                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 relative overflow-hidden
-                                    ${lyricsTheme === key
-                                ? 'shadow-lg scale-100 z-10'
-                                : 'opacity-40 hover:opacity-100 scale-95'}`}
-                            style={{
-                              backgroundColor: lyricsTheme === key ? theme.bg : 'transparent',
-                              color: lyricsTheme === key ? theme.text : (lyricsTheme === 'warm' ? '#1A1A1A' : '#fff'),
-                              border: lyricsTheme === key ? `1px solid ${theme.border || 'transparent'}` : 'none'
-                            }}
-                          >
-                            {theme.label}
-                            {lyricsTheme === key && (
-                              <motion.div layoutId="activeTheme" className="absolute inset-0 rounded-lg border-2 border-sky-400/20" />
-                            )}
-                          </button>
-                        ))}
-                      </div>
+                    {/* Font Controls */}
+                    <div className={`flex items-center rounded-xl border transition-colors duration-300 ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/10' : 'bg-white/5 border-white/10'}`}>
+                      <button
+                        onClick={() => setFontSize(prev => Math.max(14, prev - 2))}
+                        disabled={fontSize <= 14}
+                        className={`p-2 transition-all disabled:opacity-20 ${lyricsTheme === 'warm' ? 'hover:text-black' : 'hover:text-white text-white/60'}`}
+                      >
+                        <span className="text-xs font-black">A-</span>
+                      </button>
+                      <div className={`w-px h-4 ${lyricsTheme === 'warm' ? 'bg-black/10' : 'bg-white/10'}`} />
+                      <button
+                        onClick={() => setFontSize(prev => Math.min(48, prev + 2))}
+                        disabled={fontSize >= 48}
+                        className={`p-2 transition-all disabled:opacity-20 ${lyricsTheme === 'warm' ? 'hover:text-black' : 'hover:text-white text-white/60'}`}
+                      >
+                        <span className="text-sm font-black">A+</span>
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Theme Selector */}
+                  <div className={`flex p-1 rounded-xl border transition-colors duration-300 ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/10' : 'bg-white/5 border-white/10'}`}>
+                    {Object.entries(lyricsThemes).map(([key, theme]) => (
+                      <button
+                        key={key}
+                        onClick={() => setLyricsTheme(key)}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 relative overflow-hidden
+                                    ${lyricsTheme === key
+                            ? 'shadow-lg scale-100 z-10'
+                            : 'opacity-40 hover:opacity-100 scale-95'}`}
+                        style={{
+                          backgroundColor: lyricsTheme === key ? theme.bg : 'transparent',
+                          color: lyricsTheme === key ? theme.text : (lyricsTheme === 'warm' ? '#1A1A1A' : '#fff'),
+                          border: lyricsTheme === key ? `1px solid ${theme.border || 'transparent'}` : 'none'
+                        }}
+                      >
+                        {theme.label}
+                        {lyricsTheme === key && (
+                          <motion.div layoutId="activeTheme" className="absolute inset-0 rounded-lg border-2 border-sky-400/20" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="px-6 sm:px-10 py-10">
                   <div
                     className="w-full max-w-2xl mx-auto transition-all duration-500"
