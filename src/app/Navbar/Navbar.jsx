@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useState, useContext } from "react";
+import axios from "axios";
 import { motion, AnimatePresence, easeOut } from "framer-motion";
 import { useRouter, usePathname } from "next/navigation";
 import { Menu, X, Globe, ChevronDown, Mic, Music } from "lucide-react";
@@ -56,6 +57,19 @@ export default function Navbar() {
             return () => clearTimeout(timer);
         }
     }, [pathname]);
+
+    useEffect(() => {
+        // Ping Render backend to wake it up (Free Tier Cold Start)
+        const wakeUpServer = async () => {
+            try {
+                await axios.get("https://worship-team-api.onrender.com/api/ping");
+                console.log("🚀 Server woke up!");
+            } catch (err) {
+                console.error("Wake up ping failed:", err);
+            }
+        };
+        wakeUpServer();
+    }, []);
 
     const containerVariants = {
         hidden: {},

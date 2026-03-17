@@ -8,9 +8,6 @@ import QueryProvider from "../../QueryProvider";
 import HymnsContextProvider from "./context/Hymns_Context";
 import { LanguageProvider } from "./context/LanguageContext";
 import  SmoothScroll  from "./SmoothScroll"
-import { useEffect } from "react";
-import axios from "axios";
-
 const geistSans = Geist({
     variable: "--font-geist-sans",
     subsets: ["latin"],
@@ -32,20 +29,6 @@ export const metadata = {
 export default function RootLayout({
     children,
 }) {
-    useEffect(() => {
-        // Ping the backend to wake it up from sleep (Render Free Tier cold start)
-        const wakeUpServer = async () => {
-            try {
-                // We use any small endpoint, /api/ping is best
-                await axios.get("https://worship-team-api.onrender.com/api/ping");
-                console.log("🚀 Server woke up!");
-            } catch (err) {
-                console.error("Wake up ping failed:", err);
-            }
-        };
-        wakeUpServer();
-    }, []);
-
     return (
         <html lang="en">
             <body
