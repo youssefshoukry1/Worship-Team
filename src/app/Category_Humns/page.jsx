@@ -588,134 +588,177 @@ export default function Category_Humns() {
 
   const renderLyricsWithChords = (lyricsData) => {
     if (!lyricsData) return null;
-
     const currentTheme = lyricsThemes[lyricsTheme];
 
-    // Helper to render a single text block
-    const renderBlock = (text, stanzaType) => {
-      const isChorus = stanzaType === 'chorus';
-      const textColor = currentTheme.text;
-      const fontWeight = isChorus ? 'font-bold' : 'font-medium';
+    const parseSegments = (line) => {
+      const parts = line.split(/(\[.*?\])/g);
+      const segments = [];
+      let i = 0;
+      while (i < parts.length) {
+        const part = parts[i];
+        if (part && part.startsWith('[') && part.endsWith(']')) {
+          segments.push({
+            chord: part.slice(1, -1),
+            text: parts[i + 1] ?? '',
+          });
+          i += 2;
+        } else {
+          if (part) segments.push({ chord: null, text: part });
+          i++;
+        }
+      }
+      return segments;
+    };
 
-      return text.split('\n').map((line, i) => (
+    const renderLine = (line, stanzaType, i) => {
+      const isChorus = stanzaType === 'chorus';
+      const segments = parseSegments(line);
+      const anyHasChords = line.includes('[');
+
+      if (!line.trim()) return <div key={i} className="h-4" />;
+
+      return (
         <div
           key={i}
-          className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-8 mb-2' : 'my-2'} ${fontWeight}`}
-          style={{ fontSize: `${fontSize}px`, minHeight: '1.5em' }}
+          className={`flex flex-wrap justify-center items-end w-full leading-relaxed ${showChords && anyHasChords ? 'mt-8 mb-2' : 'my-2'}`}
           dir="rtl"
         >
-          <div className="flex flex-wrap justify-center items-baseline leading-relaxed tracking-wide">
-            {line ? line.split(/(\[.*?\])/g).map((part, j) => {
-              if (part.startsWith('[') && part.endsWith(']')) {
-                if (!showChords) return null;
-                const chord = part.slice(1, -1);
-                const transposedChord = selectedLyricsHymn?.transposeStep
-                  ? transposeChords(chord, selectedLyricsHymn.transposeStep)
-                  : chord;
+          {segments.map((seg, j) => {
+            const transposedChord = (showChords && seg.chord)
+              ? (selectedLyricsHymn?.transposeStep ? transposeChords(seg.chord, selectedLyricsHymn.transposeStep) : seg.chord)
+              : null;
 
-                return (
-                  <span key={j} className="inline-flex flex-col-reverse items-center align-baseline mx-1.5 select-none translate-y-[0.1em]">
-                    {/* Invisible anchor to reserve width and define baseline */}
-                    <span className="invisible whitespace-nowrap leading-none px-2" style={{ fontSize: '0.7em' }} dir="ltr">
-                      {transposedChord}
-                    </span>
-                    {/* The Chord: Responsive flex layout prevents overlap and alignment issues */}
-                    <span
-                      className="font-bold whitespace-nowrap mb-1 px-2 py-0.5 rounded-md border transition-colors duration-300"
-                      style={{
-                        backgroundColor: isChorus ? 'rgba(255,255,255,0.1)' : 'rgba(56, 189, 248, 0.1)',
-                        borderColor: isChorus ? 'rgba(255,255,255,0.2)' : 'rgba(56, 189, 248, 0.2)',
-                        color: currentTheme.chord,
-                        fontSize: `0.7em`,
-                        lineHeight: '1',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}
-                      dir="ltr"
-                    >
-                      {transposedChord}
-                    </span>
+            return (
+              <span key={j} className={`inline-flex flex-col items-start ${showChords ? 'min-w-[0.2em]' : ''}`}>
+                {/* Chord row - Absolutely clean, no badges */}
+                {showChords && (
+                  <span
+                    className="block font-bold whitespace-nowrap overflow-visible h-[1.2em] mb-[-0.1em] px-0.5 select-none"
+                    dir="ltr"
+                    style={{
+                      color: currentTheme.chord,
+                      fontSize: '0.85em',
+                      lineHeight: '1',
+                      visibility: seg.chord ? 'visible' : 'hidden'
+                    }}
+                  >
+                    {transposedChord || '\u00A0'}
                   </span>
-                );
-              }
-              return (
-                <span key={j} className="whitespace-pre-wrap transition-colors duration-300" style={{ color: textColor }}>
-                  {part}
+                )}
+                {/* Lyrics row */}
+                <span
+                  style={{ color: currentTheme.text, fontSize: `${fontSize}px` }}
+                  className={`${isChorus ? 'font-black' : 'font-bold'} ${showChords ? 'whitespace-pre' : ''} transition-colors duration-300`}
+                >
+                  {seg.text || '\u00A0'}
                 </span>
-              );
-            }) : <div className="h-4" />}
-          </div>
+              </span>
+            );
+          })}
         </div>
-      ));
+      );
     };
 
     if (Array.isArray(lyricsData)) {
       return lyricsData.map((stanza, idx) => (
-        <div key={idx} className={`mb-12 flex flex-col items-center ${stanza.type === 'chorus' ? 'bg-white/5 py-4 px-2 rounded-2xl mx-[-1rem] sm:mx-0' : ''}`}>
-          {stanza.title && <div className={`text-xs mb-4 font-bold tracking-widest px-3 py-1 rounded-full border ${stanza.type === 'chorus' ? 'text-sky-300 border-sky-400/30 bg-sky-500/10' : 'text-gray-400 border-white/10 bg-white/5'}`}>{stanza.title}</div>}
-          {renderBlock(stanza.text, stanza.type)}
+        <div key={idx} className={`mb-12 flex flex-col items-center ${stanza.type === 'chorus' ? 'bg-white/5 py-8 px-6 rounded-3xl mx-[-1rem] sm:mx-0 border border-white/5 shadow-inner' : ''}`}>
+          {stanza.title && (
+            <div className={`text-[10px] mb-6 font-black tracking-[0.2em] px-4 py-1.5 rounded-full border uppercase ${stanza.type === 'chorus' ? 'text-sky-300 border-sky-400/30 bg-sky-500/10' : 'text-gray-400 border-white/10 bg-white/5'}`}>
+              {stanza.title}
+            </div>
+          )}
+          {stanza.text.split('\n').map((line, i) => renderLine(line, stanza.type, i))}
         </div>
       ));
     }
 
-    // Legacy single string rendering
-    return <div className="mb-12">{renderBlock(lyricsData, 'verse')}</div>;
+    return <div className="mb-12">{lyricsData.split('\n').map((line, i) => renderLine(line, 'verse', i))}</div>;
   };
 
   const renderPresentationSlideWithChords = (slideData) => {
     if (!slideData) return null;
 
-    // Handle string or object {type, title, text}
     const text = typeof slideData === 'string' ? slideData : slideData.text;
     const title = typeof slideData !== 'string' ? slideData.title : null;
     const type = typeof slideData !== 'string' ? slideData.type : 'verse';
-
     const isChorus = type === 'chorus';
+
+    const parseSegments = (line) => {
+      const parts = line.split(/(\[.*?\])/g);
+      const segments = [];
+      let i = 0;
+      while (i < parts.length) {
+        const part = parts[i];
+        if (part && part.startsWith('[') && part.endsWith(']')) {
+          segments.push({
+            chord: part.slice(1, -1),
+            text: parts[i + 1] ?? '',
+          });
+          i += 2;
+        } else {
+          if (part) segments.push({ chord: null, text: part });
+          i++;
+        }
+      }
+      return segments;
+    };
 
     return (
       <>
         {title && (
-          <div className="absolute top-8 left-1/2 -translate-x-1/2 text-white/50 text-sm sm:text-lg font-black tracking-widest px-4 py-1.5 rounded-full border border-white/10 bg-white/5 uppercase" dir="rtl">
+          <div className="absolute top-8 left-1/2 -translate-x-1/2 text-white/50 text-[11px] sm:text-base font-black tracking-[0.4em] px-6 py-2 rounded-full border border-white/10 bg-white/5 uppercase select-none" dir="rtl">
             {title}
           </div>
         )}
-        {text.split('\n').map((line, i) => (
-          <div
-            key={i}
-            className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-4 mb-2' : 'my-2'}`}
-            style={{ fontSize: 'clamp(32px, 8vw, 64px)', lineHeight: '1.6' }}
-            dir="rtl"
-          >
-            {line ? line.split(/(\[.*?\])/g).map((part, j) => {
-              if (part.startsWith('[') && part.endsWith(']')) {
-                if (!showChords) return null;
-                const chord = part.slice(1, -1);
-                const transposedChord = selectedLyricsHymn?.transposeStep
-                  ? transposeChords(chord, selectedLyricsHymn.transposeStep)
-                  : chord;
-                return (
-                  <span key={j} className="inline-flex flex-col-reverse items-center align-baseline relative mx-[0.15em] select-none translate-y-[0.1em]">
-                    {/* Invisible placeholder reserves the width */}
-                    <span className="invisible whitespace-nowrap leading-none" style={{ fontSize: '0.5em' }} dir="ltr">
-                      {transposedChord}
+        <div className="w-full h-full flex flex-col items-center justify-center gap-0 px-6 sm:px-12">
+          {text.split('\n').map((line, i) => {
+            if (!line.trim()) return <div key={i} className="h-[0.5em]" />;
+
+            const segments = parseSegments(line);
+            const anyHasChords = line.includes('[');
+
+            return (
+              <div
+                key={i}
+                className={`flex flex-wrap justify-center items-end w-full ${showChords && anyHasChords ? 'mt-[1.2em]' : 'my-[0.2em]'}`}
+                dir="rtl"
+              >
+                {segments.map((seg, j) => {
+                  const transposedChord = (showChords && seg.chord)
+                    ? (selectedLyricsHymn?.transposeStep ? transposeChords(seg.chord, selectedLyricsHymn.transposeStep) : seg.chord)
+                    : null;
+
+                  return (
+                    <span key={j} className={`inline-flex flex-col items-start ${showChords ? 'min-w-[0.2em]' : ''}`}>
+                      {/* Chord row */}
+                      {showChords && (
+                        <span
+                          className="block font-black whitespace-nowrap overflow-visible leading-none select-none mb-3"
+                          dir="ltr"
+                          style={{
+                            color: '#38BDF8',
+                            fontSize: '0.6em',
+                            visibility: seg.chord ? 'visible' : 'hidden',
+                            textShadow: '0 2px 4px rgba(0,0,0,0.5)'
+                          }}
+                        >
+                          {transposedChord || '\u00A0'}
+                        </span>
+                      )}
+                      {/* Lyrics row */}
+                      <span
+                        className={`font-bold ${showChords ? 'whitespace-pre-wrap' : ''} leading-tight select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
+                        style={{ fontSize: 'clamp(28px, 7vw, 90px)' }}
+                      >
+                        {seg.text || '\u00A0'}
+                      </span>
                     </span>
-                    {/* The Chord: Flex-based positioning ensures it stays above text and pushes lines apart naturally to prevent overlap */}
-                    <span
-                      className="font-black whitespace-nowrap mb-[0.2em] text-sky-300 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
-                      style={{
-                        fontSize: '0.5em',
-                        lineHeight: '1',
-                      }}
-                      dir="ltr"
-                    >
-                      {transposedChord}
-                    </span>
-                  </span>
-                );
-              }
-              return <span key={j} className={`font-bold whitespace-pre-wrap leading-relaxed select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight text-white`}>{part}</span>;
-            }) : <br />}
-          </div>
-        ))}
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
       </>
     );
   };

@@ -36,8 +36,6 @@ function DisplayContent() {
         if (!text) return null;
         const isChorus = type === 'chorus';
 
-        // Parse a single line into [{chord, text}] segments.
-        // e.g. "[G]كلمة [Em]كلمة" → [{chord:'G', text:'كلمة '}, {chord:'Em', text:'كلمة'}]
         const parseSegments = (line) => {
             const parts = line.split(/(\[.*?\])/g);
             const segments = [];
@@ -59,62 +57,50 @@ function DisplayContent() {
         };
 
         const lines = text.split('\n');
-        // If ANY line in the slide has chords, reserve chord-row height for ALL lines
-        // so the lyrics baseline stays perfectly aligned across every line.
-        const anyHasChords = lines.some(l => l.includes('['));
 
         return (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-0">
+            <div className="w-full h-full flex flex-col items-center justify-center gap-0 px-8 sm:px-16">
                 {lines.map((line, i) => {
-                    // Empty lines → small spacer
-                    if (!line.trim()) {
-                        return <div key={i} style={{ height: anyHasChords ? '0.8em' : '0.5em' }} />;
-                    }
+                    if (!line.trim()) return <div key={i} className="h-[0.5em]" />;
 
                     const segments = parseSegments(line);
+                    const anyHasChords = line.includes('[');
 
                     return (
                         <div
                             key={i}
-                            className="flex flex-wrap justify-center items-end w-full"
+                            className={`flex flex-wrap justify-center items-end w-full ${anyHasChords ? 'mt-[1.2em]' : 'my-[0.2em]'}`}
                             dir="rtl"
                         >
                             {segments.map((seg, j) => (
-                                <span key={j} className="inline-flex flex-col items-center">
-                                    {/*
-                                     * Chord row — always rendered (even when empty) so every
-                                     * segment has the same two-row structure. This guarantees
-                                     * the lyrics baseline never shifts regardless of screen size.
-                                     */}
-                                    <span
-                                        className="block text-center font-bold whitespace-nowrap text-sky-300"
-                                        dir="ltr"
-                                        style={{
-                                            fontSize: 'clamp(13px, 3.2vw, 34px)',
-                                            lineHeight: '1.3',
-                                            // Reserve height only when slide has chords
-                                            minHeight: anyHasChords ? '1.5em' : '0',
-                                            textShadow: '0 2px 8px rgba(0,0,0,0.9)',
-                                            // Hide placeholder so it takes space but stays invisible
-                                            visibility: seg.chord ? 'visible' : 'hidden',
-                                        }}
-                                    >
-                                        {/* Non-breaking space so the span never collapses */}
-                                        {seg.chord ?? '\u00A0'}
-                                    </span>
+                                <span key={j} className={`inline-flex flex-col items-start ${anyHasChords ? 'min-w-[0.2em]' : ''}`}>
+                                    {/* Chord row */}
+                                    {anyHasChords && (
+                                        <span
+                                            className="block font-black whitespace-nowrap text-sky-300 select-none overflow-visible leading-none mb-4"
+                                            dir="ltr"
+                                            style={{
+                                                fontSize: 'clamp(28px, 6vw, 54px)',
+                                                visibility: seg.chord ? 'visible' : 'hidden',
+                                                textShadow: '0 2px 10px rgba(0,0,0,0.8)',
+                                                minHeight: '1.2em'
+                                            }}
+                                        >
+                                            {seg.chord ?? '\u00A0'}
+                                        </span>
+                                    )}
 
                                     {/* Lyrics row */}
                                     <span
-                                        className={`block whitespace-pre drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${isChorus
-                                                ? 'text-yellow-300 drop-shadow-[0_2px_15px_rgba(253,224,71,0.4)]'
-                                                : 'text-white'
+                                        className={`block ${anyHasChords ? 'whitespace-pre-wrap' : ''} drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${isChorus
+                                            ? 'text-yellow-300 drop-shadow-[0_2px_15px_rgba(253,224,71,0.4)] font-black'
+                                            : 'text-white font-bold'
                                             }`}
                                         style={{
-                                            fontSize: 'clamp(28px, 6.5vw, 72px)',
-                                            lineHeight: '1.25',
+                                            fontSize: 'clamp(44px, 8vw, 100px)',
+                                            lineHeight: '1.1',
                                         }}
                                     >
-                                        {/* Non-breaking space keeps empty trailing segments from collapsing */}
                                         {seg.text || '\u00A0'}
                                     </span>
                                 </span>

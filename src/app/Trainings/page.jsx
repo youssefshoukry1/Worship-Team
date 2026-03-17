@@ -239,94 +239,145 @@ export default function Trainings() {
 
   const renderLyricsWithChords = (text) => {
     if (!text) return null;
-
     const currentTheme = lyricsThemes[lyricsTheme];
 
-    return text.split('\n').map((line, i) => (
-      <div
-        key={i}
-        className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-8 mb-2' : 'my-2'}`}
-        style={{ fontSize: `${fontSize}px`, minHeight: '1.5em' }}
-        dir="rtl"
-      >
-        <div className="flex flex-wrap justify-center items-baseline leading-relaxed tracking-wide">
-          {line ? line.split(/(\[.*?\])/g).map((part, j) => {
-            if (part.startsWith('[') && part.endsWith(']')) {
-              if (!showChords) return null;
-              const chord = part.slice(1, -1);
-              return (
-                <span key={j} className="inline-flex flex-col-reverse items-center align-baseline mx-1.5 select-none translate-y-[0.1em]">
-                  {/* Invisible anchor to reserve width and define baseline */}
-                  <span className="invisible whitespace-nowrap leading-none px-2" style={{ fontSize: '0.7em' }} dir="ltr">
-                    {chord}
-                  </span>
-                  {/* The Chord: Responsive flex layout prevents overlap and alignment issues */}
-                  <span
-                    className="font-bold whitespace-nowrap mb-1 px-2 py-0.5 rounded-md border transition-colors duration-300"
-                    style={{
-                      backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                      borderColor: 'rgba(56, 189, 248, 0.2)',
-                      color: currentTheme.chord,
-                      fontSize: `0.7em`,
-                      lineHeight: '1',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}
-                    dir="ltr"
-                  >
-                    {chord}
-                  </span>
-                </span>
-              );
-            }
+    const parseSegments = (line) => {
+      const parts = line.split(/(\[.*?\])/g);
+      const segments = [];
+      let i = 0;
+      while (i < parts.length) {
+        const part = parts[i];
+        if (part && part.startsWith('[') && part.endsWith(']')) {
+          segments.push({
+            chord: part.slice(1, -1),
+            text: parts[i + 1] ?? '',
+          });
+          i += 2;
+        } else {
+          if (part) segments.push({ chord: null, text: part });
+          i++;
+        }
+      }
+      return segments;
+    };
+
+    const renderLine = (line, i) => {
+      const segments = parseSegments(line);
+      const anyHasChords = line.includes('[');
+
+      if (!line.trim()) return <div key={i} className="h-4" />;
+
+      return (
+        <div
+          key={i}
+          className={`flex flex-wrap justify-center items-end w-full leading-relaxed ${showChords && anyHasChords ? 'mt-8 mb-2' : 'my-2'}`}
+          dir="rtl"
+        >
+          {segments.map((seg, j) => {
             return (
-              <span key={j} className="whitespace-pre-wrap transition-colors duration-300" style={{ color: currentTheme.text }}>
-                {part}
+              <span key={j} className={`inline-flex flex-col items-start ${showChords ? 'min-w-[0.2em]' : ''}`}>
+                {/* Chord row - Absolutely clean, no badges */}
+                {showChords && (
+                  <span
+                    className="block font-bold whitespace-nowrap overflow-visible h-[1.2em] mb-[-0.1em] px-0.5 select-none"
+                    dir="ltr"
+                    style={{
+                      color: currentTheme.chord,
+                      fontSize: '0.85em',
+                      lineHeight: '1',
+                      visibility: seg.chord ? 'visible' : 'hidden'
+                    }}
+                  >
+                    {seg.chord || '\u00A0'}
+                  </span>
+                )}
+                {/* Lyrics row */}
+                <span
+                  style={{ color: currentTheme.text, fontSize: `${fontSize}px` }}
+                  className={`font-bold ${showChords ? 'whitespace-pre' : ''} transition-colors duration-300`}
+                >
+                  {seg.text || '\u00A0'}
+                </span>
               </span>
             );
-          }) : <div className="h-4" />}
+          })}
         </div>
-      </div>
-    ));
+      );
+    };
+
+    return text.split('\n').map((line, i) => renderLine(line, i));
   };
 
   const renderPresentationSlideWithChords = (text) => {
     if (!text) return null;
 
-    return text.split('\n').map((line, i) => (
-      <div
-        key={i}
-        className={`relative w-full text-center ${showChords && line.includes('[') ? 'mt-4 mb-2' : 'my-2'}`}
-        style={{ fontSize: 'clamp(32px, 8vw, 64px)', lineHeight: '1.6' }}
-        dir="rtl"
-      >
-        {line ? line.split(/(\[.*?\])/g).map((part, j) => {
-          if (part.startsWith('[') && part.endsWith(']')) {
-            if (!showChords) return null;
-            const chord = part.slice(1, -1);
-            return (
-              <span key={j} className="inline-flex flex-col-reverse items-center align-baseline relative mx-[0.15em] select-none translate-y-[0.1em]">
-                {/* Invisible placeholder reserves the width */}
-                <span className="invisible whitespace-nowrap leading-none" style={{ fontSize: '0.5em' }} dir="ltr">
-                  {chord}
-                </span>
-                {/* The Chord: Flex-based positioning ensures it stays above text and pushes lines apart naturally to prevent overlap */}
-                <span
-                  className="font-black whitespace-nowrap mb-[0.2em] text-sky-300 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
-                  style={{
-                    fontSize: '0.5em',
-                    lineHeight: '1',
-                  }}
-                  dir="ltr"
-                >
-                  {chord}
-                </span>
-              </span>
-            );
-          }
-          return <span key={j} className="text-white font-bold whitespace-pre-wrap leading-relaxed select-none">{part}</span>;
-        }) : <br />}
+    const parseSegments = (line) => {
+      const parts = line.split(/(\[.*?\])/g);
+      const segments = [];
+      let i = 0;
+      while (i < parts.length) {
+        const part = parts[i];
+        if (part && part.startsWith('[') && part.endsWith(']')) {
+          segments.push({
+            chord: part.slice(1, -1),
+            text: parts[i + 1] ?? '',
+          });
+          i += 2;
+        } else {
+          if (part) segments.push({ chord: null, text: part });
+          i++;
+        }
+      }
+      return segments;
+    };
+
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center gap-0">
+        {text.split('\n').map((line, i) => {
+          if (!line.trim()) return <div key={i} className="h-[0.5em]" />;
+
+          const segments = parseSegments(line);
+          const anyHasChords = line.includes('[');
+
+          return (
+            <div
+              key={i}
+              className={`flex flex-wrap justify-center items-end w-full ${showChords && anyHasChords ? 'mt-[1.2em]' : 'my-[0.2em]'}`}
+              dir="rtl"
+            >
+              {segments.map((seg, j) => {
+                return (
+                  <span key={j} className={`inline-flex flex-col items-start ${showChords ? 'min-w-[0.2em]' : ''}`}>
+                    {/* Chord row */}
+                    {showChords && (
+                      <span
+                        className="block font-black whitespace-nowrap overflow-visible leading-none select-none mb-4"
+                        dir="ltr"
+                        style={{
+                          color: '#38BDF8',
+                          fontSize: '0.45em',
+                          visibility: seg.chord ? 'visible' : 'hidden',
+                          textShadow: '0 2px 4px rgba(0,0,0,0.5)'
+                        }}
+                      >
+                        {seg.chord || '\u00A0'}
+                      </span>
+                    )}
+                    {/* Lyrics row */}
+                    <span
+                      className={`text-white font-bold ${showChords ? 'whitespace-pre' : ''} leading-tight select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight`}
+                      style={{ fontSize: 'clamp(32px, 8vw, 100px)' }}
+                    >
+                      {seg.text || '\u00A0'}
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
-    ));
+    );
   };
 
   const get_All_Users = () => {
