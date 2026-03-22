@@ -47,6 +47,7 @@ export default function Category_Humns() {
   //Data Show
   const [showDataShow, setShowDataShow] = useState(false);
   const [dataShowIndex, setDataShowIndex] = useState(0);
+  const thumbContainerRef = React.useRef(null);
 
   // ── Live Presentation (Socket.io) ──────────────────────────────────
   const [dataShowId, setDataShowId] = useState('');
@@ -213,7 +214,7 @@ export default function Category_Humns() {
 
     // Wait for DOM to be ready (fixes first-time touch event issue)
     const timer = setTimeout(() => {
-      const element = document.getElementById('showDataContainer');
+      const element = document.getElementById('mobileSlideArea');
       if (element) {
         elementRef = element;
         element.addEventListener('touchstart', handleTouchStart, { passive: true });
@@ -232,6 +233,16 @@ export default function Category_Humns() {
       }
     };
   }, [showDataShow, dataShowIndex, dataShowSlides.length]);
+
+  // Auto-scroll active thumbnail into view
+  useEffect(() => {
+    if (showDataShow && thumbContainerRef.current) {
+      const activeBtn = thumbContainerRef.current.children[dataShowIndex];
+      if (activeBtn) {
+        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+  }, [dataShowIndex, showDataShow]);
 
   // Robust broadcast sync: whenever session connects or hymn/lyrics change while presentation is open
   useEffect(() => {
@@ -741,9 +752,9 @@ export default function Category_Humns() {
             {title}
           </div>
         )}
-        <div className="w-full h-full flex flex-col items-center justify-center gap-0 px-6 sm:px-12">
+        <div className="w-full h-full flex flex-col items-center justify-center gap-2 sm:gap-4 px-6 sm:px-12">
           {text.split('\n').map((line, i) => {
-            if (!line.trim()) return <div key={i} className="h-[0.5em]" />;
+            if (!line.trim()) return <div key={i} className="h-[0.6em]" />;
 
             const segments = parseSegments(line);
             const anyHasChords = line.includes('[');
@@ -751,7 +762,7 @@ export default function Category_Humns() {
             return (
               <div
                 key={i}
-                className={`flex flex-wrap justify-center items-end w-full ${showChords && anyHasChords ? 'mt-[1.2em]' : 'my-[0.2em]'}`}
+                className={`flex flex-wrap justify-center items-end w-full ${showChords && anyHasChords ? 'mt-[1.4em]' : 'my-[0.5em]'}`}
                 dir="rtl"
               >
                 {segments.map((seg, j) => {
@@ -778,7 +789,7 @@ export default function Category_Humns() {
                       )}
                       {/* Lyrics row */}
                       <span
-                        className={`font-bold ${showChords ? 'whitespace-pre-wrap' : ''} leading-tight select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
+                        className={`font-bold ${showChords ? 'whitespace-pre-wrap' : ''} leading-snug select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
                         style={{ fontSize: 'clamp(28px, 7vw, 90px)' }}
                       >
                         {seg.text || '\u00A0'}
@@ -1564,7 +1575,7 @@ export default function Category_Humns() {
                       </span>
                     )}
                     <span className="sm:hidden text-xs font-mono text-white/40">
-                      {dataShowIndex + 1} / {dataShowSlides.length}
+                        {dataShowSlides.length} / {dataShowIndex + 1}
                     </span>
                     <button
                       onClick={() => setShowDataShow(false)}
@@ -1578,7 +1589,7 @@ export default function Category_Humns() {
 
                 {/* ══ MOBILE VIEW ══ */}
                 <div className="flex-1 flex flex-col sm:hidden min-h-0">
-                  <div className="flex-1 flex flex-col min-h-0 relative">
+                  <div id="mobileSlideArea" className="flex-1 flex flex-col min-h-0 relative">
                     <AnimatePresence mode="wait">
                       <motion.div
                         key={dataShowIndex}
@@ -1652,13 +1663,13 @@ export default function Category_Humns() {
     {/* Dot nav + arrow buttons */}
     <div className="flex items-center justify-center gap-5 py-2.5 shrink-0">
       <button
-        onClick={() => { if (dataShowIndex > 0) { const ni = dataShowIndex - 1; setDataShowIndex(ni); broadcastLocalSlide(dataShowSlides, ni, selectedLyricsHymn?.title); } }}
-        disabled={dataShowIndex === 0}
+        onClick={() => { if (dataShowIndex < dataShowSlides.length - 1) { const ni = dataShowIndex + 1; setDataShowIndex(ni); broadcastLocalSlide(dataShowSlides, ni, selectedLyricsHymn?.title); } }}
+        disabled={dataShowIndex === dataShowSlides.length - 1}
         className="p-2 rounded-full bg-white/5 border border-white/10 text-white/50 disabled:opacity-20 transition-all active:scale-90"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
       </button>
-      <div className="flex gap-1.5 overflow-x-auto max-w-[60vw]" style={{ scrollbarWidth: 'none' }}>
+      <div dir="rtl" className="flex gap-1.5 overflow-x-auto max-w-[60vw]" style={{ scrollbarWidth: 'none' }}>
         {dataShowSlides.map((_, i) => (
           <button
             key={i}
@@ -1668,17 +1679,17 @@ export default function Category_Humns() {
         ))}
       </div>
       <button
-        onClick={() => { if (dataShowIndex < dataShowSlides.length - 1) { const ni = dataShowIndex + 1; setDataShowIndex(ni); broadcastLocalSlide(dataShowSlides, ni, selectedLyricsHymn?.title); } }}
-        disabled={dataShowIndex === dataShowSlides.length - 1}
+        onClick={() => { if (dataShowIndex > 0) { const ni = dataShowIndex - 1; setDataShowIndex(ni); broadcastLocalSlide(dataShowSlides, ni, selectedLyricsHymn?.title); } }}
+        disabled={dataShowIndex === 0}
         className="p-2 rounded-full bg-white/5 border border-white/10 text-white/50 disabled:opacity-20 transition-all active:scale-90"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
       </button>
     </div>
 
     {/* Bottom thumbnail strip */}
     <div className="shrink-0 bg-black/50 border-t border-white/10 py-3 px-3">
-      <div className="flex gap-2.5 overflow-x-auto pb-1" dir="rtl" style={{ scrollbarWidth: 'none' }}>
+      <div ref={thumbContainerRef} className="flex gap-2.5 overflow-x-auto pb-1" dir="rtl" style={{ scrollbarWidth: 'none' }}>
         {dataShowSlides.map((slide, i) => {
           const isActive = dataShowIndex === i;
           const isChorus = slide.type === 'chorus';
