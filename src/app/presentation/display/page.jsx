@@ -5,6 +5,7 @@ import { usePresentation } from '../../hooks/usePresentation';
 import { useSearchParams } from 'next/navigation';
 import { Wifi, WifiOff } from 'lucide-react';
 import { Suspense } from 'react';
+import ChordLyrics from '../../components/ChordLyrics';
 
 // Inner component that uses useSearchParams (must be inside Suspense)
 function DisplayContent() {
@@ -31,86 +32,6 @@ function DisplayContent() {
     const currentSlide = displayState?.currentSlide ?? 0;
     const totalSlides = displayState?.slides?.length ?? 0;
     const isCleared = displayState?.type === 'clear' || (!displayState?.currentHymnId && displayState?.type !== 'sync');
-
-    const renderSlideWithChords = (text, type) => {
-        if (!text) return null;
-        const isChorus = type === 'chorus';
-
-        const parseSegments = (line) => {
-            const parts = line.split(/(\[.*?\])/g);
-            const segments = [];
-            let i = 0;
-            while (i < parts.length) {
-                const part = parts[i];
-                if (part && part.startsWith('[') && part.endsWith(']')) {
-                    segments.push({
-                        chord: part.slice(1, -1),
-                        text: parts[i + 1] ?? '',
-                    });
-                    i += 2;
-                } else {
-                    if (part) segments.push({ chord: null, text: part });
-                    i++;
-                }
-            }
-            return segments;
-        };
-
-        const lines = text.split('\n');
-
-        return (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-0 px-8 sm:px-16">
-                {lines.map((line, i) => {
-                    if (!line.trim()) return <div key={i} className="h-[0.5em]" />;
-
-                    const segments = parseSegments(line);
-                    const anyHasChords = line.includes('[');
-
-                    return (
-                        <div
-                            key={i}
-                            className={`flex flex-wrap justify-center items-end w-full ${anyHasChords ? 'mt-[1.2em]' : 'my-[0.2em]'}`}
-                            dir="rtl"
-                        >
-                            {segments.map((seg, j) => (
-                                <span key={j} className={`inline-flex flex-col items-start ${anyHasChords ? 'min-w-[0.2em]' : ''}`}>
-                                    {/* Chord row */}
-                                    {anyHasChords && (
-                                        <span
-                                            className="block font-black whitespace-nowrap text-sky-300 select-none overflow-visible leading-none mb-4"
-                                            dir="ltr"
-                                            style={{
-                                                fontSize: 'clamp(28px, 6vw, 54px)',
-                                                visibility: seg.chord ? 'visible' : 'hidden',
-                                                textShadow: '0 2px 10px rgba(0,0,0,0.8)',
-                                                minHeight: '1.2em'
-                                            }}
-                                        >
-                                            {seg.chord ?? '\u00A0'}
-                                        </span>
-                                    )}
-
-                                    {/* Lyrics row */}
-                                    <span
-                                        className={`block ${anyHasChords ? 'whitespace-pre-wrap' : ''} drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${isChorus
-                                            ? 'text-yellow-300 drop-shadow-[0_2px_15px_rgba(253,224,71,0.4)] font-black'
-                                            : 'text-white font-bold'
-                                            }`}
-                                        style={{
-                                            fontSize: 'clamp(44px, 8vw, 100px)',
-                                            lineHeight: '1.1',
-                                        }}
-                                    >
-                                        {seg.text || '\u00A0'}
-                                    </span>
-                                </span>
-                            ))}
-                        </div>
-                    );
-                })}
-            </div>
-        );
-    };
 
 
     return (
@@ -202,7 +123,30 @@ function DisplayContent() {
                                 {slideTitle}
                             </div>
                         )}
-                        {renderSlideWithChords(slideText, slideType)}
+
+                        {/* First Line Chords Display */}
+                        {Array.isArray(slideData) && slideData[0]?.lines?.[0] && (
+                            <div className="absolute top-32 left-1/2 -translate-x-1/2 flex gap-4 items-center justify-center flex-wrap max-w-xl">
+                                {slideData[0].lines[0].segments
+                                    .filter(seg => seg.chord)
+                                    .map((seg, idx) => (
+                                        <div
+                                            key={idx}
+                                            className="px-3 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 backdrop-blur-sm"
+                                        >
+                                            <span className="text-xl sm:text-2xl font-black text-cyan-300" dir="ltr">
+                                                {seg.chord}
+                                            </span>
+                                        </div>
+                                    ))}
+                            </div>
+                        )}
+
+                        <ChordLyrics
+                            chordedLyrics={Array.isArray(slideData) ? slideData : [slideData]}
+                            showChords={true} // Display always shows chords if they exist in broadcast
+                            presentation={true}
+                        />
                     </motion.div>
                 )}
             </AnimatePresence>

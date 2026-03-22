@@ -256,6 +256,14 @@ html.lenis {
 
 /* ─────────────────────────────────────────────────────────── */
 
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* ── Inline dock (replaces fixed dock-wrapper) ── */
 .dock-wrapper-inline {
   position: relative;

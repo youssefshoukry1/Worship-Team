@@ -173,14 +173,18 @@ export default function Category_Humns() {
     let elementRef = null;
 
     const handleKey = (e) => {
-      // الشمال = التالي (LTR: Left = Next)
+      // Left = Next slide
       if (e.key === 'ArrowLeft' && dataShowIndex < dataShowSlides.length - 1) {
-        setDataShowIndex(i => i + 1);
+        const nextIdx = dataShowIndex + 1;
+        setDataShowIndex(nextIdx);
+        broadcastLocalSlide(dataShowSlides, nextIdx, selectedLyricsHymn?.title);
       }
 
-      // اليمين = السابق (LTR: Right = Previous)
+      // Right = Previous slide
       if (e.key === 'ArrowRight' && dataShowIndex > 0) {
-        setDataShowIndex(i => i - 1);
+        const prevIdx = dataShowIndex - 1;
+        setDataShowIndex(prevIdx);
+        broadcastLocalSlide(dataShowSlides, prevIdx, selectedLyricsHymn?.title);
       }
 
       if (e.key === 'Escape') {
@@ -319,12 +323,37 @@ export default function Category_Humns() {
     setShowLyricsModal(true);
   };
 
-  // Open presentation mode directly
+  // ── Local Offline Broadcast (BroadcastChannel API - zero internet needed) ──
+  const LOCAL_CHANNEL = 'taspe_presenter';
+  const localDisplayRef = React.useRef(null);
+
+  const broadcastLocalSlide = React.useCallback((slides, index, hymnTitle) => {
+    const slide = slides[index];
+    if (!slide) return;
+    const ch = new BroadcastChannel(LOCAL_CHANNEL);
+    ch.postMessage({
+      type: 'slide',
+      slide,
+      hymn: hymnTitle,
+      index,
+      total: slides.length
+    });
+    ch.close();
+  }, []);
+
+  // Open the local display window (offline, HDMI screen)
   const openPresentation = (hymn, transposeStep = 0) => {
     setSelectedLyricsHymn({ ...hymn, transposeStep });
     setShowChords(vocalsMode ? false : true);
-    setShowDataShow(true);
     setDataShowIndex(0);
+    setShowDataShow(true);
+
+    // Open / focus the local display window
+    if (!localDisplayRef.current || localDisplayRef.current.closed) {
+      localDisplayRef.current = window.open('/presentation/local', 'taspe_local_display', 'width=1280,height=720');
+    } else {
+      localDisplayRef.current.focus();
+    }
   };
 
   const closeLyricsModal = () => {
@@ -1512,72 +1541,265 @@ export default function Category_Humns() {
             </Portal>
           )}
 
-          {/* --- Data Show (Presentation) Modal - Independent --- */}
+          {/* --- Data Show (Presentation) Presenter View - Independent --- */}
           {showDataShow && selectedLyricsHymn && (
             <Portal>
-              <div
-                id="showDataContainer"
-                className="fixed inset-0 z-10000 bg-black flex items-center justify-center"
-              >
-
-                {/* Exit Button */}
-                <button
-                  onClick={() => setShowDataShow(false)}
-                  className="absolute top-6 right-6 text-white/60 hover:text-white transition-all hover:scale-110 z-10 p-2 rounded-full hover:bg-white/10"
-                >
-                  <X size={32} />
-                </button>
-
-                {/* Counter */}
-                <div className="absolute bottom-6 text-white/50 text-sm font-mono z-10">
-                  {dataShowSlides.length} / {dataShowIndex + 1}
+              <div id="showDataContainer" className="fixed inset-0 z-10000 bg-[#020617] flex flex-col">
+                {/* ── Shared Header ── */}
+                <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-[#0f172a] border-b border-white/10 shrink-0 z-20">
+                  <div className="flex flex-col min-w-0">
+                    <h2 className="text-base sm:text-xl font-bold text-white tracking-tight truncate">{selectedLyricsHymn.title}</h2>
+                    <p className="text-[10px] sm:text-xs text-sky-400 font-medium">
+                      <span className="sm:hidden">Swipe or tap a part below</span>
+                      <span className="hidden sm:inline">Presenter View • Click a cut to broadcast</span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                    {isConnected && (
+                      <span className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-green-400 bg-green-500/10 border border-green-500/30 px-3 py-1.5 rounded-full">
+                        <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                        LIVE · {dataShowId}
+                      </span>
+                    )}
+                    <span className="sm:hidden text-xs font-mono text-white/40">
+                      {dataShowIndex + 1} / {dataShowSlides.length}
+                    </span>
+                    <button
+                      onClick={() => setShowDataShow(false)}
+                      className="p-2 sm:p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 text-white/70 hover:text-red-400 transition-all border border-white/10 hover:border-red-500/30"
+                      title="Close"
+                    >
+                      <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                    </button>
+                  </div>
                 </div>
 
-                {/* Navigation Arrows - LTR: Left=Next, Right=Previous */}
-                {dataShowIndex < dataShowSlides.length - 1 && (
-                  <button
-                    onClick={() => setDataShowIndex(i => i + 1)}
-                    className="absolute left-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
-                  </button>
-                )}
-                {dataShowIndex > 0 && (
-                  <button
-                    onClick={() => setDataShowIndex(i => i - 1)}
-                    className="absolute right-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
-                  </button>
-                )}
+                {/* ══ MOBILE VIEW ══ */}
+                <div className="flex-1 flex flex-col sm:hidden min-h-0">
+                  <div className="flex-1 flex flex-col min-h-0 relative">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={dataShowIndex}
+                        initial={{ opacity: 0, x: -30 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 30 }}
+                        transition={{ duration: 0.18, ease: 'easeInOut' }}
+                        className="absolute inset-0 flex flex-col items-center justify-center px-6 py-4 text-center overflow-hidden"
+                      >
+                        {(() => {
+                          const s = dataShowSlides[dataShowIndex];
+                          if (!s) return null;
+                          const isChorus = s.type === 'chorus';
+                          return (
+                            <>
+                              {s.title && (
+                                <div className={`absolute top-4 left-1/2 -translate-x-1/2 text-[10px] font-black uppercase tracking-[0.3em] px-4 py-1 rounded-full border
+                                  ${isChorus ? 'text-yellow-300 bg-yellow-500/10 border-yellow-500/30' : 'text-white/40 bg-white/5 border-white/10'}`}
+                                  dir="rtl"
+                                >
+                                  {s.title}
+                                </div>
+                              )}
+                              <div className="w-full flex flex-col items-center gap-0 overflow-hidden" dir="rtl">
+                                {s.text.split('\n').map((line, idx) => {
+                                  if (!line.trim()) return <div key={idx} className="h-2" />;
+                                  const parts = line.split(/(\[.*?\])/g);
+                                  const segs = [];
+                                  let pi = 0;
+                                  while (pi < parts.length) {
+                                    const p = parts[pi];
+                                    if (p && p.startsWith('[') && p.endsWith(']')) {
+                                      segs.push({ chord: p.slice(1, -1), text: parts[pi + 1] ?? '' });
+                                      pi += 2;
+                                    } else {
+                                      if (p) segs.push({ chord: null, text: p });
+                                      pi++;
+                                    }
+                                  }
+                                  const anyChords = line.includes('[');
 
-                {/* Swipe Indicator (Mobile) */}
-                <div className="absolute top-6 left-1/2 -translate-x-1/2 text-white/30 text-xs flex items-center gap-2 sm:hidden">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
-                  <span>Swipe to navigate</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="rotate-180"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
-                </div>
+                                  return (
+                                    <div key={idx} className={`flex flex-wrap justify-center items-end w-full ${showChords && anyChords ? 'mt-[1.1em]' : 'my-[0.1em]'}`} dir="rtl">
+                                      {segs.map((seg, j) => (
+                                        <span key={j} className="inline-flex flex-col items-start min-w-[0.2em]">
+                                          {showChords && (
+                                            <span className="block font-black whitespace-nowrap leading-none select-none mb-1" dir="ltr"
+                                              style={{ color: '#38BDF8', fontSize: 'clamp(9px, 2vw, 14px)', visibility: seg.chord ? 'visible' : 'hidden' }}>
+                                              {seg.chord || '\u00A0'}
+                                            </span>
+                                          )}
+                                          <span
+                                            className={`font-bold whitespace-pre-wrap leading-snug select-none drop-shadow-lg tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
+                                            style={{ fontSize: 'clamp(24px, 6.5vw, 52px)' }}
+                                          >
+                                            {seg.text || '\u00A0'}
+                                          </span>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
 
-                {/* Slide with Fade */}
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={dataShowIndex}
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.98 }}
-                    transition={{ duration: 0.1, ease: "easeInOut" }}
-                    className="w-full h-full flex flex-col items-center justify-center px-10 text-center"
-                  >
-                    {renderPresentationSlideWithChords(dataShowSlides[dataShowIndex])}
-                  </motion.div>
-                </AnimatePresence>
+    {/* Dot nav + arrow buttons */}
+    <div className="flex items-center justify-center gap-5 py-2.5 shrink-0">
+      <button
+        onClick={() => { if (dataShowIndex > 0) { const ni = dataShowIndex - 1; setDataShowIndex(ni); broadcastLocalSlide(dataShowSlides, ni, selectedLyricsHymn?.title); } }}
+        disabled={dataShowIndex === 0}
+        className="p-2 rounded-full bg-white/5 border border-white/10 text-white/50 disabled:opacity-20 transition-all active:scale-90"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+      </button>
+      <div className="flex gap-1.5 overflow-x-auto max-w-[60vw]" style={{ scrollbarWidth: 'none' }}>
+        {dataShowSlides.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
+            className={`flex-none rounded-full transition-all duration-200 ${i === dataShowIndex ? 'w-5 h-2 bg-sky-400' : 'w-2 h-2 bg-white/20 hover:bg-white/40'}`}
+          />
+        ))}
+      </div>
+      <button
+        onClick={() => { if (dataShowIndex < dataShowSlides.length - 1) { const ni = dataShowIndex + 1; setDataShowIndex(ni); broadcastLocalSlide(dataShowSlides, ni, selectedLyricsHymn?.title); } }}
+        disabled={dataShowIndex === dataShowSlides.length - 1}
+        className="p-2 rounded-full bg-white/5 border border-white/10 text-white/50 disabled:opacity-20 transition-all active:scale-90"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+      </button>
+    </div>
 
+    {/* Bottom thumbnail strip */}
+    <div className="shrink-0 bg-black/50 border-t border-white/10 py-3 px-3">
+      <div className="flex gap-2.5 overflow-x-auto pb-1" dir="rtl" style={{ scrollbarWidth: 'none' }}>
+        {dataShowSlides.map((slide, i) => {
+          const isActive = dataShowIndex === i;
+          const isChorus = slide.type === 'chorus';
+          return (
+            <button
+              key={i}
+              onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
+              className={`relative flex-none flex flex-col w-24 h-20 p-2 rounded-xl border text-right transition-all duration-200 overflow-hidden
+                              ${isActive
+                  ? 'bg-sky-500/25 border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                  : 'bg-white/5 border-white/10 opacity-60 active:opacity-100'}`}
+            >
+              {isActive && <div className="absolute inset-0 bg-linear-to-b from-sky-500/10 to-transparent pointer-events-none" />}
+              <div className="flex items-center justify-between mb-1 relative z-10" dir="ltr">
+                <span className="text-[9px] font-mono text-gray-500">{i + 1}</span>
+                {isActive
+                  ? <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  : slide.title && <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${isChorus ? 'text-yellow-300 bg-yellow-500/20' : 'text-gray-400 bg-white/10'}`}>{slide.title.slice(0, 6)}</span>
+                }
               </div>
-            </Portal>
-          )}
+              <div className="flex-1 text-[9px] font-semibold text-gray-300 line-clamp-3 leading-tight text-right relative z-10">
+                {slide.text.replace(/\[.*?\]/g, '')}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  </div>
+
+                  {/* ══ DESKTOP VIEW: Grid of cuts + session footer ══ */ }
+  <div className="hidden sm:flex flex-1 flex-col min-h-0">
+    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar" dir="rtl">
+      <div className="max-w-7xl mx-auto grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-4">
+        {dataShowSlides.map((slide, i) => {
+          const isActive = dataShowIndex === i;
+          const isChorus = slide.type === 'chorus';
+          return (
+            <button
+              key={i}
+              onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
+              className={`relative flex flex-col h-40 p-4 rounded-2xl border text-right transition-all duration-200 overflow-hidden group
+                              ${isActive
+                  ? 'bg-sky-500/20 border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.3)] z-10'
+                  : 'bg-white/5 border-white/10 opacity-70 hover:opacity-100 hover:bg-white/10 hover:border-white/20 hover:scale-[1.02]'}`}
+            >
+              {isActive && <div className="absolute inset-0 bg-linear-to-b from-sky-500/10 to-transparent pointer-events-none" />}
+              <div className="flex items-center justify-between w-full mb-3 relative z-10" dir="ltr">
+                <span className="text-[10px] font-mono text-gray-500">{i + 1}</span>
+                <div className="flex items-center gap-1.5">
+                  {isActive && (
+                    <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-red-500 text-white px-2 py-0.5 rounded-full animate-pulse">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white opacity-80" /> Live
+                    </span>
+                  )}
+                  {slide.title && (
+                    <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full
+                                    ${isChorus ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' : 'bg-white/10 text-gray-300 border border-white/10'}`}>
+                      {slide.title}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex-1 w-full text-sm font-bold leading-relaxed text-gray-200 line-clamp-4 relative z-10 wrap-break-word whitespace-pre-line text-right">
+                {slide.text.replace(/\[.*?\]/g, '')}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+
+    {/* Desktop Live Session Footer */}
+    <div className="shrink-0 bg-[#0f172a] border-t border-white/10 px-6 py-3 z-20">
+      {!dataShowId ? (
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-xs text-gray-500 shrink-0">
+            <Tv2 className="w-4 h-4" />
+            <span className="font-semibold">HDMI Session</span>
+          </div>
+          <div className="flex flex-1 items-center gap-2">
+            <input type="text" value={dataShowIdInput} onChange={e => setDataShowIdInput(e.target.value)}
+              placeholder='Room ID, e.g. "sunday-01"'
+              className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600 min-w-0"
+              onKeyDown={e => { if (e.key === 'Enter') handleCreateSession(); }}
+            />
+            <button onClick={handleCreateSession} className="px-4 py-2 bg-sky-500 hover:bg-sky-400 rounded-xl text-sm font-bold transition-all whitespace-nowrap">Create</button>
+            <button onClick={handleJoinSession} className="px-4 py-2 bg-indigo-500/80 hover:bg-indigo-500 rounded-xl text-sm font-bold transition-all whitespace-nowrap">Join</button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all">
+            <Tv2 className="w-4 h-4" /> Open Display Window
+          </a>
+          <a href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all">
+            <ExternalLink className="w-4 h-4" /> Mobile Remote
+          </a>
+          <button onClick={toggleAudio}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${isAudioActive ? 'bg-sky-500/10 border-sky-500/30 text-sky-400' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}>
+            {isAudioActive ? <Mic className="w-4 h-4 animate-pulse text-sky-400" /> : <MicOff className="w-4 h-4" />}
+            {isAudioActive ? 'Mic On' : 'Mic Off'}
+          </button>
+          <button onClick={() => { if (isAudioActive) toggleAudio(); clearDisplay(); setDataShowId(''); localStorage.removeItem('myLivePresentationId'); }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all ml-auto">
+            <X className="w-4 h-4" /> End Session
+          </button>
         </div>
       )}
     </div>
+  </div>
+
+              </div >
+            </Portal >
+          )
+}
+
+
+        </div >
+      )}
+    </div >
 
   </section >
 
@@ -1685,7 +1907,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       {/* Hover Glow Gradient */}
       <div className="absolute inset-0 rounded-2xl bg-linear-to-r from-sky-500/5 via-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
-      {vocalsMode && (
+      {vocalsMode && humn.lyrics && (
         <button
           onClick={() => openPresentation(humn, transposeStep)}
           className="absolute top-3 right-3 sm:hidden p-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all z-30 backdrop-blur-md shadow-lg shadow-purple-500/10 active:scale-95"
@@ -1807,7 +2029,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
               <span className="text-xs sm:text-sm font-medium">{t("lyrics")}</span>
             </button>
 
-            {/* Presentation Button - Icon Only, Visible in Vocal Mode (Desktop Only) */}
+            {/* Presentation Button - Vocals Mode only */}
             {vocalsMode && (
               <button
                 onClick={() => openPresentation(humn, transposeStep)}
