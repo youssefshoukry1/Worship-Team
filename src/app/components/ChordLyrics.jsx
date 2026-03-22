@@ -32,10 +32,32 @@ const ChordLyrics = ({
         textShadow: presentation ? '0 2px 8px rgba(0,0,0,0.8)' : 'none'
     };
 
+    const parseLineToSegments = (line) => {
+        const parts = line.split(/(\[.*?\])/g);
+        const segments = [];
+        let i = 0;
+        while (i < parts.length) {
+            const part = parts[i];
+            if (part && part.startsWith('[') && part.endsWith(']')) {
+                segments.push({
+                    chord: part.slice(1, -1),
+                    text: parts[i + 1] ?? '',
+                });
+                i += 2;
+            } else {
+                if (part) segments.push({ chord: null, text: part });
+                i++;
+            }
+        }
+        return segments.length > 0 ? segments : [{ chord: null, text: line }];
+    };
+
     return (
         <div className="chord-lyrics-container w-full" dir="rtl">
             {chordedLyrics.map((section, sIdx) => {
                 const isChorus = section.type === 'chorus';
+                const lines = section.lines || (section.text ? section.text.split('\n').map(l => ({ segments: parseLineToSegments(l) })) : []);
+
                 return (
                 <div 
                     key={section._id || sIdx} 
@@ -68,13 +90,13 @@ const ChordLyrics = ({
                     )}
                     
                     <div className="flex flex-col gap-4">
-                        {section.lines.map((line, lIdx) => (
+                        {lines.map((line, lIdx) => (
                             <div 
                                 key={lIdx} 
                                 className={`w-full overflow-x-auto hide-scrollbar pb-2 text-center ${showChords ? 'mt-6' : 'my-1'}`}
                             >
                                 <div className="inline-flex flex-nowrap min-w-max px-4">
-                                    {line.segments.map((seg, gIdx) => (
+                                    {(line.segments || []).map((seg, gIdx) => (
                                         <span 
                                             key={gIdx} 
                                             className="inline-flex flex-col justify-end items-center relative group shrink-0"

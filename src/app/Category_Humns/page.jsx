@@ -122,6 +122,22 @@ export default function Category_Humns() {
 
   const lyricsInputRef = React.useRef(null); // Ref for the lyrics textarea
 
+  // Lock scroll when modal is open
+  useEffect(() => {
+    if (showModal || showLyricsModal || showDataShow) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, [showModal, showLyricsModal, showDataShow]);
+
 
 
   const dataShowSlides = React.useMemo(() => {
@@ -1428,8 +1444,7 @@ export default function Category_Humns() {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => {
-                                  setShowDataShow(true);
-                                  setDataShowIndex(0);
+                                  openPresentation(selectedLyricsHymn, selectedLyricsHymn?.transposeStep || 0);
                                 }}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all
                                                                       ${lyricsTheme === 'warm'

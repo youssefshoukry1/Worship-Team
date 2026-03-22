@@ -114,11 +114,11 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                         </div>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                         {Array.isArray(localLyrics) ? (
                             localLyrics.map((stanza, sIdx) => (
-                                <div key={sIdx} className={`p-3 rounded-xl border ${stanza.type === 'chorus' ? 'bg-sky-500/10 border-sky-500/30' : 'bg-black/40 border-white/10'}`}>
-                                    <div className="flex justify-between items-center mb-2 gap-2">
+                                <div key={sIdx} className={`p-4 rounded-xl border relative flex flex-col gap-3 transition-colors ${stanza.type === 'chorus' ? 'bg-sky-500/10 border-sky-500/30 shadow-[inset_0_0_20px_rgba(56,189,248,0.05)]' : 'bg-[#151525] border-white/10'}`}>
+                                    <div className="flex justify-between items-center gap-2 pb-2 border-b border-white/5">
                                         <input
                                             type="text"
                                             value={stanza.title}
@@ -127,22 +127,59 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                                                 newArray[sIdx].title = e.target.value;
                                                 setLocalLyrics(newArray);
                                             }}
-                                            className="bg-transparent border-none text-xs font-bold w-20 text-white focus:ring-0 p-0"
-                                            placeholder="Label"
+                                            className={`text-sm font-bold bg-transparent border-none outline-none w-32 px-1 focus:ring-0 ${stanza.type === 'chorus' ? 'text-white placeholder-white/50' : 'text-gray-300 placeholder-gray-500'}`}
+                                            placeholder={stanza.type === 'chorus' ? "القرار" : "1"}
                                             dir="rtl"
                                         />
-                                        <button
-                                            onClick={() => {
-                                                if (!confirm('Delete section?')) return;
-                                                const newArray = localLyrics.filter((_, i) => i !== sIdx);
-                                                setLocalLyrics(newArray);
-                                            }}
-                                            className="text-gray-500 hover:text-red-400 transition-colors"
-                                        >
-                                            <X size={14} />
-                                        </button>
+                                        
+                                        <div className="flex items-center gap-3 flex-wrap flex-row-reverse">
+                                            {/* Chord Toolbar for this specific text area */}
+                                            {hymn.relatedChords && (
+                                                <div className="flex gap-1.5 flex-wrap justify-end pl-3 border-l border-white/10">
+                                                    {hymn.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, cIdx) => (
+                                                        <button
+                                                            key={cIdx}
+                                                            onClick={() => {
+                                                                 const textareaId = `lyrics-textarea-ws-${hymn._id}-${sIdx}`;
+                                                                 const input = document.getElementById(textareaId);
+                                                                 if (input) {
+                                                                     const start = input.selectionStart;
+                                                                     const end = input.selectionEnd;
+                                                                     const text = input.value;
+                                                                     const newText = text.substring(0, start) + `[${chord}]` + text.substring(end);
+                                                                     const newArray = [...localLyrics];
+                                                                     newArray[sIdx].text = newText;
+                                                                     setLocalLyrics(newArray);
+                                                                     setTimeout(() => {
+                                                                         input.selectionStart = input.selectionEnd = start + chord.length + 2;
+                                                                         input.focus();
+                                                                     }, 0);
+                                                                 }
+                                                            }}
+                                                            className="text-[10px] font-black px-2.5 py-1 rounded-md cursor-pointer select-none bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 hover:text-white transition-all shadow-sm active:scale-95"
+                                                            type="button"
+                                                        >
+                                                            {chord}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            <button
+                                                onClick={() => {
+                                                    if (!confirm('هل تريد مسح هذا المقطع؟')) return;
+                                                    const newArray = localLyrics.filter((_, i) => i !== sIdx);
+                                                    setLocalLyrics(newArray);
+                                                }}
+                                                className="text-gray-500 hover:text-red-400 transition-colors p-1.5 rounded-full hover:bg-red-500/10"
+                                                title="Remove section"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
                                     </div>
                                     <textarea
+                                        id={`lyrics-textarea-ws-${hymn._id}-${sIdx}`}
                                         value={stanza.text}
                                         onChange={(e) => {
                                             const newArray = [...localLyrics];
@@ -150,8 +187,9 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                                             setLocalLyrics(newArray);
                                         }}
                                         rows={3}
-                                        className="w-full bg-black/20 border-none rounded-lg text-sm px-2 py-1.5 focus:outline-none text-white custom-scrollbar"
+                                        className="w-full p-3 rounded-lg bg-black/40 border border-black/50 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[100px] resize-y whitespace-pre-wrap text-sm leading-relaxed custom-scrollbar shadow-inner"
                                         dir="rtl"
+                                        placeholder="كلمات المقطع هنا..."
                                     />
                                 </div>
                             ))
@@ -160,7 +198,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                                 value={localLyrics}
                                 onChange={(e) => setLocalLyrics(e.target.value)}
                                 rows={6}
-                                className="w-full bg-black/40 border border-sky-500/30 rounded-xl text-sm px-4 py-3 focus:outline-none focus:ring-1 focus:ring-sky-400 text-white font-medium custom-scrollbar"
+                                className="w-full p-3 rounded-xl bg-black/40 border border-sky-500/30 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[150px] resize-y whitespace-pre-wrap text-sm leading-relaxed custom-scrollbar shadow-inner"
                                 dir="rtl"
                                 placeholder="Write lyrics here or add sections above..."
                             />
@@ -345,6 +383,25 @@ export default function WorkSpace() {
         }
         return true;
     });
+
+    // --- Presentation Advanced State & Refs ---
+    const thumbContainerRef = useRef(null);
+    const localDisplayRef = useRef(null);
+    const LOCAL_CHANNEL = 'taspe_presenter';
+
+    const broadcastLocalSlide = React.useCallback((slides, index, hymnTitle) => {
+        const slide = slides[index];
+        if (!slide) return;
+        const ch = new BroadcastChannel(LOCAL_CHANNEL);
+        ch.postMessage({
+            type: 'slide',
+            slide,
+            hymn: hymnTitle,
+            index,
+            total: slides.length
+        });
+        ch.close();
+    }, [LOCAL_CHANNEL]);
 
     const lyricsThemes = {
         warm: {
@@ -589,22 +646,31 @@ export default function WorkSpace() {
 
         let lyricsArray = selectedLyricsHymn.lyrics;
 
-        // Handle legacy string format
+        // If lyrics is still a string (legacy), split it
         if (typeof lyricsArray === 'string') {
-            return lyricsArray
+            const lyricsToUse = selectedLyricsHymn.transposeStep
+                ? transposeLyrics(lyricsArray, selectedLyricsHymn.transposeStep)
+                : lyricsArray;
+
+            return lyricsToUse
+                .replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
                 .split('\n\n')
                 .map(b => b.trim())
-                .filter(Boolean)
-                .map(slide => showChords ? slide.replace(/\[/g, ' [') : slide.replace(/\[.*?\]/g, ''));
+                .filter(Boolean);
         }
 
-        // Handle new Array of objects format
+        // Handles the new Array of objects format
         if (Array.isArray(lyricsArray)) {
+            const lyricsToUse = selectedLyricsHymn.transposeStep
+                ? transposeLyrics(lyricsArray, selectedLyricsHymn.transposeStep)
+                : lyricsArray;
+
             const slides = [];
-            lyricsArray.forEach(stanza => {
+            lyricsToUse.forEach(stanza => {
+                // Split the stanza text into blocks by empty lines
                 const blocks = stanza.text.split(/\n\s*\n/).filter(b => b.trim() !== '');
                 blocks.forEach(block => {
-                    const text = showChords ? block.replace(/\[/g, ' [') : block.replace(/\[.*?\]/g, '');
+                    const text = block.replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '');
                     slides.push({ title: stanza.title, type: stanza.type, text });
                 });
             });
@@ -612,10 +678,10 @@ export default function WorkSpace() {
         }
 
         return [];
-    }, [selectedLyricsHymn?.lyrics, showChords]);
+    }, [selectedLyricsHymn?.lyrics, selectedLyricsHymn?.transposeStep, showChords]);
 
-    const openLyrics = (hymn) => {
-        setSelectedLyricsHymn(hymn);
+    const openLyrics = (hymn, transposeStep = 0) => {
+        setSelectedLyricsHymn({ ...hymn, transposeStep });
         setLyricsTheme('main');
         setFontSize(18);
         // Restore last showChords preference from localStorage
@@ -630,11 +696,20 @@ export default function WorkSpace() {
         }
     }, [showChords]);
 
-    const openPresentation = (hymn) => {
-        setSelectedLyricsHymn(hymn);
+    const openPresentation = (hymn, transposeStep = 0) => {
+        setSelectedLyricsHymn({ ...hymn, transposeStep });
         setShowChords(vocalsMode ? false : true);
-        setShowDataShow(true);
         setDataShowIndex(0);
+        setShowDataShow(true);
+
+        // Open / focus the local display window - Only on desktop/tablet (sm breakpoint)
+        if (window.innerWidth >= 640) {
+            if (!localDisplayRef.current || localDisplayRef.current.closed) {
+                localDisplayRef.current = window.open('/presentation/local', 'taspe_local_display', 'width=1280,height=720');
+            } else {
+                localDisplayRef.current.focus();
+            }
+        }
     };
 
     const closeLyricsModal = () => {
@@ -648,9 +723,9 @@ export default function WorkSpace() {
 
     // Attached via onScroll prop to guarantee firing in Portals
 
-    // Prevent background scrolling when lyrics modal is open
+    // Prevent background scrolling when lyrics modal or presentation is open
     React.useEffect(() => {
-        if (showLyricsModal) {
+        if (showLyricsModal || showDataShow || showSetlistModal) {
             document.body.style.overflow = 'hidden';
             document.documentElement.style.overflow = 'hidden';
         } else {
@@ -661,7 +736,7 @@ export default function WorkSpace() {
             document.body.style.overflow = '';
             document.documentElement.style.overflow = '';
         };
-    }, [showLyricsModal]);
+    }, [showLyricsModal, showDataShow, showSetlistModal]);
 
     // Data Show Swipe - Native Touch Events (No Library)
     useEffect(() => {
@@ -673,14 +748,18 @@ export default function WorkSpace() {
         let elementRef = null;
 
         const handleKey = (e) => {
-            // الشمال = التالي (LTR: Left = Next)
+            // Left = Next slide
             if (e.key === 'ArrowLeft' && dataShowIndex < dataShowSlides.length - 1) {
-                setDataShowIndex(i => i + 1);
+                const nextIdx = dataShowIndex + 1;
+                setDataShowIndex(nextIdx);
+                broadcastLocalSlide(dataShowSlides, nextIdx, selectedLyricsHymn?.title);
             }
 
-            // اليمين = السابق (LTR: Right = Previous)
+            // Right = Previous slide
             if (e.key === 'ArrowRight' && dataShowIndex > 0) {
-                setDataShowIndex(i => i - 1);
+                const prevIdx = dataShowIndex - 1;
+                setDataShowIndex(prevIdx);
+                broadcastLocalSlide(dataShowSlides, prevIdx, selectedLyricsHymn?.title);
             }
 
             if (e.key === 'Escape') {
@@ -698,18 +777,22 @@ export default function WorkSpace() {
 
             // Swipe Right (Next Slide) - RTL
             if (swipeDistance < -minSwipeDistance && dataShowIndex < dataShowSlides.length - 1) {
-                setDataShowIndex(i => i + 1);
+                const nextIdx = dataShowIndex + 1;
+                setDataShowIndex(nextIdx);
+                broadcastLocalSlide(dataShowSlides, nextIdx, selectedLyricsHymn?.title);
             }
 
             // Swipe Left (Previous Slide) - RTL
             if (swipeDistance > minSwipeDistance && dataShowIndex > 0) {
-                setDataShowIndex(i => i - 1);
+                const prevIdx = dataShowIndex - 1;
+                setDataShowIndex(prevIdx);
+                broadcastLocalSlide(dataShowSlides, prevIdx, selectedLyricsHymn?.title);
             }
         };
 
         // Wait for DOM to be ready (fixes first-time touch event issue)
         const timer = setTimeout(() => {
-            const element = document.getElementById('showDataContainer');
+            const element = document.getElementById('mobileSlideArea');
             if (element) {
                 elementRef = element;
                 element.addEventListener('touchstart', handleTouchStart, { passive: true });
@@ -727,7 +810,17 @@ export default function WorkSpace() {
                 elementRef.removeEventListener('touchend', handleTouchEnd);
             }
         };
-    }, [showDataShow, dataShowIndex, dataShowSlides.length]);
+    }, [showDataShow, dataShowIndex, dataShowSlides.length, broadcastLocalSlide, selectedLyricsHymn?.title]);
+
+    // Auto-scroll active thumbnail into view
+    useEffect(() => {
+        if (showDataShow && thumbContainerRef.current) {
+            const activeBtn = thumbContainerRef.current.children[dataShowIndex];
+            if (activeBtn) {
+                activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
+        }
+    }, [dataShowIndex, showDataShow]);
 
     // Robust broadcast sync: whenever session connects or hymn changes while presentation is open
     useEffect(() => {
@@ -812,9 +905,13 @@ export default function WorkSpace() {
                     dir="rtl"
                 >
                     {segments.map((seg, j) => {
+                        const transposedChord = (showChords && seg.chord)
+                            ? (selectedLyricsHymn?.transposeStep ? transposeChords(seg.chord, selectedLyricsHymn.transposeStep) : seg.chord)
+                            : null;
+
                         return (
                             <span key={j} className={`inline-flex flex-col items-start ${showChords ? 'min-w-[0.2em]' : ''}`}>
-                                {/* Chord row - Clean text, no badges */}
+                                {/* Chord row - Absolutely clean, no badges */}
                                 {showChords && (
                                     <span
                                         className="block font-bold whitespace-nowrap overflow-visible h-[1.2em] mb-[-0.1em] px-0.5 select-none"
@@ -826,7 +923,7 @@ export default function WorkSpace() {
                                             visibility: seg.chord ? 'visible' : 'hidden'
                                         }}
                                     >
-                                        {seg.chord || '\u00A0'}
+                                        {transposedChord || '\u00A0'}
                                     </span>
                                 )}
                                 {/* Lyrics row */}
@@ -894,9 +991,9 @@ export default function WorkSpace() {
                         {title}
                     </div>
                 )}
-                <div className="w-full h-full flex flex-col items-center justify-center gap-0 px-6 sm:px-12">
+                <div className="w-full h-full flex flex-col items-center justify-center gap-6 sm:gap-10 px-6 sm:px-12">
                     {text.split('\n').map((line, i) => {
-                        if (!line.trim()) return <div key={i} className="h-[0.5em]" />;
+                        if (!line.trim()) return <div key={i} className="h-[1em]" />;
 
                         const segments = parseSegments(line);
                         const anyHasChords = line.includes('[');
@@ -904,10 +1001,14 @@ export default function WorkSpace() {
                         return (
                             <div
                                 key={i}
-                                className={`flex flex-wrap justify-center items-end w-full ${showChords && anyHasChords ? 'mt-[1.2em]' : 'my-[0.2em]'}`}
+                                className={`flex flex-wrap justify-center items-end w-full ${showChords && anyHasChords ? 'mt-[2.2em]' : 'my-[1em]'}`}
                                 dir="rtl"
                             >
                                 {segments.map((seg, j) => {
+                                    const transposedChord = (showChords && seg.chord)
+                                        ? (selectedLyricsHymn?.transposeStep ? transposeChords(seg.chord, selectedLyricsHymn.transposeStep) : seg.chord)
+                                        : null;
+
                                     return (
                                         <span key={j} className={`inline-flex flex-col items-start ${showChords ? 'min-w-[0.2em]' : ''}`}>
                                             {/* Chord row */}
@@ -922,12 +1023,12 @@ export default function WorkSpace() {
                                                         textShadow: '0 2px 4px rgba(0,0,0,0.5)'
                                                     }}
                                                 >
-                                                    {seg.chord || '\u00A0'}
+                                                    {transposedChord || '\u00A0'}
                                                 </span>
                                             )}
                                             {/* Lyrics row */}
                                             <span
-                                                className={`font-bold ${showChords ? 'whitespace-pre-wrap' : ''} leading-tight select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
+                                                className={`font-bold ${showChords ? 'whitespace-pre-wrap' : ''} leading-relaxed select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
                                                 style={{ fontSize: 'clamp(28px, 7vw, 90px)' }}
                                             >
                                                 {seg.text || '\u00A0'}
@@ -1220,8 +1321,7 @@ export default function WorkSpace() {
                                                     <div className="flex items-center gap-2">
                                                         <button
                                                             onClick={() => {
-                                                                setShowDataShow(true);
-                                                                setDataShowIndex(0);
+                                                                openPresentation(selectedLyricsHymn, selectedLyricsHymn.transposeStep || 0);
                                                             }}
                                                             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all
                                                                         ${lyricsTheme === 'warm'
@@ -1344,66 +1444,261 @@ export default function WorkSpace() {
                         </div>
                     </Portal>
                 )}
-                {/* --- Data Show (Presentation) Modal - Independent --- */}
+                {/* --- Data Show (Presentation) Presenter View - Independent --- */}
                 {showDataShow && selectedLyricsHymn && (
                     <Portal>
-                        <div
-                            id="showDataContainer"
-                            className="fixed inset-0 z-10000 bg-black flex items-center justify-center"
-                        >
-                            {/* Exit Button */}
-                            <button
-                                onClick={() => setShowDataShow(false)}
-                                className="absolute top-6 right-6 text-white/60 hover:text-white transition-all hover:scale-110 z-10 p-2 rounded-full hover:bg-white/10"
-                            >
-                                <X size={32} />
-                            </button>
-
-                            {/* Counter */}
-                            <div className="absolute bottom-6 text-white/50 text-sm font-mono z-10">
-                                {dataShowSlides.length} / {dataShowIndex + 1}
+                        <div id="showDataContainer" className="fixed inset-0 z-10000 bg-[#020617] flex flex-col">
+                            {/* ── Shared Header ── */}
+                            <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-[#0f172a] border-b border-white/10 shrink-0 z-20">
+                                <div className="flex flex-col min-w-0">
+                                    <h2 className="text-base sm:text-xl font-bold text-white tracking-tight truncate">{selectedLyricsHymn.title}</h2>
+                                    <p className="text-[10px] sm:text-xs text-sky-400 font-medium">
+                                        <span className="sm:hidden">Swipe or tap a part below</span>
+                                        <span className="hidden sm:inline">Presenter View • Click a cut to broadcast</span>
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                                    {isConnected && (
+                                        <span className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-green-400 bg-green-500/10 border border-green-500/30 px-3 py-1.5 rounded-full">
+                                            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                                            LIVE · {dataShowId}
+                                        </span>
+                                    )}
+                                    <span className="sm:hidden text-xs font-mono text-white/40">
+                                        {dataShowSlides.length} / {dataShowIndex + 1}
+                                    </span>
+                                    <button
+                                        onClick={() => setShowDataShow(false)}
+                                        className="p-2 sm:p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 text-white/70 hover:text-red-400 transition-all border border-white/10 hover:border-red-500/30"
+                                        title="Close"
+                                    >
+                                        <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                                    </button>
+                                </div>
                             </div>
 
-                            {/* Navigation Arrows - LTR: Left=Next, Right=Previous */}
-                            {dataShowIndex < dataShowSlides.length - 1 && (
-                                <button
-                                    onClick={() => setDataShowIndex(i => i + 1)}
-                                    className="absolute left-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
-                                </button>
-                            )}
-                            {dataShowIndex > 0 && (
-                                <button
-                                    onClick={() => setDataShowIndex(i => i - 1)}
-                                    className="absolute right-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all hover:scale-125 z-10 p-3 rounded-full hover:bg-white/10"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
-                                </button>
-                            )}
+                            {/* ══ MOBILE VIEW ══ */}
+                            <div className="flex-1 flex flex-col sm:hidden min-h-0">
+                                <div id="mobileSlideArea" className="flex-1 flex flex-col min-h-0 relative">
+                                    <AnimatePresence mode="wait">
+                                        <motion.div
+                                            key={dataShowIndex}
+                                            initial={{ opacity: 0, x: -30 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: 30 }}
+                                            transition={{ duration: 0.18, ease: 'easeInOut' }}
+                                            className="absolute inset-0 flex flex-col items-center justify-center px-6 py-4 text-center overflow-hidden"
+                                        >
+                                            {(() => {
+                                                const s = dataShowSlides[dataShowIndex];
+                                                if (!s) return null;
+                                                const isChorus = s.type === 'chorus';
+                                                return (
+                                                    <>
+                                                        {s.title && (
+                                                            <div className={`absolute top-4 left-1/2 -translate-x-1/2 text-[10px] font-black uppercase tracking-[0.3em] px-4 py-1 rounded-full border
+                                                                    ${isChorus ? 'text-yellow-300 bg-yellow-500/10 border-yellow-500/30' : 'text-white/40 bg-white/5 border-white/10'}`}
+                                                                dir="rtl"
+                                                            >
+                                                                {s.title}
+                                                            </div>
+                                                        )}
+                                                        <div className="w-full flex flex-col items-center gap-0 overflow-hidden" dir="rtl">
+                                                            {s.text.split('\n').map((line, idx) => {
+                                                                if (!line.trim()) return <div key={idx} className="h-2" />;
+                                                                const parts = line.split(/(\[.*?\])/g);
+                                                                const segs = [];
+                                                                let pi = 0;
+                                                                while (pi < parts.length) {
+                                                                    const p = parts[pi];
+                                                                    if (p && p.startsWith('[') && p.endsWith(']')) {
+                                                                        segs.push({ chord: p.slice(1, -1), text: parts[pi + 1] ?? '' });
+                                                                        pi += 2;
+                                                                    } else {
+                                                                        if (p) segs.push({ chord: null, text: p });
+                                                                        pi++;
+                                                                    }
+                                                                }
+                                                                const anyChords = line.includes('[');
 
-                            {/* Swipe Indicator (Mobile) */}
-                            <div className="absolute top-6 left-1/2 -translate-x-1/2 text-white/30 text-xs flex items-center gap-2 sm:hidden">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
-                                <span>Swipe to navigate</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="rotate-180"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+                                                                return (
+                                                                    <div key={idx} className={`flex flex-wrap justify-center items-end w-full ${showChords && anyChords ? 'mt-[1.1em]' : 'my-[0.1em]'}`} dir="rtl">
+                                                                        {segs.map((seg, j) => {
+                                                                            const transposedChord = (showChords && seg.chord)
+                                                                                ? (selectedLyricsHymn?.transposeStep ? transposeChords(seg.chord, selectedLyricsHymn.transposeStep) : seg.chord)
+                                                                                : null;
+
+                                                                            return (
+                                                                                <span key={j} className="inline-flex flex-col items-start min-w-[0.2em]">
+                                                                                    {showChords && (
+                                                                                        <span className="block font-black whitespace-nowrap leading-none select-none mb-1" dir="ltr"
+                                                                                            style={{ color: '#38BDF8', fontSize: 'clamp(9px, 2vw, 14px)', visibility: seg.chord ? 'visible' : 'hidden' }}>
+                                                                                            {transposedChord || '\u00A0'}
+                                                                                        </span>
+                                                                                    )}
+                                                                                    <span
+                                                                                        className={`font-bold whitespace-pre-wrap leading-snug select-none drop-shadow-lg tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
+                                                                                        style={{ fontSize: 'clamp(24px, 6.5vw, 52px)' }}
+                                                                                    >
+                                                                                        {seg.text || '\u00A0'}
+                                                                                    </span>
+                                                                                </span>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </>
+                                                );
+                                            })()}
+                                        </motion.div>
+                                    </AnimatePresence>
+                                </div>
+
+                                {/* Dot nav + arrow buttons */}
+                                <div className="flex items-center justify-center gap-5 py-2.5 shrink-0">
+                                    <button
+                                        onClick={() => { if (dataShowIndex < dataShowSlides.length - 1) { const ni = dataShowIndex + 1; setDataShowIndex(ni); broadcastLocalSlide(dataShowSlides, ni, selectedLyricsHymn?.title); } }}
+                                        disabled={dataShowIndex === dataShowSlides.length - 1}
+                                        className="p-2 rounded-full bg-white/5 border border-white/10 text-white/50 disabled:opacity-20 transition-all active:scale-90"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                                    </button>
+                                    <div dir="rtl" className="flex gap-1.5 overflow-x-auto max-w-[60vw]" style={{ scrollbarWidth: 'none' }}>
+                                        {dataShowSlides.map((_, i) => (
+                                            <button
+                                                key={i}
+                                                onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
+                                                className={`flex-none rounded-full transition-all duration-200 ${i === dataShowIndex ? 'w-5 h-2 bg-sky-400' : 'w-2 h-2 bg-white/20 hover:bg-white/40'}`}
+                                            />
+                                        ))}
+                                    </div>
+                                    <button
+                                        onClick={() => { if (dataShowIndex > 0) { const ni = dataShowIndex - 1; setDataShowIndex(ni); broadcastLocalSlide(dataShowSlides, ni, selectedLyricsHymn?.title); } }}
+                                        disabled={dataShowIndex === 0}
+                                        className="p-2 rounded-full bg-white/5 border border-white/10 text-white/50 disabled:opacity-20 transition-all active:scale-90"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                                    </button>
+                                </div>
+
+                                {/* Bottom thumbnail strip */}
+                                <div className="shrink-0 bg-black/50 border-t border-white/10 py-3 px-3">
+                                    <div ref={thumbContainerRef} className="flex gap-2.5 overflow-x-auto pb-1" dir="rtl" style={{ scrollbarWidth: 'none' }}>
+                                        {dataShowSlides.map((slide, i) => {
+                                            const isActive = dataShowIndex === i;
+                                            const isChorus = slide.type === 'chorus';
+                                            return (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
+                                                    className={`relative flex-none flex flex-col w-24 h-20 p-2 rounded-xl border text-right transition-all duration-200 overflow-hidden
+                                                            ${isActive
+                                                            ? 'bg-sky-500/25 border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                                                            : 'bg-white/5 border-white/10 opacity-60 active:opacity-100'}`}
+                                                >
+                                                    {isActive && <div className="absolute inset-0 bg-linear-to-b from-sky-500/10 to-transparent pointer-events-none" />}
+                                                    <div className="flex items-center justify-between mb-1 relative z-10" dir="ltr">
+                                                        <span className="text-[9px] font-mono text-gray-500">{i + 1}</span>
+                                                        {isActive
+                                                            ? <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                                            : slide.title && <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${isChorus ? 'text-yellow-300 bg-yellow-500/20' : 'text-gray-400 bg-white/10'}`}>{slide.title.slice(0, 6)}</span>
+                                                        }
+                                                    </div>
+                                                    <div className="flex-1 text-[9px] font-semibold text-gray-300 line-clamp-3 leading-tight text-right relative z-10">
+                                                        {slide.text.replace(/\[.*?\]/g, '')}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Slide with Fade */}
+                            {/* ══ DESKTOP VIEW: Grid of cuts + session footer ══ */}
+                            <div className="hidden sm:flex flex-1 flex-col min-h-0">
+                                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar" dir="rtl">
+                                    <div className="max-w-7xl mx-auto grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-4">
+                                        {dataShowSlides.map((slide, i) => {
+                                            const isActive = dataShowIndex === i;
+                                            const isChorus = slide.type === 'chorus';
+                                            return (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
+                                                    className={`relative flex flex-col h-40 p-4 rounded-2xl border text-right transition-all duration-200 overflow-hidden group
+                                                            ${isActive
+                                                            ? 'bg-sky-500/20 border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.3)] z-10'
+                                                            : 'bg-white/5 border-white/10 opacity-70 hover:opacity-100 hover:bg-white/10 hover:border-white/20 hover:scale-[1.02]'}`}
+                                                >
+                                                    {isActive && <div className="absolute inset-0 bg-linear-to-b from-sky-500/10 to-transparent pointer-events-none" />}
+                                                    <div className="flex items-center justify-between w-full mb-3 relative z-10" dir="ltr">
+                                                        <span className="text-[10px] font-mono text-gray-500">{i + 1}</span>
+                                                        <div className="flex items-center gap-1.5">
+                                                            {isActive && (
+                                                                <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-red-500 text-white px-2 py-0.5 rounded-full animate-pulse">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-white opacity-80" /> Live
+                                                                </span>
+                                                            )}
+                                                            {slide.title && (
+                                                                <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full
+                                                                                ${isChorus ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' : 'bg-white/10 text-gray-300 border border-white/10'}`}>
+                                                                    {slide.title}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-1 w-full text-sm font-bold leading-relaxed text-gray-200 line-clamp-4 relative z-10 wrap-break-word whitespace-pre-line text-right">
+                                                        {slide.text.replace(/\[.*?\]/g, '')}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
 
-
-                            <AnimatePresence mode="wait">
-                                <motion.div
-                                    key={dataShowIndex}
-                                    initial={{ opacity: 0, scale: 0.98 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.98 }}
-                                    transition={{ duration: 0.1, ease: "easeInOut" }}
-                                    className="w-full h-full flex flex-col items-center justify-center px-10 text-center"
-                                >
-                                    {renderPresentationSlideWithChords(dataShowSlides[dataShowIndex])}
-                                </motion.div>
-                            </AnimatePresence>
+                                {/* Desktop Live Session Footer */}
+                                <div className="shrink-0 bg-[#0f172a] border-t border-white/10 px-6 py-3 z-20">
+                                    {!dataShowId ? (
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 text-xs text-gray-500 shrink-0">
+                                                <Tv2 className="w-4 h-4" />
+                                                <span className="font-semibold">HDMI Session</span>
+                                            </div>
+                                            <div className="flex flex-1 items-center gap-2">
+                                                <input type="text" value={dataShowIdInput} onChange={e => setDataShowIdInput(e.target.value)}
+                                                    placeholder='Room ID, e.g. "sunday-01"'
+                                                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600 min-w-0"
+                                                    onKeyDown={e => { if (e.key === 'Enter') handleCreateSession(); }}
+                                                />
+                                                <button onClick={handleCreateSession} className="px-4 py-2 bg-sky-500 hover:bg-sky-400 rounded-xl text-sm font-bold transition-all whitespace-nowrap">Create</button>
+                                                <button onClick={handleJoinSession} className="px-4 py-2 bg-indigo-500/80 hover:bg-indigo-500 rounded-xl text-sm font-bold transition-all whitespace-nowrap">Join</button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
+                                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all">
+                                                <Tv2 className="w-4 h-4" /> Open Display Window
+                                            </a>
+                                            <a href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
+                                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all">
+                                                <ExternalLink className="w-4 h-4" /> Mobile Remote
+                                            </a>
+                                            <button onClick={toggleAudio}
+                                                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${isAudioActive ? 'bg-sky-500/10 border-sky-500/30 text-sky-400' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}>
+                                                {isAudioActive ? <Mic className="w-4 h-4 animate-pulse text-sky-400" /> : <MicOff className="w-4 h-4" />}
+                                                {isAudioActive ? 'Mic On' : 'Mic Off'}
+                                            </button>
+                                            <button onClick={() => { if (isAudioActive) toggleAudio(); clearDisplay(); setDataShowId(''); localStorage.removeItem('myLivePresentationId'); }}
+                                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all ml-auto">
+                                                <X className="w-4 h-4" /> End Session
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </Portal>
                 )}
@@ -1616,7 +1911,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
         >
             {vocalsMode && (
                 <button
-                    onClick={() => openPresentation({ ...hymn, scale: currentScale, relatedChords: currentChords, lyrics: currentLyrics }, transposeStep)}
+                    onClick={() => openPresentation(hymn, transposeStep)}
                     className="absolute top-3 right-3 sm:hidden p-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all z-30 backdrop-blur-md shadow-lg shadow-purple-500/10 active:scale-95"
                     title="Open Presentation Mode"
                 >
@@ -1700,7 +1995,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
                 {hymn.lyrics && (
                     <>
                         <button
-                            onClick={() => openLyrics({ ...hymn, scale: currentScale, relatedChords: currentChords, lyrics: currentLyrics }, transposeStep)}
+                            onClick={() => openLyrics(hymn, transposeStep)}
                             className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center"
                         >
                             <FileText className="w-4 h-4 shrink-0" />
@@ -1710,7 +2005,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
                         {/* Presentation Button - Icon Only, Visible in Vocal Mode (Desktop Only) */}
                         {vocalsMode && (
                             <button
-                                onClick={() => openPresentation({ ...hymn, scale: currentScale, relatedChords: currentChords, lyrics: currentLyrics }, transposeStep)}
+                                onClick={() => openPresentation(hymn, transposeStep)}
                                 className="hidden sm:flex p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all group-hover:shadow-lg group-hover:shadow-purple-500/10"
                                 title="Open Presentation Mode"
                             >

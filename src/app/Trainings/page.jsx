@@ -174,9 +174,9 @@ export default function Trainings() {
 
 
 
-  // Prevent background scrolling when lyrics modal is open
+  // Prevent background scrolling when lyrics modal or presentation is open
   React.useEffect(() => {
-    if (showLyricsModal) {
+    if (showLyricsModal || showDataShow || showReportModal || showModel) {
       document.body.style.overflow = 'hidden';
       document.documentElement.style.overflow = 'hidden';
     } else {
@@ -187,7 +187,7 @@ export default function Trainings() {
       document.body.style.overflow = '';
       document.documentElement.style.overflow = '';
     };
-  }, [showLyricsModal]);
+  }, [showLyricsModal, showDataShow, showReportModal, showModel]);
 
   // Data Show Swipe - Native Touch Events (No Library)
   useEffect(() => {
