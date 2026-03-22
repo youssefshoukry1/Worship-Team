@@ -348,11 +348,13 @@ export default function Category_Humns() {
     setDataShowIndex(0);
     setShowDataShow(true);
 
-    // Open / focus the local display window
-    if (!localDisplayRef.current || localDisplayRef.current.closed) {
-      localDisplayRef.current = window.open('/presentation/local', 'taspe_local_display', 'width=1280,height=720');
-    } else {
-      localDisplayRef.current.focus();
+    // Open / focus the local display window - Only on desktop/tablet (sm breakpoint)
+    if (window.innerWidth >= 640) {
+      if (!localDisplayRef.current || localDisplayRef.current.closed) {
+        localDisplayRef.current = window.open('/presentation/local', 'taspe_local_display', 'width=1280,height=720');
+      } else {
+        localDisplayRef.current.focus();
+      }
     }
   };
 
