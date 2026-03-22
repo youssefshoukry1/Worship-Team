@@ -752,9 +752,9 @@ export default function Category_Humns() {
             {title}
           </div>
         )}
-        <div className="w-full h-full flex flex-col items-center justify-center gap-2 sm:gap-4 px-6 sm:px-12">
+        <div className="w-full h-full flex flex-col items-center justify-center gap-6 sm:gap-10 px-6 sm:px-12">
           {text.split('\n').map((line, i) => {
-            if (!line.trim()) return <div key={i} className="h-[0.6em]" />;
+            if (!line.trim()) return <div key={i} className="h-[1em]" />;
 
             const segments = parseSegments(line);
             const anyHasChords = line.includes('[');
@@ -762,7 +762,7 @@ export default function Category_Humns() {
             return (
               <div
                 key={i}
-                className={`flex flex-wrap justify-center items-end w-full ${showChords && anyHasChords ? 'mt-[1.4em]' : 'my-[0.5em]'}`}
+                className={`flex flex-wrap justify-center items-end w-full ${showChords && anyHasChords ? 'mt-[2.2em]' : 'my-[1em]'}`}
                 dir="rtl"
               >
                 {segments.map((seg, j) => {
@@ -789,7 +789,7 @@ export default function Category_Humns() {
                       )}
                       {/* Lyrics row */}
                       <span
-                        className={`font-bold ${showChords ? 'whitespace-pre-wrap' : ''} leading-snug select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
+                        className={`font-bold ${showChords ? 'whitespace-pre-wrap' : ''} leading-relaxed select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
                         style={{ fontSize: 'clamp(28px, 7vw, 90px)' }}
                       >
                         {seg.text || '\u00A0'}
