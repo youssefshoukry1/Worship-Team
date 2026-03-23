@@ -16,10 +16,13 @@ export const translations = {
     emptyWorkspace: "Your workspace is empty",
     goToLibrary: "Go to the Hymns Library to add some songs.",
     listen: "Listen",
-    AllHymns: 'All Hymns',
-    dashboard: "Dashboard",
-    MothersDay: 'Mother\'s Day',
-    NoHymnsfoundinthiscategory:  'No Hymns found in this category'
+    NoHymnsfoundinthiscategory:  'No Hymns found in this category',
+    hymnAdded: "Hymn added successfully! 🎉",
+    hymnUpdated: "Hymn updated successfully! ✨",
+    duplicateFound: "Duplicate Found: \"{title}\" is already in the database.",
+    enterTitle: "Please enter a song title",
+    addSection: "Please add at least one verse or chorus",
+    sectionTextRequired: "All lyrics sections must have text"
   },
   ar: {
     home: "الرئيسية",
@@ -43,8 +46,13 @@ export const translations = {
     Graduation: 'التخرج',
     NewYear: 'السنة الجديدة',
     Easter: ' القيامة',
-    AllHymns: 'كل الترانيم',
-    NoHymnsfoundinthiscategory: 'لا ترانيم لهذا التصنيف'
+    NoHymnsfoundinthiscategory: 'لا ترانيم لهذا التصنيف',
+    hymnAdded: "تم إضافة الترنيمة بنجاح! 🎉",
+    hymnUpdated: "تم تحديث الترنيمة بنجاح! ✨",
+    duplicateFound: "هذه الترنيمة موجودة بالفعل بعنوان: \"{title}\"",
+    enterTitle: "برجاء إدخال عنوان الترنيمة",
+    addSection: "برجاء إضافة مقطع واحد على الأقل",
+    sectionTextRequired: "يجب كتابة كلمات في كل المقاطع"
   },
   de: {
     home: "Startseite",

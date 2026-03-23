@@ -1683,7 +1683,7 @@ export default function WorkSpace() {
                                                 <Tv2 className="w-4 h-4" /> Open Display Window
                                             </a>
                                             <a href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
-                                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all">
+                                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-400 text-xs font-semibold hover:bg-sky-500/20 transition-all">
                                                 <ExternalLink className="w-4 h-4" /> Mobile Remote
                                             </a>
                                             <button onClick={toggleAudio}
@@ -1912,10 +1912,10 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
             {vocalsMode && (
                 <button
                     onClick={() => openPresentation(hymn, transposeStep)}
-                    className="absolute top-3 right-3 sm:hidden p-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all z-30 backdrop-blur-md shadow-lg shadow-purple-500/10 active:scale-95"
+                    className="absolute top-3 right-3 sm:hidden p-2.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 hover:text-sky-300 border border-sky-500/30 hover:border-sky-500/50 transition-all z-30 backdrop-blur-md shadow-lg shadow-sky-500/10 active:scale-95"
                     title="Open Presentation Mode"
                 >
-                    <Monitor className="w-5 h-5" />
+                    <Monitor className="w-5 h-5 text-sky-400" />
                 </button>
             )}
 
@@ -2006,10 +2006,10 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
                         {vocalsMode && (
                             <button
                                 onClick={() => openPresentation(hymn, transposeStep)}
-                                className="hidden sm:flex p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all group-hover:shadow-lg group-hover:shadow-purple-500/10"
+                                className="hidden sm:flex p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 hover:text-sky-300 border border-sky-500/30 hover:border-sky-500/50 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10"
                                 title="Open Presentation Mode"
                             >
-                                <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
+                                <Monitor className="w-4 h-4 sm:w-5 sm:h-5 text-sky-400" />
                             </button>
                         )}
                     </>

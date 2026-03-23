@@ -471,20 +471,42 @@ export default function Category_Humns() {
   // 2. Add Hymn (Post)
   const add_Hymn = async () => {
     if (!isLogin) return;
+    
+    // Front-end Validation
+    if (!formData.title.trim()) {
+      alert(t("enterTitle"));
+      return;
+    }
+    if (!Array.isArray(formData.lyrics) || formData.lyrics.length === 0) {
+      alert(t("addSection"));
+      return;
+    }
+    if (formData.lyrics.some(l => !l.text.trim())) {
+      alert(t("sectionTextRequired"));
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      // User: Replace this URL with your actual Create/Post API endpoint
       const url = "https://worship-team-api.onrender.com/api/hymns/create";
 
-      await axios.post(url, formData, { //formData is req.body
+      await axios.post(url, formData, { 
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
       queryClient.invalidateQueries(["humns"]);
+      alert(t("hymnAdded"));
       closeModal();
       setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', BPM: '', timeSignature: 'None', party: ['all'] });
     } catch (error) {
       console.error("Error adding hymn:", error);
+      if (error.response?.status === 409) {
+        alert(t("duplicateFound").replace("{title}", error.response.data.existingTitle));
+      } else if (error.response?.data?.message) {
+        alert("Error: " + error.response.data.message);
+      } else {
+        alert("Failed to add hymn. Please check all fields.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -493,20 +515,41 @@ export default function Category_Humns() {
   // 2. Edit Hymn (Patch)
   const edit_Hymn = async (id) => {
     if (!isLogin) return;
+
+    // Front-end Validation
+    if (!formData.title.trim()) {
+      alert(t("enterTitle"));
+      return;
+    }
+    if (!Array.isArray(formData.lyrics) || formData.lyrics.length === 0) {
+      alert(t("addSection"));
+      return;
+    }
+    if (formData.lyrics.some(l => !l.text.trim())) {
+      alert(t("sectionTextRequired"));
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const url = `https://worship-team-api.onrender.com/api/hymns/${id}`;
 
-      await axios.patch(url, formData, { //formData is req.body
+      await axios.patch(url, formData, { 
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
       queryClient.invalidateQueries(["humns"]);
+      alert(t("hymnUpdated"));
       closeModal();
       setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: 'None' });
       setEditingHymnId(null);
     } catch (error) {
       console.error("Error editing hymn:", error);
+      if (error.response?.data?.message) {
+        alert("Error updating hymn: " + error.response.data.message);
+      } else {
+        alert("Failed to update hymn.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1372,9 +1415,9 @@ export default function Category_Humns() {
 
                     <button
                       onClick={() => editingHymnId ? edit_Hymn(editingHymnId) : add_Hymn()}
-                      disabled={isSubmitting || !formData.title}
+                      disabled={isSubmitting || !formData.title || !formData.lyrics?.length || formData.lyrics.some(l => !l.text.trim())}
                       className={`mt-4 w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all
-                      ${isSubmitting
+                      ${(isSubmitting || !formData.title || !formData.lyrics?.length || formData.lyrics.some(l => !l.text.trim()))
                           ? 'bg-gray-600 cursor-not-allowed'
                           : editingHymnId
                             ? 'bg-linear-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 hover:shadow-blue-500/25'
@@ -1938,10 +1981,10 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       {vocalsMode && humn.lyrics && (
         <button
           onClick={() => openPresentation(humn, transposeStep)}
-          className="absolute top-3 right-3 sm:hidden p-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all z-30 backdrop-blur-md shadow-lg shadow-purple-500/10 active:scale-95"
+          className="absolute top-3 right-3 sm:hidden p-2.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 hover:text-sky-300 border border-sky-500/30 hover:border-sky-500/50 transition-all z-30 backdrop-blur-md shadow-lg shadow-sky-500/10 active:scale-95"
           title="Open Presentation Mode"
         >
-          <Monitor className="w-5 h-5 text-purple-300" />
+          <Monitor className="w-5 h-5 text-sky-400" />
         </button>
       )}
 
@@ -2061,7 +2104,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
             {vocalsMode && (
               <button
                 onClick={() => openPresentation(humn, transposeStep)}
-                className="hidden sm:flex p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-500/50 transition-all group-hover:shadow-lg group-hover:shadow-purple-500/10"
+                className="hidden sm:flex p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 hover:text-sky-300 border border-sky-500/30 hover:border-sky-500/50 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10"
                 title="Open Presentation Mode"
               >
                 <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
