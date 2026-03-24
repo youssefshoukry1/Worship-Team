@@ -7,6 +7,7 @@ export const translations = {
     workspace: "Workspace",
     contact: "Contact",
     praiseTeam: "PraiseTeam",
+    bible: "Bible",
     myWorkspace: "My Workspace",
     manageSetlist: "Manage your setlist for the service",
     songTitle: "Song Title",
@@ -22,7 +23,12 @@ export const translations = {
     duplicateFound: "Duplicate Found: \"{title}\" is already in the database.",
     enterTitle: "Please enter a song title",
     addSection: "Please add at least one verse or chorus",
-    sectionTextRequired: "All lyrics sections must have text"
+    sectionTextRequired: "All lyrics sections must have text",
+    chapter: "Chapter",
+    selectBook: "Select a Book",
+    searching: "Searching...",
+    resultsFound: "results found",
+    presentation: "Presentation"
   },
   ar: {
     home: "الرئيسية",
@@ -31,6 +37,7 @@ export const translations = {
     workspace: "مساحتي",
     contact: "تواصل معنا",
     praiseTeam: "فريق التسبيح",
+    bible: "الكتاب المقدس",
     myWorkspace: "مساحة العمل الخاصة بي",
     manageSetlist: "إدارة قائمة الترانيم للخدمة",
     songTitle: "عنوان الترنيمة",
@@ -52,7 +59,12 @@ export const translations = {
     duplicateFound: "هذه الترنيمة موجودة بالفعل بعنوان: \"{title}\"",
     enterTitle: "برجاء إدخال عنوان الترنيمة",
     addSection: "برجاء إضافة مقطع واحد على الأقل",
-    sectionTextRequired: "يجب كتابة كلمات في كل المقاطع"
+    sectionTextRequired: "يجب كتابة كلمات في كل المقاطع",
+    chapter: "الأصحاح",
+    selectBook: "اختر سفراً",
+    searching: "جاري البحث...",
+    resultsFound: "نتائج وجدت",
+    presentation: "العرض"
   },
   de: {
     home: "Startseite",
@@ -61,6 +73,7 @@ export const translations = {
     workspace: "Arbeitsbereich",
     contact: "Kontakt",
     praiseTeam: "LobpreisTeam",
+    bible: "Bibel",
     myWorkspace: "Mein Arbeitsbereich",
     manageSetlist: "Verwalten Sie Ihre Setlist für den Gottesdienst",
     songTitle: "Liedtitel",
@@ -77,6 +90,11 @@ export const translations = {
     Easter : 'Ostern',
     Graduation : 'Abschluss',
     Christmas : 'Weihnachten',
-    NoHymnsfoundinthiscategory : 'Keine Lieder in dieser Kategorie gefunden '
+    NoHymnsfoundinthiscategory : 'Keine Lieder in dieser Kategorie gefunden ',
+    chapter: "Kapitel",
+    selectBook: "Wähle ein Buch",
+    searching: "Suche...",
+    resultsFound: "Ergebnisse gefunden",
+    presentation: "Präsentation"
   }
 };

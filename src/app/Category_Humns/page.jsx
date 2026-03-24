@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import { transposeScale, transposeChords, transposeLyrics } from '../utils/musicUtils';
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import axios from 'axios';
@@ -8,14 +8,20 @@ import Loading from '../loading';
 import Portal from '../Portal/Portal';
 import Metronome from '../Metronome/page';
 import { UserContext } from '../context/User_Context';
-import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2, Mic, MicOff } from 'lucide-react';
+// Add BookOpen to this line
+import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2, Mic, MicOff, BookOpen, ChevronDown, Loader2 } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
-import { useEffect } from "react";
 import { Virtuoso } from "react-virtuoso";
 import { usePresentation } from '../hooks/usePresentation';
+import { normalizeBibleBooksFromApi } from '../utils/bibleBooks';
 
+const API_ROOT = (process.env.NEXT_PUBLIC_API_URL || 'https://worship-team-api.onrender.com/api').replace(/\/$/, '');
+const BIBLE_API = `${API_ROOT}/bible`;
 
+function bibleTestamentAr(testament) {
+  return String(testament || '').toLowerCase() === 'new' ? 'العهد الجديد' : 'العهد القديم';
+}
 
 export default function Category_Humns() {
   const queryClient = useQueryClient();
@@ -35,6 +41,148 @@ export default function Category_Humns() {
   const [formData, setFormData] = useState({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: 'None' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingHymnId, setEditingHymnId] = useState(null); // Track which hymn is being edited
+
+  ////Bible State & UseEffects
+  // --- Bible Modal State ---
+  const [showBibleModal, setShowBibleModal] = useState(false);
+  const [bibleSearchQuery, setBibleSearchQuery] = useState('');
+  const [bibleSearchResults, setBibleSearchResults] = useState([]);
+  const [isSearchingBible, setIsSearchingBible] = useState(false);
+  const [bibleModalBooks, setBibleModalBooks] = useState([]);
+  const [bibleModalBook, setBibleModalBook] = useState(null);
+  const [bibleModalChapters, setBibleModalChapters] = useState([]);
+  const [bibleModalChapter, setBibleModalChapter] = useState(null);
+  const [bibleModalVerses, setBibleModalVerses] = useState([]);
+  const [bibleModalBrowseLoading, setBibleModalBrowseLoading] = useState(false);
+  const [bibleModalBooksReady, setBibleModalBooksReady] = useState(false);
+  const [biblePickerOpen, setBiblePickerOpen] = useState(null);
+  const bibleBookPickerRef = useRef(null);
+  const bibleChapterPickerRef = useRef(null);
+
+  useEffect(() => {
+    if (!biblePickerOpen) return;
+    const onDown = (e) => {
+      const bookEl = bibleBookPickerRef.current;
+      const chEl = bibleChapterPickerRef.current;
+      if (biblePickerOpen === 'book' && bookEl && !bookEl.contains(e.target)) setBiblePickerOpen(null);
+      if (biblePickerOpen === 'chapter' && chEl && !chEl.contains(e.target)) setBiblePickerOpen(null);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [biblePickerOpen]);
+
+  // Load books when modal opens (Arabic SVD names: تكوين، يوحنا، …)
+  useEffect(() => {
+    if (!showBibleModal) return;
+    setBibleModalBook(null);
+    setBibleModalChapter(null);
+    setBibleModalChapters([]);
+    setBibleModalVerses([]);
+    setBibleModalBooksReady(false);
+    let cancelled = false;
+    (async () => {
+      try {
+        // Seeded data is Arabic SVD only (`language: ar`); `en` returns empty from API.
+        const { data } = await axios.get(`${BIBLE_API}/books?language=ar`);
+        if (!cancelled) setBibleModalBooks(normalizeBibleBooksFromApi(data));
+      } catch {
+        if (!cancelled) setBibleModalBooks([]);
+      } finally {
+        if (!cancelled) setBibleModalBooksReady(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [showBibleModal]);
+
+  useEffect(() => {
+    if (!showBibleModal || !bibleModalBook?.bookName) {
+      setBibleModalChapters([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setBibleModalBrowseLoading(true);
+      try {
+        const { data } = await axios.get(
+          `${BIBLE_API}/chapters/${encodeURIComponent(bibleModalBook.bookName)}?language=ar`
+        );
+        if (!cancelled) setBibleModalChapters(Array.isArray(data) ? data : []);
+      } catch {
+        if (!cancelled) setBibleModalChapters([]);
+      } finally {
+        if (!cancelled) setBibleModalBrowseLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [showBibleModal, bibleModalBook]);
+
+  useEffect(() => {
+    if (!showBibleModal || !bibleModalBook?.bookName || bibleModalChapter == null) {
+      setBibleModalVerses([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setBibleModalBrowseLoading(true);
+      try {
+        const { data } = await axios.get(
+          `${BIBLE_API}/verses/${encodeURIComponent(bibleModalBook.bookName)}/${bibleModalChapter}?language=ar`
+        );
+        if (!cancelled) setBibleModalVerses(Array.isArray(data) ? data : []);
+      } catch {
+        if (!cancelled) setBibleModalVerses([]);
+      } finally {
+        if (!cancelled) setBibleModalBrowseLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [showBibleModal, bibleModalBook, bibleModalChapter]);
+
+  // Bible Search Debounce Effect
+  useEffect(() => {
+    const searchBible = async () => {
+      if (!bibleSearchQuery.trim()) {
+        setBibleSearchResults([]);
+        return;
+      }
+      setIsSearchingBible(true);
+      try {
+        const { data } = await axios.get(
+          `${BIBLE_API}/search?q=${encodeURIComponent(bibleSearchQuery)}&language=ar`
+        );
+        setBibleSearchResults(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Bible search error:", error);
+        setBibleSearchResults([]);
+      } finally {
+        setIsSearchingBible(false);
+      }
+    };
+
+    const handler = setTimeout(() => {
+      searchBible();
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [bibleSearchQuery]);
+
+  const closeBibleModal = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setShowBibleModal(false);
+      setBibleSearchQuery('');
+      setBibleSearchResults([]);
+      setBibleModalBooks([]);
+      setBibleModalBook(null);
+      setBibleModalChapters([]);
+      setBibleModalChapter(null);
+      setBibleModalVerses([]);
+      setBibleModalBooksReady(false);
+      setBiblePickerOpen(null);
+      setIsClosing(false);
+    }, 300);
+  };
+  ////////////////////////////////////////////////////////
 
   // Lyrics Modal State
   const [showLyricsModal, setShowLyricsModal] = useState(false);
@@ -124,7 +272,7 @@ export default function Category_Humns() {
 
   // Lock scroll when modal is open
   useEffect(() => {
-    if (showModal || showLyricsModal || showDataShow) {
+    if (showModal || showLyricsModal || showDataShow || showBibleModal) { // <-- Added showBibleModal
       document.body.style.overflow = 'hidden';
       document.documentElement.style.overflow = 'hidden';
     } else {
@@ -136,7 +284,7 @@ export default function Category_Humns() {
       document.body.style.overflow = '';
       document.documentElement.style.overflow = '';
     };
-  }, [showModal, showLyricsModal, showDataShow]);
+  }, [showModal, showLyricsModal, showDataShow, showBibleModal]); // <-- Added showBibleModal
 
 
 
@@ -385,6 +533,60 @@ export default function Category_Humns() {
     }
   };
 
+  /** Bible: same slide pipeline as hymn lyrics (one slide per verse). */
+  const openBiblePresentation = React.useCallback(
+    ({ bookName, chapter, verses, startIndex = 0 }) => {
+      if (!bookName || chapter == null || !verses?.length) return;
+      const safeIdx = Math.min(Math.max(0, startIndex), verses.length - 1);
+      const lyrics = verses.map((v) => ({
+        type: 'verse',
+        title: `آية ${v.verseNumber}`,
+        text: v.text,
+      }));
+      setSelectedLyricsHymn({
+        _id: `bible-${bookName}-${chapter}`,
+        title: `${bookName} · ${t('chapter')} ${chapter}`,
+        lyrics,
+        transposeStep: 0,
+        isBible: true,
+      });
+      setShowChords(false);
+      setDataShowIndex(safeIdx);
+      setShowDataShow(true);
+      setShowBibleModal(false);
+      setBiblePickerOpen(null);
+
+      if (typeof window !== 'undefined' && window.innerWidth >= 640) {
+        if (!localDisplayRef.current || localDisplayRef.current.closed) {
+          localDisplayRef.current = window.open('/presentation/local', 'taspe_local_display', 'width=1280,height=720');
+        } else {
+          localDisplayRef.current.focus();
+        }
+      }
+    },
+    [t]
+  );
+
+  const presentBibleFromSearchHit = async (hit) => {
+    if (!hit?.bookName || hit.chapter == null || hit.verseNumber == null) return;
+    try {
+      const { data } = await axios.get(
+        `${BIBLE_API}/verses/${encodeURIComponent(hit.bookName)}/${hit.chapter}?language=ar`
+      );
+      const list = Array.isArray(data) ? data : [];
+      if (!list.length) return;
+      const idx = list.findIndex((v) => v.verseNumber === hit.verseNumber);
+      openBiblePresentation({
+        bookName: hit.bookName,
+        chapter: hit.chapter,
+        verses: list,
+        startIndex: idx >= 0 ? idx : 0,
+      });
+    } catch (e) {
+      console.error('Bible search present:', e);
+    }
+  };
+
   const closeLyricsModal = () => {
     setIsClosing(true);
     setTimeout(() => {
@@ -471,7 +673,7 @@ export default function Category_Humns() {
   // 2. Add Hymn (Post)
   const add_Hymn = async () => {
     if (!isLogin) return;
-    
+
     // Front-end Validation
     if (!formData.title.trim()) {
       alert(t("enterTitle"));
@@ -490,7 +692,7 @@ export default function Category_Humns() {
     try {
       const url = "https://worship-team-api.onrender.com/api/hymns/create";
 
-      await axios.post(url, formData, { 
+      await axios.post(url, formData, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
@@ -534,7 +736,7 @@ export default function Category_Humns() {
     try {
       const url = `https://worship-team-api.onrender.com/api/hymns/${id}`;
 
-      await axios.patch(url, formData, { 
+      await axios.patch(url, formData, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
@@ -969,6 +1171,15 @@ export default function Category_Humns() {
 
       {/* Admin Controls */}
       <div className="flex flex-wrap justify-end items-center gap-3 mb-6">
+        {/* --- ADD THIS BIBLE BUTTON --- */}
+        <button
+          onClick={() => setShowBibleModal(true)}
+          className="flex items-center gap-2 px-5 py-2.5 bg-sky-500/10 text-sky-400 border border-sky-500/30 rounded-full hover:bg-sky-500/20 transition-all shadow-[0_0_15px_rgba(56,189,248,0.1)] active:scale-95 font-semibold text-sm"
+        >
+          <BookOpen className="w-5 h-5" />
+          <span>Bible Search</span>
+        </button>
+        {/* ----------------------------- */}
 
         {canEdit && (
           <button
@@ -1612,6 +1823,318 @@ export default function Category_Humns() {
             </Portal>
           )}
 
+          {/* Bible form */}
+          {/* --- Bible Search Modal --- */}
+          {showBibleModal && (
+            <Portal>
+              <div
+                className={`fixed inset-0 z-9999 flex justify-center items-end sm:items-center p-0 sm:p-3 md:p-6 transition-all duration-300
+                ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/85"}`}
+              >
+                <div
+                  className={`w-full sm:max-w-2xl md:max-w-3xl flex flex-col rounded-t-[1.35rem] sm:rounded-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.5)] sm:shadow-[0_25px_80px_-12px_rgba(0,0,0,0.88)] overflow-hidden relative transform transition-all duration-300 border border-white/10 sm:border-white/9 bg-[#0c0d12] max-h-[min(96dvh,100svh)] sm:max-h-[min(92dvh,56rem)] min-h-0
+                  ${isClosing ? "translate-y-4 opacity-0 sm:translate-y-0 sm:scale-95" : "translate-y-0 opacity-100 sm:scale-100"}`}
+                  style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+                  data-lenis-prevent-wheel
+                >
+                  <div className="absolute inset-0 bg-linear-to-b from-sky-500/6 via-transparent to-indigo-950/30 pointer-events-none" />
+
+                  {/* Header — compact on phone */}
+                  <div className="relative px-4 py-3 sm:px-5 sm:py-4 border-b border-white/[0.06] flex justify-between items-center gap-3 shrink-0 bg-[#0c0d12]/98 backdrop-blur-sm">
+                    <div className="min-w-0 flex-1" dir="rtl">
+                      <h2 className="text-base sm:text-lg font-bold text-white/95 flex items-center gap-2 flex-row-reverse justify-end">
+                        <span className="inline-flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-sky-500/12 ring-1 ring-sky-400/20">
+                          <BookOpen className="text-sky-400 w-[17px] h-[17px] sm:w-[18px] sm:h-[18px]" strokeWidth={2} />
+                        </span>
+                        <span className="leading-tight">
+                          {t('bible')}
+                          <span className="block sm:inline text-gray-500 font-normal text-xs sm:text-sm sm:ms-2 mt-0.5 sm:mt-0">SVD · عربي</span>
+                        </span>
+                      </h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={closeBibleModal}
+                      className="shrink-0 p-2.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 active:bg-white/15 transition-colors touch-manipulation"
+                      aria-label="إغلاق"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Browse — collapsible feel, readable labels */}
+                  <div className="relative px-4 py-3 sm:px-5 sm:py-3.5 border-b border-white/[0.06] shrink-0 space-y-3 bg-[#090a0f]/95" dir="rtl">
+                    <p className="text-xs sm:text-sm font-semibold text-sky-300/90 text-right tracking-wide">تصفح بالسفر والأصحاح</p>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      {/* Book picker */}
+                      <div className="relative flex-1 min-w-0" ref={bibleBookPickerRef}>
+                        <span className="block text-xs text-gray-400 mb-1.5 font-medium px-0.5">السفر</span>
+                        <button
+                          type="button"
+                          disabled={!bibleModalBooksReady && bibleModalBooks.length === 0}
+                          onClick={() => setBiblePickerOpen((o) => (o === 'book' ? null : 'book'))}
+                          className="w-full flex items-center justify-between gap-2 min-h-[50px] px-4 py-3 rounded-2xl bg-zinc-900/90 text-white text-[15px] sm:text-sm font-semibold text-right ring-1 ring-white/10 hover:ring-sky-500/30 hover:bg-zinc-900 transition-all disabled:opacity-50 disabled:pointer-events-none touch-manipulation"
+                        >
+                          <ChevronDown className={`w-4 h-4 shrink-0 text-sky-400/90 transition-transform duration-200 ${biblePickerOpen === 'book' ? 'rotate-180' : ''}`} />
+                          <span className="truncate flex-1">
+                            {!bibleModalBooksReady ? (
+                              <span className="inline-flex items-center gap-2 text-gray-400">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                جاري تحميل الأسفار…
+                              </span>
+                            ) : (
+                              bibleModalBook?.bookName || 'مثال: تكوين، مزامير، يوحنا…'
+                            )}
+                          </span>
+                        </button>
+                        <AnimatePresence>
+                          {biblePickerOpen === 'book' && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -6 }}
+                              transition={{ duration: 0.15 }}
+                              className="absolute z-80 top-full left-0 right-0 mt-2 max-h-[min(50dvh,280px)] sm:max-h-64 overflow-y-auto rounded-2xl border border-white/12 bg-zinc-900 shadow-2xl py-1.5 custom-scrollbar"
+                            >
+                              {!bibleModalBooksReady ? (
+                                <div className="p-4 flex justify-center text-gray-400">
+                                  <Loader2 className="w-6 h-6 animate-spin" />
+                                </div>
+                              ) : bibleModalBooks.length === 0 ? (
+                                <div className="p-4 text-center text-xs text-amber-400/95 leading-relaxed">
+                                  لا توجد أسفار. تحقق من الاتصال بالخادم أو من رفع بيانات الكتاب.
+                                </div>
+                              ) : (
+                                bibleModalBooks.map((b) => (
+                                  <button
+                                    key={b.bookName}
+                                    type="button"
+                                    className={`w-full text-right px-4 py-3 text-[15px] sm:text-sm transition-colors border-b border-white/5 last:border-0
+                                      ${bibleModalBook?.bookName === b.bookName ? 'bg-sky-500/15 text-white' : 'text-zinc-100 hover:bg-white/5'}`}
+                                    onClick={() => {
+                                      setBibleModalBook(b);
+                                      setBibleModalChapter(null);
+                                      setBibleModalVerses([]);
+                                      setBiblePickerOpen(null);
+                                    }}
+                                  >
+                                    <span className="font-bold block">{b.bookName}</span>
+                                    <span className="text-[10px] text-gray-500 mt-0.5 block">{bibleTestamentAr(b.testament)}</span>
+                                  </button>
+                                ))
+                              )}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                      {/* Chapter picker */}
+                      <div className="relative flex-1 min-w-0" ref={bibleChapterPickerRef}>
+                        <span className="block text-xs text-gray-400 mb-1.5 font-medium px-0.5">الأصحاح</span>
+                        <button
+                          type="button"
+                          disabled={!bibleModalBook || bibleModalChapters.length === 0}
+                          onClick={() => bibleModalBook && bibleModalChapters.length > 0 && setBiblePickerOpen((o) => (o === 'chapter' ? null : 'chapter'))}
+                          className="w-full flex items-center justify-between gap-2 min-h-[50px] px-4 py-3 rounded-2xl bg-zinc-900/90 text-white text-[15px] sm:text-sm font-semibold text-right ring-1 ring-white/10 hover:ring-sky-500/30 hover:bg-zinc-900 transition-all disabled:opacity-40 disabled:pointer-events-none touch-manipulation"
+                        >
+                          <ChevronDown className={`w-4 h-4 shrink-0 text-sky-400/90 transition-transform duration-200 ${biblePickerOpen === 'chapter' ? 'rotate-180' : ''}`} />
+                          <span className="truncate flex-1">
+                            {bibleModalBook && bibleModalBrowseLoading && bibleModalChapters.length === 0 ? (
+                              <span className="inline-flex items-center gap-2 text-gray-400">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                جاري تحميل الأصحاح…
+                              </span>
+                            ) : bibleModalChapter != null ? (
+                              <>أصحاح {bibleModalChapter}</>
+                            ) : (
+                              'اختر رقم الأصحاح'
+                            )}
+                          </span>
+                        </button>
+                        <AnimatePresence>
+                          {biblePickerOpen === 'chapter' && bibleModalChapters.length > 0 && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -6 }}
+                              transition={{ duration: 0.15 }}
+                              className="absolute z-80 top-full left-0 right-0 mt-2 max-h-[min(48dvh,320px)] overflow-y-auto rounded-2xl border border-white/12 bg-zinc-900 shadow-2xl p-3 custom-scrollbar"
+                            >
+                              <div className="grid grid-cols-5 sm:grid-cols-7 gap-2">
+                                {bibleModalChapters.map((ch) => (
+                                  <button
+                                    key={ch}
+                                    type="button"
+                                    className={`min-h-[44px] rounded-xl text-sm font-bold tabular-nums transition-all ring-1 touch-manipulation
+                                      ${bibleModalChapter === ch
+                                        ? 'bg-sky-500 text-white ring-sky-400/40 shadow-md shadow-sky-500/25'
+                                        : 'bg-zinc-800/80 text-zinc-100 ring-white/8 hover:bg-sky-500/10 hover:ring-sky-500/25'}`}
+                                    onClick={() => {
+                                      setBibleModalChapter(ch);
+                                      setBiblePickerOpen(null);
+                                    }}
+                                  >
+                                    {ch}
+                                  </button>
+                                ))}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+
+                    {bibleModalBook && bibleModalChapter != null && bibleModalVerses.length === 0 && bibleModalBrowseLoading && (
+                      <p className="text-[11px] text-gray-500 text-center flex items-center justify-center gap-2">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        جاري تحميل الآيات…
+                      </p>
+                    )}
+                    {bibleModalBooksReady && bibleModalBooks.length === 0 && (
+                      <p className="text-[11px] text-amber-400/95 text-center leading-relaxed rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
+                        لا توجد أسفار في قاعدة البيانات. راجع الاتصال بـ API أو شغّل <code className="text-gray-300 font-mono text-[10px]">seedBible.js</code>.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Search */}
+                  <div className="relative px-4 py-3 sm:px-5 border-b border-white/[0.06] shrink-0 bg-[#08090e]/95" dir="rtl">
+                    <label className="block text-xs sm:text-sm font-semibold text-sky-300/90 mb-2 text-right">بحث في النص</label>
+                    <div className="relative group">
+                      <input
+                        type="text"
+                        value={bibleSearchQuery}
+                        onChange={(e) => setBibleSearchQuery(e.target.value)}
+                        placeholder="كلمة أو جملة من الآية…"
+                        dir="rtl"
+                        className="w-full py-3.5 px-4 pl-12 rounded-2xl bg-zinc-900/90 text-zinc-50 text-[17px] sm:text-base placeholder:text-zinc-500 ring-1 ring-white/10 focus:ring-2 focus:ring-sky-500/35 focus:outline-none transition touch-manipulation"
+                      />
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500 group-focus-within:text-sky-400 transition-colors pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {/* Results — scroll is the main reading area; no cramped fixed blocks on phone */}
+                  <div className="relative flex-1 min-h-0 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 custom-scrollbar bg-[#07080c] overscroll-y-contain">
+                    {bibleModalBook && bibleModalChapter != null && bibleModalVerses.length > 0 ? (
+                      <div className="space-y-4 pb-8 max-w-none sm:max-w-2xl mx-auto">
+                        {/* Scrolls with content on mobile (more reading space); sticky only on sm+ */}
+                        <div className="flex flex-col gap-3 sm:sticky sm:top-0 z-10 -mx-1 px-1 py-2 sm:py-3 sm:-mt-1 sm:mb-2 sm:bg-[#07080c]/95 sm:backdrop-blur-md sm:border-b sm:border-white/[0.06] sm:rounded-b-xl">
+                          <p className="text-sky-300 text-base sm:text-lg font-bold text-right leading-snug text-balance" dir="rtl">
+                            {bibleModalBook.bookName}
+                            <span className="text-zinc-400 font-semibold"> · {t('chapter')} {bibleModalChapter}</span>
+                            <span className="block sm:inline text-zinc-500 font-normal text-sm mt-1 sm:mt-0 sm:ms-2">{bibleModalVerses.length} آية</span>
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openBiblePresentation({
+                                bookName: bibleModalBook.bookName,
+                                chapter: bibleModalChapter,
+                                verses: bibleModalVerses,
+                                startIndex: 0,
+                              })
+                            }
+                            className="flex items-center justify-center gap-2 w-full sm:w-auto sm:self-end px-5 py-3 rounded-2xl bg-sky-500 hover:bg-sky-400 text-white text-[15px] font-bold shadow-lg shadow-sky-500/20 active:scale-[0.99] transition-all touch-manipulation"
+                          >
+                            <Monitor className="w-5 h-5 shrink-0 opacity-95" />
+                            <span>تقديم الأصحاح</span>
+                          </button>
+                        </div>
+                        {bibleModalVerses.map((verse, vIdx) => (
+                          <button
+                            key={verse._id}
+                            type="button"
+                            onClick={() =>
+                              openBiblePresentation({
+                                bookName: bibleModalBook.bookName,
+                                chapter: bibleModalChapter,
+                                verses: bibleModalVerses,
+                                startIndex: vIdx,
+                              })
+                            }
+                            className="relative w-full text-right rounded-2xl sm:rounded-3xl ring-1 ring-white/[0.07] bg-zinc-900/40 hover:bg-zinc-900/70 hover:ring-sky-500/25 active:scale-[0.995] transition-all p-5 sm:p-6 touch-manipulation group text-balance"
+                            dir="rtl"
+                          >
+                            <div className="flex items-center justify-between gap-3 mb-4">
+                              <span className="inline-flex items-center justify-center min-w-10 h-10 px-2 rounded-xl bg-sky-500/12 text-sky-300 text-base font-black ring-1 ring-sky-400/20 tabular-nums">
+                                {verse.verseNumber}
+                              </span>
+                              <span className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-zinc-500 group-hover:text-sky-400 transition-colors">
+                                <PlayCircle className="w-5 h-5 shrink-0 opacity-80" />
+                                عرض في التقديم
+                              </span>
+                            </div>
+                            <p className="text-zinc-100 text-[1.125rem] sm:text-[1.2rem] leading-[2.1] sm:leading-[2.05] font-normal tracking-wide">
+                              {verse.text}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {isSearchingBible ? (
+                      <div className="flex flex-col justify-center items-center min-h-[160px] gap-4 text-zinc-400 py-8">
+                        <Loader2 className="w-10 h-10 animate-spin text-sky-400/70" />
+                        <span className="text-base font-medium">جاري البحث…</span>
+                      </div>
+                    ) : bibleSearchQuery.trim() !== '' ? (
+                      bibleSearchResults.length > 0 ? (
+                        <div className="space-y-4 max-w-none sm:max-w-2xl mx-auto pb-8">
+                          <p className="text-sm font-semibold text-zinc-500 text-right px-1" dir="rtl">
+                            {bibleSearchResults.length} نتيجة — اضغط للتقديم من هذا الموضع
+                          </p>
+                          {bibleSearchResults.map((verse) => (
+                            <button
+                              key={verse._id}
+                              type="button"
+                              onClick={() => presentBibleFromSearchHit(verse)}
+                              className="w-full text-right p-5 sm:p-6 rounded-2xl sm:rounded-3xl ring-1 ring-white/[0.07] bg-zinc-900/40 hover:ring-violet-400/30 hover:bg-zinc-900/70 active:scale-[0.995] transition-all touch-manipulation group text-balance"
+                              dir="rtl"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                                <span className="text-sm font-bold text-violet-200 bg-violet-500/15 ring-1 ring-violet-400/25 px-3 py-1.5 rounded-xl">
+                                  {verse.bookName} {verse.chapter}:{verse.verseNumber}
+                                </span>
+                                <span className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-500 group-hover:text-violet-300">
+                                  <Monitor className="w-5 h-5" />
+                                  تقديم
+                                </span>
+                              </div>
+                              <p className="text-zinc-100 text-[1.0625rem] sm:text-[1.125rem] leading-[2.1] font-normal">
+                                {verse.text}
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center min-h-[200px] text-center px-6 py-10">
+                          <BookOpen className="w-14 h-14 mb-4 text-zinc-600" strokeWidth={1.15} />
+                          <p className="text-zinc-400 text-base font-medium max-w-sm" dir="rtl">
+                            لا توجد نتائج لـ «{bibleSearchQuery}»
+                          </p>
+                          {bibleModalBooks.length === 0 && (
+                            <p className="text-xs text-gray-600 mt-3 max-w-sm leading-relaxed" dir="rtl">
+                              إذا استمر ذلك، تأكد أن الخادم يقرأ نفس قاعدة البيانات التي بها نصوص الكتاب.
+                            </p>
+                          )}
+                        </div>
+                      )
+                    ) : (!bibleModalBook || bibleModalChapter == null || bibleModalVerses.length === 0) && !bibleModalBrowseLoading && !isSearchingBible ? (
+                      <div className="flex flex-col items-center justify-center min-h-[200px] text-center px-6 py-12 text-zinc-500">
+                        <div className="rounded-3xl ring-1 ring-white/8 bg-zinc-900/30 p-8 max-w-md">
+                          <BookOpen className="w-12 h-12 mx-auto mb-4 text-zinc-600" strokeWidth={1.15} />
+                          <p className="text-base leading-[1.9] font-normal text-zinc-400" dir="rtl">
+                            اختر <span className="text-sky-400 font-semibold">السفر</span> ثم <span className="text-sky-400 font-semibold">الأصحاح</span> لقراءة الآيات بوضوح، أو استخدم البحث أعلاه.
+                          </p>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </Portal>
+          )}
           {/* --- Data Show (Presentation) Presenter View - Independent --- */}
           {showDataShow && selectedLyricsHymn && (
             <Portal>
@@ -1621,8 +2144,17 @@ export default function Category_Humns() {
                   <div className="flex flex-col min-w-0">
                     <h2 className="text-base sm:text-xl font-bold text-white tracking-tight truncate">{selectedLyricsHymn.title}</h2>
                     <p className="text-[10px] sm:text-xs text-sky-400 font-medium">
-                      <span className="sm:hidden">Swipe or tap a part below</span>
-                      <span className="hidden sm:inline">Presenter View • Click a cut to broadcast</span>
+                      {selectedLyricsHymn?.isBible ? (
+                        <>
+                          <span className="sm:hidden">اسحب أو اختر آية من الشريط · مثل عرض الترانيم</span>
+                          <span className="hidden sm:inline">عرض الكتاب المقدس · آية بآية مثل مقاطع الترانيم</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="sm:hidden">Swipe or tap a part below</span>
+                          <span className="hidden sm:inline">Presenter View • Click a cut to broadcast</span>
+                        </>
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -1633,7 +2165,7 @@ export default function Category_Humns() {
                       </span>
                     )}
                     <span className="sm:hidden text-xs font-mono text-white/40">
-                        {dataShowSlides.length} / {dataShowIndex + 1}
+                      {dataShowSlides.length} / {dataShowIndex + 1}
                     </span>
                     <button
                       onClick={() => setShowDataShow(false)}
@@ -1701,7 +2233,12 @@ export default function Category_Humns() {
                                           )}
                                           <span
                                             className={`font-bold whitespace-pre-wrap leading-snug select-none drop-shadow-lg tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
-                                            style={{ fontSize: 'clamp(24px, 6.5vw, 52px)' }}
+                                            style={{
+                                              fontSize: selectedLyricsHymn?.isBible
+                                                ? 'clamp(26px, 7.2vw, 56px)'
+                                                : 'clamp(24px, 6.5vw, 52px)',
+                                              lineHeight: selectedLyricsHymn?.isBible ? 1.72 : undefined,
+                                            }}
                                           >
                                             {seg.text || '\u00A0'}
                                           </span>
@@ -1718,154 +2255,154 @@ export default function Category_Humns() {
                     </AnimatePresence>
                   </div>
 
-    {/* Dot nav + arrow buttons */}
-    <div className="flex items-center justify-center gap-5 py-2.5 shrink-0">
-      <button
-        onClick={() => { if (dataShowIndex < dataShowSlides.length - 1) { const ni = dataShowIndex + 1; setDataShowIndex(ni); broadcastLocalSlide(dataShowSlides, ni, selectedLyricsHymn?.title); } }}
-        disabled={dataShowIndex === dataShowSlides.length - 1}
-        className="p-2 rounded-full bg-white/5 border border-white/10 text-white/50 disabled:opacity-20 transition-all active:scale-90"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
-      </button>
-      <div dir="rtl" className="flex gap-1.5 overflow-x-auto max-w-[60vw]" style={{ scrollbarWidth: 'none' }}>
-        {dataShowSlides.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
-            className={`flex-none rounded-full transition-all duration-200 ${i === dataShowIndex ? 'w-5 h-2 bg-sky-400' : 'w-2 h-2 bg-white/20 hover:bg-white/40'}`}
-          />
-        ))}
-      </div>
-      <button
-        onClick={() => { if (dataShowIndex > 0) { const ni = dataShowIndex - 1; setDataShowIndex(ni); broadcastLocalSlide(dataShowSlides, ni, selectedLyricsHymn?.title); } }}
-        disabled={dataShowIndex === 0}
-        className="p-2 rounded-full bg-white/5 border border-white/10 text-white/50 disabled:opacity-20 transition-all active:scale-90"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
-      </button>
-    </div>
+                  {/* Dot nav + arrow buttons */}
+                  <div className="flex items-center justify-center gap-5 py-2.5 shrink-0">
+                    <button
+                      onClick={() => { if (dataShowIndex < dataShowSlides.length - 1) { const ni = dataShowIndex + 1; setDataShowIndex(ni); broadcastLocalSlide(dataShowSlides, ni, selectedLyricsHymn?.title); } }}
+                      disabled={dataShowIndex === dataShowSlides.length - 1}
+                      className="p-2 rounded-full bg-white/5 border border-white/10 text-white/50 disabled:opacity-20 transition-all active:scale-90"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                    </button>
+                    <div dir="rtl" className="flex gap-1.5 overflow-x-auto max-w-[60vw]" style={{ scrollbarWidth: 'none' }}>
+                      {dataShowSlides.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
+                          className={`flex-none rounded-full transition-all duration-200 ${i === dataShowIndex ? 'w-5 h-2 bg-sky-400' : 'w-2 h-2 bg-white/20 hover:bg-white/40'}`}
+                        />
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => { if (dataShowIndex > 0) { const ni = dataShowIndex - 1; setDataShowIndex(ni); broadcastLocalSlide(dataShowSlides, ni, selectedLyricsHymn?.title); } }}
+                      disabled={dataShowIndex === 0}
+                      className="p-2 rounded-full bg-white/5 border border-white/10 text-white/50 disabled:opacity-20 transition-all active:scale-90"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                    </button>
+                  </div>
 
-    {/* Bottom thumbnail strip */}
-    <div className="shrink-0 bg-black/50 border-t border-white/10 py-3 px-3">
-      <div ref={thumbContainerRef} className="flex gap-2.5 overflow-x-auto pb-1" dir="rtl" style={{ scrollbarWidth: 'none' }}>
-        {dataShowSlides.map((slide, i) => {
-          const isActive = dataShowIndex === i;
-          const isChorus = slide.type === 'chorus';
-          return (
-            <button
-              key={i}
-              onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
-              className={`relative flex-none flex flex-col w-24 h-20 p-2 rounded-xl border text-right transition-all duration-200 overflow-hidden
+                  {/* Bottom thumbnail strip */}
+                  <div className="shrink-0 bg-black/50 border-t border-white/10 py-3 px-3">
+                    <div ref={thumbContainerRef} className="flex gap-2.5 overflow-x-auto pb-1" dir="rtl" style={{ scrollbarWidth: 'none' }}>
+                      {dataShowSlides.map((slide, i) => {
+                        const isActive = dataShowIndex === i;
+                        const isChorus = slide.type === 'chorus';
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
+                            className={`relative flex-none flex flex-col w-24 h-20 p-2 rounded-xl border text-right transition-all duration-200 overflow-hidden
                               ${isActive
-                  ? 'bg-sky-500/25 border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                  : 'bg-white/5 border-white/10 opacity-60 active:opacity-100'}`}
-            >
-              {isActive && <div className="absolute inset-0 bg-linear-to-b from-sky-500/10 to-transparent pointer-events-none" />}
-              <div className="flex items-center justify-between mb-1 relative z-10" dir="ltr">
-                <span className="text-[9px] font-mono text-gray-500">{i + 1}</span>
-                {isActive
-                  ? <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                  : slide.title && <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${isChorus ? 'text-yellow-300 bg-yellow-500/20' : 'text-gray-400 bg-white/10'}`}>{slide.title.slice(0, 6)}</span>
-                }
-              </div>
-              <div className="flex-1 text-[9px] font-semibold text-gray-300 line-clamp-3 leading-tight text-right relative z-10">
-                {slide.text.replace(/\[.*?\]/g, '')}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  </div>
-
-                  {/* ══ DESKTOP VIEW: Grid of cuts + session footer ══ */ }
-  <div className="hidden sm:flex flex-1 flex-col min-h-0">
-    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar" dir="rtl">
-      <div className="max-w-7xl mx-auto grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-4">
-        {dataShowSlides.map((slide, i) => {
-          const isActive = dataShowIndex === i;
-          const isChorus = slide.type === 'chorus';
-          return (
-            <button
-              key={i}
-              onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
-              className={`relative flex flex-col h-40 p-4 rounded-2xl border text-right transition-all duration-200 overflow-hidden group
-                              ${isActive
-                  ? 'bg-sky-500/20 border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.3)] z-10'
-                  : 'bg-white/5 border-white/10 opacity-70 hover:opacity-100 hover:bg-white/10 hover:border-white/20 hover:scale-[1.02]'}`}
-            >
-              {isActive && <div className="absolute inset-0 bg-linear-to-b from-sky-500/10 to-transparent pointer-events-none" />}
-              <div className="flex items-center justify-between w-full mb-3 relative z-10" dir="ltr">
-                <span className="text-[10px] font-mono text-gray-500">{i + 1}</span>
-                <div className="flex items-center gap-1.5">
-                  {isActive && (
-                    <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-red-500 text-white px-2 py-0.5 rounded-full animate-pulse">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white opacity-80" /> Live
-                    </span>
-                  )}
-                  {slide.title && (
-                    <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full
-                                    ${isChorus ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' : 'bg-white/10 text-gray-300 border border-white/10'}`}>
-                      {slide.title}
-                    </span>
-                  )}
+                                ? 'bg-sky-500/25 border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                                : 'bg-white/5 border-white/10 opacity-60 active:opacity-100'}`}
+                          >
+                            {isActive && <div className="absolute inset-0 bg-linear-to-b from-sky-500/10 to-transparent pointer-events-none" />}
+                            <div className="flex items-center justify-between mb-1 relative z-10" dir="ltr">
+                              <span className="text-[9px] font-mono text-gray-500">{i + 1}</span>
+                              {isActive
+                                ? <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                : slide.title && <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${isChorus ? 'text-yellow-300 bg-yellow-500/20' : 'text-gray-400 bg-white/10'}`}>{slide.title.slice(0, 6)}</span>
+                              }
+                            </div>
+                            <div className="flex-1 text-[9px] font-semibold text-gray-300 line-clamp-3 leading-tight text-right relative z-10">
+                              {slide.text.replace(/\[.*?\]/g, '')}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="flex-1 w-full text-sm font-bold leading-relaxed text-gray-200 line-clamp-4 relative z-10 wrap-break-word whitespace-pre-line text-right">
-                {slide.text.replace(/\[.*?\]/g, '')}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
 
-    {/* Desktop Live Session Footer */}
-    <div className="shrink-0 bg-[#0f172a] border-t border-white/10 px-6 py-3 z-20">
-      {!dataShowId ? (
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 text-xs text-gray-500 shrink-0">
-            <Tv2 className="w-4 h-4" />
-            <span className="font-semibold">HDMI Session</span>
-          </div>
-          <div className="flex flex-1 items-center gap-2">
-            <input type="text" value={dataShowIdInput} onChange={e => setDataShowIdInput(e.target.value)}
-              placeholder='Room ID, e.g. "sunday-01"'
-              className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600 min-w-0"
-              onKeyDown={e => { if (e.key === 'Enter') handleCreateSession(); }}
-            />
-            <button onClick={handleCreateSession} className="px-4 py-2 bg-sky-500 hover:bg-sky-400 rounded-xl text-sm font-bold transition-all whitespace-nowrap">Create</button>
-            <button onClick={handleJoinSession} className="px-4 py-2 bg-indigo-500/80 hover:bg-indigo-500 rounded-xl text-sm font-bold transition-all whitespace-nowrap">Join</button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all">
-            <Tv2 className="w-4 h-4" /> Open Display Window
-          </a>
-          <a href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all">
-            <ExternalLink className="w-4 h-4" /> Mobile Remote
-          </a>
-          <button onClick={toggleAudio}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${isAudioActive ? 'bg-sky-500/10 border-sky-500/30 text-sky-400' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}>
-            {isAudioActive ? <Mic className="w-4 h-4 animate-pulse text-sky-400" /> : <MicOff className="w-4 h-4" />}
-            {isAudioActive ? 'Mic On' : 'Mic Off'}
-          </button>
-          <button onClick={() => { if (isAudioActive) toggleAudio(); clearDisplay(); setDataShowId(''); localStorage.removeItem('myLivePresentationId'); }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all ml-auto">
-            <X className="w-4 h-4" /> End Session
-          </button>
-        </div>
-      )}
-    </div>
-  </div>
+                {/* ══ DESKTOP VIEW: Grid of cuts + session footer ══ */}
+                <div className="hidden sm:flex flex-1 flex-col min-h-0">
+                  <div className="flex-1 overflow-y-auto p-6 custom-scrollbar" dir="rtl">
+                    <div className="max-w-7xl mx-auto grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-4">
+                      {dataShowSlides.map((slide, i) => {
+                        const isActive = dataShowIndex === i;
+                        const isChorus = slide.type === 'chorus';
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
+                            className={`relative flex flex-col h-40 p-4 rounded-2xl border text-right transition-all duration-200 overflow-hidden group
+                              ${isActive
+                                ? 'bg-sky-500/20 border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.3)] z-10'
+                                : 'bg-white/5 border-white/10 opacity-70 hover:opacity-100 hover:bg-white/10 hover:border-white/20 hover:scale-[1.02]'}`}
+                          >
+                            {isActive && <div className="absolute inset-0 bg-linear-to-b from-sky-500/10 to-transparent pointer-events-none" />}
+                            <div className="flex items-center justify-between w-full mb-3 relative z-10" dir="ltr">
+                              <span className="text-[10px] font-mono text-gray-500">{i + 1}</span>
+                              <div className="flex items-center gap-1.5">
+                                {isActive && (
+                                  <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-red-500 text-white px-2 py-0.5 rounded-full animate-pulse">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-white opacity-80" /> Live
+                                  </span>
+                                )}
+                                {slide.title && (
+                                  <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full
+                                    ${isChorus ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' : 'bg-white/10 text-gray-300 border border-white/10'}`}>
+                                    {slide.title}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex-1 w-full text-sm font-bold leading-relaxed text-gray-200 line-clamp-4 relative z-10 wrap-break-word whitespace-pre-line text-right">
+                              {slide.text.replace(/\[.*?\]/g, '')}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Desktop Live Session Footer */}
+                  <div className="shrink-0 bg-[#0f172a] border-t border-white/10 px-6 py-3 z-20">
+                    {!dataShowId ? (
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 text-xs text-gray-500 shrink-0">
+                          <Tv2 className="w-4 h-4" />
+                          <span className="font-semibold">HDMI Session</span>
+                        </div>
+                        <div className="flex flex-1 items-center gap-2">
+                          <input type="text" value={dataShowIdInput} onChange={e => setDataShowIdInput(e.target.value)}
+                            placeholder='Room ID, e.g. "sunday-01"'
+                            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600 min-w-0"
+                            onKeyDown={e => { if (e.key === 'Enter') handleCreateSession(); }}
+                          />
+                          <button onClick={handleCreateSession} className="px-4 py-2 bg-sky-500 hover:bg-sky-400 rounded-xl text-sm font-bold transition-all whitespace-nowrap">Create</button>
+                          <button onClick={handleJoinSession} className="px-4 py-2 bg-indigo-500/80 hover:bg-indigo-500 rounded-xl text-sm font-bold transition-all whitespace-nowrap">Join</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all">
+                          <Tv2 className="w-4 h-4" /> Open Display Window
+                        </a>
+                        <a href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all">
+                          <ExternalLink className="w-4 h-4" /> Mobile Remote
+                        </a>
+                        <button onClick={toggleAudio}
+                          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${isAudioActive ? 'bg-sky-500/10 border-sky-500/30 text-sky-400' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}>
+                          {isAudioActive ? <Mic className="w-4 h-4 animate-pulse text-sky-400" /> : <MicOff className="w-4 h-4" />}
+                          {isAudioActive ? 'Mic On' : 'Mic Off'}
+                        </button>
+                        <button onClick={() => { if (isAudioActive) toggleAudio(); clearDisplay(); setDataShowId(''); localStorage.removeItem('myLivePresentationId'); }}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all ml-auto">
+                          <X className="w-4 h-4" /> End Session
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
               </div >
             </Portal >
           )
-}
+          }
 
 
         </div >
