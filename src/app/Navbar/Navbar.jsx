@@ -17,7 +17,6 @@ export default function Navbar() {
     // Default Items
     const navItems = [
         { name: "hymns", path: "/", id: "home-section" },
-        { name: "bible", path: "/Bible", id: "bible-section" },
         { name: "workspace", path: "/WorkSpace", id: "WorkSpace-section" },
     ];
 

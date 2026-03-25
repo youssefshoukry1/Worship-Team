@@ -271,20 +271,19 @@ export default function Category_Humns() {
   const lyricsInputRef = React.useRef(null); // Ref for the lyrics textarea
 
   // Lock scroll when modal is open
-  useEffect(() => {
-    if (showModal || showLyricsModal || showDataShow || showBibleModal) { // <-- Added showBibleModal
-      document.body.style.overflow = 'hidden';
-      document.documentElement.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
-    }
+useEffect(() => {
+  const isAnyModalOpen = showModal || showLyricsModal || showDataShow || showBibleModal;
+  
+  const overflowValue = isAnyModalOpen ? 'hidden' : '';
+  
+  document.body.style.overflow = overflowValue;
+  document.documentElement.style.overflow = overflowValue;
 
-    return () => {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
-    };
-  }, [showModal, showLyricsModal, showDataShow, showBibleModal]); // <-- Added showBibleModal
+  return () => {
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+  };
+}, [showModal, showLyricsModal, showDataShow, showBibleModal]);
 
 
 
@@ -1824,174 +1823,175 @@ export default function Category_Humns() {
           )}
 
           {/* Bible form */}
-          {/* --- Bible Search Modal --- */}
-          {showBibleModal && (
-            <Portal>
-              <div className={`fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-6 transition-all duration-500 ${isClosing ? 'opacity-0' : 'opacity-100'}`}>
-                {/* Dynamic Background Blur */}
-                <div className="absolute inset-0 bg-[#050505]/80 backdrop-blur-xl" onClick={closeBibleModal} />
+{showBibleModal && (
+  <Portal>
+    {/* Fixed the wrapper by adding overflow-hidden to prevent background interaction */}
+    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-6 transition-all duration-500 overflow-hidden ${isClosing ? 'opacity-0' : 'opacity-100'}`}>
+      {/* Dynamic Background Blur */}
+      <div className="absolute inset-0 bg-[#050505]/80 backdrop-blur-xl" onClick={closeBibleModal} />
 
-                <motion.div
-                  initial={{ opacity: 0, y: 30, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  className="relative w-full h-full sm:h-[85vh] max-w-4xl bg-white/[0.02] border border-white/10 sm:rounded-[2.5rem] shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden backdrop-blur-2xl"
-                >
-                  {/* Futuristic Top Bar - Ultra Thin */}
-                  <div className="shrink-0 px-4 py-3 flex items-center justify-between border-b border-white/[0.05] bg-black/20">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Digital Scripture</span>
-                    </div>
-                    <button
-                      onClick={closeBibleModal}
-                      className="group p-2 bg-white/5 hover:bg-red-500/20 rounded-full transition-all duration-300"
-                    >
-                      <X className="w-4 h-4 text-white/50 group-hover:text-red-400" />
-                    </button>
-                  </div>
+      <motion.div
+        initial={{ opacity: 0, y: 30, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        className="relative w-full h-full sm:h-[85vh] max-w-4xl bg-white/[0.02] border border-white/10 sm:rounded-[2.5rem] shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden backdrop-blur-2xl"
+      >
+        {/* Futuristic Top Bar - Ultra Thin */}
+        <div className="shrink-0 px-4 py-3 flex items-center justify-between border-b border-white/[0.05] bg-black/20">
+          <div className="flex items-center gap-2.5">
+            <div className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Digital Scripture</span>
+          </div>
+          <button
+            onClick={closeBibleModal}
+            className="group p-2 bg-white/5 hover:bg-red-500/20 rounded-full transition-all duration-300"
+          >
+            <X className="w-4 h-4 text-white/50 group-hover:text-red-400" />
+          </button>
+        </div>
 
-                  {/* Smart Navigation Hub - Floating Style */}
-                  <div className="shrink-0 p-3 sm:p-5 space-y-3 bg-gradient-to-b from-black/40 to-transparent" dir="rtl">
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      {/* Minimalist Search */}
-                      <div className="relative flex-1 group">
-                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-sky-400 transition-colors" />
-                        <input
-                          type="text"
-                          value={bibleSearchQuery}
-                          onChange={(e) => setBibleSearchQuery(e.target.value)}
-                          placeholder="ابحث بعمق..."
-                          className="w-full bg-white/[0.03] border border-white/5 rounded-2xl py-2.5 pr-10 pl-4 text-white text-sm focus:outline-none focus:bg-white/[0.06] focus:border-sky-500/30 transition-all placeholder:text-white/10"
-                        />
-                      </div>
+        {/* Smart Navigation Hub - Floating Style */}
+        <div className="shrink-0 p-3 sm:p-5 space-y-3 bg-gradient-to-b from-black/40 to-transparent" dir="rtl">
+          <div className="flex flex-col sm:flex-row gap-2">
+            {/* Minimalist Search */}
+            <div className="relative flex-1 group">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-sky-400 transition-colors" />
+              <input
+                type="text"
+                value={bibleSearchQuery}
+                onChange={(e) => setBibleSearchQuery(e.target.value)}
+                placeholder="ابحث بعمق..."
+                className="w-full bg-white/[0.03] border border-white/5 rounded-2xl py-2.5 pr-10 pl-4 text-white text-sm focus:outline-none focus:bg-white/[0.06] focus:border-sky-500/30 transition-all placeholder:text-white/10"
+              />
+            </div>
 
-                      {/* Compact Selectors */}
-                      <div className="flex gap-2">
+            {/* Compact Selectors */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setBiblePickerOpen(o => o === 'book' ? null : 'book')}
+                className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 text-white text-xs font-bold transition-all flex items-center gap-2 ${biblePickerOpen === 'book' ? 'bg-sky-500/20 border-sky-500/50' : ''}`}
+              >
+                <span className="opacity-50 tracking-tighter">السفر:</span>
+                <span className="truncate max-w-[80px]">{bibleModalBook?.bookName || '...'}</span>
+              </button>
+
+              <button
+                onClick={() => setBiblePickerOpen(o => o === 'chapter' ? null : 'chapter')}
+                disabled={!bibleModalBook}
+                className={`px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 text-white text-xs font-bold transition-all flex items-center gap-2 ${biblePickerOpen === 'chapter' ? 'bg-sky-500/20 border-sky-500/50' : ''}`}
+              >
+                <span className="opacity-50">الأصحاح:</span>
+                <span>{bibleModalChapter || '0'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Smart Floating Pickers Area */}
+          <AnimatePresence>
+            {biblePickerOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden bg-white/[0.02] border border-white/5 rounded-3xl"
+              >
+                <div className="p-4 max-h-[30vh] overflow-y-auto custom-scrollbar">
+                  {biblePickerOpen === 'book' ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                      {bibleModalBooks.map((book) => (
                         <button
-                          onClick={() => setBiblePickerOpen(o => o === 'book' ? null : 'book')}
-                          className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 text-white text-xs font-bold transition-all flex items-center gap-2 ${biblePickerOpen === 'book' ? 'bg-sky-500/20 border-sky-500/50' : ''}`}
+                          key={book._id}
+                          className={`px-3 py-2 rounded-xl text-right text-[11px] font-medium transition-all ${bibleModalBook?._id === book._id ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20' : 'text-white/40 hover:bg-white/5 hover:text-white'}`}
+                          onClick={() => { setBibleModalBook(book); setBibleModalChapter(null); setBiblePickerOpen('chapter'); }}
                         >
-                          <span className="opacity-50 tracking-tighter">السفر:</span>
-                          <span className="truncate max-w-[80px]">{bibleModalBook?.bookName || '...'}</span>
+                          {book.bookName}
                         </button>
-
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
+                      {bibleModalChapters.map((ch) => (
                         <button
-                          onClick={() => setBiblePickerOpen(o => o === 'chapter' ? null : 'chapter')}
-                          disabled={!bibleModalBook}
-                          className={`px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 text-white text-xs font-bold transition-all flex items-center gap-2 ${biblePickerOpen === 'chapter' ? 'bg-sky-500/20 border-sky-500/50' : ''}`}
+                          key={ch}
+                          className={`h-10 rounded-xl flex items-center justify-center text-xs font-black transition-all ${bibleModalChapter === ch ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20' : 'bg-white/5 text-white/40 hover:text-white'}`}
+                          onClick={() => { setBibleModalChapter(ch); setBiblePickerOpen(null); }}
                         >
-                          <span className="opacity-50">الأصحاح:</span>
-                          <span>{bibleModalChapter || '0'}</span>
+                          {ch}
                         </button>
-                      </div>
+                      ))}
                     </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
-                    {/* Smart Floating Pickers Area */}
-                    <AnimatePresence>
-                      {biblePickerOpen && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                          className="overflow-hidden bg-white/[0.02] border border-white/5 rounded-3xl"
-                        >
-                          <div className="p-4 max-h-[30vh] overflow-y-auto custom-scrollbar">
-                            {biblePickerOpen === 'book' ? (
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                                {bibleModalBooks.map((book) => (
-                                  <button
-                                    key={book._id}
-                                    className={`px-3 py-2 rounded-xl text-right text-[11px] font-medium transition-all ${bibleModalBook?._id === book._id ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20' : 'text-white/40 hover:bg-white/5 hover:text-white'}`}
-                                    onClick={() => { setBibleModalBook(book); setBibleModalChapter(null); setBiblePickerOpen('chapter'); }}
-                                  >
-                                    {book.bookName}
-                                  </button>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
-                                {bibleModalChapters.map((ch) => (
-                                  <button
-                                    key={ch}
-                                    className={`h-10 rounded-xl flex items-center justify-center text-xs font-black transition-all ${bibleModalChapter === ch ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20' : 'bg-white/5 text-white/40 hover:text-white'}`}
-                                    onClick={() => { setBibleModalChapter(ch); setBiblePickerOpen(null); }}
-                                  >
-                                    {ch}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {/* --- MAIN SCROLL AREA - FIXED HEIGHT --- */}
-                  <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar-thin" dir="rtl">
-                    <div className="p-4 sm:p-12 max-w-3xl mx-auto">
-                      {isSearchingBible ? (
-                        <div className="flex flex-col items-center justify-center py-20 opacity-40 animate-pulse">
-                          <div className="w-12 h-12 border-2 border-sky-500/30 border-t-sky-500 rounded-full animate-spin mb-4" />
-                          <span className="text-[10px] font-black uppercase tracking-widest text-white">Neural Search...</span>
-                        </div>
-                      ) : bibleModalVerses.length > 0 ? (
-                        <div className="space-y-10">
-                          {/* Modern Chapter Indicator */}
-                          <div className="flex items-end justify-between border-b border-white/5 pb-6">
-                            <div>
-                              <h1 className="text-3xl sm:text-5xl font-black text-white leading-none">
-                                {bibleModalBook.bookName}
-                              </h1>
-                              <div className="mt-2 flex items-center gap-2">
-                                <span className="h-[2px] w-8 bg-sky-500" />
-                                <span className="text-xs font-bold text-sky-400 uppercase tracking-tighter">أصحاح {bibleModalChapter}</span>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => openBiblePresentation({ bookName: bibleModalBook.bookName, chapter: bibleModalChapter, verses: bibleModalVerses, startIndex: 0 })}
-                              className="p-3 bg-white/5 hover:bg-sky-500 text-white rounded-2xl transition-all active:scale-90 group"
-                            >
-                              <Monitor className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                            </button>
-                          </div>
-
-                          {/* The Reading Experience */}
-                          <div className="space-y-8 pb-20">
-                            {bibleModalVerses.map((verse, vIdx) => (
-                              <motion.div
-                                key={verse._id}
-                                initial={{ opacity: 0, x: 10 }}
-                                whileInView={{ opacity: 1, x: 0 }}
-                                viewport={{ once: true }}
-                                onClick={() => openBiblePresentation({ bookName: bibleModalBook.bookName, chapter: bibleModalChapter, verses: bibleModalVerses, startIndex: vIdx })}
-                                className="group relative cursor-pointer"
-                              >
-                                <div className="flex items-start gap-4 sm:gap-8">
-                                  <span className="shrink-0 mt-2 text-[10px] font-black text-white/10 group-hover:text-sky-500/50 transition-colors">
-                                    {verse.verseNumber.toString().padStart(2, '0')}
-                                  </span>
-                                  <p className="text-xl sm:text-3xl text-white/80 group-hover:text-white leading-[1.7] font-arabic transition-all">
-                                    {verse.text}
-                                  </p>
-                                </div>
-                              </motion.div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="h-full flex flex-col items-center justify-center opacity-10 py-40">
-                          <BookOpen className="w-20 h-20 mb-4" />
-                          <span className="text-sm font-bold uppercase tracking-[0.4em]">Select Wisdom</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Smart Progress Indicator (Optional Decorative) */}
-                  <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-sky-500/50 to-transparent" />
-                </motion.div>
+        {/* --- MAIN SCROLL AREA - FIXED HEIGHT --- */}
+        {/* Added 'overscroll-contain' to stop the website from scrolling when this reaches the end */}
+        <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain custom-scrollbar-thin" dir="rtl">
+          <div className="p-4 sm:p-12 max-w-3xl mx-auto">
+            {isSearchingBible ? (
+              <div className="flex flex-col items-center justify-center py-20 opacity-40 animate-pulse">
+                <div className="w-12 h-12 border-2 border-sky-500/30 border-t-sky-500 rounded-full animate-spin mb-4" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-white">Neural Search...</span>
               </div>
-            </Portal>
-          )}
+            ) : bibleModalVerses.length > 0 ? (
+              <div className="space-y-10">
+                {/* Modern Chapter Indicator */}
+                <div className="flex items-end justify-between border-b border-white/5 pb-6">
+                  <div>
+                    <h1 className="text-3xl sm:text-5xl font-black text-white leading-none">
+                      {bibleModalBook.bookName}
+                    </h1>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="h-[2px] w-8 bg-sky-500" />
+                      <span className="text-xs font-bold text-sky-400 uppercase tracking-tighter">أصحاح {bibleModalChapter}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => openBiblePresentation({ bookName: bibleModalBook.bookName, chapter: bibleModalChapter, verses: bibleModalVerses, startIndex: 0 })}
+                    className="p-3 bg-white/5 hover:bg-sky-500 text-white rounded-2xl transition-all active:scale-90 group"
+                  >
+                    <Monitor className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  </button>
+                </div>
+
+                {/* The Reading Experience */}
+                <div className="space-y-8 pb-20">
+                  {bibleModalVerses.map((verse, vIdx) => (
+                    <motion.div
+                      key={verse._id}
+                      initial={{ opacity: 0, x: 10 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      onClick={() => openBiblePresentation({ bookName: bibleModalBook.bookName, chapter: bibleModalChapter, verses: bibleModalVerses, startIndex: vIdx })}
+                      className="group relative cursor-pointer"
+                    >
+                      <div className="flex items-start gap-4 sm:gap-8">
+                        <span className="shrink-0 mt-2 text-[10px] font-black text-white/10 group-hover:text-sky-500/50 transition-colors">
+                          {verse.verseNumber.toString().padStart(2, '0')}
+                        </span>
+                        <p className="text-xl sm:text-3xl text-white/80 group-hover:text-white leading-[1.7] font-arabic transition-all">
+                          {verse.text}
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center opacity-10 py-40">
+                <BookOpen className="w-20 h-20 mb-4" />
+                <span className="text-sm font-bold uppercase tracking-[0.4em]">Select Wisdom</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Smart Progress Indicator (Optional Decorative) */}
+        <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-sky-500/50 to-transparent" />
+      </motion.div>
+    </div>
+  </Portal>
+)}
           {/* --- Data Show (Presentation) Presenter View - Independent --- */}
           {showDataShow && selectedLyricsHymn && (
             <Portal>
