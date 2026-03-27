@@ -53,6 +53,8 @@ export default function Category_Humns() {
   const [bibleModalChapters, setBibleModalChapters] = useState([]);
   const [bibleModalChapter, setBibleModalChapter] = useState(null);
   const [bibleModalVerses, setBibleModalVerses] = useState([]);
+  const [bibleSelectedVerseIds, setBibleSelectedVerseIds] = useState(new Set());
+
   const [bibleModalBrowseLoading, setBibleModalBrowseLoading] = useState(false);
   const [bibleModalBooksReady, setBibleModalBooksReady] = useState(false);
   const [biblePickerOpen, setBiblePickerOpen] = useState(null);
@@ -79,6 +81,7 @@ export default function Category_Humns() {
     setBibleModalBook(null);
     setBibleModalChapter(null);
     setBibleModalChapters([]);
+    setBibleSelectedVerseIds(new Set()); // Clear selected verses when modal opens
     setBibleModalVerses([]);
     setBibleModalBooksReady(false);
     let cancelled = false;
@@ -99,6 +102,7 @@ export default function Category_Humns() {
   useEffect(() => {
     if (!showBibleModal || !bibleModalBook?.bookName) {
       setBibleModalChapters([]);
+      setBibleSelectedVerseIds(new Set()); // Clear selected verses when book changes
       return;
     }
     let cancelled = false;
@@ -121,6 +125,7 @@ export default function Category_Humns() {
   useEffect(() => {
     if (!showBibleModal || !bibleModalBook?.bookName || bibleModalChapter == null) {
       setBibleModalVerses([]);
+      setBibleSelectedVerseIds(new Set()); // Clear selected verses when chapter changes
       return;
     }
     let cancelled = false;
@@ -178,6 +183,7 @@ export default function Category_Humns() {
       setBibleModalBook(null);
       setBibleModalChapters([]);
       setBibleModalChapter(null);
+      setBibleSelectedVerseIds(new Set());
       setBibleModalVerses([]);
       setBibleModalBooksReady(false);
       setBiblePickerOpen(null);
@@ -188,30 +194,36 @@ export default function Category_Humns() {
 
   // Save Bible verses to workspace
   const saveBibleToWorkspace = async () => {
-    if (!bibleModalBook?.bookName || bibleModalChapter == null || !bibleModalVerses.length) {
-      alert('Please select a chapter first');
+    if (!bibleModalBook?.bookName || bibleModalChapter == null || bibleSelectedVerseIds.size === 0) {
+      alert('Please select at least one verse to save.');
       return;
     }
 
     setIsSavingBible(true);
     try {
-      const selectedStart = bibleSelectedVerses.start ?? 0;
-      const selectedEnd = bibleSelectedVerses.end ?? (bibleModalVerses.length - 1);
-      const versesRange = bibleModalVerses.slice(selectedStart, selectedEnd + 1);
+      const selectedVersesData = bibleModalVerses.filter(verse => bibleSelectedVerseIds.has(verse._id));
 
-      if (!versesRange.length) {
-        alert('Please select verses');
+      if (selectedVersesData.length === 0) {
+        alert('No verses selected.');
         return;
       }
 
+      const selectedVerseNumbers = selectedVersesData.map(v => v.verseNumber).sort((a, b) => a - b);
+      const verseNumbersString = selectedVerseNumbers.join(', ');
+
+      const title = `${bibleModalBook.bookName} · ${t('chapter')} ${bibleModalChapter}:${verseNumbersString}`;
+      const uniqueIdSuffix = selectedVerseNumbers.join('-'); // For unique ID based on selected verses
+
       const bibleItem = {
-        _id: `bible-${bibleModalBook.bookName}-${bibleModalChapter}-${versesRange[0].verseNumber}-${versesRange[versesRange.length - 1].verseNumber}`,
-        title: `${bibleModalBook.bookName} · ${t('chapter')} ${bibleModalChapter}:${versesRange[0].verseNumber}-${versesRange[versesRange.length - 1].verseNumber}`,
+        _id: `bible-${bibleModalBook.bookName}-${bibleModalChapter}-${uniqueIdSuffix}`,
+        title: title,
         bookName: bibleModalBook.bookName,
         chapter: bibleModalChapter,
-        verses: versesRange,
+        // Store only the selected verses
+        verses: selectedVersesData,
+        // Lyrics for presentation/display should also be only selected verses
         isBible: true,
-        lyrics: versesRange.map(v => ({
+        lyrics: selectedVersesData.map(v => ({
           type: 'verse',
           title: `آية ${v.verseNumber}`,
           text: v.text
@@ -219,9 +231,7 @@ export default function Category_Humns() {
       };
 
       addToWorkspace(bibleItem);
-      alert(`✅ Saved! ${versesRange.length} ${versesRange.length === 1 ? 'verse' : 'verses'} added to workspace (${bibleModalBook.bookName} ${bibleModalChapter}:${versesRange[0].verseNumber}-${versesRange[versesRange.length - 1].verseNumber})
-      
-Selection stays highlighted - go ahead and save more verses!`);
+      alert(`✅ Saved! ${selectedVersesData.length} ${selectedVersesData.length === 1 ? 'verse' : 'verses'} added to workspace (${title})`);
       // Keep selection visible so user can save more if needed
     } catch (error) {
       console.error('Error saving Bible to workspace:', error);
@@ -1910,6 +1920,14 @@ Selection stays highlighted - go ahead and save more verses!`);
                           placeholder="ابحث بعمق..."
                           className="w-full bg-white/[0.03] border border-white/5 rounded-2xl py-2.5 pr-10 pl-4 text-white text-sm focus:outline-none focus:bg-white/[0.06] focus:border-sky-500/30 transition-all placeholder:text-white/10"
                         />
+                        {bibleSearchQuery && (
+                          <button
+                            onClick={() => setBibleSearchQuery('')}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-white/10 text-white/30 transition-all z-20"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
 
                       {/* Compact Selectors */}
@@ -1981,6 +1999,44 @@ Selection stays highlighted - go ahead and save more verses!`);
                           <div className="w-12 h-12 border-2 border-sky-500/30 border-t-sky-500 rounded-full animate-spin mb-4" />
                           <span className="text-[10px] font-black uppercase tracking-widest text-white">Neural Search...</span>
                         </div>
+                      ) : bibleSearchQuery.trim() ? (
+                        <div className="space-y-6 pb-20">
+                          {bibleSearchResults.length > 0 ? (
+                            <>
+                              <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-6">
+                                <div className="w-1 h-6 bg-sky-500 rounded-full" />
+                                <h2 className="text-xl font-bold text-white">نتائج البحث ({bibleSearchResults.length})</h2>
+                              </div>
+                              <div className="grid gap-4">
+                                {bibleSearchResults.map((hit, idx) => (
+                                  <div
+                                    key={idx}
+                                    onClick={() => presentBibleFromSearchHit(hit)}
+                                    className="group p-4 rounded-2xl bg-white/[0.03] border border-white/0 hover:border-sky-500/30 hover:bg-sky-500/5 transition-all cursor-pointer"
+                                  >
+                                    <div className="flex justify-between items-start gap-4 mb-2">
+                                      <span className="text-sky-400 font-bold text-sm">
+                                        {hit.bookName} {hit.chapter}:{hit.verseNumber}
+                                      </span>
+                                      <Monitor className="w-4 h-4 text-white/20 group-hover:text-sky-400 transition-colors" />
+                                    </div>
+                                    <p
+                                      className="text-white/80 group-hover:text-white text-base leading-relaxed font-arabic transition-all [&_b]:text-sky-400 [&_b]:font-black"
+                                      dangerouslySetInnerHTML={{ __html: hit.text }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="py-20 text-center opacity-30">
+                              <Search className="w-12 h-12 mx-auto mb-4" />
+                              <p className="text-sm font-bold uppercase tracking-widest">
+                                {language === 'ar' ? 'لم يتم العثور على نتائج' : 'No results found'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       ) : bibleModalVerses.length > 0 ? (
                         <div className="space-y-10">
                           {/* Modern Chapter Indicator */}
@@ -2007,29 +2063,30 @@ Selection stays highlighted - go ahead and save more verses!`);
                             {/* Verse Selection Toolbar */}
                             {bibleModalVerses.length > 1 && (
                               <div className=" top-0 z-40 flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 bg-white/5 rounded-xl border border-white/10 backdrop-blur-md mb-4">
-                                <div className="flex items-center gap-2 flex-wrap flex-1">
+                                <div className="flex items-center gap-2 flex-wrap flex-1" dir="ltr">
                                   <span className="text-xs font-bold text-gray-400">Select verses:</span>
                                   <button
-                                    onClick={() => setBibleSelectedVerses({ start: 0, end: bibleModalVerses.length - 1 })}
+                                    onClick={() => setBibleSelectedVerseIds(new Set(bibleModalVerses.map(v => v._id)))}
                                     className="px-3 py-1 text-xs font-bold rounded-lg bg-sky-500/20 text-sky-300 border border-sky-500/30 hover:bg-sky-500/30 transition-all"
                                   >
                                     All
                                   </button>
                                   <button
-                                    onClick={() => setBibleSelectedVerses({ start: null, end: null })}
+                                    onClick={() => setBibleSelectedVerseIds(new Set())}
                                     className="px-3 py-1 text-xs font-bold rounded-lg bg-white/10 text-gray-300 border border-white/20 hover:bg-white/20 transition-all"
                                   >
                                     Clear
                                   </button>
-                                  {bibleSelectedVerses.start != null && (
+                                  {bibleSelectedVerseIds.size > 0 && (
                                     <span className="text-xs text-sky-400 font-semibold ml-auto">
-                                      {bibleSelectedVerses.end - bibleSelectedVerses.start + 1} verses selected
+                                      {bibleSelectedVerseIds.size} verses selected
                                     </span>
                                   )}
                                 </div>
+
                                 <button
                                   onClick={saveBibleToWorkspace}
-                                  disabled={isSavingBible || bibleSelectedVerses.start == null}
+                                  disabled={isSavingBible || bibleSelectedVerseIds.size === 0}
                                   className="px-4 py-2 text-xs font-bold rounded-lg bg-sky-500 text-white hover:bg-sky-400 disabled:opacity-50 transition-all shadow-lg active:scale-95 whitespace-nowrap"
                                 >
                                   {isSavingBible ? 'Saving...' : 'Save to Workspace'}
@@ -2040,21 +2097,20 @@ Selection stays highlighted - go ahead and save more verses!`);
                             {/* Verses List - Fast scrolling without animations */}
                             {bibleModalVerses.map((verse, vIdx) => {
                               const isSelected = bibleSelectedVerses.start != null && vIdx >= bibleSelectedVerses.start && vIdx <= bibleSelectedVerses.end;
+                              const isSelectedIndividual = bibleSelectedVerseIds.has(verse._id);
                               return (
                                 <div
                                   key={verse._id}
                                   onClick={() => {
-                                    if (bibleSelectedVerses.start == null) {
-                                      setBibleSelectedVerses({ start: vIdx, end: vIdx });
-                                    } else if (vIdx < bibleSelectedVerses.start) {
-                                      setBibleSelectedVerses({ ...bibleSelectedVerses, start: vIdx });
-                                    } else if (vIdx > bibleSelectedVerses.end) {
-                                      setBibleSelectedVerses({ ...bibleSelectedVerses, end: vIdx });
+                                    const newSelection = new Set(bibleSelectedVerseIds);
+                                    if (newSelection.has(verse._id)) {
+                                      newSelection.delete(verse._id);
                                     } else {
-                                      setBibleSelectedVerses({ start: null, end: null });
+                                      newSelection.add(verse._id);
                                     }
+                                    setBibleSelectedVerseIds(newSelection);
                                   }}
-                                  className={`group relative cursor-pointer p-4 rounded-xl transition-all duration-200 ${isSelected
+                                  className={`group relative cursor-pointer p-4 rounded-xl transition-all duration-200 ${isSelectedIndividual
                                     ? 'bg-sky-500/20 border border-sky-500/40 shadow-[inset_0_0_15px_rgba(56,189,248,0.1)]'
                                     : 'hover:bg-white/5 border border-white/0 hover:border-white/10'
                                     }`}
@@ -2067,7 +2123,7 @@ Selection stays highlighted - go ahead and save more verses!`);
                                       <p className="text-base sm:text-lg md:text-2xl text-white/80 group-hover:text-white leading-relaxed sm:leading-normal font-arabic transition-all break-words">
                                         {verse.text}
                                       </p>
-                                      {isSelected && (
+                                      {isSelectedIndividual && (
                                         <div className="flex gap-2 mt-2 flex-wrap">
                                           <button
                                             onClick={(e) => {
