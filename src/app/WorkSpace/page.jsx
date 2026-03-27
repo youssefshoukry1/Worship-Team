@@ -1,7 +1,7 @@
 'use client';
 import React, { useContext, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PlayCircle, Trash2, Heart, Music, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle, Radio, ExternalLink, Tv2, ChevronUp, Mic, MicOff, EyeOff } from 'lucide-react';
+import { PlayCircle, Trash2, Heart, Music, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle, Radio, ExternalLink, Tv2, ChevronUp, Mic, MicOff, EyeOff, BookOpen, Eye } from 'lucide-react';
 import Metronome from '../Metronome/page';
 import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
@@ -10,6 +10,78 @@ import { Virtuoso } from 'react-virtuoso';
 import { transposeScale, transposeChords, transposeLyrics } from '../utils/musicUtils';
 import { usePresentation } from '../hooks/usePresentation';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://worship-team-api.onrender.com/api";
+
+const BibleCard = ({ bible, idx, updateWorkspaceHymn, removeFromWorkspace, openLyrics, openPresentation }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    return (
+        <div className="bg-gradient-to-br from-sky-500/10 to-blue-500/10 p-5 rounded-2xl border border-sky-500/30 hover:border-sky-500/50 hover:bg-sky-500/15 transition-all duration-200">
+            <div className="flex flex-wrap flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                <div className="flex flex-wrap items-center gap-3">
+                    <span className="w-8 h-8 rounded-full bg-blue-500/25 flex items-center justify-center text-blue-300 font-bold text-sm">
+                        {idx + 1}
+                    </span>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                        <h3 className="font-semibold text-base sm:text-lg text-white">
+                            {bible.title}
+                        </h3>
+                        <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                            📖 Bible
+                        </span>
+                        <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                            {bible.verses?.length || 0} verses
+                        </span>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        onClick={() => openLyrics(bible)}
+                        className="px-3 py-1.5 text-xs font-bold rounded-lg bg-sky-500/30 text-sky-200 border border-sky-500/50 hover:bg-sky-500/40 transition-all"
+                        title="View lyrics"
+                    >
+                        <Eye className="w-3.5 h-3.5 inline mr-1" /> View
+                    </button>
+                    <button
+                        onClick={() => openPresentation(bible)}
+                        className="px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-500/30 text-blue-200 border border-blue-500/50 hover:bg-blue-500/40 transition-all"
+                        title="Present verses"
+                    >
+                        <Monitor className="w-3.5 h-3.5 inline mr-1" /> Present
+                    </button>
+                    <button
+                        onClick={() => {
+                            if (confirm(`Remove "${bible.title}" from workspace?\n\n${bible.verses?.length || 0} verses will be removed.`)) {
+                                removeFromWorkspace(bible._id);
+                            }
+                        }}
+                        className="px-3 py-1.5 text-xs font-bold rounded-lg bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 transition-all"
+                        title="Remove from workspace"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Bible Content Preview */}
+            <div className="p-4 bg-white/5 rounded-xl border border-white/10 max-h-[200px] overflow-y-auto custom-scrollbar">
+                <div className="space-y-2">
+                    {bible.verses?.slice(0, 3).map((verse, vIdx) => (
+                        <div key={vIdx} className="text-sm text-white/70 leading-relaxed" dir="rtl">
+                            <span className="font-bold text-blue-400 inline-block min-w-[30px]">{verse.verseNumber}:</span>
+                            <span className="ml-2">{verse.text.substring(0, 100)}...</span>
+                        </div>
+                    ))}
+                    {bible.verses && bible.verses.length > 3 && (
+                        <div className="text-xs text-sky-400 italic mt-2">
+                            ... and {bible.verses.length - 3} more verses
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
     const [localLyrics, setLocalLyrics] = useState(hymn.lyrics || '');
@@ -131,7 +203,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                                             placeholder={stanza.type === 'chorus' ? "القرار" : "1"}
                                             dir="rtl"
                                         />
-                                        
+
                                         <div className="flex items-center gap-3 flex-wrap flex-row-reverse">
                                             {/* Chord Toolbar for this specific text area */}
                                             {hymn.relatedChords && (
@@ -140,21 +212,21 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                                                         <button
                                                             key={cIdx}
                                                             onClick={() => {
-                                                                 const textareaId = `lyrics-textarea-ws-${hymn._id}-${sIdx}`;
-                                                                 const input = document.getElementById(textareaId);
-                                                                 if (input) {
-                                                                     const start = input.selectionStart;
-                                                                     const end = input.selectionEnd;
-                                                                     const text = input.value;
-                                                                     const newText = text.substring(0, start) + `[${chord}]` + text.substring(end);
-                                                                     const newArray = [...localLyrics];
-                                                                     newArray[sIdx].text = newText;
-                                                                     setLocalLyrics(newArray);
-                                                                     setTimeout(() => {
-                                                                         input.selectionStart = input.selectionEnd = start + chord.length + 2;
-                                                                         input.focus();
-                                                                     }, 0);
-                                                                 }
+                                                                const textareaId = `lyrics-textarea-ws-${hymn._id}-${sIdx}`;
+                                                                const input = document.getElementById(textareaId);
+                                                                if (input) {
+                                                                    const start = input.selectionStart;
+                                                                    const end = input.selectionEnd;
+                                                                    const text = input.value;
+                                                                    const newText = text.substring(0, start) + `[${chord}]` + text.substring(end);
+                                                                    const newArray = [...localLyrics];
+                                                                    newArray[sIdx].text = newText;
+                                                                    setLocalLyrics(newArray);
+                                                                    setTimeout(() => {
+                                                                        input.selectionStart = input.selectionEnd = start + chord.length + 2;
+                                                                        input.focus();
+                                                                    }, 0);
+                                                                }
                                                             }}
                                                             className="text-[10px] font-black px-2.5 py-1 rounded-md cursor-pointer select-none bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 hover:text-white transition-all shadow-sm active:scale-95"
                                                             type="button"
@@ -1242,18 +1314,29 @@ export default function WorkSpace() {
                             <Virtuoso
                                 useWindowScroll
                                 data={workspace}
-                                itemContent={(index, hymn) => (
+                                itemContent={(index, item) => (
                                     <div className="pb-3">
-                                        <WorkspaceItem
-                                            hymn={hymn}
-                                            index={index}
-                                            categories={categories}
-                                            removeFromWorkspace={removeFromWorkspace}
-                                            variants={itemVariants}
-                                            openLyrics={openLyrics}
-                                            openPresentation={openPresentation}
-                                            vocalsMode={vocalsMode}
-                                        />
+                                        {item.isBible ? (
+                                            <BibleWorkspaceItem
+                                                bible={item}
+                                                index={index}
+                                                removeFromWorkspace={removeFromWorkspace}
+                                                variants={itemVariants}
+                                                openLyrics={openLyrics}
+                                                openPresentation={openPresentation}
+                                            />
+                                        ) : (
+                                            <WorkspaceItem
+                                                hymn={item}
+                                                index={index}
+                                                categories={categories}
+                                                removeFromWorkspace={removeFromWorkspace}
+                                                variants={itemVariants}
+                                                openLyrics={openLyrics}
+                                                openPresentation={openPresentation}
+                                                vocalsMode={vocalsMode}
+                                            />
+                                        )}
                                     </div>
                                 )}
                             />
@@ -1723,14 +1806,26 @@ export default function WorkSpace() {
                                 </div>
 
                                 <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar" data-lenis-prevent-wheel>
-                                    {workspace.map((hymn, idx) => (
-                                        <SetlistCustomizerCard
-                                            key={hymn._id}
-                                            hymn={hymn}
-                                            idx={idx}
-                                            updateWorkspaceHymn={updateWorkspaceHymn}
-                                        />
-                                    ))}
+                                    {workspace.map((item, idx) =>
+                                        item.isBible ? (
+                                            <BibleCard
+                                                key={item._id}
+                                                bible={item}
+                                                idx={idx}
+                                                updateWorkspaceHymn={updateWorkspaceHymn}
+                                                removeFromWorkspace={removeFromWorkspace}
+                                                openLyrics={openLyrics}
+                                                openPresentation={openPresentation}
+                                            />
+                                        ) : (
+                                            <SetlistCustomizerCard
+                                                key={item._id}
+                                                hymn={item}
+                                                idx={idx}
+                                                updateWorkspaceHymn={updateWorkspaceHymn}
+                                            />
+                                        )
+                                    )}
                                 </div>
 
                                 <div className="p-6 border-t border-white/10 bg-white/5 text-right">
@@ -1874,6 +1969,85 @@ function KeyDisplay({ scale, relatedChords, onTranspose }) {
                 )}
             </AnimatePresence>
         </div>
+    );
+}
+
+// Bible Workspace Item Component
+function BibleWorkspaceItem({ bible, index, removeFromWorkspace, variants, openLyrics, openPresentation }) {
+    return (
+        <motion.div
+            variants={variants}
+            className="group relative grid grid-cols-12 gap-2 sm:gap-4 p-3 sm:p-5 items-center 
+                               bg-gradient-to-r from-blue-500/5 to-sky-500/5 hover:from-blue-500/10 hover:to-sky-500/10
+                               border border-blue-500/30 hover:border-blue-500/50 
+                               rounded-2xl transition-all duration-300 backdrop-blur-sm
+                               hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] hover:-translate-y-0.5"
+        >
+            {/* Mobile Quick Present Button */}
+            <button
+                onClick={() => openPresentation(bible)}
+                className="absolute top-3 right-3 sm:hidden p-2.5 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-blue-200 border border-blue-500/40 hover:border-blue-500/60 transition-all z-30 backdrop-blur-md shadow-lg shadow-blue-500/10 active:scale-95"
+                title="Present Bible verses"
+            >
+                <Monitor className="w-5 h-5" />
+            </button>
+
+            {/* Index */}
+            <div className="col-span-1 sm:col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-blue-400 transition-colors">
+                {(index + 1).toString().padStart(2, '0')}
+            </div>
+
+            {/* Bible Title */}
+            <div className="col-span-11 sm:col-span-5 md:col-span-5 relative z-10 flex items-center gap-2 py-4">
+                <BookOpen className="w-4 h-4 text-blue-400 group-hover:text-blue-300 transition-colors shrink-0" title="Bible" />
+                <h3 className="font-bold text-sm sm:text-lg text-blue-200 group-hover:text-blue-100 transition-colors tracking-wide truncate">
+                    {bible.title}
+                </h3>
+            </div>
+
+            {/* Verse Count Badge - Matches key position */}
+            <div className="col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0 lg:top-2">
+                <div className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-blue-500/20 border border-blue-500/30 text-xs sm:text-sm font-bold text-blue-300">
+                    <span>📖</span>
+                    <span className="whitespace-nowrap">{bible.verses?.length || 0} verses</span>
+                </div>
+            </div>
+
+            {/* Remove Button - Matches delete position */}
+            <div className="col-span-6 sm:col-span-1 flex justify-center items-center relative z-10 px-2 lg:top-2">
+                <button
+                    onClick={() => {
+                        if (confirm(`Remove "${bible.title}" from workspace?\n\n${bible.verses?.length || 0} verses will be removed.`)) {
+                            removeFromWorkspace(bible._id);
+                        }
+                    }}
+                    className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 sm:border-transparent hover:border-red-500/20 bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
+                    title="Remove from Workspace"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            </div>
+
+            {/* Action Buttons - Matches media position */}
+            <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-1 sm:gap-2 relative z-10 lg:top-2">
+                <button
+                    onClick={() => openLyrics(bible)}
+                    className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10 w-full sm:w-auto justify-center text-xs sm:text-sm"
+                    title="View Bible verses"
+                >
+                    <Eye className="w-4 h-4" />
+                    <span className="hidden sm:inline">View</span>
+                </button>
+                <button
+                    onClick={() => openPresentation(bible)}
+                    className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-black/20 hover:bg-blue-500/20 text-gray-400 hover:text-blue-300 border border-white/5 hover:border-blue-500/30 transition-all group-hover:shadow-lg group-hover:shadow-blue-500/10 text-xs"
+                    title="Present Bible verses"
+                >
+                    <Monitor className="w-4 h-4" />
+                    <span>Present</span>
+                </button>
+            </div>
+        </motion.div>
     );
 }
 
