@@ -23,6 +23,7 @@ export default function Login() {
                     localStorage.setItem('user_Taspe7_Role', response?.data?.user?.role);
                     localStorage.setItem('user_Taspe7_ChurchId', response?.data?.user?.churchId);
                     localStorage.setItem('user_Taspe7_Status', response?.data?.user?.status);
+                    localStorage.setItem('user_Taspe7_Email', response?.data?.user?.email);
 
                     setLogin(response?.data?.token);
                     // We should also update other context values if possible, but context loads from localStorage on mount/change.

@@ -61,18 +61,18 @@ const BibleCard = ({ bible, idx, updateWorkspaceHymn, removeFromWorkspace, openL
                 </div>
             </div>
 
-            {/* Bible Content Preview */}
-            <div className="p-4 bg-white/5 rounded-xl border border-white/10 max-h-[200px] overflow-y-auto custom-scrollbar">
-                <div className="space-y-2">
+            {/* Bible Content Preview - Responsive */}
+            <div className="w-full p-2 sm:p-3 md:p-4 bg-white/5 rounded-xl border border-white/10 max-h-[120px] xs:max-h-[140px] sm:max-h-[180px] md:max-h-[220px] lg:max-h-[280px] overflow-y-auto custom-scrollbar">
+                <div className="w-full space-y-1.5 sm:space-y-2 md:space-y-3">
                     {bible.verses?.slice(0, 3).map((verse, vIdx) => (
-                        <div key={vIdx} className="text-sm text-white/70 leading-relaxed" dir="rtl">
-                            <span className="font-bold text-blue-400 inline-block min-w-[30px]">{verse.verseNumber}:</span>
-                            <span className="ml-2">{verse.text.substring(0, 100)}...</span>
+                        <div key={vIdx} className="w-full text-[10px] xs:text-xs sm:text-sm md:text-base text-white/70 leading-normal sm:leading-relaxed flex flex-col xs:flex-row gap-0.5 xs:gap-1.5 sm:gap-2 break-words" dir="rtl">
+                            <span className="font-bold text-blue-400 flex-shrink-0 whitespace-nowrap">{verse.verseNumber}:</span>
+                            <span className="w-full break-words text-white/70 overflow-hidden line-clamp-3 sm:line-clamp-4">{verse.text.substring(0, 120)}...</span>
                         </div>
                     ))}
                     {bible.verses && bible.verses.length > 3 && (
-                        <div className="text-xs text-sky-400 italic mt-2">
-                            ... and {bible.verses.length - 3} more verses
+                        <div className="text-[10px] xs:text-xs sm:text-sm text-sky-300 italic mt-1.5 sm:mt-2 md:mt-3">
+                            + {bible.verses.length - 3} more verses
                         </div>
                     )}
                 </div>
