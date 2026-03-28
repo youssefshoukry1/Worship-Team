@@ -54,6 +54,7 @@ export default function Category_Humns() {
   const [bibleModalChapter, setBibleModalChapter] = useState(null);
   const [bibleModalVerses, setBibleModalVerses] = useState([]);
   const [bibleSelectedVerseIds, setBibleSelectedVerseIds] = useState(new Set());
+  const [bibleAddedSuccess, setBibleAddedSuccess] = useState(false);
 
   const [bibleModalBrowseLoading, setBibleModalBrowseLoading] = useState(false);
   const [bibleModalBooksReady, setBibleModalBooksReady] = useState(false);
@@ -195,7 +196,6 @@ export default function Category_Humns() {
   // Save Bible verses to workspace
   const saveBibleToWorkspace = async () => {
     if (!bibleModalBook?.bookName || bibleModalChapter == null || bibleSelectedVerseIds.size === 0) {
-      alert('Please select at least one verse to save.');
       return;
     }
 
@@ -204,7 +204,7 @@ export default function Category_Humns() {
       const selectedVersesData = bibleModalVerses.filter(verse => bibleSelectedVerseIds.has(verse._id));
 
       if (selectedVersesData.length === 0) {
-        alert('No verses selected.');
+        setIsSavingBible(false);
         return;
       }
 
@@ -231,11 +231,11 @@ export default function Category_Humns() {
       };
 
       addToWorkspace(bibleItem);
-      alert(`✅ Saved! ${selectedVersesData.length} ${selectedVersesData.length === 1 ? 'verse' : 'verses'} added to workspace (${title})`);
-      // Keep selection visible so user can save more if needed
+
+      setBibleAddedSuccess(true);
+      setTimeout(() => setBibleAddedSuccess(false), 2000);
     } catch (error) {
       console.error('Error saving Bible to workspace:', error);
-      alert('Failed to save Bible verses');
     } finally {
       setIsSavingBible(false);
     }
@@ -641,6 +641,15 @@ export default function Category_Humns() {
       });
     } catch (e) {
       console.error('Bible search present:', e);
+    }
+  };
+
+  const goToChapterFromSearch = (hit) => {
+    const book = bibleModalBooks.find(b => b.bookName === hit.bookName);
+    if (book) {
+      setBibleModalBook(book);
+      setBibleModalChapter(hit.chapter);
+      setBibleSearchQuery('');
     }
   };
 
@@ -1958,7 +1967,10 @@ export default function Category_Humns() {
                           initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                           className="overflow-hidden bg-white/[0.02] border border-white/5 rounded-3xl"
                         >
-                          <div className="p-4 max-h-[30vh] overflow-y-auto custom-scrollbar">
+                          <div
+                            className="p-4 max-h-[30vh] overflow-y-auto custom-scrollbar"
+                            data-lenis-prevent-wheel
+                          >
                             {biblePickerOpen === 'book' ? (
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                                 {bibleModalBooks.map((book) => (
@@ -1992,7 +2004,11 @@ export default function Category_Humns() {
 
                   {/* --- MAIN SCROLL AREA - FIXED HEIGHT --- */}
                   {/* Added 'overscroll-contain' to stop the website from scrolling when this reaches the end */}
-                  <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain custom-scrollbar-thin" dir="rtl">
+                  <div
+                    className="flex-1 overflow-y-auto min-h-0 overscroll-contain custom-scrollbar-thin"
+                    dir="rtl"
+                    data-lenis-prevent-wheel
+                  >
                     <div className="p-4 sm:p-12 max-w-3xl mx-auto">
                       {isSearchingBible ? (
                         <div className="flex flex-col items-center justify-center py-20 opacity-40 animate-pulse">
@@ -2011,14 +2027,24 @@ export default function Category_Humns() {
                                 {bibleSearchResults.map((hit, idx) => (
                                   <div
                                     key={idx}
-                                    onClick={() => presentBibleFromSearchHit(hit)}
+                                    onClick={() => goToChapterFromSearch(hit)}
+
                                     className="group p-4 rounded-2xl bg-white/[0.03] border border-white/0 hover:border-sky-500/30 hover:bg-sky-500/5 transition-all cursor-pointer"
                                   >
                                     <div className="flex justify-between items-start gap-4 mb-2">
                                       <span className="text-sky-400 font-bold text-sm">
                                         {hit.bookName} {hit.chapter}:{hit.verseNumber}
                                       </span>
-                                      <Monitor className="w-4 h-4 text-white/20 group-hover:text-sky-400 transition-colors" />
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          presentBibleFromSearchHit(hit);
+                                        }}
+                                        className="p-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 transition-all active:scale-90"
+                                        title="Data Show"
+                                      >
+                                        <Monitor className="w-4 h-4" />
+                                      </button>
                                     </div>
                                     <p
                                       className="text-white/80 group-hover:text-white text-base leading-relaxed font-arabic transition-all [&_b]:text-sky-400 [&_b]:font-black"
@@ -2086,10 +2112,18 @@ export default function Category_Humns() {
 
                                 <button
                                   onClick={saveBibleToWorkspace}
-                                  disabled={isSavingBible || bibleSelectedVerseIds.size === 0}
-                                  className="px-4 py-2 text-xs font-bold rounded-lg bg-sky-500 text-white hover:bg-sky-400 disabled:opacity-50 transition-all shadow-lg active:scale-95 whitespace-nowrap"
+                                  disabled={isSavingBible || bibleAddedSuccess || bibleSelectedVerseIds.size === 0}
+                                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-all shadow-lg active:scale-95 whitespace-nowrap flex items-center gap-2
+                                    ${bibleAddedSuccess ? 'bg-green-500 text-white' : 'bg-sky-500 text-white hover:bg-sky-400'}
+                                    disabled:opacity-50`}
                                 >
-                                  {isSavingBible ? 'Saving...' : 'Save to Workspace'}
+                                  {isSavingBible ? (
+                                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {t('saving') || 'Saving...'}</>
+                                  ) : bibleAddedSuccess ? (
+                                    <><Check className="w-3.5 h-3.5" /> {language === 'ar' ? 'تمت الإضافة بنجاح' : 'Added successfully'}</>
+                                  ) : (
+                                    t('saveToWorkspace') || 'Save to Workspace'
+                                  )}
                                 </button>
                               </div>
                             )}
