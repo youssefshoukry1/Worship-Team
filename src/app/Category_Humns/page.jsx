@@ -54,6 +54,7 @@ export default function Category_Humns() {
   const [bibleModalChapter, setBibleModalChapter] = useState(null);
   const [bibleModalVerses, setBibleModalVerses] = useState([]);
   const [bibleSelectedVerseIds, setBibleSelectedVerseIds] = useState(new Set());
+  const [bibleVerseFontSize, setBibleVerseFontSize] = useState(24);
   const [bibleAddedSuccess, setBibleAddedSuccess] = useState(false);
 
   const [bibleModalBrowseLoading, setBibleModalBrowseLoading] = useState(false);
@@ -61,7 +62,6 @@ export default function Category_Humns() {
   const [biblePickerOpen, setBiblePickerOpen] = useState(null);
   const bibleBookPickerRef = useRef(null);
   const bibleChapterPickerRef = useRef(null);
-  const [bibleSelectedVerses, setBibleSelectedVerses] = useState({ start: null, end: null });
   const [isSavingBible, setIsSavingBible] = useState(false);
 
   useEffect(() => {
@@ -188,7 +188,6 @@ export default function Category_Humns() {
       setBibleModalVerses([]);
       setBibleModalBooksReady(false);
       setBiblePickerOpen(null);
-      // Keep bibleSelectedVerses so user can see what they selected, don't clear it
       setIsClosing(false);
     }, 300);
   };
@@ -1976,7 +1975,7 @@ export default function Category_Humns() {
                                 {bibleModalBooks.map((book) => (
                                   <button
                                     key={book._id}
-                                    className={`px-3 py-2 rounded-xl text-right text-[11px] font-medium transition-all ${bibleModalBook?._id === book._id ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20' : 'text-white/40 hover:bg-white/5 hover:text-white'}`}
+                                    className={`px-3 py-2 rounded-xl text-right text-[11px] font-medium transition-all ${bibleModalBook?.bookName === book.bookName ? 'bg-slate-700/80 text-slate-100 border border-slate-500/30 shadow-lg shadow-black/30' : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10 hover:text-white'}`}
                                     onClick={() => { setBibleModalBook(book); setBibleModalChapter(null); setBiblePickerOpen('chapter'); }}
                                   >
                                     {book.bookName}
@@ -2110,6 +2109,23 @@ export default function Category_Humns() {
                                   )}
                                 </div>
 
+                                <div className="flex items-center gap-1 rounded-lg border border-white/15 bg-white/5 p-1" dir="ltr">
+                                  <button
+                                    onClick={() => setBibleVerseFontSize(prev => Math.max(16, prev - 2))}
+                                    className="px-2 py-1 text-xs font-bold rounded-md text-gray-200 hover:bg-white/10 transition-all"
+                                    title="Decrease font size"
+                                  >
+                                    -A
+                                  </button>
+                                  <button
+                                    onClick={() => setBibleVerseFontSize(prev => Math.min(44, prev + 2))}
+                                    className="px-2 py-1 text-xs font-bold rounded-md text-gray-200 hover:bg-white/10 transition-all"
+                                    title="Increase font size"
+                                  >
+                                    +A
+                                  </button>
+                                </div>
+
                                 <button
                                   onClick={saveBibleToWorkspace}
                                   disabled={isSavingBible || bibleAddedSuccess || bibleSelectedVerseIds.size === 0}
@@ -2130,7 +2146,6 @@ export default function Category_Humns() {
 
                             {/* Verses List - Fast scrolling without animations */}
                             {bibleModalVerses.map((verse, vIdx) => {
-                              const isSelected = bibleSelectedVerses.start != null && vIdx >= bibleSelectedVerses.start && vIdx <= bibleSelectedVerses.end;
                               const isSelectedIndividual = bibleSelectedVerseIds.has(verse._id);
                               return (
                                 <div
@@ -2145,16 +2160,19 @@ export default function Category_Humns() {
                                     setBibleSelectedVerseIds(newSelection);
                                   }}
                                   className={`group relative cursor-pointer p-4 rounded-xl transition-all duration-200 ${isSelectedIndividual
-                                    ? 'bg-sky-500/20 border border-sky-500/40 shadow-[inset_0_0_15px_rgba(56,189,248,0.1)]'
+                                    ? 'bg-white/5 border border-white/10'
                                     : 'hover:bg-white/5 border border-white/0 hover:border-white/10'
                                     }`}
                                 >
                                   <div className="flex items-start gap-4 sm:gap-8">
-                                    <span className="shrink-0 mt-1 text-xs sm:text-sm font-black text-white/30 group-hover:text-sky-500/70 transition-colors min-w-[25px] sm:min-w-[30px] text-center">
+                                    <span className={`shrink-0 mt-1 text-xs sm:text-sm font-black transition-colors min-w-[25px] sm:min-w-[30px] text-center ${isSelectedIndividual ? 'text-sky-500/70' : 'text-white/30 group-hover:text-sky-500/70'}`}>
                                       {verse.verseNumber}
                                     </span>
                                     <div className="flex-1 flex flex-col gap-2 min-w-0">
-                                      <p className="text-base sm:text-lg md:text-2xl text-white/80 group-hover:text-white leading-relaxed sm:leading-normal font-arabic transition-all break-words">
+                                      <p
+                                        className={`leading-relaxed sm:leading-normal font-arabic transition-all break-words ${isSelectedIndividual ? 'text-white' : 'text-white/80 group-hover:text-white'}`}
+                                        style={{ fontSize: `${bibleVerseFontSize}px` }}
+                                      >
                                         {verse.text}
                                       </p>
                                       {isSelectedIndividual && (
