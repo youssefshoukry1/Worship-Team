@@ -1,7 +1,7 @@
 'use client';
 import React, { useContext, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PlayCircle, Trash2, Heart, Music, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle, Radio, ExternalLink, Tv2, ChevronUp, Mic, MicOff, EyeOff, BookOpen, Eye } from 'lucide-react';
+import { PlayCircle, Trash2, Heart, Music, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle, Radio, ExternalLink, Tv2, ChevronUp, Mic, MicOff, EyeOff, BookOpen, Eye, Loader2, Check } from 'lucide-react';
 import Metronome from '../Metronome/page';
 import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
@@ -9,7 +9,47 @@ import Portal from '../Portal/Portal';
 import { Virtuoso } from 'react-virtuoso';
 import { transposeScale, transposeChords, transposeLyrics } from '../utils/musicUtils';
 import { usePresentation } from '../hooks/usePresentation';
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://worship-team-api.onrender.com/api";
+import { getApiBaseUrl } from '../utils/apiBase';
+const API_URL = getApiBaseUrl();
+
+function getUsersEndpointCandidates(path) {
+    const normalizedPath = String(path || '').replace(/^\/+/, '');
+    const withApi = API_URL;
+    const withoutApi = API_URL.replace(/\/api$/i, '');
+    const candidates = [
+        `${withApi}/users/${normalizedPath}`,
+        `${withoutApi}/api/users/${normalizedPath}`,
+        `${withoutApi}/users/${normalizedPath}`,
+        `${withApi}/api/users/${normalizedPath}`
+    ];
+    return [...new Set(candidates.map((u) => u.replace(/([^:]\/)\/+/g, '$1')))];
+}
+
+async function postUsersWithFallbackFetch(path, payload, token) {
+    let last404Response = null;
+    const attemptedUrls = getUsersEndpointCandidates(path);
+    for (const url of attemptedUrls) {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.status === 404) {
+            last404Response = response;
+            continue;
+        }
+        return response;
+    }
+    if (last404Response) {
+        const attemptsText = attemptedUrls.join(' | ');
+        throw new Error(`All note endpoints returned 404. Attempts: ${attemptsText}`);
+    }
+    return last404Response;
+}
 
 const BibleCard = ({ bible, idx, updateWorkspaceHymn, removeFromWorkspace, openLyrics, openPresentation }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -411,7 +451,7 @@ export default function WorkSpace() {
     }, [dockOpen]);
     // ───────────────────────────────────────────────────────────────────
     const { workspace, removeFromWorkspace, updateWorkspaceHymn } = useContext(HymnsContext);
-    const { isLogin, UserRole, vocalsMode } = useContext(UserContext);
+    const { isLogin, UserRole, vocalsMode, user_id } = useContext(UserContext);
 
     // Categories Configuration for Icon Lookup
     const categories = [
@@ -499,6 +539,72 @@ export default function WorkSpace() {
             border: 'rgba(96,165,250,0.1)'
         }
     };
+    const handleSaveNote = async () => {
+        if (!noteText.trim() || !noteModalConfig) return;
+        // isLogin holds the JWT token in this app (from user_Taspe7_Token)
+        const token = isLogin;
+        const userid = user_id;
+        if (!token || !userid) {
+            console.error('Note save failed: not authenticated', { token: !!token, userid });
+            alert('You must be logged in to save notes.');
+            return;
+        }
+        setIsSubmittingNote(true);
+        try {
+            if (noteModalConfig.type === 'bible') {
+                const verse = noteModalConfig.data;
+                const response = await postUsersWithFallbackFetch('bible-note', {
+                    userid,
+                    verseId: verse._id,
+                    bookName: verse.bookName || 'Unknown',
+                    chapter: verse.chapter || 1,
+                    verseNumber: verse.verseNumber,
+                    text: verse.text,
+                    note: noteText
+                }, token);
+
+                if (!response?.ok) {
+                    const rawText = await response.text();
+                    let message = rawText || response?.statusText || 'Request failed';
+                    try {
+                        const parsed = JSON.parse(rawText);
+                        message = parsed?.message || message;
+                    } catch (_) {
+                        // HTML error bodies are expected on some 404 responses.
+                    }
+                    throw new Error(message);
+                }
+            } else if (noteModalConfig.type === 'hymn') {
+                const hymn = noteModalConfig.data;
+                const response = await postUsersWithFallbackFetch('hymn-note', {
+                    userid,
+                    hymnId: hymn._id || hymn.hymnId,
+                    title: hymn.title,
+                    note: noteText
+                }, token);
+
+                if (!response?.ok) {
+                    const rawText = await response.text();
+                    let message = rawText || response?.statusText || 'Request failed';
+                    try {
+                        const parsed = JSON.parse(rawText);
+                        message = parsed?.message || message;
+                    } catch (_) {
+                        // HTML error bodies are expected on some 404 responses.
+                    }
+                    throw new Error(message);
+                }
+            }
+            setNoteModalConfig(null);
+            setNoteText('');
+        } catch (err) {
+            console.error('Note save error:', err);
+            alert('Failed to save note: ' + err.message);
+        } finally {
+            setIsSubmittingNote(false);
+        }
+    };
+
     const [isClosing, setIsClosing] = useState(false);
 
     // Data Show State

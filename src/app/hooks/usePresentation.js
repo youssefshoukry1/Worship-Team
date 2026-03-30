@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { io } from 'socket.io-client';
+import { getApiBaseUrl } from '../utils/apiBase';
 
-const API_URL = "https://worship-team-api.onrender.com/api";
-const SOCKET_URL = API_URL.replace(/\/api\/?$/, '');
+const API_URL = getApiBaseUrl();
+const SOCKET_URL = (process.env.NEXT_PUBLIC_SOCKET_URL || API_URL.replace(/\/api\/?$/, '')).replace(/\/+$/, '');
 
 const ICE_SERVERS = {
     iceServers: [

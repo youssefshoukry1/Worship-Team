@@ -15,9 +15,84 @@ import { useLanguage } from "../context/LanguageContext";
 import { Virtuoso } from "react-virtuoso";
 import { usePresentation } from '../hooks/usePresentation';
 import { normalizeBibleBooksFromApi } from '../utils/bibleBooks';
+import { getApiBaseUrl } from '../utils/apiBase';
 
-const API_ROOT = (process.env.NEXT_PUBLIC_API_URL || 'https://worship-team-api.onrender.com/api').replace(/\/$/, '');
+const API_ROOT = getApiBaseUrl();
 const BIBLE_API = `${API_ROOT}/bible`;
+const LOCAL_BIBLE_NOTES_KEY = 'taspe7_local_bible_notes';
+
+function readLocalBibleNotes() {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(LOCAL_BIBLE_NOTES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalBibleNote(verseId, note) {
+  if (typeof window === 'undefined' || !verseId) return;
+  const current = readLocalBibleNotes();
+  current[String(verseId)] = String(note || '');
+  localStorage.setItem(LOCAL_BIBLE_NOTES_KEY, JSON.stringify(current));
+}
+
+function getUsersEndpointCandidates(path) {
+  const normalizedPath = String(path || '').replace(/^\/+/, '');
+  const withApi = API_ROOT;
+  const withoutApi = API_ROOT.replace(/\/api$/i, '');
+  const candidates = [
+    `${withApi}/users/${normalizedPath}`,
+    `${withoutApi}/api/users/${normalizedPath}`,
+    `${withoutApi}/users/${normalizedPath}`,
+    `${withApi}/api/users/${normalizedPath}`
+  ];
+  return [...new Set(candidates.map((u) => u.replace(/([^:]\/)\/+/g, '$1')))];
+}
+
+async function postUsersWithFallback(path, body, config) {
+  let last404Error = null;
+  const attempted = [];
+  for (const url of getUsersEndpointCandidates(path)) {
+    try {
+      return await axios.post(url, body, config);
+    } catch (err) {
+      attempted.push({ url, status: err?.response?.status });
+      if (err?.response?.status === 404) {
+        last404Error = err;
+        continue;
+      }
+      throw err;
+    }
+  }
+  if (last404Error) {
+    last404Error.message = `${last404Error.message} | Attempts: ${attempted.map(a => `${a.status || 'ERR'} ${a.url}`).join(' | ')}`;
+  }
+  throw last404Error || new Error(`Unable to POST /users/${path}`);
+}
+
+async function getUsersWithFallback(path, config) {
+  let last404Error = null;
+  const attempted = [];
+  for (const url of getUsersEndpointCandidates(path)) {
+    try {
+      return await axios.get(url, config);
+    } catch (err) {
+      attempted.push({ url, status: err?.response?.status });
+      if (err?.response?.status === 404) {
+        last404Error = err;
+        continue;
+      }
+      throw err;
+    }
+  }
+  if (last404Error) {
+    last404Error.message = `${last404Error.message} | Attempts: ${attempted.map(a => `${a.status || 'ERR'} ${a.url}`).join(' | ')}`;
+  }
+  throw last404Error || new Error(`Unable to GET /users/${path}`);
+}
 
 function bibleTestamentAr(testament) {
   return String(testament || '').toLowerCase() === 'new' ? 'العهد الجديد' : 'العهد القديم';
@@ -25,7 +100,7 @@ function bibleTestamentAr(testament) {
 
 export default function Category_Humns() {
   const queryClient = useQueryClient();
-  const { isLogin, UserRole, vocalsMode } = useContext(UserContext);
+  const { isLogin, UserRole, vocalsMode, user_id } = useContext(UserContext);
   const { addToWorkspace, isHymnInWorkspace } = useContext(HymnsContext)
   const { t, language, setLanguage } = useLanguage();
 
@@ -63,6 +138,13 @@ export default function Category_Humns() {
   const bibleBookPickerRef = useRef(null);
   const bibleChapterPickerRef = useRef(null);
   const [isSavingBible, setIsSavingBible] = useState(false);
+
+  // Notes: keyed by verseId for O(1) lookup
+  const [verseNotes, setVerseNotes] = useState({}); // { [verseId]: noteText }
+  const [noteModalConfig, setNoteModalConfig] = useState(null); // { type, data, existingNote }
+  const [noteText, setNoteText] = useState('');
+  const [isSubmittingNote, setIsSubmittingNote] = useState(false);
+  const [viewNoteConfig, setViewNoteConfig] = useState(null); // { verse, note }
 
   useEffect(() => {
     if (!biblePickerOpen) return;
@@ -173,6 +255,82 @@ export default function Category_Humns() {
 
     return () => clearTimeout(handler);
   }, [bibleSearchQuery]);
+
+  const handleSaveNote = async () => {
+    if (!noteText.trim() || !noteModalConfig) return;
+    // Use the correct localStorage keys this app actually uses
+    const token = typeof window !== 'undefined' ? localStorage.getItem('user_Taspe7_Token') : null;
+    const userid = user_id; // from UserContext, key: user_Taspe7_ID
+    if (!token || !userid) {
+      console.error('Note save failed: missing token or user ID', { token: !!token, userid });
+      alert('You must be logged in to save notes.');
+      return;
+    }
+    
+    setIsSubmittingNote(true);
+    try {
+      if (noteModalConfig.type === 'bible') {
+        const verse = noteModalConfig.data;
+        await postUsersWithFallback('bible-note', {
+          userid,
+          verseId: verse._id,
+          bookName: bibleModalBook?.bookName || verse.bookName || 'Unknown',
+          chapter: bibleModalChapter || verse.chapter || 1,
+          verseNumber: verse.verseNumber,
+          text: verse.text,
+          note: noteText
+        }, { headers: { Authorization: `Bearer ${token}` } });
+        // Update local state immediately for instant feedback
+        setVerseNotes(prev => ({ ...prev, [verse._id]: noteText }));
+      } else if (noteModalConfig.type === 'hymn') {
+        const hymn = noteModalConfig.data;
+        await postUsersWithFallback('hymn-note', {
+          userid,
+          hymnId: hymn._id || hymn.hymnId,
+          title: hymn.title,
+          note: noteText
+        }, { headers: { Authorization: `Bearer ${token}` } });
+      }
+      setNoteModalConfig(null);
+      setNoteText('');
+    } catch (err) {
+      if (err?.response?.status === 404 && noteModalConfig?.type === 'bible') {
+        const verse = noteModalConfig.data;
+        writeLocalBibleNote(verse?._id, noteText);
+        setVerseNotes(prev => ({ ...prev, [verse?._id]: noteText }));
+        setNoteModalConfig(null);
+        setNoteText('');
+        alert('Saved locally on this device. Backend note route is still returning 404.');
+        return;
+      }
+      console.error('Failed to save note:', err?.response?.data || err.message);
+      alert('Failed to save note: ' + (err?.response?.data?.message || err.message));
+    } finally {
+      setIsSubmittingNote(false);
+    }
+  };
+
+  // Load user's existing bible notes on login
+  useEffect(() => {
+    if (!isLogin || !user_id) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('user_Taspe7_Token') : null;
+    if (!token) return;
+    // Fetch user's notes and index by verseId for O(1) lookup
+    getUsersWithFallback('my-notes', { headers: { Authorization: `Bearer ${token}` } })
+      .then(({ data }) => {
+        const localMap = readLocalBibleNotes();
+        if (Array.isArray(data?.bibleNotes)) {
+          const map = {};
+          data.bibleNotes.forEach(n => { if (n.verseId) map[n.verseId] = n.note; });
+          setVerseNotes({ ...map, ...localMap });
+        } else {
+          setVerseNotes(localMap);
+        }
+      })
+      .catch(() => {
+        setVerseNotes(readLocalBibleNotes());
+      });
+  }, [isLogin, user_id]);
 
   const closeBibleModal = () => {
     setIsClosing(true);
@@ -1392,6 +1550,7 @@ export default function Category_Humns() {
                       t={t}
                       vocalsMode={vocalsMode}
                       UserRole={UserRole}
+                      setNoteModalConfig={setNoteModalConfig}
                     />
                   </div>
                 )}
@@ -2148,6 +2307,7 @@ export default function Category_Humns() {
                             {/* Verses List - Fast scrolling without animations */}
                             {bibleModalVerses.map((verse, vIdx) => {
                               const isSelectedIndividual = bibleSelectedVerseIds.has(verse._id);
+                              const existingNote = verseNotes[verse._id];
                               return (
                                 <div
                                   key={verse._id}
@@ -2160,22 +2320,51 @@ export default function Category_Humns() {
                                     }
                                     setBibleSelectedVerseIds(newSelection);
                                   }}
-                                  className={`group relative cursor-pointer p-4 rounded-xl transition-all duration-200 ${isSelectedIndividual
-                                    ? 'bg-white/5 border border-white/10'
-                                    : 'hover:bg-white/5 border border-white/0 hover:border-white/10'
-                                    }`}
+                                  className={`group relative cursor-pointer p-4 rounded-xl transition-all duration-200 ${
+                                    existingNote
+                                      ? 'bg-indigo-500/5 border border-indigo-500/20'
+                                      : isSelectedIndividual
+                                        ? 'bg-white/5 border border-white/10'
+                                        : 'hover:bg-white/5 border border-white/0 hover:border-white/10'
+                                  }`}
                                 >
                                   <div className="flex items-start gap-4 sm:gap-8">
-                                    <span className={`shrink-0 mt-1 text-xs sm:text-sm font-black transition-colors min-w-[25px] sm:min-w-[30px] text-center ${isSelectedIndividual ? 'text-sky-500/70' : 'text-white/30 group-hover:text-sky-500/70'}`}>
-                                      {verse.verseNumber}
-                                    </span>
+                                    <div className="shrink-0 flex flex-col items-center gap-1 min-w-[25px] sm:min-w-[30px] mt-1">
+                                      <span className={`text-xs sm:text-sm font-black transition-colors text-center ${
+                                        isSelectedIndividual ? 'text-sky-500/70' : 'text-white/30 group-hover:text-sky-500/70'
+                                      }`}>
+                                        {verse.verseNumber}
+                                      </span>
+                                      {existingNote && (
+                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" title="Has note" />
+                                      )}
+                                    </div>
                                     <div className="flex-1 flex flex-col gap-2 min-w-0">
                                       <p
-                                        className={`leading-relaxed sm:leading-normal font-arabic transition-all break-words ${isSelectedIndividual ? 'text-white' : 'text-white/80 group-hover:text-white'}`}
+                                        className={`leading-relaxed sm:leading-normal font-arabic transition-all break-words ${
+                                          isSelectedIndividual ? 'text-white' : 'text-white/80 group-hover:text-white'
+                                        }`}
                                         style={{ fontSize: `${bibleVerseFontSize}px` }}
                                       >
                                         {verse.text}
                                       </p>
+
+                                      {/* Inline Note Preview - always visible if note exists */}
+                                      {existingNote && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setViewNoteConfig({ verse, note: existingNote });
+                                          }}
+                                          className="flex items-start gap-2 mt-1 text-left w-full group/note"
+                                        >
+                                          <div className="w-0.5 bg-indigo-400/50 self-stretch rounded-full shrink-0 group-hover/note:bg-indigo-400 transition-colors" />
+                                          <p className="text-[11px] text-indigo-300/70 group-hover/note:text-indigo-300 transition-colors line-clamp-2 leading-relaxed" dir="rtl">
+                                            {existingNote}
+                                          </p>
+                                        </button>
+                                      )}
+
                                       {isSelectedIndividual && (
                                         <div className="flex gap-2 mt-2 flex-wrap">
                                           <button
@@ -2186,6 +2375,21 @@ export default function Category_Humns() {
                                             className="px-3 py-1.5 text-xs font-bold rounded-lg bg-sky-500/30 text-sky-200 border border-sky-500/50 hover:bg-sky-500/40 transition-all active:scale-95"
                                           >
                                             <Monitor className="w-3 h-3 inline mr-1" /> Present
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setNoteText(existingNote || '');
+                                              setNoteModalConfig({ type: 'bible', data: verse, existingNote });
+                                            }}
+                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all active:scale-95 ${
+                                              existingNote
+                                                ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-400/40 hover:bg-indigo-500/30'
+                                                : 'bg-indigo-500/30 text-indigo-200 border border-indigo-500/50 hover:bg-indigo-500/40'
+                                            }`}
+                                          >
+                                            <FileText className="w-3 h-3 inline mr-1" />
+                                            {existingNote ? 'Edit Note' : 'Add Note'}
                                           </button>
                                         </div>
                                       )}
@@ -2483,6 +2687,184 @@ export default function Category_Humns() {
 
         </div >
       )}
+
+      {/* Note Modal */}
+      {/* ── Note Write Modal ── z-[500] sits above everything including bible modal at z-[100] */}
+      <AnimatePresence>
+        {noteModalConfig && (
+          <Portal>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center p-0 sm:p-6"
+              style={{ isolation: 'isolate' }}
+            >
+              {/* Backdrop - stopPropagation prevents bible modal from reacting */}
+              <div
+                className="absolute inset-0 bg-black/70 backdrop-blur-md"
+                onClick={(e) => { e.stopPropagation(); setNoteModalConfig(null); setNoteText(''); }}
+              />
+              <motion.div
+                initial={{ y: 60, opacity: 0, scale: 0.97 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                exit={{ y: 40, opacity: 0, scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                className="relative w-full sm:max-w-lg bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border border-indigo-500/20 rounded-t-3xl sm:rounded-3xl shadow-[0_0_60px_-10px_rgba(99,102,241,0.3)] overflow-hidden flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Decorative top bar mobile */}
+                <div className="sm:hidden w-10 h-1 bg-white/20 rounded-full mx-auto mt-3 mb-1" />
+
+                {/* Glowing header strip */}
+                <div className="h-px bg-gradient-to-r from-transparent via-indigo-500/60 to-transparent" />
+
+                <div className="px-6 py-5 flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+                      <FileText className="w-4 h-4 text-indigo-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white">
+                        {noteModalConfig.existingNote ? (language === 'ar' ? 'تعديل الملاحظة' : 'Edit Note') : (language === 'ar' ? 'إضافة ملاحظة' : 'Add Note')}
+                      </h3>
+                      <p className="text-[10px] text-indigo-400/60 font-mono uppercase tracking-widest mt-0.5">
+                        {noteModalConfig.type === 'bible' ? `Verse ${noteModalConfig.data.verseNumber}` : 'Hymn'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { setNoteModalConfig(null); setNoteText(''); }}
+                    className="p-1.5 text-white/30 hover:text-white/80 rounded-lg hover:bg-white/10 transition-all shrink-0 mt-0.5"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Verse preview */}
+                <div className="mx-6 mb-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                  <p className="text-sm text-white/50 leading-relaxed line-clamp-3" dir="rtl">
+                    {noteModalConfig.type === 'bible' ? noteModalConfig.data.text : noteModalConfig.data.title}
+                  </p>
+                </div>
+
+                <div className="px-6 pb-2">
+                  <textarea
+                    autoFocus
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder={language === 'ar' ? 'اكتب ملاحظتك هنا...' : 'Write your note here...'}
+                    rows={4}
+                    className="w-full bg-white/[0.04] border border-white/10 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 resize-none text-sm leading-relaxed transition-all"
+                    dir="rtl"
+                  />
+                </div>
+
+                <div className="flex items-center gap-3 px-6 py-5">
+                  <button
+                    onClick={() => { setNoteModalConfig(null); setNoteText(''); }}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white/40 hover:text-white/70 hover:bg-white/5 transition-all border border-white/10"
+                  >
+                    {language === 'ar' ? 'إلغاء' : 'Cancel'}
+                  </button>
+                  <button
+                    onClick={handleSaveNote}
+                    disabled={isSubmittingNote || !noteText.trim()}
+                    className="flex-[2] py-2.5 rounded-xl text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
+                  >
+                    {isSubmittingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    {language === 'ar' ? 'حفظ الملاحظة' : 'Save Note'}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          </Portal>
+        )}
+      </AnimatePresence>
+
+      {/* ── View Note Modal ── beautiful read view at z-[500] */}
+      <AnimatePresence>
+        {viewNoteConfig && (
+          <Portal>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[500] flex items-center justify-center p-4 sm:p-8"
+              style={{ isolation: 'isolate' }}
+              onClick={(e) => { e.stopPropagation(); setViewNoteConfig(null); }}
+            >
+              <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
+              <motion.div
+                initial={{ scale: 0.92, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.94, opacity: 0, y: 10 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+                className="relative w-full max-w-md bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border border-indigo-500/30 rounded-3xl shadow-[0_0_80px_-10px_rgba(99,102,241,0.4)] overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Ambient glow */}
+                <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="h-px bg-gradient-to-r from-transparent via-indigo-400/50 to-transparent" />
+
+                <div className="p-6">
+                  {/* Reference tag */}
+                  <div className="flex items-center gap-2 mb-5">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/25">
+                      <BookOpen className="w-3 h-3 text-indigo-400" />
+                      <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">
+                        Verse {viewNoteConfig.verse.verseNumber}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* The verse text */}
+                  <div className="mb-5 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+                    <p className="text-white/60 text-sm leading-relaxed" dir="rtl">
+                      {viewNoteConfig.verse.text}
+                    </p>
+                  </div>
+
+                  {/* Divider with label */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex-1 h-px bg-indigo-500/20" />
+                    <span className="text-[10px] font-bold text-indigo-400/60 uppercase tracking-widest">Your Note</span>
+                    <div className="flex-1 h-px bg-indigo-500/20" />
+                  </div>
+
+                  {/* The note */}
+                  <div className="relative">
+                    <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-indigo-500 to-indigo-500/0 rounded-full" />
+                    <p className="pl-4 text-indigo-100 text-sm leading-relaxed" dir="rtl">
+                      {viewNoteConfig.note}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={() => {
+                        setViewNoteConfig(null);
+                        setNoteText(viewNoteConfig.note);
+                        setNoteModalConfig({ type: 'bible', data: viewNoteConfig.verse, existingNote: viewNoteConfig.note });
+                      }}
+                      className="flex-1 py-2.5 rounded-xl text-xs font-bold border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/10 transition-all"
+                    >
+                      Edit Note
+                    </button>
+                    <button
+                      onClick={() => setViewNoteConfig(null)}
+                      className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-indigo-600/80 hover:bg-indigo-500 text-white transition-all"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          </Portal>
+        )}
+      </AnimatePresence>
+
     </div >
 
   </section >
@@ -2558,7 +2940,7 @@ function KeyDisplay({ scale, relatedChords, onTranspose }) {
   );
 }
 
-function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, canEdit, delete_Hymn, openEditModal, variants, t, openLyrics, openPresentation, vocalsMode, UserRole }) {
+function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, canEdit, delete_Hymn, openEditModal, variants, t, openLyrics, openPresentation, vocalsMode, UserRole, setNoteModalConfig }) {
   const [transposeStep, setTransposeStep] = useState(0);
 
   // Handle adding to workspace with transposed values
@@ -2685,6 +3067,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
             </button>
           </>
         )}
+
       </div>
 
 
@@ -2704,7 +3087,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
         ) : (
           <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-white/5 text-gray-600 border border-white/5 w-full sm:w-auto justify-center cursor-default group/soon relative overflow-hidden">
             <PlayCircle className="w-4 h-4 shrink-0 opacity-20" />
-            <span className="text-xs sm:text-sm font-medium">Coming soon</span>
+            <span className="text-xs sm:text-sm font-medium">{t("listen")}</span>
           </div>
         )}
 

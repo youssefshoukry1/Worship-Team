@@ -14,8 +14,9 @@ import {
     Users,
 } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
+import { getApiBaseUrl } from '../utils/apiBase';
 
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://worship-team-api.onrender.com/api').replace(/\/$/, '');
+const API_URL = getApiBaseUrl();
 const UNKNOWN_EVENT = 'Unknown Event';
 
 const normalizeText = (value) => (typeof value === 'string' ? value.trim() : '');
