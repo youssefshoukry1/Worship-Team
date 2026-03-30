@@ -2661,15 +2661,21 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
           {isHymnInWorkspace(humn._id) ? <Check className="w-4 h-4" /> : <FolderPlus className="w-4 h-4" />}
         </button>
 
+        {UserRole === PROGRAMER ? (
+          <button
+            onClick={() => delete_Hymn(humn._id)}
+            className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
+            title={t("deleteSong")}
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        ) : null
+
+        }
+
+
         {canEdit && (
           <>
-            <button
-              onClick={() => delete_Hymn(humn._id)}
-              className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
-              title={t("deleteSong")}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
             <button
               onClick={() => openEditModal(humn)}
               className="p-2.5 rounded-xl text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
