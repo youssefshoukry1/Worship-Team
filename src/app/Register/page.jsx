@@ -45,7 +45,7 @@ export default function Register() {
         Name: Yup.string()
             .required("name is required")
             .min(3, "min lenght is 3")
-            .max(10, "max lenght is 10"),
+            .max(20, "max lenght is 20"),
         email: Yup.string()
             .required("email is required")
             .email("enter availed email"),
