@@ -1391,6 +1391,7 @@ export default function Category_Humns() {
                       openPresentation={openPresentation}
                       t={t}
                       vocalsMode={vocalsMode}
+                      UserRole={UserRole}
                     />
                   </div>
                 )}
@@ -2557,7 +2558,7 @@ function KeyDisplay({ scale, relatedChords, onTranspose }) {
   );
 }
 
-function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, canEdit, delete_Hymn, openEditModal, variants, t, openLyrics, openPresentation, vocalsMode }) {
+function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, canEdit, delete_Hymn, openEditModal, variants, t, openLyrics, openPresentation, vocalsMode, UserRole }) {
   const [transposeStep, setTransposeStep] = useState(0);
 
   // Handle adding to workspace with transposed values
@@ -2661,7 +2662,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
           {isHymnInWorkspace(humn._id) ? <Check className="w-4 h-4" /> : <FolderPlus className="w-4 h-4" />}
         </button>
 
-        {UserRole === PROGRAMER ? (
+        {UserRole === 'PROGRAMER' ? (
           <button
             onClick={() => delete_Hymn(humn._id)}
             className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
@@ -2670,7 +2671,6 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
             <Trash2 className="w-4 h-4" />
           </button>
         ) : null
-
         }
 
 
