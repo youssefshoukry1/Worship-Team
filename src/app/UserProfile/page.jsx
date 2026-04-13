@@ -2,6 +2,7 @@
 
 import { useContext, useEffect, useState } from 'react';
 import {
+    Activity,
     BarChart3,
     Building2,
     CalendarCheck,
@@ -58,7 +59,7 @@ const titleCase = (value) => {
         .join(' ');
 };
 
-const previewText = (value, maxLength = 140) => {
+const previewText = (value, maxLength = 80) => {
     const text = normalizeText(value);
     if (!text) return 'No details available';
     if (text.length <= maxLength) return text;
@@ -351,6 +352,20 @@ const buildComparisonMetrics = (memberRows, currentUserId, scope, eventKey = '')
     };
 };
 
+/* --- UI COMPONENTS --- */
+
+function Badge({ icon: Icon, label, value, classes = "text-slate-200 bg-white/5 border-white/10" }) {
+    return (
+        <div className={`px-3 py-2 rounded-xl border flex items-center gap-2 ${classes}`}>
+             <Icon className="w-3.5 h-3.5 opacity-70" />
+             <div className="flex flex-col">
+                  <span className="text-[9px] uppercase tracking-wider opacity-60 leading-[1]">{label}</span>
+                  <span className="text-xs sm:text-sm font-semibold leading-[1.2] mt-0.5">{value}</span>
+             </div>
+        </div>
+    );
+}
+
 function SummaryCard({
     icon: Icon,
     title,
@@ -358,57 +373,85 @@ function SummaryCard({
     primaryValue,
     secondaryLabel,
     secondaryValue,
-    accentClass = 'text-sky-300',
+    accentClass = 'text-sky-400',
+    bgClass = 'bg-sky-500/10 border-sky-400/20'
 }) {
     return (
-        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-            <p className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
-                <Icon className={`h-4 w-4 ${accentClass}`} />
-                {title}
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                    <p className="text-[11px] uppercase tracking-wide text-slate-400">{primaryLabel}</p>
-                    <p className={`mt-1 text-2xl font-bold ${accentClass}`}>{primaryValue}</p>
+        <div className={`rounded-2xl border ${bgClass} p-4 sm:p-5 flex flex-col justify-between transition-transform hover:scale-[1.02] duration-300`}>
+            <div className="flex items-center gap-2 mb-4">
+                <div className={`p-2 rounded-lg bg-black/30 backdrop-blur-md ${accentClass}`}>
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                    <p className="text-[11px] uppercase tracking-wide text-slate-400">{secondaryLabel}</p>
-                    <p className="mt-1 text-2xl font-bold text-white">{secondaryValue}</p>
+                <p className="text-xs sm:text-sm font-bold tracking-wide text-white">
+                    {title}
+                </p>
+            </div>
+            <div className="flex items-end justify-between mt-auto">
+                <div>
+                     <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 font-semibold">{primaryLabel}</p>
+                     <p className={`text-3xl sm:text-4xl font-black ${accentClass} leading-none`}>{primaryValue}</p>
+                </div>
+                <div className="text-right">
+                     <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 font-semibold">{secondaryLabel}</p>
+                     <p className="text-xl sm:text-2xl font-bold text-slate-200 leading-none">{secondaryValue}</p>
                 </div>
             </div>
         </div>
     );
 }
 
-function ComparisonCard({ title, metrics, accentClass = 'text-sky-300' }) {
+function ComparisonCard({ title, metrics, accentClass = 'text-sky-400', bgClass = 'bg-black/20' }) {
     return (
-        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">{title}</p>
-            <p className={`mt-2 text-3xl font-bold ${accentClass}`}>{metrics.count}</p>
-            <div className="mt-3 space-y-1 text-xs text-slate-300">
-                <p>Church average: {formatAverage(metrics.average)}</p>
-                <p>Rank: {metrics.rank ? `${metrics.rank} / ${metrics.totalMembers}` : 'N/A'}</p>
-                <p>Users ahead: {metrics.usersAhead}</p>
-                <p>Leader: {metrics.leaderName} ({metrics.leaderCount})</p>
-            </div>
+        <div className={`rounded-2xl border border-white/5 ${bgClass} p-4 sm:p-5 relative overflow-hidden flex flex-col justify-between`}>
+             <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-300">{title}</p>
+             <div className="mt-4 mb-5 flex items-end gap-2">
+                 <p className={`text-5xl sm:text-6xl font-black ${accentClass} leading-none tracking-tighter`}>{metrics.count}</p>
+                 <p className="text-xs text-slate-400 mb-1.5 font-bold tracking-wide">TOTAL</p>
+             </div>
+             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-[10px] sm:text-xs text-slate-300">
+                 <div className="bg-white/5 rounded-xl p-2.5">
+                     <p className="text-slate-500 uppercase tracking-widest text-[8px] sm:text-[9px] mb-1 font-bold">Average</p>
+                     <p className="font-bold text-white text-sm sm:text-base">{formatAverage(metrics.average)}</p>
+                 </div>
+                 <div className="bg-white/5 rounded-xl p-2.5">
+                     <p className="text-slate-500 uppercase tracking-widest text-[8px] sm:text-[9px] mb-1 font-bold">Rank</p>
+                     <p className="font-bold text-white text-sm sm:text-base">{metrics.rank ? `#${metrics.rank} of ${metrics.totalMembers}` : 'N/A'}</p>
+                 </div>
+                 <div className="bg-white/5 rounded-xl p-2.5">
+                     <p className="text-slate-500 uppercase tracking-widest text-[8px] sm:text-[9px] mb-1 font-bold">Leading By</p>
+                     <p className="font-bold text-white text-sm sm:text-base truncate" title={metrics.leaderName}>{metrics.leaderName}</p>
+                 </div>
+                 <div className="bg-white/5 rounded-xl p-2.5">
+                     <p className="text-slate-500 uppercase tracking-widest text-[8px] sm:text-[9px] mb-1 font-bold">Leader Score</p>
+                     <p className="font-bold text-white text-sm sm:text-base">{metrics.leaderCount}</p>
+                 </div>
+             </div>
         </div>
     );
 }
 
-function ListPanel({ title, icon: Icon, accentClass = 'text-sky-300', items, emptyText, renderItem }) {
+function ListPanel({ title, icon: Icon, accentClass = 'text-sky-400', iconBgClass = 'bg-sky-500/20 text-sky-400 border-sky-500/30', items, emptyText, renderItem }) {
     return (
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl sm:p-5">
-            <h2 className="mb-4 inline-flex items-center gap-2 text-base font-bold text-white sm:text-lg">
-                <Icon className={`h-5 w-5 ${accentClass}`} />
-                {title}
-            </h2>
-            <div className="max-h-[52vh] min-h-[180px] space-y-3 overflow-y-auto overscroll-contain pr-1 sm:max-h-[420px]">
+        <div className="flex flex-col h-full rounded-3xl border border-white/5 bg-white/[0.03] backdrop-blur-2xl overflow-hidden shadow-xl shadow-black/20">
+            <div className="flex items-center gap-3 border-b border-white/5 p-4 sm:p-5 bg-black/20">
+                <div className={`p-2 rounded-xl flex items-center justify-center border ${iconBgClass}`}>
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                </div>
+                <h2 className="text-sm sm:text-base font-bold text-white tracking-wide">
+                    {title}
+                </h2>
+                <div className="ml-auto bg-white/10 text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-lg text-slate-300">
+                    {items.length} records
+                </div>
+            </div>
+            <div className="flex-1 p-3 sm:p-5 overflow-y-auto max-h-[350px] space-y-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20">
                 {items.length > 0 ? (
-                    items.map(renderItem)
+                    items.map((item, index) => renderItem(item, index))
                 ) : (
-                    <p className="rounded-2xl border border-dashed border-white/15 bg-black/10 p-5 text-center text-sm text-slate-400">
-                        {emptyText}
-                    </p>
+                    <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 h-[200px]">
+                        <Icon className="w-10 h-10 mb-3 opacity-20" />
+                        <p className="text-xs font-semibold">{emptyText}</p>
+                    </div>
                 )}
             </div>
         </div>
@@ -417,56 +460,68 @@ function ListPanel({ title, icon: Icon, accentClass = 'text-sky-300', items, emp
 
 function PeerComparisonCard({ member, isCurrentUser, selectedEventKey, selectedEventLabel }) {
     return (
-        <div className={`rounded-2xl border p-4 ${isCurrentUser ? 'border-sky-400/30 bg-sky-500/10' : 'border-white/10 bg-black/20'}`}>
-            <div className="flex items-center justify-between gap-3">
-                <div>
-                    <p className="font-semibold text-white">{member.name}</p>
-                    {isCurrentUser && (
-                        <p className="mt-1 text-[11px] uppercase tracking-wide text-sky-200">You</p>
-                    )}
+        <div className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 transition-colors ${isCurrentUser ? 'border-sky-400/40 bg-sky-900/20 shadow-[0_0_20px_rgba(56,189,248,0.1)]' : 'border-white/5 bg-black/20 hover:bg-white/5'}`}>
+            {isCurrentUser && <div className="absolute top-0 right-0 w-24 h-24 bg-sky-400/10 blur-2xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>}
+            
+            <div className="flex items-center justify-between gap-3 mb-4 relative z-10">
+                <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-inner ${isCurrentUser ? 'bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-sky-400/20' : 'bg-gradient-to-br from-slate-700 to-slate-900 text-slate-300 border border-white/5'}`}>
+                        {member.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <p className={`font-bold text-sm sm:text-base ${isCurrentUser ? 'text-white' : 'text-slate-200'}`}>{member.name}</p>
+                            {isCurrentUser && (
+                                <span className="bg-sky-500/20 text-sky-300 text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md border border-sky-400/20">You</span>
+                            )}
+                        </div>
+                    </div>
                 </div>
-                <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-right">
-                    <p className="text-[11px] uppercase tracking-wide text-slate-400">All Events</p>
-                    <p className="text-xl font-bold text-sky-300">{member.allCount}</p>
+                <div className="text-right">
+                    <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-0.5">Total Count</p>
+                    <p className={`text-2xl font-black leading-none ${isCurrentUser ? 'text-sky-400' : 'text-white'}`}>{member.allCount}</p>
                 </div>
             </div>
 
-            <div className="mt-3 grid grid-cols-3 gap-2">
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
-                    <p className="text-[11px] uppercase tracking-wide text-slate-400">Current</p>
-                    <p className="mt-1 text-lg font-bold text-emerald-300">{member.currentCount}</p>
+            <div className="grid grid-cols-2 gap-2 relative z-10">
+                <div className="rounded-xl border border-white/5 bg-white/5 p-3 flex justify-between items-center">
+                    <div className="flex items-center gap-1.5 opacity-60">
+                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
+                         <p className="text-[10px] uppercase tracking-wide font-bold">Current</p>
+                    </div>
+                    <p className="text-sm font-black text-emerald-400">{member.currentCount}</p>
                 </div>
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
-                    <p className="text-[11px] uppercase tracking-wide text-slate-400">History</p>
-                    <p className="mt-1 text-lg font-bold text-amber-300">{member.historyCount}</p>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
-                    <p className="text-[11px] uppercase tracking-wide text-slate-400">Total</p>
-                    <p className="mt-1 text-lg font-bold text-sky-300">{member.allCount}</p>
+                <div className="rounded-xl border border-white/5 bg-white/5 p-3 flex justify-between items-center">
+                    <div className="flex items-center gap-1.5 opacity-60">
+                         <div className="w-1.5 h-1.5 rounded-full bg-amber-400"></div>
+                         <p className="text-[10px] uppercase tracking-wide font-bold">History</p>
+                    </div>
+                    <p className="text-sm font-black text-amber-400">{member.historyCount}</p>
                 </div>
             </div>
 
             {selectedEventKey && (
-                <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                        {selectedEventLabel}
+                <div className="mt-3 pt-3 border-t border-white/10 relative z-10">
+                    <p className="mb-2.5 text-[10px] font-bold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
+                        <Target className="w-3.5 h-3.5" />
+                        {selectedEventLabel} Focus
                     </p>
                     <div className="grid grid-cols-3 gap-2">
-                        <div className="rounded-lg border border-white/10 bg-black/20 p-2 text-center">
-                            <p className="text-[10px] uppercase tracking-wide text-slate-400">Current</p>
-                            <p className="mt-1 font-bold text-emerald-300">
+                        <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
+                            <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-slate-500 font-bold mb-1">Current</p>
+                            <p className="font-black text-emerald-400/90 text-sm">
                                 {member.countsByEvent.current[selectedEventKey] || 0}
                             </p>
                         </div>
-                        <div className="rounded-lg border border-white/10 bg-black/20 p-2 text-center">
-                            <p className="text-[10px] uppercase tracking-wide text-slate-400">History</p>
-                            <p className="mt-1 font-bold text-amber-300">
+                        <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
+                            <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-slate-500 font-bold mb-1">History</p>
+                            <p className="font-black text-amber-400/90 text-sm">
                                 {member.countsByEvent.history[selectedEventKey] || 0}
                             </p>
                         </div>
-                        <div className="rounded-lg border border-white/10 bg-black/20 p-2 text-center">
-                            <p className="text-[10px] uppercase tracking-wide text-slate-400">Total</p>
-                            <p className="mt-1 font-bold text-sky-300">
+                        <div className="rounded-lg bg-indigo-500/10 p-2 text-center border border-indigo-500/20">
+                            <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-indigo-300/70 font-bold mb-1">Total</p>
+                            <p className="font-black text-indigo-400 text-sm">
                                 {member.countsByEvent.all[selectedEventKey] || 0}
                             </p>
                         </div>
@@ -477,6 +532,9 @@ function PeerComparisonCard({ member, isCurrentUser, selectedEventKey, selectedE
     );
 }
 
+
+/* --- MAIN PAGE COMPONENT --- */
+
 export default function UserProfile() {
     const { user_id, churchId, isLogin } = useContext(UserContext);
     const [profile, setProfile] = useState(null);
@@ -484,6 +542,7 @@ export default function UserProfile() {
     const [selectedEventKey, setSelectedEventKey] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [activeTab, setActiveTab] = useState('overview');
 
     useEffect(() => {
         if (!isLogin || !user_id || !churchId) {
@@ -609,442 +668,524 @@ export default function UserProfile() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] px-4 py-20 text-white sm:px-6">
-                <div className="mx-auto flex max-w-7xl items-center justify-center">
-                    <div className="rounded-3xl border border-white/10 bg-white/5 px-8 py-10 backdrop-blur-xl">
-                        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-sky-500/20 border-t-sky-400" />
-                        <p className="text-sm text-sky-200">Loading profile...</p>
-                    </div>
-                </div>
+            <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+                <div className="w-16 h-16 border-4 border-sky-500/20 border-t-sky-400 rounded-full animate-spin mb-6 shadow-[0_0_30px_rgba(56,189,248,0.2)]"></div>
+                <p className="text-sky-300 font-medium tracking-wide">Loading your dashboard...</p>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] px-4 py-20 text-white sm:px-6">
-                <div className="mx-auto max-w-3xl rounded-3xl border border-red-400/30 bg-red-500/10 p-6 text-center backdrop-blur-xl">
-                    <p className="text-red-200">{error}</p>
+            <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+                <div className="bg-red-500/10 border border-red-500/20 rounded-3xl p-8 max-w-md w-full text-center backdrop-blur-xl">
+                    <Activity className="w-12 h-12 text-red-400 mx-auto mb-4 opacity-80" />
+                    <h2 className="text-xl font-bold text-red-200 mb-2">Oops! Something went wrong.</h2>
+                    <p className="text-red-300/80 text-sm mb-6">{error}</p>
+                    <button onClick={() => window.location.reload()} className="px-6 py-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-200 text-sm font-bold rounded-xl transition-colors border border-red-500/30">
+                        Try Again
+                    </button>
                 </div>
             </div>
         );
     }
 
+    const tabs = [
+        { id: 'overview', label: 'Overview', icon: User },
+        { id: 'current', label: 'Current Cycle', icon: TrendingUp },
+        { id: 'history', label: 'History', icon: CalendarCheck },
+        { id: 'compare', label: 'Compare', icon: BarChart3 },
+    ];
+
     return (
-        <section className="relative min-h-screen overflow-hidden bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] px-4 py-12 text-white sm:px-6 sm:py-16">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_60%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(14,116,144,0.16),transparent_65%)]" />
-
-            <div className="relative z-10 mx-auto flex max-w-7xl flex-col gap-8">
-                <section className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl sm:p-8">
-                    <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                        <div>
-                            <p className="mb-2 inline-flex items-center rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sky-200">
-                                User Profile
-                            </p>
-                            <h1 className="text-2xl font-bold text-white sm:text-4xl">
-                                {profile?.user?.Name || 'N/A'}
-                            </h1>
-                            <p className="mt-2 inline-flex items-center gap-2 text-sm text-slate-300">
-                                <Mail className="h-4 w-4 text-sky-300" />
-                                {userEmail || 'Email not available'}
-                            </p>
+        <main className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] text-white pb-24">
+            <div className="max-w-5xl mx-auto px-3 sm:px-6 pt-8 sm:pt-12">
+                
+                {/* --- HEADER PROFILE CARD --- */}
+                <div className="rounded-[2rem] border border-white/5 bg-white/[0.02] p-5 sm:p-8 backdrop-blur-2xl mb-6 sm:mb-8 relative overflow-hidden shadow-2xl shadow-black/50">
+                    <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-[0.03] pointer-events-none">
+                        <User className="w-64 h-64 sm:w-96 sm:h-96" />
+                    </div>
+                    <div className="absolute top-1/2 left-0 w-32 h-32 bg-sky-500/10 blur-[100px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2"></div>
+                    
+                    <div className="relative z-10">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-500/10 border border-sky-400/20 text-sky-300 text-[9px] sm:text-[10px] font-black uppercase tracking-widest mb-4">
+                            User Dashboard
                         </div>
+                        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-slate-400 mb-2 leading-tight tracking-tight">
+                            {profile?.user?.Name || 'N/A'}
+                        </h1>
+                        <p className="flex items-center gap-2 text-xs sm:text-sm text-slate-400 mb-6 font-medium">
+                            <Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-500" />
+                            {userEmail || 'Email not available'}
+                        </p>
 
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                <p className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
-                                    <User className="h-4 w-4 text-sky-300" />
-                                    Role
-                                </p>
-                                <p className="text-sm font-semibold text-white">{titleCase(profile?.user?.role)}</p>
-                            </div>
-                            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                <p className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
-                                    <Target className="h-4 w-4 text-emerald-300" />
-                                    Status
-                                </p>
-                                <p className="text-sm font-semibold text-white">{titleCase(profile?.user?.status)}</p>
-                            </div>
-                            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                <p className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
-                                    <Building2 className="h-4 w-4 text-indigo-300" />
-                                    Church
-                                </p>
-                                <p className="text-sm font-semibold text-white">
-                                    {profile?.user?.ChurchName || 'N/A'}
-                                </p>
-                            </div>
-                            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                <p className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
-                                    <TrendingUp className="h-4 w-4 text-amber-300" />
-                                    In Training
-                                </p>
-                                <p className="text-sm font-semibold text-white">
-                                    {profile?.user?.isInTraining ? 'Active' : 'Inactive'}
-                                </p>
-                            </div>
+                        <div className="flex flex-wrap gap-2 sm:gap-3">
+                            <Badge icon={User} label="Role" value={titleCase(profile?.user?.role)} classes="bg-sky-500/5 text-sky-200 border-sky-500/10" />
+                            <Badge icon={Target} label="Status" value={titleCase(profile?.user?.status)} classes="bg-emerald-500/5 text-emerald-200 border-emerald-500/10" />
+                            <Badge icon={Building2} label="Church" value={profile?.user?.ChurchName || 'N/A'} classes="bg-indigo-500/5 text-indigo-200 border-indigo-500/10" />
+                            <Badge 
+                                icon={TrendingUp} 
+                                label="Training" 
+                                value={profile?.user?.isInTraining ? 'Active' : 'Inactive'} 
+                                classes={profile?.user?.isInTraining ? 'border-emerald-500/20 text-emerald-300 bg-emerald-500/10' : 'border-slate-500/20 text-slate-400 bg-slate-500/10'} 
+                            />
                         </div>
                     </div>
+                </div>
 
-                    <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <SummaryCard
-                            icon={CalendarCheck}
-                            title="Events Overview"
-                            primaryLabel="Training"
-                            primaryValue={profile?.currentTrainingEvents.length || 0}
-                            secondaryLabel="Church Events"
-                            secondaryValue={profile?.churchEventsCount || 0}
-                            accentClass="text-sky-300"
-                        />
-                        <SummaryCard
-                            icon={ListMusic}
-                            title="Hymns"
-                            primaryLabel="Current"
-                            primaryValue={profile?.currentHymns.length || 0}
-                            secondaryLabel="History"
-                            secondaryValue={profile?.hymnHistory.length || 0}
-                            accentClass="text-indigo-300"
-                        />
-                        <SummaryCard
-                            icon={CalendarCheck}
-                            title="Attendance"
-                            primaryLabel="Current"
-                            primaryValue={profile?.currentAttendance.length || 0}
-                            secondaryLabel="History"
-                            secondaryValue={profile?.attendanceHistory.length || 0}
-                            accentClass="text-emerald-300"
-                        />
-                        <SummaryCard
-                            icon={FileText}
-                            title="Reports"
-                            primaryLabel="Current"
-                            primaryValue={profile?.currentReports.length || 0}
-                            secondaryLabel="History"
-                            secondaryValue={profile?.reportHistory.length || 0}
-                            accentClass="text-amber-300"
-                        />
+                {/* --- SMART TABS NAVIGATION --- */}
+                <div className="sticky top-4 z-40 mb-6 sm:mb-8">
+                    <div className="flex gap-1.5 p-1.5 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 overflow-x-auto shadow-2xl shadow-black/50 custom-scrollbar-hide">
+                         {tabs.map(tab => (
+                             <button
+                                 key={tab.id}
+                                 onClick={() => setActiveTab(tab.id)}
+                                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap min-w-[110px] ${
+                                     activeTab === tab.id 
+                                     ? 'bg-white/10 text-white shadow-lg shadow-black/20 border border-white/5 ring-1 ring-white/10' 
+                                     : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'
+                                 }`}
+                             >
+                                 <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-sky-400' : 'opacity-60'}`} />
+                                 {tab.label}
+                             </button>
+                         ))}
                     </div>
-                </section>
+                </div>
 
-                <section className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl sm:p-8">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                        <div>
-                            <h2 className="inline-flex items-center gap-2 text-xl font-bold text-white">
-                                <TrendingUp className="h-5 w-5 text-sky-300" />
-                                Attendance Comparison
-                            </h2>
-                            <p className="mt-2 text-sm text-slate-300">
-                                Current, history, and all-events attendance compared with other approved users in your church.
-                            </p>
+                {/* --- TAB CONTENT AREAS --- */}
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
+                    
+                    {/* OVERVIEW TAB */}
+                    {activeTab === 'overview' && (
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                            <SummaryCard
+                                icon={Activity}
+                                title="Events"
+                                primaryLabel="Training"
+                                primaryValue={profile?.currentTrainingEvents.length || 0}
+                                secondaryLabel="Church"
+                                secondaryValue={profile?.churchEventsCount || 0}
+                                accentClass="text-sky-400"
+                                bgClass="bg-gradient-to-br from-sky-500/10 to-transparent border-sky-400/20"
+                            />
+                            <SummaryCard
+                                icon={ListMusic}
+                                title="Hymns"
+                                primaryLabel="Current"
+                                primaryValue={profile?.currentHymns.length || 0}
+                                secondaryLabel="History"
+                                secondaryValue={profile?.hymnHistory.length || 0}
+                                accentClass="text-indigo-400"
+                                bgClass="bg-gradient-to-br from-indigo-500/10 to-transparent border-indigo-400/20"
+                            />
+                            <SummaryCard
+                                icon={CalendarCheck}
+                                title="Attendance"
+                                primaryLabel="Current"
+                                primaryValue={profile?.currentAttendance.length || 0}
+                                secondaryLabel="History"
+                                secondaryValue={profile?.attendanceHistory.length || 0}
+                                accentClass="text-emerald-400"
+                                bgClass="bg-gradient-to-br from-emerald-500/10 to-transparent border-emerald-400/20"
+                            />
+                            <SummaryCard
+                                icon={FileText}
+                                title="Reports"
+                                primaryLabel="Current"
+                                primaryValue={profile?.currentReports.length || 0}
+                                secondaryLabel="History"
+                                secondaryValue={profile?.reportHistory.length || 0}
+                                accentClass="text-amber-400"
+                                bgClass="bg-gradient-to-br from-amber-500/10 to-transparent border-amber-400/20"
+                            />
                         </div>
+                    )}
 
-                        <div className="min-w-[220px] rounded-2xl border border-white/10 bg-black/20 p-4">
-                            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-300">
-                                Specific Event
-                            </label>
-                            <select
-                                value={selectedEventKey}
-                                onChange={(event) => setSelectedEventKey(event.target.value)}
-                                className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none"
-                                disabled={!profile?.eventOptions.length}
-                            >
-                                {profile?.eventOptions.length ? (
-                                    profile.eventOptions.map((option) => (
-                                        <option key={option.key} value={option.key}>
-                                            {option.label}
-                                        </option>
-                                    ))
-                                ) : (
-                                    <option value="">No event data</option>
+                    {/* CURRENT CYCLE TAB */}
+                    {activeTab === 'current' && (
+                        <div className="grid gap-5 sm:gap-6 lg:grid-cols-2">
+                            <ListPanel
+                                title="Training Events"
+                                icon={Activity}
+                                accentClass="text-sky-400"
+                                iconBgClass="bg-sky-500/10 text-sky-400 border-sky-500/20"
+                                items={profile?.currentTrainingEvents || []}
+                                emptyText="No current training events active"
+                                renderItem={(event) => (
+                                    <div key={event.id} className="rounded-xl border border-white/5 bg-black/20 p-3.5 hover:bg-white/5 transition-colors">
+                                        <h4 className="text-sm font-bold text-white mb-1.5">{event.name}</h4>
+                                        <p className="inline-flex items-center gap-1.5 text-[10px] sm:text-xs font-semibold text-slate-500 bg-white/5 px-2 py-1 rounded">
+                                            <CalendarCheck className="w-3 h-3" />
+                                            {formatDate(event.createdAt, 'No date')}
+                                        </p>
+                                    </div>
                                 )}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="mt-6 grid gap-4 lg:grid-cols-3">
-                        {overallCurrentMetrics && (
-                            <ComparisonCard
-                                title="All Events: Current"
-                                metrics={overallCurrentMetrics}
-                                accentClass="text-emerald-300"
                             />
-                        )}
-                        {overallHistoryMetrics && (
-                            <ComparisonCard
-                                title="All Events: History"
-                                metrics={overallHistoryMetrics}
-                                accentClass="text-amber-300"
+
+                            <ListPanel
+                                title="Current Hymns"
+                                icon={ListMusic}
+                                accentClass="text-indigo-400"
+                                iconBgClass="bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
+                                items={profile?.currentHymns || []}
+                                emptyText="No current hymns assigned"
+                                renderItem={(hymn) => (
+                                    <div key={hymn.id} className="rounded-xl border border-white/5 bg-black/20 p-3.5 hover:bg-white/5 transition-colors">
+                                        <h4 className="text-sm font-bold text-white mb-2">{hymn.title}</h4>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            <span className="text-[10px] font-semibold text-slate-400 bg-white/5 px-2 py-0.5 rounded border border-white/5">{hymn.eventName}</span>
+                                            <span className="text-[10px] font-bold text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">{hymn.scale}</span>
+                                            <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">{hymn.BPM} BPM</span>
+                                        </div>
+                                    </div>
+                                )}
                             />
-                        )}
-                        {overallAllMetrics && (
-                            <ComparisonCard
-                                title="All Events: Current + History"
-                                metrics={overallAllMetrics}
-                                accentClass="text-sky-300"
+
+                            <ListPanel
+                                title="Current Attendance"
+                                icon={CalendarCheck}
+                                accentClass="text-emerald-400"
+                                iconBgClass="bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                items={profile?.currentAttendance || []}
+                                emptyText="No current attendance recorded"
+                                renderItem={(entry) => (
+                                    <div key={entry.id} className="rounded-xl border border-white/5 bg-black/20 p-3.5 hover:bg-white/5 transition-colors flex justify-between items-center">
+                                        <h4 className="text-sm font-bold text-white max-w-[60%] truncate">{entry.eventName}</h4>
+                                        <p className="text-[10px] sm:text-xs font-semibold text-emerald-400/80 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/10 whitespace-nowrap">
+                                            {formatDate(entry.date, 'N/A')}
+                                        </p>
+                                    </div>
+                                )}
                             />
-                        )}
-                    </div>
 
-                    <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5">
-                        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                            <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-slate-200">
-                                <Target className="h-4 w-4 text-sky-300" />
-                                {selectedEventKey ? `${selectedEventLabel} Comparison` : 'Specific Event Comparison'}
-                            </h3>
-                            <p className="text-xs text-slate-400">
-                                Current, history, and combined attendance for the selected event.
-                            </p>
+                            <ListPanel
+                                title="Current Reports"
+                                icon={FileText}
+                                accentClass="text-amber-400"
+                                iconBgClass="bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                items={profile?.currentReports || []}
+                                emptyText="No current reports found"
+                                renderItem={(report) => (
+                                    <div key={report.id} className="rounded-xl border border-white/5 bg-black/20 p-4 hover:bg-white/5 transition-colors">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <h4 className="text-[11px] font-black uppercase tracking-wider text-amber-400/80">{report.eventName}</h4>
+                                            <span className="text-[9px] font-bold text-slate-500 bg-white/5 px-1.5 py-0.5 rounded">{formatDate(report.date, 'N/A')}</span>
+                                        </div>
+                                        <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed bg-black/30 p-2.5 rounded-lg border border-white/5">
+                                            "{previewText(report.text)}"
+                                        </p>
+                                    </div>
+                                )}
+                            />
                         </div>
+                    )}
 
-                        {selectedEventMetrics ? (
-                            <div className="grid gap-4 lg:grid-cols-3">
-                                <ComparisonCard
-                                    title={`${selectedEventLabel}: Current`}
-                                    metrics={selectedEventMetrics.current}
-                                    accentClass="text-emerald-300"
-                                />
-                                <ComparisonCard
-                                    title={`${selectedEventLabel}: History`}
-                                    metrics={selectedEventMetrics.history}
-                                    accentClass="text-amber-300"
-                                />
-                                <ComparisonCard
-                                    title={`${selectedEventLabel}: Current + History`}
-                                    metrics={selectedEventMetrics.all}
-                                    accentClass="text-sky-300"
-                                />
-                            </div>
-                        ) : (
-                            <p className="rounded-2xl border border-dashed border-white/15 bg-black/10 p-5 text-center text-sm text-slate-400">
-                                No event comparison data available yet.
-                            </p>
-                        )}
-                    </div>
+                    {/* HISTORY TAB */}
+                    {activeTab === 'history' && (
+                        <div className="grid gap-5 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                             <ListPanel
+                                title="Hymn History"
+                                icon={ListMusic}
+                                accentClass="text-fuchsia-400"
+                                iconBgClass="bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20"
+                                items={profile?.hymnHistory || []}
+                                emptyText="No archived hymns"
+                                renderItem={(hymn) => (
+                                    <div key={hymn.id} className="rounded-xl border border-white/5 bg-black/20 p-3.5">
+                                        <h4 className="text-sm font-bold text-white mb-2">{hymn.title}</h4>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <p className="text-[8px] uppercase tracking-widest text-slate-500 font-bold mb-0.5">Event</p>
+                                                <p className="text-[10px] text-slate-300 font-semibold truncate">{hymn.eventName}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[8px] uppercase tracking-widest text-slate-500 font-bold mb-0.5">Scale</p>
+                                                <p className="text-[10px] text-fuchsia-300 font-bold">{hymn.scale}</p>
+                                            </div>
+                                            <div className="col-span-2 pt-1.5 mt-1 border-t border-white/5">
+                                                <p className="text-[8px] uppercase tracking-widest text-slate-500 font-bold mb-0.5">Archived</p>
+                                                <p className="text-[10px] text-slate-400 font-semibold">{formatDate(hymn.savedAt, 'N/A')}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            />
 
-                    <div className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-black/20">
-                        <div className="border-b border-white/10 px-4 py-3">
-                            <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-slate-200">
-                                <Users className="h-4 w-4 text-indigo-300" />
-                                Church Attendance Comparison
-                            </h3>
+                            <ListPanel
+                                title="Attendance History"
+                                icon={CalendarCheck}
+                                accentClass="text-orange-400"
+                                iconBgClass="bg-orange-500/10 text-orange-400 border-orange-500/20"
+                                items={profile?.attendanceHistory || []}
+                                emptyText="No archived attendance"
+                                renderItem={(entry) => (
+                                    <div key={entry.id} className="rounded-xl border border-white/5 bg-black/20 p-3.5">
+                                        <h4 className="text-[11px] font-black uppercase tracking-wider text-orange-400/80 mb-2 truncate">{entry.eventName}</h4>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1 bg-white/5 rounded-lg p-2 border border-white/5">
+                                                <p className="text-[8px] sm:text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-0.5">Date</p>
+                                                <p className="text-[10px] text-white font-bold">{formatDate(entry.date, 'N/A')}</p>
+                                            </div>
+                                            <div className="flex-1 bg-white/5 rounded-lg p-2 border border-white/5">
+                                                <p className="text-[8px] sm:text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-0.5">Archived</p>
+                                                <p className="text-[10px] text-slate-400 font-semibold">{formatDate(entry.savedAt, 'N/A')}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            />
+
+                            <ListPanel
+                                title="Report History"
+                                icon={FileText}
+                                accentClass="text-rose-400"
+                                iconBgClass="bg-rose-500/10 text-rose-400 border-rose-500/20"
+                                items={profile?.reportHistory || []}
+                                emptyText="No archived reports"
+                                renderItem={(report) => (
+                                    <div key={report.id} className="rounded-xl border border-white/5 bg-black/20 p-4">
+                                        <p className="text-[11px] sm:text-xs text-slate-300 font-medium leading-relaxed mb-3 italic bg-black/30 p-2.5 rounded-lg border border-white/5">
+                                            "{previewText(report.text, 60)}"
+                                        </p>
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <p className="text-[8px] uppercase tracking-widest text-slate-500 font-bold mb-0.5">Report Date</p>
+                                                <p className="text-[9px] text-slate-300 font-bold">{formatDate(report.date, 'N/A')}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[8px] uppercase tracking-widest text-rose-500/50 font-bold mb-0.5">Archived</p>
+                                                <p className="text-[9px] text-rose-400/80 font-bold">{formatDate(report.savedAt, 'N/A')}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            />
                         </div>
+                    )}
 
-                        <div className="max-h-[65vh] space-y-3 overflow-y-auto overscroll-contain p-4 pr-2 lg:hidden">
-                            {comparisonRows.map((member) => (
-                                <PeerComparisonCard
-                                    key={member.memberId || member.name}
-                                    member={member}
-                                    isCurrentUser={member.memberId === user_id}
-                                    selectedEventKey={selectedEventKey}
-                                    selectedEventLabel={selectedEventLabel}
-                                />
-                            ))}
-                        </div>
-
-                        <div className="hidden max-h-[65vh] overflow-auto lg:block">
-                            <table className="min-w-full text-sm">
-                                <thead className="bg-white/5 text-left text-xs uppercase tracking-wide text-slate-400">
-                                    <tr>
-                                        <th className="px-4 py-3 font-semibold">User</th>
-                                        <th className="px-4 py-3 font-semibold">Current</th>
-                                        <th className="px-4 py-3 font-semibold">History</th>
-                                        <th className="px-4 py-3 font-semibold">All</th>
-                                        {selectedEventKey && (
-                                            <>
-                                                <th className="px-4 py-3 font-semibold">{selectedEventLabel} Current</th>
-                                                <th className="px-4 py-3 font-semibold">{selectedEventLabel} History</th>
-                                                <th className="px-4 py-3 font-semibold">{selectedEventLabel} All</th>
-                                            </>
+                    {/* COMPARE TAB */}
+                    {activeTab === 'compare' && (
+                        <div className="space-y-6 sm:space-y-8">
+                            
+                            {/* EVENT SELECTOR - STICKY FOR CONVENIENCE */}
+                            <div className="bg-white/5 border border-white/10 p-4 rounded-2xl backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 sticky top-[76px] z-30 shadow-xl shadow-black/20">
+                                <div>
+                                    <h2 className="text-sm md:text-base font-bold text-white flex items-center gap-2">
+                                        <Target className="w-4 h-4 text-sky-400" />
+                                        Target Event Focus
+                                    </h2>
+                                    <p className="text-[10px] sm:text-xs text-slate-400 font-medium mt-1">Select an event to view head-to-head metrics.</p>
+                                </div>
+                                <div className="sm:min-w-[240px]">
+                                    <select
+                                        value={selectedEventKey}
+                                        onChange={(event) => setSelectedEventKey(event.target.value)}
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-white font-semibold outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/50 transition-all appearance-none cursor-pointer"
+                                        disabled={!profile?.eventOptions.length}
+                                        style={{ backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px top 50%', backgroundSize: '10px auto' }}
+                                    >
+                                        {profile?.eventOptions.length ? (
+                                            profile.eventOptions.map((option) => (
+                                                <option key={option.key} value={option.key}>
+                                                    {option.label}
+                                                </option>
+                                            ))
+                                        ) : (
+                                            <option value="">No event data</option>
                                         )}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {comparisonRows.map((member) => {
-                                        const isCurrentUser = member.memberId === user_id;
-                                        return (
-                                            <tr
-                                                key={member.memberId || member.name}
-                                                className={`border-t border-white/5 ${
-                                                    isCurrentUser ? 'bg-sky-500/10' : 'bg-transparent'
-                                                }`}
-                                            >
-                                                <td className="px-4 py-3 font-semibold text-white">
-                                                    <div className="flex items-center gap-2">
-                                                        <span>{member.name}</span>
-                                                        {isCurrentUser && (
-                                                            <span className="rounded-full border border-sky-400/30 bg-sky-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-sky-200">
-                                                                You
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-slate-200">{member.currentCount}</td>
-                                                <td className="px-4 py-3 text-slate-200">{member.historyCount}</td>
-                                                <td className="px-4 py-3 font-semibold text-sky-300">{member.allCount}</td>
-                                                {selectedEventKey && (
-                                                    <>
-                                                        <td className="px-4 py-3 text-slate-200">
-                                                            {member.countsByEvent.current[selectedEventKey] || 0}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-slate-200">
-                                                            {member.countsByEvent.history[selectedEventKey] || 0}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-sky-300">
-                                                            {member.countsByEvent.all[selectedEventKey] || 0}
-                                                        </td>
-                                                    </>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* GLOBAL COMPARISON HERO */}
+                            <div className="grid gap-4 sm:gap-5 md:grid-cols-3">
+                                {overallCurrentMetrics && (
+                                    <ComparisonCard
+                                        title="All Events: Current Phase"
+                                        metrics={overallCurrentMetrics}
+                                        accentClass="text-emerald-400"
+                                        bgClass="bg-gradient-to-br from-emerald-900/10 to-transparent"
+                                    />
+                                )}
+                                {overallHistoryMetrics && (
+                                    <ComparisonCard
+                                        title="All Events: History Phase"
+                                        metrics={overallHistoryMetrics}
+                                        accentClass="text-amber-400"
+                                        bgClass="bg-gradient-to-br from-amber-900/10 to-transparent"
+                                    />
+                                )}
+                                {overallAllMetrics && (
+                                    <ComparisonCard
+                                        title="Global: All Time"
+                                        metrics={overallAllMetrics}
+                                        accentClass="text-sky-400"
+                                        bgClass="bg-gradient-to-br from-sky-900/10 to-transparent"
+                                    />
+                                )}
+                            </div>
+
+                            {/* SPECIFIC EVENT FOCUS IF SELECTED */}
+                            {selectedEventMetrics && (
+                                <div className="border border-white/5 bg-black/20 rounded-3xl p-4 sm:p-6 shadow-highlight">
+                                    <div className="flex items-center gap-2 mb-5">
+                                        <div className="w-1.5 h-6 bg-indigo-500 rounded-full"></div>
+                                        <h3 className="text-sm sm:text-base font-bold text-white">
+                                            {selectedEventLabel} Snapshot
+                                        </h3>
+                                    </div>
+                                    <div className="grid gap-4 sm:grid-cols-3">
+                                        <ComparisonCard
+                                            title="Current Phase"
+                                            metrics={selectedEventMetrics.current}
+                                            accentClass="text-emerald-400"
+                                            bgClass="bg-white/5"
+                                        />
+                                        <ComparisonCard
+                                            title="History Phase"
+                                            metrics={selectedEventMetrics.history}
+                                            accentClass="text-amber-400"
+                                            bgClass="bg-white/5"
+                                        />
+                                        <ComparisonCard
+                                            title="Total Aggregated"
+                                            metrics={selectedEventMetrics.all}
+                                            accentClass="text-indigo-400"
+                                            bgClass="bg-white/5 border-indigo-500/20"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* LEADERBOARD LIST */}
+                            <div className="rounded-3xl border border-white/5 bg-white/[0.02] backdrop-blur-xl overflow-hidden shadow-2xl">
+                                <div className="border-b border-white/5 p-4 sm:p-5 bg-black/40 flex items-center justify-between">
+                                    <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2 tracking-wide">
+                                        <Users className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-400" />
+                                        Church Leaderboard
+                                    </h3>
+                                    <span className="text-[10px] sm:text-xs font-bold text-slate-400 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                                        Sorted by All-Time Score
+                                    </span>
+                                </div>
+
+                                {/* MOBILE LEADERBOARD (CARDS) */}
+                                <div className="p-4 sm:p-5 space-y-3 lg:hidden max-h-[60vh] overflow-y-auto custom-scrollbar">
+                                    {comparisonRows.map((member) => (
+                                        <PeerComparisonCard
+                                            key={member.memberId || member.name}
+                                            member={member}
+                                            isCurrentUser={member.memberId === user_id}
+                                            selectedEventKey={selectedEventKey}
+                                            selectedEventLabel={selectedEventLabel}
+                                        />
+                                    ))}
+                                    {comparisonRows.length === 0 && (
+                                        <div className="text-center p-8 text-slate-500 text-sm font-semibold">No peers found.</div>
+                                    )}
+                                </div>
+
+                                {/* DESKTOP LEADERBOARD (TABLE) */}
+                                <div className="hidden lg:block">
+                                    <div className="max-h-[600px] overflow-y-auto custom-scrollbar">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="text-[10px] uppercase text-slate-400 font-bold bg-black/20 sticky top-0 z-10 backdrop-blur-md">
+                                                <tr>
+                                                    <th className="px-6 py-4 tracking-wider">Member</th>
+                                                    <th className="px-6 py-4 tracking-wider text-center border-l border-white/5">Global Current</th>
+                                                    <th className="px-6 py-4 tracking-wider text-center">Global History</th>
+                                                    <th className="px-6 py-4 tracking-wider text-center text-sky-400 font-black">Global Total</th>
+                                                    {selectedEventKey && (
+                                                        <>
+                                                            <th className="px-6 py-4 tracking-wider text-center border-l border-white/5 text-indigo-300">Target Current</th>
+                                                            <th className="px-6 py-4 tracking-wider text-center text-indigo-300">Target History</th>
+                                                            <th className="px-6 py-4 tracking-wider text-center text-indigo-400 font-black">Target Total</th>
+                                                        </>
+                                                    )}
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-white/5">
+                                                {comparisonRows.map((member, index) => {
+                                                    const isCurrentUser = member.memberId === user_id;
+                                                    return (
+                                                        <tr
+                                                            key={member.memberId || member.name}
+                                                            className={`transition-colors hover:bg-white/5 ${
+                                                                isCurrentUser ? 'bg-sky-500/10' : ''
+                                                            }`}
+                                                        >
+                                                            <td className="px-6 py-4 font-semibold text-white">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${isCurrentUser ? 'bg-sky-500 text-white' : 'bg-white/10 text-slate-300'}`}>
+                                                                        {member.name.charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                    <span className="truncate max-w-[150px]">{member.name}</span>
+                                                                    {isCurrentUser && (
+                                                                        <span className="bg-sky-500 text-white text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shadow-[0_0_10px_rgba(56,189,248,0.5)]">You</span>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-center font-bold text-emerald-400 border-l border-white/5">{member.currentCount}</td>
+                                                            <td className="px-6 py-4 text-center font-bold text-amber-400">{member.historyCount}</td>
+                                                            <td className="px-6 py-4 text-center text-lg font-black text-sky-400">{member.allCount}</td>
+                                                            {selectedEventKey && (
+                                                                <>
+                                                                    <td className="px-6 py-4 text-center font-bold text-emerald-400/70 border-l border-white/5">
+                                                                        {member.countsByEvent.current[selectedEventKey] || 0}
+                                                                    </td>
+                                                                    <td className="px-6 py-4 text-center font-bold text-amber-400/70">
+                                                                        {member.countsByEvent.history[selectedEventKey] || 0}
+                                                                    </td>
+                                                                    <td className="px-6 py-4 text-center text-lg font-black text-indigo-400">
+                                                                        {member.countsByEvent.all[selectedEventKey] || 0}
+                                                                    </td>
+                                                                </>
+                                                            )}
+                                                        </tr>
+                                                    );
+                                                })}
+                                                {comparisonRows.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan="7" className="px-6 py-12 text-center text-slate-500 text-sm font-semibold">No peers found.</td>
+                                                    </tr>
                                                 )}
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
-                    </div>
-                </section>
+                    )}
 
-                <section>
-                    <div className="mb-4">
-                        <h2 className="text-xl font-bold text-white">Current Cycle</h2>
-                        <p className="mt-1 text-sm text-slate-300">
-                            Live data from the current user model fields: training events, hymns, attendance, and reports.
-                        </p>
-                    </div>
-
-                    <div className="grid gap-5 lg:grid-cols-2">
-                        <ListPanel
-                            title="Training Events"
-                            icon={CalendarCheck}
-                            accentClass="text-sky-300"
-                            items={profile?.currentTrainingEvents || []}
-                            emptyText="No current training events"
-                            renderItem={(event) => (
-                                <div key={event.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                    <h4 className="text-base font-semibold text-white">{event.name}</h4>
-                                    <p className="mt-1 text-xs text-slate-300">
-                                        Created: {formatDate(event.createdAt, 'No date')}
-                                    </p>
-                                </div>
-                            )}
-                        />
-
-                        <ListPanel
-                            title="Current Hymns"
-                            icon={ListMusic}
-                            accentClass="text-indigo-300"
-                            items={profile?.currentHymns || []}
-                            emptyText="No current hymns"
-                            renderItem={(hymn) => (
-                                <div key={hymn.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                    <h4 className="text-base font-semibold text-white">{hymn.title}</h4>
-                                    <div className="mt-1 space-y-1 text-xs text-slate-300">
-                                        <p>Event: {hymn.eventName}</p>
-                                        <p>Scale: {hymn.scale}</p>
-                                        <p>BPM: {hymn.BPM}</p>
-                                    </div>
-                                </div>
-                            )}
-                        />
-
-                        <ListPanel
-                            title="Current Attendance"
-                            icon={CalendarCheck}
-                            accentClass="text-emerald-300"
-                            items={profile?.currentAttendance || []}
-                            emptyText="No current attendance"
-                            renderItem={(entry) => (
-                                <div key={entry.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                    <h4 className="text-base font-semibold text-white">{entry.eventName}</h4>
-                                    <p className="mt-1 text-xs text-slate-300">
-                                        Attendance date: {formatDate(entry.date, 'No attendance date')}
-                                    </p>
-                                </div>
-                            )}
-                        />
-
-                        <ListPanel
-                            title="Current Reports"
-                            icon={FileText}
-                            accentClass="text-amber-300"
-                            items={profile?.currentReports || []}
-                            emptyText="No current reports"
-                            renderItem={(report) => (
-                                <div key={report.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                    <h4 className="text-sm font-semibold text-white">{report.eventName}</h4>
-                                    <p className="mt-2 text-sm text-slate-200">{previewText(report.text)}</p>
-                                    <p className="mt-2 text-xs text-slate-400">
-                                        Report date: {formatDate(report.date, 'No report date')}
-                                    </p>
-                                </div>
-                            )}
-                        />
-                    </div>
-                </section>
-
-                <section>
-                    <div className="mb-4">
-                        <h2 className="text-xl font-bold text-white">Archived History</h2>
-                        <p className="mt-1 text-sm text-slate-300">
-                            Historical data from the saved history arrays in the user model.
-                        </p>
-                    </div>
-
-                    <div className="grid gap-5 xl:grid-cols-3">
-                        <ListPanel
-                            title="Hymn History"
-                            icon={ListMusic}
-                            accentClass="text-fuchsia-300"
-                            items={profile?.hymnHistory || []}
-                            emptyText="No hymn history"
-                            renderItem={(hymn) => (
-                                <div key={hymn.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                    <h4 className="text-base font-semibold text-white">{hymn.title}</h4>
-                                    <div className="mt-1 space-y-1 text-xs text-slate-300">
-                                        <p>Event: {hymn.eventName}</p>
-                                        <p>Scale: {hymn.scale}</p>
-                                        <p>Saved: {formatDate(hymn.savedAt, 'No archive date')}</p>
-                                    </div>
-                                </div>
-                            )}
-                        />
-
-                        <ListPanel
-                            title="Attendance History"
-                            icon={BarChart3}
-                            accentClass="text-orange-300"
-                            items={profile?.attendanceHistory || []}
-                            emptyText="No attendance history"
-                            renderItem={(entry) => (
-                                <div key={entry.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                    <h4 className="text-base font-semibold text-white">{entry.eventName}</h4>
-                                    <div className="mt-1 space-y-1 text-xs text-slate-300">
-                                        <p>Attendance date: {formatDate(entry.date, 'No attendance date')}</p>
-                                        <p>Saved: {formatDate(entry.savedAt, 'No archive date')}</p>
-                                    </div>
-                                </div>
-                            )}
-                        />
-
-                        <ListPanel
-                            title="Report History"
-                            icon={FileText}
-                            accentClass="text-rose-300"
-                            items={profile?.reportHistory || []}
-                            emptyText="No report history"
-                            renderItem={(report) => (
-                                <div key={report.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                    <p className="text-sm text-slate-200">{previewText(report.text)}</p>
-                                    <div className="mt-2 space-y-1 text-xs text-slate-400">
-                                        <p>Report date: {formatDate(report.date, 'No report date')}</p>
-                                        <p>Saved: {formatDate(report.savedAt, 'No archive date')}</p>
-                                    </div>
-                                </div>
-                            )}
-                        />
-                    </div>
-                </section>
+                </div>
             </div>
-        </section>
+
+            {/* Injected CSS for custom scrollbar hidden utilities used locally */}
+            <style dangerouslySetInnerHTML={{__html: `
+                .custom-scrollbar-hide::-webkit-scrollbar {
+                    display: none;
+                }
+                .custom-scrollbar-hide {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                }
+                .custom-scrollbar::-webkit-scrollbar {
+                    width: 6px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 20px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: rgba(255, 255, 255, 0.2);
+                }
+            `}} />
+        </main>
     );
 }

@@ -49,12 +49,15 @@ export default function ChurchS_Dashboards() {
   });
 
   // Role Check
-  const allowedRoles = ['PROGRAMER', 'programers', 'Programmer'];
+  const allowedRoles = ['PROGRAMER', 'MANEGER', 'ADMIN'];
   if (!isLogin) return <Login />;
+  
   if (UserRole && !allowedRoles.includes(UserRole)) {
     return (
       <div className="min-h-screen bg-[#020617] flex items-center justify-center text-white">
-        <h1 className="text-2xl font-bold text-red-500">Access Denied: Programmers Only</h1>
+        <h1 className="text-2xl font-bold text-red-500 text-center px-4">
+          Access Denied: Only Admins, Managers, and Programmers can access this dashboard.
+        </h1>
       </div>
     )
   }
@@ -202,17 +205,18 @@ export default function ChurchS_Dashboards() {
                         <div key={u._id} className="flex justify-between items-center text-sm p-2 rounded-lg bg-white/5 border border-white/5">
                           <span className="text-gray-200 truncate max-w-[40%]" title={u.Name}>{u.Name}</span>
 
-                          <select
+                            <select
                             value={u.role || 'USER'}
                             onChange={(e) => handleUserRoleChange(u._id, e.target.value)}
                             className={`text-xs px-2 py-0.5 rounded-lg border outline-none cursor-pointer transition-colors max-w-[50%]
-                                                            ${u.role === 'Admin' || u.role === 'MANEGER' || u.role === 'PROGRAMER'
+                                                            ${u.role === 'ADMIN' || u.role === 'MANEGER' || u.role === 'PROGRAMER'
                                 ? 'border-amber-500/30 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20'
                                 : 'border-sky-500/20 text-sky-300/70 bg-sky-500/5 hover:bg-sky-500/10'}`}
                           >
                             <option value="USER" className="bg-[#0f172a] text-gray-300">USER</option>
                             <option value="ADMIN" className="bg-[#0f172a] text-amber-300">ADMIN</option>
                             <option value="MANEGER" className="bg-[#0f172a] text-emerald-300">MANEGER</option>
+                            <option value="PROGRAMER" className="bg-[#0f172a] text-sky-300">PROGRAMER</option>
                           </select>
                         </div>
                       ))
