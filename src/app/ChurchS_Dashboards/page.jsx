@@ -206,7 +206,7 @@ export default function ChurchS_Dashboards() {
                             value={u.role || 'USER'}
                             onChange={(e) => handleUserRoleChange(u._id, e.target.value)}
                             className={`text-xs px-2 py-0.5 rounded-lg border outline-none cursor-pointer transition-colors max-w-[50%]
-                                                            ${u.role === 'Admin' || u.role === 'MANEGER'
+                                                            ${u.role === 'Admin' || u.role === 'MANEGER' || u.role === 'PROGRAMER'
                                 ? 'border-amber-500/30 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20'
                                 : 'border-sky-500/20 text-sky-300/70 bg-sky-500/5 hover:bg-sky-500/10'}`}
                           >
