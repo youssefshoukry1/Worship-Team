@@ -403,6 +403,31 @@ export default function Dashboard() {
     enabled: !!isLogin,
   });
 
+  const latestEvent = churchEvents.length > 0 
+      ? [...churchEvents].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] 
+      : null;
+
+  const handleToggleCancelEvent = async () => {
+    if (!latestEvent) return;
+    const isNowCanceled = latestEvent.isCanceled || false;
+    const action = isNowCanceled ? "UNCANCEL" : "CANCEL";
+    if (!window.confirm(`Are you sure you want to ${action} this week's training (${latestEvent.eventName})?`)) return;
+
+    setProcessingId("CANCEL_EVENT");
+    try {
+      await axios.patch(`${API_URL}/events/edit/${latestEvent._id}`, { isCanceled: !isNowCanceled }, {
+        headers: { Authorization: `Bearer ${isLogin}` }
+      });
+      queryClient.invalidateQueries({ queryKey: ['churchEvents'] });
+      queryClient.invalidateQueries({ queryKey: ['data'] });
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update event state");
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
   if (isLoadingPending || isLoadingChurch || isLoadingEvents) return <Loading />;
 
   return (
@@ -415,9 +440,23 @@ export default function Dashboard() {
 
         {/* ---------------- 1. EVENT MANAGEMENT SECTION ---------------- */}
         <div className="mb-12 p-6 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-md">
-          <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-            <Calendar className="text-sky-400 w-6 h-6" /> Quick Event Setup (إنشاء حفلة)
-          </h2>
+          <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Calendar className="text-sky-400 w-6 h-6" /> Quick Event Setup (إنشاء حفلة)
+            </h2>
+            {latestEvent && (
+              <button
+                 onClick={handleToggleCancelEvent}
+                 disabled={processingId === "CANCEL_EVENT"}
+                 className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50
+                      ${latestEvent.isCanceled 
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30' 
+                        : 'bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30'}`}
+               >
+                 {latestEvent.isCanceled ? 'Restore Current Training' : 'Cancel Current Training'}
+               </button>
+            )}
+           </div>
           <div className="flex flex-col sm:flex-row gap-4">
             <input
               type="text"

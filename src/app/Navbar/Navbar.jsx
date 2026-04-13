@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState, useContext } from "react";
 import axios from "axios";
 import { motion, AnimatePresence, easeOut } from "framer-motion";
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, X, Globe, ChevronDown, Mic, Music } from "lucide-react";
+import { Menu, X, Globe, ChevronDown, Mic, Music, User } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 import { translations } from "../i18n/translations";
 import { UserContext } from "../context/User_Context";
@@ -155,6 +155,23 @@ export default function Navbar() {
                             </button>
                         </motion.li>
                     )}
+
+                {/* User Profile Link (Approved Users) */}
+                {isLogin && UserStatus === "approved" && (
+                    <motion.li variants={itemVariants} className="list-none ml-2">
+                        <button
+                            onClick={() => router.push("/UserProfile")}
+                            className={`flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full transition-all duration-300 border border-white/10
+                ${pathname === "/UserProfile"
+                                    ? "bg-sky-500/20 text-sky-400 border-sky-500/30 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
+                                    : "bg-white/5 text-gray-300 hover:text-white hover:bg-sky-500/20 hover:border-sky-500/30 hover:shadow-[0_0_10px_rgba(14,165,233,0.2)]"
+                                }`}
+                            title="User Profile"
+                        >
+                            <User size={18} />
+                        </button>
+                    </motion.li>
+                )}
 
                 {/* Mode Switcher Desktop */}
                 <div className="relative">
@@ -324,6 +341,26 @@ export default function Navbar() {
                                             }`}
                                     >
                                         {t("dashboard")}
+                                    </button>
+                                </li>
+                            )}
+
+                            {/* Mobile User Profile Button */}
+                            {isLogin && UserStatus === "approved" && (
+                                <li>
+                                    <button
+                                        onClick={() => {
+                                            router.push("/UserProfile");
+                                            setMenuOpen(false);
+                                        }}
+                                        className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-transparent
+                ${pathname === "/UserProfile"
+                                                ? "bg-sky-500/20 text-sky-400 border-sky-500/30"
+                                                : "text-gray-300 hover:bg-white/5 hover:text-white"
+                                            }`}
+                                    >
+                                        <User size={18} />
+                                        User Profile
                                     </button>
                                 </li>
                             )}

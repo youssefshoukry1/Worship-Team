@@ -85,10 +85,15 @@ const addEventMetaToMap = (map, eventLike, fallbackEntry = null) => {
         existing?.createdAt ||
         null;
 
+    const isCanceled = eventLike?.isCanceled === true || 
+                       fallbackEntry?.eventId?.isCanceled === true || 
+                       existing?.isCanceled === true;
+
     map.set(eventId.toString(), {
         id: eventId.toString(),
         name: eventName || existing?.name || UNKNOWN_EVENT,
         createdAt,
+        isCanceled
     });
 };
 
@@ -286,72 +291,6 @@ const buildMemberAttendanceRow = (member, eventsMap) => {
     };
 };
 
-const buildEventOptions = (churchEvents, memberRows) => {
-    const labels = {};
-
-    (churchEvents || []).forEach((event) => {
-        const eventName = normalizeText(event?.eventName || event?.name);
-        const eventKey = normalizeEventKey(eventName);
-        if (!eventKey) return;
-        labels[eventKey] = labels[eventKey] || eventName;
-    });
-
-    (memberRows || []).forEach((row) => {
-        Object.entries(row.labelsByEvent || {}).forEach(([key, label]) => {
-            if (!key || !label) return;
-            labels[key] = labels[key] || label;
-        });
-    });
-
-    return Object.entries(labels)
-        .filter(([key]) => key !== normalizeEventKey(UNKNOWN_EVENT))
-        .map(([key, label]) => ({ key, label }))
-        .sort((a, b) => a.label.localeCompare(b.label));
-};
-
-const getScopeValue = (row, scope, eventKey) => {
-    if (!row) return 0;
-    if (!eventKey) return row[`${scope}Count`] || 0;
-    return row.countsByEvent?.[scope]?.[eventKey] || 0;
-};
-
-const buildComparisonMetrics = (memberRows, currentUserId, scope, eventKey = '') => {
-    const rows = memberRows || [];
-    if (rows.length === 0) {
-        return {
-            count: 0,
-            average: 0,
-            rank: null,
-            totalMembers: 0,
-            usersAhead: 0,
-            leaderName: 'N/A',
-            leaderCount: 0,
-        };
-    }
-
-    const sortedRows = [...rows].sort((left, right) => {
-        const difference = getScopeValue(right, scope, eventKey) - getScopeValue(left, scope, eventKey);
-        if (difference !== 0) return difference;
-        return left.name.localeCompare(right.name);
-    });
-
-    const currentIndex = sortedRows.findIndex((row) => row.memberId === currentUserId);
-    const currentRow = currentIndex >= 0 ? sortedRows[currentIndex] : null;
-    const currentValue = getScopeValue(currentRow, scope, eventKey);
-    const totalValue = sortedRows.reduce((sum, row) => sum + getScopeValue(row, scope, eventKey), 0);
-    const leader = sortedRows[0];
-
-    return {
-        count: currentValue,
-        average: totalValue / sortedRows.length,
-        rank: currentIndex >= 0 ? currentIndex + 1 : null,
-        totalMembers: sortedRows.length,
-        usersAhead: sortedRows.filter((row) => getScopeValue(row, scope, eventKey) > currentValue).length,
-        leaderName: leader?.name || 'N/A',
-        leaderCount: getScopeValue(leader, scope, eventKey),
-    };
-};
-
 /* --- UI COMPONENTS --- */
 
 function Badge({ icon: Icon, label, value, classes = "text-slate-200 bg-white/5 border-white/10" }) {
@@ -400,36 +339,6 @@ function SummaryCard({
     );
 }
 
-function ComparisonCard({ title, metrics, accentClass = 'text-sky-400', bgClass = 'bg-black/20' }) {
-    return (
-        <div className={`rounded-2xl border border-white/5 ${bgClass} p-4 sm:p-5 relative overflow-hidden flex flex-col justify-between`}>
-             <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-300">{title}</p>
-             <div className="mt-4 mb-5 flex items-end gap-2">
-                 <p className={`text-5xl sm:text-6xl font-black ${accentClass} leading-none tracking-tighter`}>{metrics.count}</p>
-                 <p className="text-xs text-slate-400 mb-1.5 font-bold tracking-wide">TOTAL</p>
-             </div>
-             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-[10px] sm:text-xs text-slate-300">
-                 <div className="bg-white/5 rounded-xl p-2.5">
-                     <p className="text-slate-500 uppercase tracking-widest text-[8px] sm:text-[9px] mb-1 font-bold">Average</p>
-                     <p className="font-bold text-white text-sm sm:text-base">{formatAverage(metrics.average)}</p>
-                 </div>
-                 <div className="bg-white/5 rounded-xl p-2.5">
-                     <p className="text-slate-500 uppercase tracking-widest text-[8px] sm:text-[9px] mb-1 font-bold">Rank</p>
-                     <p className="font-bold text-white text-sm sm:text-base">{metrics.rank ? `#${metrics.rank} of ${metrics.totalMembers}` : 'N/A'}</p>
-                 </div>
-                 <div className="bg-white/5 rounded-xl p-2.5">
-                     <p className="text-slate-500 uppercase tracking-widest text-[8px] sm:text-[9px] mb-1 font-bold">Leading By</p>
-                     <p className="font-bold text-white text-sm sm:text-base truncate" title={metrics.leaderName}>{metrics.leaderName}</p>
-                 </div>
-                 <div className="bg-white/5 rounded-xl p-2.5">
-                     <p className="text-slate-500 uppercase tracking-widest text-[8px] sm:text-[9px] mb-1 font-bold">Leader Score</p>
-                     <p className="font-bold text-white text-sm sm:text-base">{metrics.leaderCount}</p>
-                 </div>
-             </div>
-        </div>
-    );
-}
-
 function ListPanel({ title, icon: Icon, accentClass = 'text-sky-400', iconBgClass = 'bg-sky-500/20 text-sky-400 border-sky-500/30', items, emptyText, renderItem }) {
     return (
         <div className="flex flex-col h-full rounded-3xl border border-white/5 bg-white/[0.03] backdrop-blur-2xl overflow-hidden shadow-xl shadow-black/20">
@@ -458,7 +367,7 @@ function ListPanel({ title, icon: Icon, accentClass = 'text-sky-400', iconBgClas
     );
 }
 
-function PeerComparisonCard({ member, isCurrentUser, selectedEventKey, selectedEventLabel }) {
+function PeerComparisonCard({ member, isCurrentUser }) {
     return (
         <div className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 transition-colors ${isCurrentUser ? 'border-sky-400/40 bg-sky-900/20 shadow-[0_0_20px_rgba(56,189,248,0.1)]' : 'border-white/5 bg-black/20 hover:bg-white/5'}`}>
             {isCurrentUser && <div className="absolute top-0 right-0 w-24 h-24 bg-sky-400/10 blur-2xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>}
@@ -499,39 +408,9 @@ function PeerComparisonCard({ member, isCurrentUser, selectedEventKey, selectedE
                     <p className="text-sm font-black text-amber-400">{member.historyCount}</p>
                 </div>
             </div>
-
-            {selectedEventKey && (
-                <div className="mt-3 pt-3 border-t border-white/10 relative z-10">
-                    <p className="mb-2.5 text-[10px] font-bold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
-                        <Target className="w-3.5 h-3.5" />
-                        {selectedEventLabel} Focus
-                    </p>
-                    <div className="grid grid-cols-3 gap-2">
-                        <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
-                            <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-slate-500 font-bold mb-1">Current</p>
-                            <p className="font-black text-emerald-400/90 text-sm">
-                                {member.countsByEvent.current[selectedEventKey] || 0}
-                            </p>
-                        </div>
-                        <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
-                            <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-slate-500 font-bold mb-1">History</p>
-                            <p className="font-black text-amber-400/90 text-sm">
-                                {member.countsByEvent.history[selectedEventKey] || 0}
-                            </p>
-                        </div>
-                        <div className="rounded-lg bg-indigo-500/10 p-2 text-center border border-indigo-500/20">
-                            <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-indigo-300/70 font-bold mb-1">Total</p>
-                            <p className="font-black text-indigo-400 text-sm">
-                                {member.countsByEvent.all[selectedEventKey] || 0}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
-
 
 /* --- MAIN PAGE COMPONENT --- */
 
@@ -539,7 +418,6 @@ export default function UserProfile() {
     const { user_id, churchId, isLogin } = useContext(UserContext);
     const [profile, setProfile] = useState(null);
     const [userEmail, setUserEmail] = useState('');
-    const [selectedEventKey, setSelectedEventKey] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('overview');
@@ -594,30 +472,25 @@ export default function UserProfile() {
                 const memberAttendanceRows = (members || []).map((member) =>
                     buildMemberAttendanceRow(member, eventsMap)
                 );
-                const eventOptions = buildEventOptions(churchEvents, memberAttendanceRows);
 
                 if (ignore) return;
 
                 setProfile({
                     user: currentUser,
                     churchEventsCount: Array.isArray(churchEvents) ? churchEvents.length : 0,
+                    churchEvents,
+                    eventsMap,
                     currentTrainingEvents,
                     currentHymns,
                     hymnHistory,
                     currentAttendance,
+                    attendHistoryCount: currentUser.attendHistory?.length || 0,
                     attendanceHistory,
                     currentReports,
                     reportHistory,
                     memberAttendanceRows,
-                    eventOptions,
                 });
 
-                setSelectedEventKey((previous) => {
-                    if (previous && eventOptions.some((option) => option.key === previous)) {
-                        return previous;
-                    }
-                    return eventOptions[0]?.key || '';
-                });
             } catch (fetchError) {
                 if (!ignore) {
                     console.error('Error fetching profile:', fetchError);
@@ -637,26 +510,6 @@ export default function UserProfile() {
         };
     }, [isLogin, user_id, churchId]);
 
-    const overallCurrentMetrics = profile
-        ? buildComparisonMetrics(profile.memberAttendanceRows, user_id, 'current')
-        : null;
-    const overallHistoryMetrics = profile
-        ? buildComparisonMetrics(profile.memberAttendanceRows, user_id, 'history')
-        : null;
-    const overallAllMetrics = profile
-        ? buildComparisonMetrics(profile.memberAttendanceRows, user_id, 'all')
-        : null;
-
-    const selectedEventLabel =
-        profile?.eventOptions.find((option) => option.key === selectedEventKey)?.label || 'Selected Event';
-
-    const selectedEventMetrics = profile && selectedEventKey
-        ? {
-            current: buildComparisonMetrics(profile.memberAttendanceRows, user_id, 'current', selectedEventKey),
-            history: buildComparisonMetrics(profile.memberAttendanceRows, user_id, 'history', selectedEventKey),
-            all: buildComparisonMetrics(profile.memberAttendanceRows, user_id, 'all', selectedEventKey),
-        }
-        : null;
 
     const comparisonRows = profile
         ? [...profile.memberAttendanceRows].sort((left, right) => {
@@ -696,6 +549,72 @@ export default function UserProfile() {
         { id: 'history', label: 'History', icon: CalendarCheck },
         { id: 'compare', label: 'Compare', icon: BarChart3 },
     ];
+
+    const generateAttendanceStatusBlock = () => {
+        if (!profile) return null;
+        
+        // Exclude completely canceled events 
+        const validChurchEvents = profile.churchEvents?.filter(e => !e.isCanceled) || [];
+        const validExpectedCount = validChurchEvents.length;
+        
+        // Filter out User attendances to explicitly only count valid un-canceled ones
+        const validAttendedCount = profile.currentAttendance?.filter(a => {
+            const eMeta = profile.eventsMap?.get(a.eventId);
+            return !eMeta?.isCanceled;
+        }).length || 0;
+
+        const maxScore = validExpectedCount > 0 ? validExpectedCount : 1;
+        let consistencyPercentage = Math.round((validAttendedCount / maxScore) * 100);
+        if (consistencyPercentage > 100) consistencyPercentage = 100;
+
+        let statusMessage = "";
+        let statusIcon = null;
+        let statusClass = "";
+
+        if (consistencyPercentage >= 80) {
+            statusMessage = "🔥 You are one of the most committed members! Keep going!";
+            statusIcon = "🔥";
+            statusClass = "shadow-[0_0_30px_rgba(251,146,60,0.15)] border-orange-500/50 bg-gradient-to-r from-orange-500/10 to-orange-500/5 text-orange-200";
+        } else if (consistencyPercentage >= 50) {
+            statusMessage = "⚠️ You are doing okay, but you need to be more consistent.";
+            statusIcon = "⚠️";
+            statusClass = "border-yellow-500/50 bg-gradient-to-r from-yellow-500/10 to-yellow-500/5 text-yellow-200";
+        } else {
+            statusMessage = "❗ You need to improve your attendance and commitment.";
+            statusIcon = "❗";
+            statusClass = "border-red-500/50 bg-gradient-to-r from-red-500/10 to-red-500/5 text-red-200";
+        }
+
+        return (
+            <div className={`rounded-3xl border p-6 sm:p-8 backdrop-blur-xl relative overflow-hidden transition-all duration-500 mb-8 shadow-xl ${statusClass}`}>
+                <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none scale-150 -translate-y-10">
+                   <Target className="w-64 h-64" />
+                </div>
+                <div className="relative z-10 flex flex-col lg:flex-row items-center gap-8 lg:gap-12 justify-between">
+                     <div className="flex-1 text-center lg:text-left">
+                         <h2 className="text-2xl sm:text-3xl font-black mb-3 text-white flex justify-center lg:justify-start items-center gap-3">
+                             <span className="text-3xl sm:text-4xl filter drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] animate-pulse">{statusIcon}</span> 
+                             Attendance Status
+                         </h2>
+                         <p className="text-sm sm:text-base font-bold opacity-90 mx-auto lg:mx-0 max-w-sm">
+                             {statusMessage}
+                         </p>
+                     </div>
+                     <div className="flex gap-6 sm:gap-10 justify-center items-center bg-black/20 p-5 rounded-2xl border border-white/5 shadow-inner">
+                         <div className="text-center min-w-[80px]">
+                             <p className="text-[10px] uppercase tracking-widest font-black opacity-60 mb-2">Current Score</p>
+                             <p className="text-4xl sm:text-5xl font-black text-white">{validAttendedCount} <span className="text-lg sm:text-xl font-bold opacity-40">/ {validExpectedCount}</span></p>
+                         </div>
+                         <div className="w-px h-16 bg-white/10"></div>
+                         <div className="text-center min-w-[80px]">
+                             <p className="text-[10px] uppercase tracking-widest font-black opacity-60 mb-2">Historical</p>
+                             <p className="text-3xl sm:text-4xl font-black text-white opacity-90">{profile.attendHistoryCount}</p>
+                         </div>
+                     </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <main className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] text-white pb-24">
@@ -969,95 +888,7 @@ export default function UserProfile() {
                     {activeTab === 'compare' && (
                         <div className="space-y-6 sm:space-y-8">
                             
-                            {/* EVENT SELECTOR - STICKY FOR CONVENIENCE */}
-                            <div className="bg-white/5 border border-white/10 p-4 rounded-2xl backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 sticky top-[76px] z-30 shadow-xl shadow-black/20">
-                                <div>
-                                    <h2 className="text-sm md:text-base font-bold text-white flex items-center gap-2">
-                                        <Target className="w-4 h-4 text-sky-400" />
-                                        Target Event Focus
-                                    </h2>
-                                    <p className="text-[10px] sm:text-xs text-slate-400 font-medium mt-1">Select an event to view head-to-head metrics.</p>
-                                </div>
-                                <div className="sm:min-w-[240px]">
-                                    <select
-                                        value={selectedEventKey}
-                                        onChange={(event) => setSelectedEventKey(event.target.value)}
-                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-white font-semibold outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/50 transition-all appearance-none cursor-pointer"
-                                        disabled={!profile?.eventOptions.length}
-                                        style={{ backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px top 50%', backgroundSize: '10px auto' }}
-                                    >
-                                        {profile?.eventOptions.length ? (
-                                            profile.eventOptions.map((option) => (
-                                                <option key={option.key} value={option.key}>
-                                                    {option.label}
-                                                </option>
-                                            ))
-                                        ) : (
-                                            <option value="">No event data</option>
-                                        )}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* GLOBAL COMPARISON HERO */}
-                            <div className="grid gap-4 sm:gap-5 md:grid-cols-3">
-                                {overallCurrentMetrics && (
-                                    <ComparisonCard
-                                        title="All Events: Current Phase"
-                                        metrics={overallCurrentMetrics}
-                                        accentClass="text-emerald-400"
-                                        bgClass="bg-gradient-to-br from-emerald-900/10 to-transparent"
-                                    />
-                                )}
-                                {overallHistoryMetrics && (
-                                    <ComparisonCard
-                                        title="All Events: History Phase"
-                                        metrics={overallHistoryMetrics}
-                                        accentClass="text-amber-400"
-                                        bgClass="bg-gradient-to-br from-amber-900/10 to-transparent"
-                                    />
-                                )}
-                                {overallAllMetrics && (
-                                    <ComparisonCard
-                                        title="Global: All Time"
-                                        metrics={overallAllMetrics}
-                                        accentClass="text-sky-400"
-                                        bgClass="bg-gradient-to-br from-sky-900/10 to-transparent"
-                                    />
-                                )}
-                            </div>
-
-                            {/* SPECIFIC EVENT FOCUS IF SELECTED */}
-                            {selectedEventMetrics && (
-                                <div className="border border-white/5 bg-black/20 rounded-3xl p-4 sm:p-6 shadow-highlight">
-                                    <div className="flex items-center gap-2 mb-5">
-                                        <div className="w-1.5 h-6 bg-indigo-500 rounded-full"></div>
-                                        <h3 className="text-sm sm:text-base font-bold text-white">
-                                            {selectedEventLabel} Snapshot
-                                        </h3>
-                                    </div>
-                                    <div className="grid gap-4 sm:grid-cols-3">
-                                        <ComparisonCard
-                                            title="Current Phase"
-                                            metrics={selectedEventMetrics.current}
-                                            accentClass="text-emerald-400"
-                                            bgClass="bg-white/5"
-                                        />
-                                        <ComparisonCard
-                                            title="History Phase"
-                                            metrics={selectedEventMetrics.history}
-                                            accentClass="text-amber-400"
-                                            bgClass="bg-white/5"
-                                        />
-                                        <ComparisonCard
-                                            title="Total Aggregated"
-                                            metrics={selectedEventMetrics.all}
-                                            accentClass="text-indigo-400"
-                                            bgClass="bg-white/5 border-indigo-500/20"
-                                        />
-                                    </div>
-                                </div>
-                            )}
+                            {generateAttendanceStatusBlock()}
 
                             {/* LEADERBOARD LIST */}
                             <div className="rounded-3xl border border-white/5 bg-white/[0.02] backdrop-blur-xl overflow-hidden shadow-2xl">
@@ -1078,8 +909,6 @@ export default function UserProfile() {
                                             key={member.memberId || member.name}
                                             member={member}
                                             isCurrentUser={member.memberId === user_id}
-                                            selectedEventKey={selectedEventKey}
-                                            selectedEventLabel={selectedEventLabel}
                                         />
                                     ))}
                                     {comparisonRows.length === 0 && (
@@ -1097,13 +926,6 @@ export default function UserProfile() {
                                                     <th className="px-6 py-4 tracking-wider text-center border-l border-white/5">Global Current</th>
                                                     <th className="px-6 py-4 tracking-wider text-center">Global History</th>
                                                     <th className="px-6 py-4 tracking-wider text-center text-sky-400 font-black">Global Total</th>
-                                                    {selectedEventKey && (
-                                                        <>
-                                                            <th className="px-6 py-4 tracking-wider text-center border-l border-white/5 text-indigo-300">Target Current</th>
-                                                            <th className="px-6 py-4 tracking-wider text-center text-indigo-300">Target History</th>
-                                                            <th className="px-6 py-4 tracking-wider text-center text-indigo-400 font-black">Target Total</th>
-                                                        </>
-                                                    )}
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-white/5">
@@ -1130,25 +952,12 @@ export default function UserProfile() {
                                                             <td className="px-6 py-4 text-center font-bold text-emerald-400 border-l border-white/5">{member.currentCount}</td>
                                                             <td className="px-6 py-4 text-center font-bold text-amber-400">{member.historyCount}</td>
                                                             <td className="px-6 py-4 text-center text-lg font-black text-sky-400">{member.allCount}</td>
-                                                            {selectedEventKey && (
-                                                                <>
-                                                                    <td className="px-6 py-4 text-center font-bold text-emerald-400/70 border-l border-white/5">
-                                                                        {member.countsByEvent.current[selectedEventKey] || 0}
-                                                                    </td>
-                                                                    <td className="px-6 py-4 text-center font-bold text-amber-400/70">
-                                                                        {member.countsByEvent.history[selectedEventKey] || 0}
-                                                                    </td>
-                                                                    <td className="px-6 py-4 text-center text-lg font-black text-indigo-400">
-                                                                        {member.countsByEvent.all[selectedEventKey] || 0}
-                                                                    </td>
-                                                                </>
-                                                            )}
                                                         </tr>
                                                     );
                                                 })}
                                                 {comparisonRows.length === 0 && (
                                                     <tr>
-                                                        <td colSpan="7" className="px-6 py-12 text-center text-slate-500 text-sm font-semibold">No peers found.</td>
+                                                        <td colSpan="4" className="px-6 py-12 text-center text-slate-500 text-sm font-semibold">No peers found.</td>
                                                     </tr>
                                                 )}
                                             </tbody>
