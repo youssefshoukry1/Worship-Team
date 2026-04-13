@@ -171,7 +171,7 @@ export default function Category_Humns() {
     (async () => {
       try {
         // Seeded data is Arabic SVD only (`language: ar`); `en` returns empty from API.
-        const { data } = await axios.get(`${BIBLE_API}/books?language=arabic`);
+        const { data } = await axios.get(`${BIBLE_API}/books?&lang=arabic`);
         if (!cancelled) setBibleModalBooks(normalizeBibleBooksFromApi(data));
       } catch {
         if (!cancelled) setBibleModalBooks([]);
@@ -193,7 +193,7 @@ export default function Category_Humns() {
       setBibleModalBrowseLoading(true);
       try {
         const { data } = await axios.get(
-          `${BIBLE_API}/chapters/${encodeURIComponent(bibleModalBook.bookName)}?language=arabic`
+          `${BIBLE_API}/chapters/${encodeURIComponent(bibleModalBook.bookName)}?&lang=arabic`
         );
         if (!cancelled) setBibleModalChapters(Array.isArray(data) ? data : []);
       } catch {
@@ -216,7 +216,7 @@ export default function Category_Humns() {
       setBibleModalBrowseLoading(true);
       try {
         const { data } = await axios.get(
-          `${BIBLE_API}/verses/${encodeURIComponent(bibleModalBook.bookName)}/${bibleModalChapter}?language=arabic`
+          `${BIBLE_API}/verses/${encodeURIComponent(bibleModalBook.bookName)}/${bibleModalChapter}?&lang=arabic`
         );
         if (!cancelled) setBibleModalVerses(Array.isArray(data) ? data : []);
       } catch {
@@ -238,7 +238,7 @@ export default function Category_Humns() {
       setIsSearchingBible(true);
       try {
         const { data } = await axios.get(
-          `${BIBLE_API}/search?q=${encodeURIComponent(bibleSearchQuery)}&language=arabic`
+          `${BIBLE_API}/search?q=${encodeURIComponent(bibleSearchQuery)}&&lang=arabic`
         );
         setBibleSearchResults(Array.isArray(data) ? data : []);
       } catch (error) {
@@ -785,7 +785,7 @@ export default function Category_Humns() {
     if (!hit?.bookName || hit.chapter == null || hit.verseNumber == null) return;
     try {
       const { data } = await axios.get(
-        `${BIBLE_API}/verses/${encodeURIComponent(hit.bookName)}/${hit.chapter}?language=arabic`
+        `${BIBLE_API}/verses/${encodeURIComponent(hit.bookName)}/${hit.chapter}?&lang=arabic`
       );
       const list = Array.isArray(data) ? data : [];
       if (!list.length) return;
