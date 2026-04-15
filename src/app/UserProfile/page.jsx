@@ -1,22 +1,28 @@
 'use client';
 
 import { useContext, useEffect, useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import Portal from '../Portal/Portal';
 import {
     Activity,
     BarChart3,
     Book,
+    BookOpen,
     Building2,
     CalendarCheck,
+    Check,
     ChevronDown,
     Edit3,
     FileText,
     ListMusic,
+    Loader2,
     Mail,
     Target,
     Trash2,
     TrendingUp,
     User,
     Users,
+    X,
 } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
 import { getApiBaseUrl } from '../utils/apiBase';
@@ -431,6 +437,10 @@ export default function UserProfile() {
     const [activeTab, setActiveTab] = useState('overview');
     const [selectedEventKey, setSelectedEventKey] = useState('all');
 
+    const [noteModalConfig, setNoteModalConfig] = useState(null); // { data, existingNote }
+    const [noteText, setNoteText] = useState('');
+    const [isSubmittingNote, setIsSubmittingNote] = useState(false);
+
     const allEventOptions = useMemo(() => {
         if (!profile) return [];
         const optionsMap = new Map();
@@ -597,11 +607,11 @@ export default function UserProfile() {
         }
     };
 
-    const handleEditBibleNote = async (noteItem) => {
-        const newNote = window.prompt('Update your bible note:', noteItem.note);
-        if (newNote === null || newNote === noteItem.note) return;
-
+    const handleSaveNote = async () => {
+        if (!noteText.trim() || !noteModalConfig) return;
+        setIsSubmittingNote(true);
         try {
+            const noteItem = noteModalConfig.data;
             const response = await fetch(`${API_URL}/users/bible-note`, {
                 method: 'POST',
                 headers: {
@@ -615,7 +625,7 @@ export default function UserProfile() {
                     chapter: noteItem.chapter,
                     verseNumber: noteItem.verseNumber,
                     text: noteItem.text,
-                    note: newNote
+                    note: noteText
                 })
             });
 
@@ -623,9 +633,11 @@ export default function UserProfile() {
                 setProfile(prev => ({
                     ...prev,
                     bibleNotes: (prev.bibleNotes || []).map(n =>
-                        n.verseId === noteItem.verseId ? { ...n, note: newNote } : n
+                        n.verseId === noteItem.verseId ? { ...n, note: noteText } : n
                     )
                 }));
+                setNoteModalConfig(null);
+                setNoteText('');
             } else {
                 const data = await response.json();
                 alert(data.message || 'Failed to update note');
@@ -633,8 +645,30 @@ export default function UserProfile() {
         } catch (error) {
             console.error('Update note error:', error);
             alert('Error updating note');
+        } finally {
+            setIsSubmittingNote(false);
         }
     };
+
+    const handleEditBibleNote = (noteItem) => {
+        setNoteText(noteItem.note);
+        setNoteModalConfig({ data: noteItem, existingNote: noteItem.note });
+    };
+
+    // Lock scroll when modal is open
+    useEffect(() => {
+        if (noteModalConfig) {
+            document.body.style.overflow = 'hidden';
+            document.documentElement.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
+        };
+    }, [noteModalConfig]);
 
 
     const comparisonRows = displayProfile
@@ -1189,6 +1223,94 @@ export default function UserProfile() {
 
                 </div>
             </div>
+
+            {/* Note Write Modal */}
+            <AnimatePresence>
+                {noteModalConfig && (
+                    <Portal>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center p-0 sm:p-6"
+                            style={{ isolation: 'isolate' }}
+                        >
+                            <div
+                                className="absolute inset-0 bg-black/70 backdrop-blur-md"
+                                onClick={() => { setNoteModalConfig(null); setNoteText(''); }}
+                            />
+                            <motion.div
+                                initial={{ y: 60, opacity: 0, scale: 0.97 }}
+                                animate={{ y: 0, opacity: 1, scale: 1 }}
+                                exit={{ y: 40, opacity: 0, scale: 0.97 }}
+                                transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                                className="relative w-full sm:max-w-lg bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border border-sky-500/20 rounded-t-3xl sm:rounded-3xl shadow-[0_0_60px_-10px_rgba(56,189,248,0.3)] overflow-hidden flex flex-col"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <div className="sm:hidden w-10 h-1 bg-white/20 rounded-full mx-auto mt-3 mb-1" />
+                                <div className="h-px bg-gradient-to-r from-transparent via-sky-500/60 to-transparent" />
+
+                                <div className="px-6 py-5 flex items-start justify-between gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-xl bg-sky-500/20 border border-sky-500/30 flex items-center justify-center shrink-0">
+                                            <Edit3 className="w-4 h-4 text-sky-400" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-sm font-bold text-white">
+                                                Update Bible Note
+                                            </h3>
+                                            <p className="text-[10px] text-sky-400/60 font-mono uppercase tracking-widest mt-0.5">
+                                                {noteModalConfig.data.bookName} {noteModalConfig.data.chapter}:{noteModalConfig.data.verseNumber}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => { setNoteModalConfig(null); setNoteText(''); }}
+                                        className="p-1.5 text-white/30 hover:text-white/80 rounded-lg hover:bg-white/10 transition-all shrink-0 mt-0.5"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+
+                                <div className="mx-6 mb-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                                    <p className="text-sm text-white/50 leading-relaxed line-clamp-3" dir="rtl">
+                                        {noteModalConfig.data.text}
+                                    </p>
+                                </div>
+
+                                <div className="px-6 pb-2">
+                                    <textarea
+                                        autoFocus
+                                        value={noteText}
+                                        onChange={(e) => setNoteText(e.target.value)}
+                                        placeholder="Edit your note here..."
+                                        rows={4}
+                                        className="w-full bg-white/[0.04] border border-white/10 focus:border-sky-500/50 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-sky-500/30 resize-none text-sm leading-relaxed transition-all"
+                                        dir="rtl"
+                                    />
+                                </div>
+
+                                <div className="flex items-center gap-3 px-6 py-5">
+                                    <button
+                                        onClick={() => { setNoteModalConfig(null); setNoteText(''); }}
+                                        className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white/40 hover:text-white/70 hover:bg-white/5 transition-all border border-white/10"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleSaveNote}
+                                        disabled={isSubmittingNote || !noteText.trim()}
+                                        className="flex-[2] py-2.5 rounded-xl text-sm font-bold bg-sky-600 hover:bg-sky-500 text-white transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20"
+                                    >
+                                        {isSubmittingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                        Update Note
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    </Portal>
+                )}
+            </AnimatePresence>
 
             {/* Injected CSS for custom scrollbar hidden utilities used locally */}
             <style dangerouslySetInnerHTML={{
