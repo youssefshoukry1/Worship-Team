@@ -4,13 +4,16 @@ import { useContext, useEffect, useState, useMemo } from 'react';
 import {
     Activity,
     BarChart3,
+    Book,
     Building2,
     CalendarCheck,
     ChevronDown,
+    Edit3,
     FileText,
     ListMusic,
     Mail,
     Target,
+    Trash2,
     TrendingUp,
     User,
     Users,
@@ -86,9 +89,9 @@ const addEventMetaToMap = (map, eventLike, fallbackEntry = null) => {
         existing?.createdAt ||
         null;
 
-    const isCanceled = eventLike?.isCanceled === true || 
-                       fallbackEntry?.eventId?.isCanceled === true || 
-                       existing?.isCanceled === true;
+    const isCanceled = eventLike?.isCanceled === true ||
+        fallbackEntry?.eventId?.isCanceled === true ||
+        existing?.isCanceled === true;
 
     map.set(eventId.toString(), {
         id: eventId.toString(),
@@ -298,11 +301,11 @@ const buildMemberAttendanceRow = (member, eventsMap) => {
 function Badge({ icon: Icon, label, value, classes = "text-slate-200 bg-white/5 border-white/10" }) {
     return (
         <div className={`px-3 py-2 rounded-xl border flex items-center gap-2 ${classes}`}>
-             <Icon className="w-3.5 h-3.5 opacity-70" />
-             <div className="flex flex-col">
-                  <span className="text-[9px] uppercase tracking-wider opacity-60 leading-[1]">{label}</span>
-                  <span className="text-xs sm:text-sm font-semibold leading-[1.2] mt-0.5">{value}</span>
-             </div>
+            <Icon className="w-3.5 h-3.5 opacity-70" />
+            <div className="flex flex-col">
+                <span className="text-[9px] uppercase tracking-wider opacity-60 leading-[1]">{label}</span>
+                <span className="text-xs sm:text-sm font-semibold leading-[1.2] mt-0.5">{value}</span>
+            </div>
         </div>
     );
 }
@@ -329,12 +332,12 @@ function SummaryCard({
             </div>
             <div className="flex items-end justify-between mt-auto">
                 <div>
-                     <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 font-semibold">{primaryLabel}</p>
-                     <p className={`text-3xl sm:text-4xl font-black ${accentClass} leading-none`}>{primaryValue}</p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 font-semibold">{primaryLabel}</p>
+                    <p className={`text-3xl sm:text-4xl font-black ${accentClass} leading-none`}>{primaryValue}</p>
                 </div>
                 <div className="text-right">
-                     <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 font-semibold">{secondaryLabel}</p>
-                     <p className="text-xl sm:text-2xl font-bold text-slate-200 leading-none">{secondaryValue}</p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 font-semibold">{secondaryLabel}</p>
+                    <p className="text-xl sm:text-2xl font-bold text-slate-200 leading-none">{secondaryValue}</p>
                 </div>
             </div>
         </div>
@@ -373,7 +376,7 @@ function PeerComparisonCard({ member, isCurrentUser }) {
     return (
         <div className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 transition-colors ${isCurrentUser ? 'border-sky-400/40 bg-sky-900/20 shadow-[0_0_20px_rgba(56,189,248,0.1)]' : 'border-white/5 bg-black/20 hover:bg-white/5'}`}>
             {isCurrentUser && <div className="absolute top-0 right-0 w-24 h-24 bg-sky-400/10 blur-2xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>}
-            
+
             <div className="flex items-center justify-between gap-3 mb-4 relative z-10">
                 <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-inner ${isCurrentUser ? 'bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-sky-400/20' : 'bg-gradient-to-br from-slate-700 to-slate-900 text-slate-300 border border-white/5'}`}>
@@ -397,15 +400,15 @@ function PeerComparisonCard({ member, isCurrentUser }) {
             <div className="grid grid-cols-2 gap-2 relative z-10">
                 <div className="rounded-xl border border-white/5 bg-white/5 p-3 flex justify-between items-center">
                     <div className="flex items-center gap-1.5 opacity-60">
-                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
-                         <p className="text-[10px] uppercase tracking-wide font-bold">Current</p>
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
+                        <p className="text-[10px] uppercase tracking-wide font-bold">Current</p>
                     </div>
                     <p className="text-sm font-black text-emerald-400">{member.currentCount}</p>
                 </div>
                 <div className="rounded-xl border border-white/5 bg-white/5 p-3 flex justify-between items-center">
                     <div className="flex items-center gap-1.5 opacity-60">
-                         <div className="w-1.5 h-1.5 rounded-full bg-amber-400"></div>
-                         <p className="text-[10px] uppercase tracking-wide font-bold">History</p>
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400"></div>
+                        <p className="text-[10px] uppercase tracking-wide font-bold">History</p>
                     </div>
                     <p className="text-sm font-black text-amber-400">{member.historyCount}</p>
                 </div>
@@ -428,7 +431,7 @@ export default function UserProfile() {
     const allEventOptions = useMemo(() => {
         if (!profile) return [];
         const optionsMap = new Map();
-        
+
         (profile.churchEvents || []).forEach(e => {
             const name = e.eventName || e.name || UNKNOWN_EVENT;
             const key = normalizeEventKey(name);
@@ -436,8 +439,8 @@ export default function UserProfile() {
         });
 
         profile.eventsMap.forEach(e => {
-             const key = normalizeEventKey(e.name);
-             if (key) optionsMap.set(key, e.name);
+            const key = normalizeEventKey(e.name);
+            if (key) optionsMap.set(key, e.name);
         });
 
         return Array.from(optionsMap.entries()).map(([key, name]) => ({ key, name })).sort((a, b) => a.name.localeCompare(b.name));
@@ -461,6 +464,7 @@ export default function UserProfile() {
             attendanceHistory: filterByEvent(profile.attendanceHistory),
             currentReports: filterByEvent(profile.currentReports),
             reportHistory: filterByEvent(profile.reportHistory),
+            bibleNotes: profile.bibleNotes || [],
             memberAttendanceRows: profile.memberAttendanceRows.map(row => {
                 const currentCount = row.countsByEvent.current[selectedEventKey] || 0;
                 const historyCount = row.countsByEvent.history[selectedEventKey] || 0;
@@ -540,6 +544,7 @@ export default function UserProfile() {
                     attendanceHistory,
                     currentReports,
                     reportHistory,
+                    bibleNotes: currentUser.bibleNotes || [],
                     memberAttendanceRows,
                 });
 
@@ -561,6 +566,72 @@ export default function UserProfile() {
             ignore = true;
         };
     }, [isLogin, user_id, churchId]);
+
+    const handleDeleteBibleNote = async (noteId) => {
+        if (!window.confirm('Are you sure you want to delete this bible note?')) return;
+        try {
+            const response = await fetch(`${API_URL}/users/bible-note/${user_id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${isLogin}`
+                },
+                body: JSON.stringify({ noteId })
+            });
+
+            if (response.ok) {
+                setProfile(prev => ({
+                    ...prev,
+                    bibleNotes: (prev.bibleNotes || []).filter(n => n._id !== noteId)
+                }));
+            } else {
+                const data = await response.json();
+                alert(data.message || 'Failed to delete note');
+            }
+        } catch (error) {
+            console.error('Delete note error:', error);
+            alert('Error deleting note');
+        }
+    };
+
+    const handleEditBibleNote = async (noteItem) => {
+        const newNote = window.prompt('Update your bible note:', noteItem.note);
+        if (newNote === null || newNote === noteItem.note) return;
+
+        try {
+            const response = await fetch(`${API_URL}/users/bible-note`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${isLogin}`
+                },
+                body: JSON.stringify({
+                    userid: user_id,
+                    verseId: noteItem.verseId,
+                    bookName: noteItem.bookName,
+                    chapter: noteItem.chapter,
+                    verseNumber: noteItem.verseNumber,
+                    text: noteItem.text,
+                    note: newNote
+                })
+            });
+
+            if (response.ok) {
+                setProfile(prev => ({
+                    ...prev,
+                    bibleNotes: (prev.bibleNotes || []).map(n =>
+                        n.verseId === noteItem.verseId ? { ...n, note: newNote } : n
+                    )
+                }));
+            } else {
+                const data = await response.json();
+                alert(data.message || 'Failed to update note');
+            }
+        } catch (error) {
+            console.error('Update note error:', error);
+            alert('Error updating note');
+        }
+    };
 
 
     const comparisonRows = displayProfile
@@ -597,6 +668,7 @@ export default function UserProfile() {
 
     const tabs = [
         { id: 'overview', label: 'Overview', icon: User },
+        { id: 'bible', label: 'Bible', icon: Book },
         { id: 'current', label: 'Current Cycle', icon: TrendingUp },
         { id: 'history', label: 'History', icon: CalendarCheck },
         { id: 'compare', label: 'Compare', icon: BarChart3 },
@@ -604,7 +676,7 @@ export default function UserProfile() {
 
     const generateAttendanceStatusBlock = () => {
         if (!displayProfile) return null;
-        
+
         // Exclude completely canceled events and filter by selectedEventKey
         const validChurchEvents = profile.churchEvents?.filter(e => {
             if (e.isCanceled) return false;
@@ -612,7 +684,7 @@ export default function UserProfile() {
             return true;
         }) || [];
         const validExpectedCount = validChurchEvents.length;
-        
+
         // Filter out User attendances to explicitly only count valid un-canceled ones
         const validAttendedCount = displayProfile.currentAttendance?.filter(a => {
             const eMeta = displayProfile.eventsMap?.get(a.eventId);
@@ -623,8 +695,8 @@ export default function UserProfile() {
         let consistencyPercentage = Math.round((validAttendedCount / maxScore) * 100);
         if (consistencyPercentage > 100) consistencyPercentage = 100;
 
-        const historyCountDisplay = selectedEventKey === 'all' 
-            ? displayProfile.attendHistoryCount 
+        const historyCountDisplay = selectedEventKey === 'all'
+            ? displayProfile.attendHistoryCount
             : displayProfile.attendanceHistory.length;
 
         let statusMessage = "";
@@ -648,29 +720,29 @@ export default function UserProfile() {
         return (
             <div className={`rounded-3xl border p-6 sm:p-8 backdrop-blur-xl relative overflow-hidden transition-all duration-500 mb-8 shadow-xl ${statusClass}`}>
                 <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none scale-150 -translate-y-10">
-                   <Target className="w-64 h-64" />
+                    <Target className="w-64 h-64" />
                 </div>
                 <div className="relative z-10 flex flex-col lg:flex-row items-center gap-8 lg:gap-12 justify-between">
-                     <div className="flex-1 text-center lg:text-left">
-                         <h2 className="text-2xl sm:text-3xl font-black mb-3 text-white flex justify-center lg:justify-start items-center gap-3">
-                             <span className="text-3xl sm:text-4xl filter drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] animate-pulse">{statusIcon}</span> 
-                             Attendance Status
-                         </h2>
-                         <p className="text-sm sm:text-base font-bold opacity-90 mx-auto lg:mx-0 max-w-sm">
-                             {statusMessage}
-                         </p>
-                     </div>
-                     <div className="flex gap-6 sm:gap-10 justify-center items-center bg-black/20 p-5 rounded-2xl border border-white/5 shadow-inner">
-                         <div className="text-center min-w-[80px]">
-                             <p className="text-[10px] uppercase tracking-widest font-black opacity-60 mb-2">Current Score</p>
-                             <p className="text-4xl sm:text-5xl font-black text-white">{validAttendedCount} <span className="text-lg sm:text-xl font-bold opacity-40">/ {validExpectedCount}</span></p>
-                         </div>
-                         <div className="w-px h-16 bg-white/10"></div>
-                         <div className="text-center min-w-[80px]">
-                             <p className="text-[10px] uppercase tracking-widest font-black opacity-60 mb-2">Historical</p>
-                             <p className="text-3xl sm:text-4xl font-black text-white opacity-90">{historyCountDisplay}</p>
-                         </div>
-                     </div>
+                    <div className="flex-1 text-center lg:text-left">
+                        <h2 className="text-2xl sm:text-3xl font-black mb-3 text-white flex justify-center lg:justify-start items-center gap-3">
+                            <span className="text-3xl sm:text-4xl filter drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] animate-pulse">{statusIcon}</span>
+                            Attendance Status
+                        </h2>
+                        <p className="text-sm sm:text-base font-bold opacity-90 mx-auto lg:mx-0 max-w-sm">
+                            {statusMessage}
+                        </p>
+                    </div>
+                    <div className="flex gap-6 sm:gap-10 justify-center items-center bg-black/20 p-5 rounded-2xl border border-white/5 shadow-inner">
+                        <div className="text-center min-w-[80px]">
+                            <p className="text-[10px] uppercase tracking-widest font-black opacity-60 mb-2">Current Score</p>
+                            <p className="text-4xl sm:text-5xl font-black text-white">{validAttendedCount} <span className="text-lg sm:text-xl font-bold opacity-40">/ {validExpectedCount}</span></p>
+                        </div>
+                        <div className="w-px h-16 bg-white/10"></div>
+                        <div className="text-center min-w-[80px]">
+                            <p className="text-[10px] uppercase tracking-widest font-black opacity-60 mb-2">Historical</p>
+                            <p className="text-3xl sm:text-4xl font-black text-white opacity-90">{historyCountDisplay}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
@@ -679,14 +751,14 @@ export default function UserProfile() {
     return (
         <main className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] text-white pb-24">
             <div className="max-w-5xl mx-auto px-3 sm:px-6 pt-8 sm:pt-12">
-                
+
                 {/* --- HEADER PROFILE CARD --- */}
                 <div className="rounded-[2rem] border border-white/5 bg-white/[0.02] p-5 sm:p-8 backdrop-blur-2xl mb-6 sm:mb-8 relative overflow-hidden shadow-2xl shadow-black/50">
                     <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-[0.03] pointer-events-none">
                         <User className="w-64 h-64 sm:w-96 sm:h-96" />
                     </div>
                     <div className="absolute top-1/2 left-0 w-32 h-32 bg-sky-500/10 blur-[100px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2"></div>
-                    
+
                     <div className="relative z-10">
                         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-500/10 border border-sky-400/20 text-sky-300 text-[9px] sm:text-[10px] font-black uppercase tracking-widest mb-4">
                             User Dashboard
@@ -703,11 +775,11 @@ export default function UserProfile() {
                             <Badge icon={User} label="Role" value={titleCase(profile?.user?.role)} classes="bg-sky-500/5 text-sky-200 border-sky-500/10" />
                             <Badge icon={Target} label="Status" value={titleCase(profile?.user?.status)} classes="bg-emerald-500/5 text-emerald-200 border-emerald-500/10" />
                             <Badge icon={Building2} label="Church" value={profile?.user?.ChurchName || 'N/A'} classes="bg-indigo-500/5 text-indigo-200 border-indigo-500/10" />
-                            <Badge 
-                                icon={TrendingUp} 
-                                label="Training" 
-                                value={profile?.user?.isInTraining ? 'Active' : 'Inactive'} 
-                                classes={profile?.user?.isInTraining ? 'border-emerald-500/20 text-emerald-300 bg-emerald-500/10' : 'border-slate-500/20 text-slate-400 bg-slate-500/10'} 
+                            <Badge
+                                icon={TrendingUp}
+                                label="Training"
+                                value={profile?.user?.isInTraining ? 'Active' : 'Inactive'}
+                                classes={profile?.user?.isInTraining ? 'border-emerald-500/20 text-emerald-300 bg-emerald-500/10' : 'border-slate-500/20 text-slate-400 bg-slate-500/10'}
                             />
                         </div>
                     </div>
@@ -716,24 +788,23 @@ export default function UserProfile() {
                 {/* --- SMART TABS NAVIGATION & FILTER --- */}
                 <div className="sticky top-4 z-40 mb-6 sm:mb-8 flex flex-col lg:flex-row gap-3 items-center justify-between">
                     <div className="flex gap-1.5 p-1.5 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 overflow-x-auto shadow-2xl shadow-black/50 custom-scrollbar-hide w-full lg:w-auto">
-                         {tabs.map(tab => (
-                             <button
-                                 key={tab.id}
-                                 onClick={() => setActiveTab(tab.id)}
-                                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap min-w-[110px] ${
-                                     activeTab === tab.id 
-                                     ? 'bg-white/10 text-white shadow-lg shadow-black/20 border border-white/5 ring-1 ring-white/10' 
-                                     : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'
-                                 }`}
-                             >
-                                 <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-sky-400' : 'opacity-60'}`} />
-                                 {tab.label}
-                             </button>
-                         ))}
+                        {tabs.map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap min-w-[110px] ${activeTab === tab.id
+                                        ? 'bg-white/10 text-white shadow-lg shadow-black/20 border border-white/5 ring-1 ring-white/10'
+                                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'
+                                    }`}
+                            >
+                                <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-sky-400' : 'opacity-60'}`} />
+                                {tab.label}
+                            </button>
+                        ))}
                     </div>
 
                     <div className="w-full lg:w-auto flex items-center bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 p-1 shadow-2xl shadow-black/50 overflow-hidden relative group">
-                        <select 
+                        <select
                             value={selectedEventKey}
                             onChange={(e) => setSelectedEventKey(e.target.value)}
                             className="bg-transparent text-slate-200 text-xs sm:text-sm font-bold appearance-none outline-none py-2.5 pl-4 pr-10 w-full lg:w-56 cursor-pointer hover:bg-white/5 transition-colors z-10 rounded-xl"
@@ -753,7 +824,7 @@ export default function UserProfile() {
 
                 {/* --- TAB CONTENT AREAS --- */}
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
-                    
+
                     {/* OVERVIEW TAB */}
                     {activeTab === 'overview' && (
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -762,10 +833,10 @@ export default function UserProfile() {
                                 title="Events"
                                 primaryLabel="Training"
                                 primaryValue={displayProfile?.currentTrainingEvents.length || 0}
-                                secondaryLabel="events"
+                                secondaryLabel="all events"
                                 secondaryValue={displayProfile?.churchEventsCount || 0}
                                 accentClass="text-sky-400"
-                                bgClass="bg-gradient-to-br from-sky-500/10 to-transparent border-sky-400/20"
+                                bgClass="bg-gradient-to-br from-`sky-500/10 to-transparent border-sky-400/20"
                             />
                             <SummaryCard
                                 icon={ListMusic}
@@ -796,6 +867,73 @@ export default function UserProfile() {
                                 secondaryValue={displayProfile?.reportHistory.length || 0}
                                 accentClass="text-amber-400"
                                 bgClass="bg-gradient-to-br from-amber-500/10 to-transparent border-amber-400/20"
+                            />
+                            <SummaryCard
+                                icon={Book}
+                                title="Bible"
+                                primaryLabel="Notes"
+                                primaryValue={displayProfile?.bibleNotes?.length || 0}
+                                secondaryLabel="Total Verses"
+                                secondaryValue={displayProfile?.bibleNotes?.length || 0}
+                                accentClass="text-blue-400"
+                                bgClass="bg-gradient-to-br from-blue-500/10 to-transparent border-blue-400/20"
+                            />
+                        </div>
+                    )}
+
+                    {/* BIBLE TAB */}
+                    {activeTab === 'bible' && (
+                        <div className="grid gap-5 sm:gap-6">
+                            <ListPanel
+                                title="My Bible Notes"
+                                icon={Book}
+                                accentClass="text-blue-400"
+                                iconBgClass="bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                items={displayProfile?.bibleNotes || []}
+                                emptyText="No bible notes saved yet"
+                                renderItem={(note) => (
+                                    <div key={note._id || note.verseId} className="rounded-2xl border border-white/5 bg-black/20 p-4 sm:p-5 hover:bg-white/5 transition-all duration-300">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                    <h4 className="text-base font-bold text-white tracking-tight">{note.bookName}</h4>
+                                                    <span className="bg-blue-500/20 text-blue-300 text-[10px] font-black px-2 py-0.5 rounded-md border border-blue-500/20">
+                                                        {note.chapter}:{note.verseNumber}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-500 font-bold ml-auto sm:ml-0">
+                                                        {formatDate(note.date)}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs sm:text-sm text-slate-400 italic leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5 mb-3" dir="rtl">
+                                                    "{note.text}"
+                                                </p>
+                                                <div className="flex flex-col gap-1.5">
+                                                    <p className="text-[9px] uppercase tracking-widest text-blue-400/60 font-black">My Personal Note</p>
+                                                    <p className="text-sm text-slate-200 font-medium leading-relaxed">
+                                                        {note.note}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex sm:flex-col gap-2 shrink-0">
+                                                <button 
+                                                    onClick={() => handleEditBibleNote(note)}
+                                                    className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all border border-white/5"
+                                                    title="Edit Note"
+                                                >
+                                                    <Edit3 className="w-4 h-4" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDeleteBibleNote(note._id)}
+                                                    className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5"
+                                                    title="Delete Note"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             />
                         </div>
                     )}
@@ -965,7 +1103,7 @@ export default function UserProfile() {
                     {/* COMPARE TAB */}
                     {activeTab === 'compare' && (
                         <div className="space-y-6 sm:space-y-8">
-                            
+
                             {generateAttendanceStatusBlock()}
 
                             {/* LEADERBOARD LIST */}
@@ -1012,9 +1150,8 @@ export default function UserProfile() {
                                                     return (
                                                         <tr
                                                             key={member.memberId || member.name}
-                                                            className={`transition-colors hover:bg-white/5 ${
-                                                                isCurrentUser ? 'bg-sky-500/10' : ''
-                                                            }`}
+                                                            className={`transition-colors hover:bg-white/5 ${isCurrentUser ? 'bg-sky-500/10' : ''
+                                                                }`}
                                                         >
                                                             <td className="px-6 py-4 font-semibold text-white">
                                                                 <div className="flex items-center gap-3">
@@ -1051,7 +1188,8 @@ export default function UserProfile() {
             </div>
 
             {/* Injected CSS for custom scrollbar hidden utilities used locally */}
-            <style dangerouslySetInnerHTML={{__html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 .custom-scrollbar-hide::-webkit-scrollbar {
                     display: none;
                 }
