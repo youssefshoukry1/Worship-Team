@@ -102,19 +102,17 @@ const BibleCard = ({ bible, idx, updateWorkspaceHymn, removeFromWorkspace, openL
             </div>
 
             {/* Bible Content Preview - Responsive */}
-            <div className="w-full p-2 sm:p-3 md:p-4 bg-white/5 rounded-xl border border-white/10 max-h-[120px] xs:max-h-[140px] sm:max-h-[180px] md:max-h-[220px] lg:max-h-[280px] overflow-y-auto custom-scrollbar">
+            <div 
+                className="w-full p-2 sm:p-3 md:p-4 bg-white/5 rounded-xl border border-white/10 max-h-[120px] xs:max-h-[140px] sm:max-h-[180px] md:max-h-[220px] lg:max-h-[280px] overflow-y-auto custom-scrollbar"
+                data-lenis-prevent-wheel
+            >
                 <div className="w-full space-y-1.5 sm:space-y-2 md:space-y-3">
-                    {bible.verses?.slice(0, 3).map((verse, vIdx) => (
+                    {(bible.verses || []).map((verse, vIdx) => (
                         <div key={vIdx} className="w-full text-[10px] xs:text-xs sm:text-sm md:text-base text-white/70 leading-normal sm:leading-relaxed flex flex-col xs:flex-row gap-0.5 xs:gap-1.5 sm:gap-2 break-words" dir="rtl">
                             <span className="font-bold text-blue-400 flex-shrink-0 whitespace-nowrap">{verse.verseNumber}:</span>
-                            <span className="w-full break-words text-white/70 overflow-hidden line-clamp-3 sm:line-clamp-4">{verse.text.substring(0, 120)}...</span>
+                            <span className="w-full break-words text-white/70">{verse.text}</span>
                         </div>
                     ))}
-                    {bible.verses && bible.verses.length > 3 && (
-                        <div className="text-[10px] xs:text-xs sm:text-sm text-sky-300 italic mt-1.5 sm:mt-2 md:mt-3">
-                            + {bible.verses.length - 3} more verses
-                        </div>
-                    )}
                 </div>
             </div>
         </div>
@@ -818,6 +816,17 @@ export default function WorkSpace() {
 
 
     const dataShowSlides = React.useMemo(() => {
+        if (!selectedLyricsHymn) return [];
+
+        // Special handling for Bible items
+        if (selectedLyricsHymn.isBible && selectedLyricsHymn.verses) {
+            return selectedLyricsHymn.verses.map(v => ({
+                title: `${selectedLyricsHymn.title} ${v.verseNumber}`,
+                type: 'verse',
+                text: v.text
+            }));
+        }
+
         if (!selectedLyricsHymn?.lyrics) return [];
 
         let lyricsArray = selectedLyricsHymn.lyrics;
@@ -998,11 +1007,16 @@ export default function WorkSpace() {
         }
     }, [dataShowIndex, showDataShow]);
 
-    // Robust broadcast sync: whenever session connects or hymn changes while presentation is open
     useEffect(() => {
         if (showDataShow && dataShowId && selectedLyricsHymn && isConnected) {
             let slides = [];
-            if (Array.isArray(selectedLyricsHymn.lyrics)) {
+            if (selectedLyricsHymn.isBible && selectedLyricsHymn.verses) {
+                slides = selectedLyricsHymn.verses.map(v => ({
+                    title: `${selectedLyricsHymn.title} ${v.verseNumber}`,
+                    type: 'verse',
+                    text: v.text
+                }));
+            } else if (Array.isArray(selectedLyricsHymn.lyrics)) {
                 selectedLyricsHymn.lyrics.forEach(stanza => {
                     const blocks = stanza.text.split(/\n\s*\n/).filter(b => b.trim() !== '');
                     blocks.forEach(block => {
@@ -1024,7 +1038,7 @@ export default function WorkSpace() {
             broadcastSlide(dataShowIndex);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [showDataShow, dataShowId, selectedLyricsHymn, isConnected, broadcastHymn, showChords]);
+    }, [showDataShow, dataShowId, selectedLyricsHymn, isConnected, broadcastHymn, showChords, dataShowIndex]);
 
     // Broadcast slide change whenever dataShowIndex moves exclusively
     useEffect(() => {
@@ -1117,6 +1131,18 @@ export default function WorkSpace() {
         };
 
         if (Array.isArray(lyricsData)) {
+            // Check if it's Bible verses (have verseNumber) or Hymn stanzas (have text and type/title)
+            const isBible = lyricsData.length > 0 && 'verseNumber' in lyricsData[0];
+
+            if (isBible) {
+                return lyricsData.map((verse, idx) => (
+                    <div key={idx} className="mb-8 p-6 rounded-2xl bg-white/5 border border-white/5 text-right" dir="rtl">
+                        <div className="text-[10px] mb-2 font-black tracking-widest text-sky-400 opacity-60">VERSE {verse.verseNumber}</div>
+                        <div className="text-xl sm:text-2xl text-white font-bold leading-relaxed">{verse.text}</div>
+                    </div>
+                ));
+            }
+
             return lyricsData.map((stanza, idx) => (
                 <div key={idx} className={`mb-12 flex flex-col items-center ${stanza.type === 'chorus' ? 'bg-white/5 py-8 px-6 rounded-3xl mx-[-1rem] sm:mx-0 border border-white/5 shadow-inner' : ''}`}>
                     {stanza.title && (
@@ -1609,7 +1635,7 @@ export default function WorkSpace() {
                                                     className="w-full max-w-2xl mx-auto transition-all duration-500"
                                                     dir="rtl"
                                                 >
-                                                    {renderLyricsWithChords(selectedLyricsHymn.lyrics)}
+                                                    {renderLyricsWithChords(selectedLyricsHymn.lyrics || selectedLyricsHymn.verses)}
                                                 </div>
                                                 {/* Extra spacing at bottom for better scrolling feel */}
                                                 <div className="h-20" />
