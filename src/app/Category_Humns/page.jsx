@@ -1290,12 +1290,11 @@ export default function Category_Humns() {
   };
 
 
-return (
-  <section id="Category_Humns" className="min-h-screen bg-linear-to-br from-[#020b18] via-[#06172e] to-[#010812] text-white px-4 sm:px-6 py-10 relative overflow-hidden">
-    {/* Modern Glass Blue Background Gradients */}
-    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(56,189,248,0.12),transparent_60%)]" />
-    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(6,182,212,0.12),transparent_60%)]" />
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(2,132,199,0.06),transparent_80%)]" />
+  return (<section id="Category_Humns" className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#17275c] text-white px-4 sm:px-6 py-10 relative overflow-hidden">
+    {/* Background Gradients */}
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_70%)]" />
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.15),transparent_70%)]" />
+
     <div className="relative z-10 max-w-7xl mx-auto">
 
 
