@@ -1,11 +1,12 @@
 'use client';
 
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState, useMemo } from 'react';
 import {
     Activity,
     BarChart3,
     Building2,
     CalendarCheck,
+    ChevronDown,
     FileText,
     ListMusic,
     Mail,
@@ -242,6 +243,7 @@ const normalizeReportHistory = (reports) =>
         (reports || []).map((report, index) => ({
             id: getEntityId(report) || `report-history-${index}`,
             text: report?.text || '',
+            eventName: report?.eventName || UNKNOWN_EVENT,
             date: report?.date || null,
             savedAt: report?.savedAt || null,
         })),
@@ -421,6 +423,56 @@ export default function UserProfile() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('overview');
+    const [selectedEventKey, setSelectedEventKey] = useState('all');
+
+    const allEventOptions = useMemo(() => {
+        if (!profile) return [];
+        const optionsMap = new Map();
+        
+        (profile.churchEvents || []).forEach(e => {
+            const name = e.eventName || e.name || UNKNOWN_EVENT;
+            const key = normalizeEventKey(name);
+            if (key) optionsMap.set(key, name);
+        });
+
+        profile.eventsMap.forEach(e => {
+             const key = normalizeEventKey(e.name);
+             if (key) optionsMap.set(key, e.name);
+        });
+
+        return Array.from(optionsMap.entries()).map(([key, name]) => ({ key, name })).sort((a, b) => a.name.localeCompare(b.name));
+    }, [profile]);
+
+    const displayProfile = useMemo(() => {
+        if (!profile) return null;
+        if (selectedEventKey === 'all') return profile;
+
+        const filterByEvent = (items) => items.filter(item => {
+            const itemEventName = item.eventName || item.name || UNKNOWN_EVENT;
+            return normalizeEventKey(itemEventName) === selectedEventKey;
+        });
+
+        return {
+            ...profile,
+            currentTrainingEvents: filterByEvent(profile.currentTrainingEvents),
+            currentHymns: filterByEvent(profile.currentHymns),
+            hymnHistory: filterByEvent(profile.hymnHistory),
+            currentAttendance: filterByEvent(profile.currentAttendance),
+            attendanceHistory: filterByEvent(profile.attendanceHistory),
+            currentReports: filterByEvent(profile.currentReports),
+            reportHistory: filterByEvent(profile.reportHistory),
+            memberAttendanceRows: profile.memberAttendanceRows.map(row => {
+                const currentCount = row.countsByEvent.current[selectedEventKey] || 0;
+                const historyCount = row.countsByEvent.history[selectedEventKey] || 0;
+                return {
+                    ...row,
+                    currentCount,
+                    historyCount,
+                    allCount: currentCount + historyCount
+                };
+            })
+        };
+    }, [profile, selectedEventKey]);
 
     useEffect(() => {
         if (!isLogin || !user_id || !churchId) {
@@ -511,8 +563,8 @@ export default function UserProfile() {
     }, [isLogin, user_id, churchId]);
 
 
-    const comparisonRows = profile
-        ? [...profile.memberAttendanceRows].sort((left, right) => {
+    const comparisonRows = displayProfile
+        ? [...displayProfile.memberAttendanceRows].sort((left, right) => {
             const allDifference = right.allCount - left.allCount;
             if (allDifference !== 0) return allDifference;
             return left.name.localeCompare(right.name);
@@ -551,21 +603,29 @@ export default function UserProfile() {
     ];
 
     const generateAttendanceStatusBlock = () => {
-        if (!profile) return null;
+        if (!displayProfile) return null;
         
-        // Exclude completely canceled events 
-        const validChurchEvents = profile.churchEvents?.filter(e => !e.isCanceled) || [];
+        // Exclude completely canceled events and filter by selectedEventKey
+        const validChurchEvents = profile.churchEvents?.filter(e => {
+            if (e.isCanceled) return false;
+            if (selectedEventKey !== 'all' && normalizeEventKey(e.eventName || e.name || UNKNOWN_EVENT) !== selectedEventKey) return false;
+            return true;
+        }) || [];
         const validExpectedCount = validChurchEvents.length;
         
         // Filter out User attendances to explicitly only count valid un-canceled ones
-        const validAttendedCount = profile.currentAttendance?.filter(a => {
-            const eMeta = profile.eventsMap?.get(a.eventId);
+        const validAttendedCount = displayProfile.currentAttendance?.filter(a => {
+            const eMeta = displayProfile.eventsMap?.get(a.eventId);
             return !eMeta?.isCanceled;
         }).length || 0;
 
         const maxScore = validExpectedCount > 0 ? validExpectedCount : 1;
         let consistencyPercentage = Math.round((validAttendedCount / maxScore) * 100);
         if (consistencyPercentage > 100) consistencyPercentage = 100;
+
+        const historyCountDisplay = selectedEventKey === 'all' 
+            ? displayProfile.attendHistoryCount 
+            : displayProfile.attendanceHistory.length;
 
         let statusMessage = "";
         let statusIcon = null;
@@ -608,7 +668,7 @@ export default function UserProfile() {
                          <div className="w-px h-16 bg-white/10"></div>
                          <div className="text-center min-w-[80px]">
                              <p className="text-[10px] uppercase tracking-widest font-black opacity-60 mb-2">Historical</p>
-                             <p className="text-3xl sm:text-4xl font-black text-white opacity-90">{profile.attendHistoryCount}</p>
+                             <p className="text-3xl sm:text-4xl font-black text-white opacity-90">{historyCountDisplay}</p>
                          </div>
                      </div>
                 </div>
@@ -653,9 +713,9 @@ export default function UserProfile() {
                     </div>
                 </div>
 
-                {/* --- SMART TABS NAVIGATION --- */}
-                <div className="sticky top-4 z-40 mb-6 sm:mb-8">
-                    <div className="flex gap-1.5 p-1.5 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 overflow-x-auto shadow-2xl shadow-black/50 custom-scrollbar-hide">
+                {/* --- SMART TABS NAVIGATION & FILTER --- */}
+                <div className="sticky top-4 z-40 mb-6 sm:mb-8 flex flex-col lg:flex-row gap-3 items-center justify-between">
+                    <div className="flex gap-1.5 p-1.5 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 overflow-x-auto shadow-2xl shadow-black/50 custom-scrollbar-hide w-full lg:w-auto">
                          {tabs.map(tab => (
                              <button
                                  key={tab.id}
@@ -671,6 +731,24 @@ export default function UserProfile() {
                              </button>
                          ))}
                     </div>
+
+                    <div className="w-full lg:w-auto flex items-center bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 p-1 shadow-2xl shadow-black/50 overflow-hidden relative group">
+                        <select 
+                            value={selectedEventKey}
+                            onChange={(e) => setSelectedEventKey(e.target.value)}
+                            className="bg-transparent text-slate-200 text-xs sm:text-sm font-bold appearance-none outline-none py-2.5 pl-4 pr-10 w-full lg:w-56 cursor-pointer hover:bg-white/5 transition-colors z-10 rounded-xl"
+                        >
+                            <option value="all" className="bg-slate-900 text-white font-bold">All Events</option>
+                            {allEventOptions.map(opt => (
+                                <option key={opt.key} value={opt.key} className="bg-slate-900 text-white font-medium">
+                                    {opt.name.length > 25 ? opt.name.substring(0, 25) + '...' : opt.name}
+                                </option>
+                            ))}
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover:text-white transition-colors z-0">
+                            <ChevronDown className="w-4 h-4" />
+                        </div>
+                    </div>
                 </div>
 
                 {/* --- TAB CONTENT AREAS --- */}
@@ -683,9 +761,9 @@ export default function UserProfile() {
                                 icon={Activity}
                                 title="Events"
                                 primaryLabel="Training"
-                                primaryValue={profile?.currentTrainingEvents.length || 0}
-                                secondaryLabel="Church"
-                                secondaryValue={profile?.churchEventsCount || 0}
+                                primaryValue={displayProfile?.currentTrainingEvents.length || 0}
+                                secondaryLabel="events"
+                                secondaryValue={displayProfile?.churchEventsCount || 0}
                                 accentClass="text-sky-400"
                                 bgClass="bg-gradient-to-br from-sky-500/10 to-transparent border-sky-400/20"
                             />
@@ -693,9 +771,9 @@ export default function UserProfile() {
                                 icon={ListMusic}
                                 title="Hymns"
                                 primaryLabel="Current"
-                                primaryValue={profile?.currentHymns.length || 0}
+                                primaryValue={displayProfile?.currentHymns.length || 0}
                                 secondaryLabel="History"
-                                secondaryValue={profile?.hymnHistory.length || 0}
+                                secondaryValue={displayProfile?.hymnHistory.length || 0}
                                 accentClass="text-indigo-400"
                                 bgClass="bg-gradient-to-br from-indigo-500/10 to-transparent border-indigo-400/20"
                             />
@@ -703,9 +781,9 @@ export default function UserProfile() {
                                 icon={CalendarCheck}
                                 title="Attendance"
                                 primaryLabel="Current"
-                                primaryValue={profile?.currentAttendance.length || 0}
+                                primaryValue={displayProfile?.currentAttendance.length || 0}
                                 secondaryLabel="History"
-                                secondaryValue={profile?.attendanceHistory.length || 0}
+                                secondaryValue={displayProfile?.attendanceHistory.length || 0}
                                 accentClass="text-emerald-400"
                                 bgClass="bg-gradient-to-br from-emerald-500/10 to-transparent border-emerald-400/20"
                             />
@@ -713,9 +791,9 @@ export default function UserProfile() {
                                 icon={FileText}
                                 title="Reports"
                                 primaryLabel="Current"
-                                primaryValue={profile?.currentReports.length || 0}
+                                primaryValue={displayProfile?.currentReports.length || 0}
                                 secondaryLabel="History"
-                                secondaryValue={profile?.reportHistory.length || 0}
+                                secondaryValue={displayProfile?.reportHistory.length || 0}
                                 accentClass="text-amber-400"
                                 bgClass="bg-gradient-to-br from-amber-500/10 to-transparent border-amber-400/20"
                             />
@@ -730,7 +808,7 @@ export default function UserProfile() {
                                 icon={Activity}
                                 accentClass="text-sky-400"
                                 iconBgClass="bg-sky-500/10 text-sky-400 border-sky-500/20"
-                                items={profile?.currentTrainingEvents || []}
+                                items={displayProfile?.currentTrainingEvents || []}
                                 emptyText="No current training events active"
                                 renderItem={(event) => (
                                     <div key={event.id} className="rounded-xl border border-white/5 bg-black/20 p-3.5 hover:bg-white/5 transition-colors">
@@ -748,7 +826,7 @@ export default function UserProfile() {
                                 icon={ListMusic}
                                 accentClass="text-indigo-400"
                                 iconBgClass="bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
-                                items={profile?.currentHymns || []}
+                                items={displayProfile?.currentHymns || []}
                                 emptyText="No current hymns assigned"
                                 renderItem={(hymn) => (
                                     <div key={hymn.id} className="rounded-xl border border-white/5 bg-black/20 p-3.5 hover:bg-white/5 transition-colors">
@@ -767,7 +845,7 @@ export default function UserProfile() {
                                 icon={CalendarCheck}
                                 accentClass="text-emerald-400"
                                 iconBgClass="bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                items={profile?.currentAttendance || []}
+                                items={displayProfile?.currentAttendance || []}
                                 emptyText="No current attendance recorded"
                                 renderItem={(entry) => (
                                     <div key={entry.id} className="rounded-xl border border-white/5 bg-black/20 p-3.5 hover:bg-white/5 transition-colors flex justify-between items-center">
@@ -784,7 +862,7 @@ export default function UserProfile() {
                                 icon={FileText}
                                 accentClass="text-amber-400"
                                 iconBgClass="bg-amber-500/10 text-amber-400 border-amber-500/20"
-                                items={profile?.currentReports || []}
+                                items={displayProfile?.currentReports || []}
                                 emptyText="No current reports found"
                                 renderItem={(report) => (
                                     <div key={report.id} className="rounded-xl border border-white/5 bg-black/20 p-4 hover:bg-white/5 transition-colors">
@@ -804,12 +882,12 @@ export default function UserProfile() {
                     {/* HISTORY TAB */}
                     {activeTab === 'history' && (
                         <div className="grid gap-5 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                             <ListPanel
+                            <ListPanel
                                 title="Hymn History"
                                 icon={ListMusic}
                                 accentClass="text-fuchsia-400"
                                 iconBgClass="bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20"
-                                items={profile?.hymnHistory || []}
+                                items={displayProfile?.hymnHistory || []}
                                 emptyText="No archived hymns"
                                 renderItem={(hymn) => (
                                     <div key={hymn.id} className="rounded-xl border border-white/5 bg-black/20 p-3.5">
@@ -837,7 +915,7 @@ export default function UserProfile() {
                                 icon={CalendarCheck}
                                 accentClass="text-orange-400"
                                 iconBgClass="bg-orange-500/10 text-orange-400 border-orange-500/20"
-                                items={profile?.attendanceHistory || []}
+                                items={displayProfile?.attendanceHistory || []}
                                 emptyText="No archived attendance"
                                 renderItem={(entry) => (
                                     <div key={entry.id} className="rounded-xl border border-white/5 bg-black/20 p-3.5">
@@ -861,7 +939,7 @@ export default function UserProfile() {
                                 icon={FileText}
                                 accentClass="text-rose-400"
                                 iconBgClass="bg-rose-500/10 text-rose-400 border-rose-500/20"
-                                items={profile?.reportHistory || []}
+                                items={displayProfile?.reportHistory || []}
                                 emptyText="No archived reports"
                                 renderItem={(report) => (
                                     <div key={report.id} className="rounded-xl border border-white/5 bg-black/20 p-4">

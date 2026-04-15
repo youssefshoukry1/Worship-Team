@@ -266,7 +266,7 @@ export default function Category_Humns() {
       alert('You must be logged in to save notes.');
       return;
     }
-    
+
     setIsSubmittingNote(true);
     try {
       if (noteModalConfig.type === 'bible') {
@@ -1290,11 +1290,12 @@ export default function Category_Humns() {
   };
 
 
-  return (<section id="Category_Humns" className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-10 relative overflow-hidden">
-    {/* Background Gradients */}
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_70%)]" />
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.15),transparent_70%)]" />
-
+return (
+  <section id="Category_Humns" className="min-h-screen bg-linear-to-br from-[#020b18] via-[#06172e] to-[#010812] text-white px-4 sm:px-6 py-10 relative overflow-hidden">
+    {/* Modern Glass Blue Background Gradients */}
+    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(56,189,248,0.12),transparent_60%)]" />
+    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(6,182,212,0.12),transparent_60%)]" />
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(2,132,199,0.06),transparent_80%)]" />
     <div className="relative z-10 max-w-7xl mx-auto">
 
 
@@ -2320,19 +2321,17 @@ export default function Category_Humns() {
                                     }
                                     setBibleSelectedVerseIds(newSelection);
                                   }}
-                                  className={`group relative cursor-pointer p-4 rounded-xl transition-all duration-200 ${
-                                    existingNote
-                                      ? 'bg-indigo-500/5 border border-indigo-500/20'
-                                      : isSelectedIndividual
-                                        ? 'bg-white/5 border border-white/10'
-                                        : 'hover:bg-white/5 border border-white/0 hover:border-white/10'
-                                  }`}
+                                  className={`group relative cursor-pointer p-4 rounded-xl transition-all duration-200 ${existingNote
+                                    ? 'bg-indigo-500/5 border border-indigo-500/20'
+                                    : isSelectedIndividual
+                                      ? 'bg-white/5 border border-white/10'
+                                      : 'hover:bg-white/5 border border-white/0 hover:border-white/10'
+                                    }`}
                                 >
                                   <div className="flex items-start gap-4 sm:gap-8">
                                     <div className="shrink-0 flex flex-col items-center gap-1 min-w-[25px] sm:min-w-[30px] mt-1">
-                                      <span className={`text-xs sm:text-sm font-black transition-colors text-center ${
-                                        isSelectedIndividual ? 'text-sky-500/70' : 'text-white/30 group-hover:text-sky-500/70'
-                                      }`}>
+                                      <span className={`text-xs sm:text-sm font-black transition-colors text-center ${isSelectedIndividual ? 'text-sky-500/70' : 'text-white/30 group-hover:text-sky-500/70'
+                                        }`}>
                                         {verse.verseNumber}
                                       </span>
                                       {existingNote && (
@@ -2341,9 +2340,8 @@ export default function Category_Humns() {
                                     </div>
                                     <div className="flex-1 flex flex-col gap-2 min-w-0">
                                       <p
-                                        className={`leading-relaxed sm:leading-normal font-arabic transition-all break-words ${
-                                          isSelectedIndividual ? 'text-white' : 'text-white/80 group-hover:text-white'
-                                        }`}
+                                        className={`leading-relaxed sm:leading-normal font-arabic transition-all break-words ${isSelectedIndividual ? 'text-white' : 'text-white/80 group-hover:text-white'
+                                          }`}
                                         style={{ fontSize: `${bibleVerseFontSize}px` }}
                                       >
                                         {verse.text}
@@ -2382,11 +2380,10 @@ export default function Category_Humns() {
                                               setNoteText(existingNote || '');
                                               setNoteModalConfig({ type: 'bible', data: verse, existingNote });
                                             }}
-                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all active:scale-95 ${
-                                              existingNote
-                                                ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-400/40 hover:bg-indigo-500/30'
-                                                : 'bg-indigo-500/30 text-indigo-200 border border-indigo-500/50 hover:bg-indigo-500/40'
-                                            }`}
+                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all active:scale-95 ${existingNote
+                                              ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-400/40 hover:bg-indigo-500/30'
+                                              : 'bg-indigo-500/30 text-indigo-200 border border-indigo-500/50 hover:bg-indigo-500/40'
+                                              }`}
                                           >
                                             <FileText className="w-3 h-3 inline mr-1" />
                                             {existingNote ? 'Edit Note' : 'Add Note'}
