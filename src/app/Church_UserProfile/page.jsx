@@ -428,7 +428,7 @@ function PeerComparisonCard({ member, isCurrentUser }) {
 
 /* --- MAIN PAGE COMPONENT --- */
 
-export default function UserProfile() {
+export default function Church_UserProfile() {
     const { user_id, churchId, isLogin } = useContext(UserContext);
     const [profile, setProfile] = useState(null);
     const [userEmail, setUserEmail] = useState('');

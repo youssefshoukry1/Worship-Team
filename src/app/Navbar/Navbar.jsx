@@ -10,7 +10,7 @@ import { UserContext } from "../context/User_Context";
 
 export default function Navbar() {
     const { t, language, setLanguage } = useLanguage();
-    const { isLogin, UserRole,UserStatus, vocalsMode,setVocalsMode } = useContext(UserContext);
+    const { isLogin, UserRole, UserStatus, vocalsMode, setVocalsMode, churchId } = useContext(UserContext);
     const [langMenuOpen, setLangMenuOpen] = useState(false);
     const [modeMenuOpen, setModeMenuOpen] = useState(false);
 
@@ -20,11 +20,10 @@ export default function Navbar() {
         { name: "workspace", path: "/WorkSpace", id: "WorkSpace-section" },
     ];
 
-    /* 
-       Removed the dynamic push to navItems here.
-       The Dashboard button is now rendered explicitly in the JSX 
-       to ensure it appears next to the language switcher.
-    */
+    if (isLogin) {
+        const profilePath = churchId && churchId !== 'undefined' && churchId !== 'null' ? "/Church_UserProfile" : "/normal_UserProfile";
+        navItems.push({ name: "profile", path: profilePath, id: "profile-section" });
+    }
 
     const router = useRouter();
     const pathname = usePathname();
@@ -160,9 +159,9 @@ export default function Navbar() {
                 {isLogin && UserStatus === "approved" && (
                     <motion.li variants={itemVariants} className="list-none ml-2">
                         <button
-                            onClick={() => router.push("/UserProfile")}
+                            onClick={() => router.push(churchId && churchId !== 'undefined' && churchId !== 'null' ? "/Church_UserProfile" : "/normal_UserProfile")}
                             className={`flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full transition-all duration-300 border border-white/10
-                ${pathname === "/UserProfile"
+                ${pathname === "/Church_UserProfile" || pathname === "/normal_UserProfile"
                                     ? "bg-sky-500/20 text-sky-400 border-sky-500/30 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
                                     : "bg-white/5 text-gray-300 hover:text-white hover:bg-sky-500/20 hover:border-sky-500/30 hover:shadow-[0_0_10px_rgba(14,165,233,0.2)]"
                                 }`}
@@ -350,11 +349,11 @@ export default function Navbar() {
                                 <li>
                                     <button
                                         onClick={() => {
-                                            router.push("/UserProfile");
+                                            router.push(churchId && churchId !== 'undefined' && churchId !== 'null' ? "/Church_UserProfile" : "/normal_UserProfile");
                                             setMenuOpen(false);
                                         }}
                                         className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-transparent
-                ${pathname === "/UserProfile"
+                ${pathname === "/Church_UserProfile" || pathname === "/normal_UserProfile"
                                                 ? "bg-sky-500/20 text-sky-400 border-sky-500/30"
                                                 : "text-gray-300 hover:bg-white/5 hover:text-white"
                                             }`}
