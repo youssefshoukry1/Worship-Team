@@ -296,7 +296,7 @@ export default function Trainings() {
         >
           {segments.map((seg, j) => {
             return (
-              <span key={j} className={`inline-flex flex-col items-start ${showChords ? 'min-w-[0.2em]' : ''}`}>
+              <span key={j} className={`inline-flex flex-col items-center max-w-full ${showChords ? 'min-w-[0.2em]' : ''}`}>
                 {/* Chord row - Clean text, no badges */}
                 {showChords && (
                   <span
@@ -315,7 +315,7 @@ export default function Trainings() {
                 {/* Lyrics row */}
                 <span
                   style={{ color: currentTheme.text, fontSize: `${fontSize}px` }}
-                  className={`${isChorus ? 'font-black' : 'font-bold'} ${showChords ? 'whitespace-pre' : ''} transition-colors duration-300`}
+                  className={`${isChorus ? 'font-black' : 'font-bold'} whitespace-pre-wrap break-words text-center transition-colors duration-300`}
                 >
                   {seg.text || '\u00A0'}
                 </span>
@@ -392,7 +392,7 @@ export default function Trainings() {
               >
                 {segments.map((seg, j) => {
                   return (
-                    <span key={j} className={`inline-flex flex-col items-start ${showChords ? 'min-w-[0.2em]' : ''}`}>
+                    <span key={j} className={`inline-flex flex-col items-center max-w-full ${showChords ? 'min-w-[0.2em]' : ''}`}>
                       {/* Chord row */}
                       {showChords && (
                         <span
@@ -410,7 +410,7 @@ export default function Trainings() {
                       )}
                       {/* Lyrics row */}
                       <span
-                        className={`font-bold ${showChords ? 'whitespace-pre-wrap' : ''} leading-tight select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
+                        className={`font-bold whitespace-pre-wrap break-words text-center leading-tight select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
                         style={{ fontSize: 'clamp(28px, 7vw, 90px)' }}
                       >
                         {seg.text || '\u00A0'}

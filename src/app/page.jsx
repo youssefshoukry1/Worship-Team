@@ -1,4 +1,4 @@
-import Category_Humns from "./Category_Humns/page";
+import Category_Humns from "./Category_Hymns/page";
 
 
 export default function Home() {

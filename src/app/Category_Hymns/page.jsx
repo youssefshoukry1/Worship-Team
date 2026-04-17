@@ -1155,7 +1155,7 @@ export default function Category_Humns() {
               : null;
 
             return (
-              <span key={j} className={`inline-flex flex-col items-start ${showChords ? 'min-w-[0.2em]' : ''}`}>
+              <span key={j} className={`inline-flex flex-col items-center max-w-full ${showChords ? 'min-w-[0.2em]' : ''}`}>
                 {/* Chord row - Absolutely clean, no badges */}
                 {showChords && (
                   <span
@@ -1174,7 +1174,7 @@ export default function Category_Humns() {
                 {/* Lyrics row */}
                 <span
                   style={{ color: currentTheme.text, fontSize: `${fontSize}px` }}
-                  className={`${isChorus ? 'font-black' : 'font-bold'} ${showChords ? 'whitespace-pre' : ''} transition-colors duration-300`}
+                  className={`${isChorus ? 'font-black' : 'font-bold'} whitespace-pre-wrap break-words text-center transition-colors duration-300`}
                 >
                   {seg.text || '\u00A0'}
                 </span>
@@ -1255,7 +1255,7 @@ export default function Category_Humns() {
                     : null;
 
                   return (
-                    <span key={j} className={`inline-flex flex-col items-start ${showChords ? 'min-w-[0.2em]' : ''}`}>
+                    <span key={j} className={`inline-flex flex-col items-center max-w-full ${showChords ? 'min-w-[0.2em]' : ''}`}>
                       {/* Chord row */}
                       {showChords && (
                         <span
@@ -1273,7 +1273,7 @@ export default function Category_Humns() {
                       )}
                       {/* Lyrics row */}
                       <span
-                        className={`font-bold ${showChords ? 'whitespace-pre-wrap' : ''} leading-relaxed select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
+                        className={`font-bold whitespace-pre-wrap break-words text-center leading-relaxed select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
                         style={{ fontSize: 'clamp(28px, 7vw, 90px)' }}
                       >
                         {seg.text || '\u00A0'}
@@ -2500,7 +2500,7 @@ export default function Category_Humns() {
                                   return (
                                     <div key={idx} className={`flex flex-wrap justify-center items-end w-full ${showChords && anyChords ? 'mt-[1.1em]' : 'my-[0.1em]'}`} dir="rtl">
                                       {segs.map((seg, j) => (
-                                        <span key={j} className="inline-flex flex-col items-start min-w-[0.2em]">
+                                        <span key={j} className="inline-flex flex-col items-center min-w-[0.2em] max-w-full">
                                           {showChords && (
                                             <span className="block font-black whitespace-nowrap leading-none select-none mb-1" dir="ltr"
                                               style={{ color: '#38BDF8', fontSize: 'clamp(9px, 2vw, 14px)', visibility: seg.chord ? 'visible' : 'hidden' }}>
@@ -2508,7 +2508,7 @@ export default function Category_Humns() {
                                             </span>
                                           )}
                                           <span
-                                            className={`font-bold whitespace-pre-wrap leading-snug select-none drop-shadow-lg tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
+                                            className={`font-bold whitespace-pre-wrap break-words text-center leading-snug select-none drop-shadow-lg tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
                                             style={{
                                               fontSize: selectedLyricsHymn?.isBible
                                                 ? 'clamp(26px, 7.2vw, 56px)'
