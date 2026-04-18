@@ -703,13 +703,28 @@ export default function Category_Humns() {
       border: 'rgba(96, 165, 250, 0.1)'
     }
   };
-
+  const usageTimerRef = useRef(null); // مخزن للتايمر عشان نقدر نكسله
   const openLyrics = (hymn, transposeStep = 0) => {
     setSelectedLyricsHymn({ ...hymn, transposeStep });
     setLyricsTheme('main');
     setShowChords(vocalsMode ? false : true);
 
     setShowLyricsModal(true);
+    // لو فيه تايمر قديم شغال (من ترنيمة تانية مثلاً) نكنسله
+    if (usageTimerRef.current) clearTimeout(usageTimerRef.current);
+
+    console.log("التايمر بدأ للترنيمة:", hymn.title);
+
+    // بنخزن التايمر جوه الـ Ref
+    usageTimerRef.current = setTimeout(async () => {
+      try {
+        await axios.patch(`${API_ROOT}/hymns/${hymn._id}/use`);
+        console.log("تم تسجيل الاستخدام بنجاح!");
+        usageTimerRef.current = null; // تصفير الـ Ref بعد التنفيذ
+      } catch (err) {
+        console.error("خطأ في تسجيل الاستخدام:", err);
+      }
+    }, 10000); // 10 ثواني
   };
 
   // ── Local Offline Broadcast (BroadcastChannel API - zero internet needed) ──
@@ -746,6 +761,7 @@ export default function Category_Humns() {
       }
     }
   };
+
 
   /** Bible: same slide pipeline as hymn lyrics (one slide per verse). */
   const openBiblePresentation = React.useCallback(
@@ -817,6 +833,12 @@ export default function Category_Humns() {
       setSelectedLyricsHymn(null);
       setIsClosing(false);
     }, 300);
+    // لو قفل المودال قبل الـ 10 ثواني، نكنسل الطلب فوراً
+    if (usageTimerRef.current) {
+      clearTimeout(usageTimerRef.current);
+      usageTimerRef.current = null;
+      console.log("تم إلغاء تسجيل الاستخدام لأنك قفلت بدري");
+    }
   };
 
 
@@ -850,6 +872,7 @@ export default function Category_Humns() {
       clearTimeout(handler);
     };
   }, [search]);
+
 
   // --- API Functions ---
 
@@ -1228,9 +1251,34 @@ export default function Category_Humns() {
       }
       return segments;
     };
+    // 1. فانكشن تسجيل الاستخدام
+    const recordUsage = async (id) => {
+      try {
+        // تأكد من تغيير المسار للمسار الحقيقي بتاعك
+        await axios.patch(`https://worship-team-api.onrender.com/api/hymns/${id}/use`);
+        console.log("Usage recorded!");
+      } catch (err) {
+        console.error("Error updating usage:", err);
+      }
+    };
+
+    // 2. تتبع الوقت (الذكاء اللي بيمنع الـ Bounce)
+    useEffect(() => {
+      let timer;
+      if (selectedHymn) {
+        // لو المستخدم فضل فاتح الترنيمة 10 ثواني، بنسجل إنه استخدمها فعلاً
+        timer = setTimeout(() => {
+          recordUsage(selectedHymn._id);
+        }, 10000); // 10 ثواني
+      }
+
+      // لو قفل الترنيمة أو اختار واحدة تانية قبل الـ 10 ثواني، التايمر بيتمسح ومبيحسبش حاجة
+      return () => clearTimeout(timer);
+    }, [selectedHymn]); // الـ Effect ده بيشتغل كل ما الـ selectedHymn تتغير
 
     return (
       <>
+
         {title && (
           <div className="absolute top-8 left-1/2 -translate-x-1/2 text-white/50 text-[11px] sm:text-base font-black tracking-[0.4em] px-6 py-2 rounded-full border border-white/10 bg-white/5 uppercase select-none" dir="rtl">
             {title}

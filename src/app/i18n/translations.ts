@@ -28,7 +28,9 @@ export const translations = {
     selectBook: "Select a Book",
     searching: "Searching...",
     resultsFound: "results found",
-    presentation: "Presentation"
+    presentation: "Presentation",
+    userProfile: "User Profile",
+    church_profile: "Church Profile"
   },
   ar: {
     home: "الرئيسية",
@@ -64,7 +66,9 @@ export const translations = {
     selectBook: "اختر سفراً",
     searching: "جاري البحث...",
     resultsFound: "نتائج وجدت",
-    presentation: "العرض"
+    presentation: "العرض",
+    userProfile: "الملف الشخصي",
+    church_profile: "ملف الكنيسة"
   },
   de: {
     home: "Startseite",
@@ -95,6 +99,8 @@ export const translations = {
     selectBook: "Wähle ein Buch",
     searching: "Suche...",
     resultsFound: "Ergebnisse gefunden",
-    presentation: "Präsentation"
+    presentation: "Präsentation",
+    userProfile: "Benutzerprofil",
+    church_profile: "Kirchenprofil"
   }
 };

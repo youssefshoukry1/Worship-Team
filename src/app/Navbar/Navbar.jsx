@@ -20,10 +20,7 @@ export default function Navbar() {
         { name: "workspace", path: "/WorkSpace", id: "WorkSpace-section" },
     ];
 
-    if (isLogin) {
-        const profilePath = churchId && churchId !== 'undefined' && churchId !== 'null' ? "/Church_UserProfile" : "/normal_UserProfile";
-        navItems.push({ name: "profile", path: profilePath, id: "profile-section" });
-    }
+    // Removed duplicated profile item from navItems
 
     const router = useRouter();
     const pathname = usePathname();
@@ -155,8 +152,8 @@ export default function Navbar() {
                         </motion.li>
                     )}
 
-                {/* User Profile Link (Approved Users) */}
-                {isLogin && UserStatus === "approved" && (
+                {/* User Profile Link (All Logged-in Users) */}
+                {isLogin && (
                     <motion.li variants={itemVariants} className="list-none ml-2">
                         <button
                             onClick={() => router.push(churchId && churchId !== 'undefined' && churchId !== 'null' ? "/Church_UserProfile" : "/normal_UserProfile")}
@@ -165,7 +162,7 @@ export default function Navbar() {
                                     ? "bg-sky-500/20 text-sky-400 border-sky-500/30 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
                                     : "bg-white/5 text-gray-300 hover:text-white hover:bg-sky-500/20 hover:border-sky-500/30 hover:shadow-[0_0_10px_rgba(14,165,233,0.2)]"
                                 }`}
-                            title="User Profile"
+                            title={churchId && churchId !== 'undefined' && churchId !== 'null' ? t("church_profile") : t("userProfile")}
                         >
                             <User size={18} />
                         </button>
@@ -345,7 +342,7 @@ export default function Navbar() {
                             )}
 
                             {/* Mobile User Profile Button */}
-                            {isLogin && UserStatus === "approved" && (
+                            {isLogin && (
                                 <li>
                                     <button
                                         onClick={() => {
@@ -359,7 +356,7 @@ export default function Navbar() {
                                             }`}
                                     >
                                         <User size={18} />
-                                        User Profile
+                                        {churchId && churchId !== 'undefined' && churchId !== 'null' ? t("church_profile") : t("userProfile")}
                                     </button>
                                 </li>
                             )}
