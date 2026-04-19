@@ -654,6 +654,9 @@ export default function Trainings() {
                               {/* Title & Key */}
                               <div className="flex-1 min-w-0 flex flex-col gap-1">
                                 <div className="flex items-center gap-2">
+                                  {p.isBible && (
+                                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">📖</span>
+                                  )}
                                   <h3 className="font-bold text-sm text-gray-200 group-hover:text-white transition-colors truncate">
                                     {p.title}
                                   </h3>
@@ -663,7 +666,7 @@ export default function Trainings() {
                                     </span>
                                   )}
                                 </div>
-                                <KeyDisplay humn_parameter={p} />
+                                {!p.isBible && <KeyDisplay humn_parameter={p} />}
                               </div>
 
                               {/* Actions */}
@@ -845,8 +848,8 @@ export default function Trainings() {
       {showLyricsModal && selectedLyricsHymn && (
         <Portal>
           <div
-            className={`fixed inset-0 z-9999 flex justify-center items-end sm:items-center transition-all duration-300
-                ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/60"}`}
+            className={`fixed inset-0 z-9999 flex justify-center items-end sm:items-center transition-opacity duration-300
+                ${isClosing ? 'opacity-0' : 'opacity-100'} bg-black/70`}
           >
             <motion.div
               initial={{ y: "100%", opacity: 0 }}
@@ -854,7 +857,7 @@ export default function Trainings() {
               exit={{ y: "100%", opacity: 0 }}
               style={{
                 backgroundColor: lyricsThemes[lyricsTheme].bg,
-                boxShadow: lyricsTheme === 'warm' ? '0 10px 40px rgba(0, 0, 0, 0.1)' : '0 10px 40px rgba(0, 0, 0, 0.5)'
+                boxShadow: lyricsTheme === 'warm' ? '0 10px 40px rgba(139, 94, 60, 0.15)' : '0 10px 40px rgba(0, 0, 0, 0.5)'
               }}
               className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative transition-colors duration-500 overflow-hidden`}
             >
@@ -869,6 +872,7 @@ export default function Trainings() {
                   <div
                     ref={lyricsScrollRef}
                     className="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col"
+                    style={{ WebkitOverflowScrolling: 'touch' }}
                     data-lenis-prevent-wheel
                   >
                     {/* Sticky Header - Title, Presentation & Close Buttons (Always visible) */}
@@ -968,7 +972,7 @@ export default function Trainings() {
                       </div>
 
                       {/* Theme Selector */}
-                      <div className={`flex p-1 rounded-xl border transition-colors duration-300 ${lyricsTheme === 'warm' ? 'bg-black/5 border-black/10' : 'bg-white/5 border-white/10'}`}>
+                      <div className={`flex p-1 rounded-xl border transition-colors duration-300 ${lyricsTheme === 'warm' ? 'bg-amber-900/5 border-amber-900/10' : 'bg-white/5 border-white/10'}`}>
                         {Object.entries(lyricsThemes).map(([key, theme]) => (
                           <button
                             key={key}

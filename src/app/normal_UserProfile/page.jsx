@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useEffect, useState, useMemo } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Portal from '../Portal/Portal';
 import {
@@ -8,8 +8,10 @@ import {
     Book,
     Check,
     Edit3,
+    Heart,
     Loader2,
     Mail,
+    Sparkles,
     Target,
     Trash2,
     User,
@@ -41,6 +43,69 @@ const formatDate = (value, fallback = 'N/A') => {
         day: 'numeric',
     });
 };
+
+const PRAY_FEELINGS = [
+    { id: 'thankful', label: 'Thankful', helper: 'Gratitude opens more words. Write one blessing from today.' },
+    { id: 'anxious', label: 'Anxious', helper: 'You are safe here. Write one worry, then one small hope.' },
+    { id: 'tired', label: 'Tired', helper: 'Keep it simple. Even a few honest lines are enough.' },
+    { id: 'hopeful', label: 'Hopeful', helper: 'Beautiful. Write what you are trusting God for next.' },
+    { id: 'confused', label: 'Confused', helper: 'It is okay to not understand. Write your questions freely.' },
+    { id: 'joyful', label: 'Joyful', helper: 'Let joy flow. Write what made your heart alive today.' },
+    { id: 'other', label: 'Other', helper: 'No pressure. Just write exactly what is in your heart.' },
+];
+
+const getFeelingLabel = (value) => PRAY_FEELINGS.find((item) => item.id === value)?.label || 'Other';
+
+function getUsersEndpointCandidates(apiUrl, path) {
+    const normalizedPath = String(path || '').replace(/^\/+/, '');
+    const withApi = apiUrl;
+    const withoutApi = apiUrl.replace(/\/api$/i, '');
+    const candidates = [
+        `${withApi}/users/${normalizedPath}`,
+        `${withoutApi}/api/users/${normalizedPath}`,
+        `${withoutApi}/users/${normalizedPath}`,
+        `${withApi}/api/users/${normalizedPath}`
+    ];
+    return [...new Set(candidates.map((u) => u.replace(/([^:]\/)\/+/g, '$1')))];
+}
+
+async function fetchUsersWithFallback(apiUrl, path, method, token, payload) {
+    const urls = getUsersEndpointCandidates(apiUrl, path);
+    let lastResponse = null;
+
+    for (const url of urls) {
+        const response = await fetch(url, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: payload ? JSON.stringify(payload) : undefined
+        });
+
+        lastResponse = response;
+
+        if (response.status === 404) continue;
+
+        const contentType = response.headers.get('content-type') || '';
+        const data = contentType.includes('application/json')
+            ? await response.json().catch(() => ({}))
+            : { message: `Unexpected non-JSON response from ${url}` };
+
+        return { response, data };
+    }
+
+    if (!lastResponse) {
+        return { response: null, data: { message: 'No response from server' } };
+    }
+
+    const fallbackType = lastResponse.headers.get('content-type') || '';
+    const fallbackData = fallbackType.includes('application/json')
+        ? await lastResponse.json().catch(() => ({}))
+        : { message: 'Endpoint not found on available API routes' };
+
+    return { response: lastResponse, data: fallbackData };
+}
 
 /* --- UI COMPONENTS --- */
 
@@ -135,6 +200,10 @@ export default function normal_UserProfile() {
     const [noteModalConfig, setNoteModalConfig] = useState(null);
     const [noteText, setNoteText] = useState('');
     const [isSubmittingNote, setIsSubmittingNote] = useState(false);
+    const [prayWords, setPrayWords] = useState('');
+    const [prayFeeling, setPrayFeeling] = useState('other');
+    const [prayEditId, setPrayEditId] = useState(null);
+    const [isSubmittingPray, setIsSubmittingPray] = useState(false);
 
     useEffect(() => {
         if (!isLogin || !user_id) {
@@ -164,6 +233,7 @@ export default function normal_UserProfile() {
                 setProfile({
                     user: data.user,
                     bibleNotes: data.user?.bibleNotes?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
+                    prayTime: data.user?.prayTime?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
                 });
 
             } catch (fetchError) {
@@ -256,6 +326,82 @@ export default function normal_UserProfile() {
         setNoteModalConfig({ data: noteItem, existingNote: noteItem.note });
     };
 
+    const resetPrayForm = () => {
+        setPrayWords('');
+        setPrayFeeling('other');
+        setPrayEditId(null);
+    };
+
+    const handleSubmitPrayTime = async () => {
+        if (!prayWords.trim()) return;
+        setIsSubmittingPray(true);
+        try {
+            const isEditMode = Boolean(prayEditId);
+            const method = isEditMode ? 'PATCH' : 'POST';
+            const body = isEditMode
+                ? { prayId: prayEditId, words: prayWords, feeling: prayFeeling }
+                : { userid: user_id, words: prayWords, feeling: prayFeeling };
+
+            const { response, data } = await fetchUsersWithFallback(
+                API_URL,
+                `pray-time${isEditMode ? `/${user_id}` : ''}`,
+                method,
+                isLogin,
+                body
+            );
+
+            if (!response?.ok) {
+                throw new Error(data?.message || 'Failed to save pray time');
+            }
+
+            setProfile(prev => ({
+                ...prev,
+                prayTime: (data.user?.prayTime || []).sort((a, b) => new Date(b.date) - new Date(a.date))
+            }));
+            resetPrayForm();
+        } catch (submitError) {
+            console.error('Pray time save error:', submitError);
+            alert(submitError.message || 'Failed to save pray time');
+        } finally {
+            setIsSubmittingPray(false);
+        }
+    };
+
+    const handleEditPrayTime = (entry) => {
+        setPrayEditId(entry._id);
+        setPrayWords(entry.words || '');
+        setPrayFeeling(entry.feeling || 'other');
+    };
+
+    const handleDeletePrayTime = async (prayId) => {
+        if (!window.confirm('Are you sure you want to delete this prayer note?')) return;
+        try {
+            const { response, data } = await fetchUsersWithFallback(
+                API_URL,
+                `pray-time/${user_id}`,
+                'DELETE',
+                isLogin,
+                { prayId }
+            );
+
+            if (!response?.ok) {
+                throw new Error(data?.message || 'Failed to delete pray time');
+            }
+
+            setProfile(prev => ({
+                ...prev,
+                prayTime: (prev?.prayTime || []).filter((entry) => entry._id !== prayId)
+            }));
+
+            if (prayEditId === prayId) {
+                resetPrayForm();
+            }
+        } catch (deleteError) {
+            console.error('Pray time delete error:', deleteError);
+            alert(deleteError.message || 'Failed to delete pray time');
+        }
+    };
+
     // Lock scroll when modal is open
     useEffect(() => {
         if (noteModalConfig) {
@@ -299,6 +445,7 @@ export default function normal_UserProfile() {
     const tabs = [
         { id: 'overview', label: 'Overview', icon: User },
         { id: 'bible', label: 'Bible Notes', icon: Book },
+        { id: 'pray-time', label: 'Pray Time', icon: Heart },
     ];
 
     return (
@@ -364,6 +511,14 @@ export default function normal_UserProfile() {
                                 accentClass="text-blue-400"
                                 bgClass="bg-gradient-to-br from-blue-500/10 to-transparent border-blue-400/20"
                             />
+                            <SummaryCard
+                                icon={Heart}
+                                title="Pray Time"
+                                primaryLabel="Prayer Notes"
+                                primaryValue={profile?.prayTime?.length || 0}
+                                accentClass="text-rose-400"
+                                bgClass="bg-gradient-to-br from-rose-500/10 to-transparent border-rose-400/20"
+                            />
                         </div>
                     )}
 
@@ -418,6 +573,118 @@ export default function normal_UserProfile() {
                                                 </button>
                                             </div>
                                         </div>
+                                    </div>
+                                )}
+                            />
+                        </div>
+                    )}
+
+                    {/* PRAY TIME TAB */}
+                    {activeTab === 'pray-time' && (
+                        <div className="grid gap-5 sm:gap-6">
+                            <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-rose-500/10 via-slate-900/70 to-slate-900 p-4 sm:p-6">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Heart className="w-5 h-5 text-rose-300" />
+                                    <h3 className="text-base sm:text-lg font-bold text-white">Pray Time</h3>
+                                </div>
+                                <p className="text-xs sm:text-sm text-slate-300 mb-4 leading-relaxed">
+                                    Write freely. Choose your feeling and let your words flow at your own pace.
+                                </p>
+
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    {PRAY_FEELINGS.map((item) => (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => setPrayFeeling(item.id)}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                                                prayFeeling === item.id
+                                                    ? 'bg-rose-500/20 text-rose-200 border-rose-400/40'
+                                                    : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
+                                            }`}
+                                        >
+                                            {item.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="rounded-xl border border-rose-400/20 bg-black/20 p-3 mb-3 flex items-start gap-2">
+                                    <Sparkles className="w-4 h-4 text-rose-300 mt-0.5 shrink-0" />
+                                    <p className="text-xs sm:text-sm text-rose-100/90 leading-relaxed">
+                                        {PRAY_FEELINGS.find((item) => item.id === prayFeeling)?.helper}
+                                    </p>
+                                </div>
+
+                                <textarea
+                                    value={prayWords}
+                                    onChange={(e) => setPrayWords(e.target.value)}
+                                    placeholder="Write your prayer words here..."
+                                    rows={5}
+                                    className="w-full bg-white/[0.04] border border-white/10 focus:border-rose-400/50 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-rose-400/30 resize-none text-sm leading-relaxed transition-all mb-3"
+                                />
+
+                                <div className="flex items-center justify-between gap-3">
+                                    <p className="text-[11px] text-slate-400">
+                                        {prayWords.trim().split(/\s+/).filter(Boolean).length} words
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        {prayEditId && (
+                                            <button
+                                                onClick={resetPrayForm}
+                                                className="px-3 py-2 rounded-lg border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5"
+                                            >
+                                                Cancel Edit
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={handleSubmitPrayTime}
+                                            disabled={isSubmittingPray || !prayWords.trim()}
+                                            className="px-4 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-all disabled:opacity-40 flex items-center gap-2"
+                                        >
+                                            {isSubmittingPray ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                            {prayEditId ? 'Update Note' : 'Save Note'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <ListPanel
+                                title="My Pray Time Notes"
+                                icon={Heart}
+                                accentClass="text-rose-400"
+                                iconBgClass="bg-rose-500/10 text-rose-400 border-rose-500/20"
+                                items={profile?.prayTime || []}
+                                emptyText="No prayer notes yet"
+                                renderItem={(entry) => (
+                                    <div key={entry._id} className="rounded-2xl border border-white/5 bg-black/20 p-4 sm:p-5 hover:bg-white/5 transition-all duration-300">
+                                        <div className="flex items-start justify-between gap-3 mb-2">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="bg-rose-500/20 text-rose-200 text-[10px] font-black px-2 py-0.5 rounded-md border border-rose-500/20">
+                                                    {getFeelingLabel(entry.feeling)}
+                                                </span>
+                                                <span className="text-[10px] text-slate-500 font-bold">
+                                                    {formatDate(entry.date)}
+                                                </span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handleEditPrayTime(entry)}
+                                                    className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all border border-white/5"
+                                                    title="Edit Note"
+                                                >
+                                                    <Edit3 className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeletePrayTime(entry._id)}
+                                                    className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5"
+                                                    title="Delete Note"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <p className="text-sm text-slate-200 font-medium leading-relaxed whitespace-pre-wrap">
+                                            {entry.words}
+                                        </p>
                                     </div>
                                 )}
                             />
