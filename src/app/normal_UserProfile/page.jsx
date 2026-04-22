@@ -56,6 +56,54 @@ const PRAY_FEELINGS = [
 
 const getFeelingLabel = (value) => PRAY_FEELINGS.find((item) => item.id === value)?.label || 'Other';
 
+const PRAY_TYPES = [
+    { id: 'general', label: 'General Prayer' },
+    { id: 'prayer for me', label: 'Prayer For Me' },
+    { id: 'prayer for other', label: 'Prayer For Others' },
+    { id: 'chapter', label: 'Chapter Reflection' },
+];
+
+const getPrayTypeLabel = (value) => PRAY_TYPES.find((item) => item.id === value)?.label || 'General Prayer';
+
+const getPrayTypeStyle = (type) => {
+    const t = (type || 'general').toLowerCase();
+    switch(t) {
+        case 'prayer for me': return { activeBtn: 'bg-blue-500/20 text-blue-200 border-blue-400/40', textareaFocus: 'focus:border-blue-400/50 focus:ring-blue-400/30', cardBg: 'bg-blue-900/10 border-blue-500/20 shadow-[inset_0_0_20px_rgba(59,130,246,0.05)]', badge: 'bg-blue-500/20 text-blue-200 border-blue-500/20', accent: 'text-blue-400', glass: 'bg-blue-500/5 border-blue-500/10' };
+        case 'prayer for other': 
+        case 'prayer for others': return { activeBtn: 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40', textareaFocus: 'focus:border-emerald-400/50 focus:ring-emerald-400/30', cardBg: 'bg-emerald-900/10 border-emerald-500/20 shadow-[inset_0_0_20px_rgba(16,185,129,0.05)]', badge: 'bg-emerald-500/20 text-emerald-200 border-emerald-500/20', accent: 'text-emerald-400', glass: 'bg-emerald-500/5 border-emerald-500/10' };
+        case 'chapter': 
+        case 'chapter reflection': return { activeBtn: 'bg-purple-500/20 text-purple-200 border-purple-400/40', textareaFocus: 'focus:border-purple-400/50 focus:ring-purple-400/30', cardBg: 'bg-purple-900/10 border-purple-500/20 shadow-[inset_0_0_20px_rgba(168,85,247,0.05)]', badge: 'bg-purple-500/20 text-purple-200 border-purple-500/20', accent: 'text-purple-400', glass: 'bg-purple-500/5 border-purple-500/10' };
+        default: return { activeBtn: 'bg-rose-500/20 text-rose-200 border-rose-400/40', textareaFocus: 'focus:border-rose-400/50 focus:ring-rose-400/30', cardBg: 'bg-black/20 border-white/5 hover:bg-white/5', badge: 'bg-rose-500/20 text-rose-200 border-rose-500/20', accent: 'text-rose-400', glass: 'bg-rose-500/5 border-rose-500/10' };
+    }
+};
+
+const renderStyledPrayer = (content) => {
+    if (!content) return null;
+    
+    const parts = content.split(/(\[ PRAYER FOR ME \]|\[ PRAYER FOR OTHERS \]|\[ CHAPTER REFLECTION \])/gi);
+    
+    return (
+        <div className="text-sm text-slate-200 font-medium leading-relaxed whitespace-pre-wrap">
+            {parts.map((part, idx) => {
+                const p = part.trim();
+                if (!p) return null;
+                
+                if (p === '[ PRAYER FOR ME ]') {
+                    return <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[9px] font-black mr-1.5 border border-blue-500/20 align-middle mb-0.5">{p}</span>;
+                }
+                if (p === '[ PRAYER FOR OTHERS ]') {
+                    return <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[9px] font-black mr-1.5 border border-emerald-500/20 align-middle mb-0.5">{p}</span>;
+                }
+                if (p === '[ CHAPTER REFLECTION ]') {
+                    return <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 text-[9px] font-black mr-1.5 border border-purple-500/20 align-middle mb-0.5">{p}</span>;
+                }
+                
+                return <span key={idx} className="opacity-90">{part}</span>;
+            })}
+        </div>
+    );
+};
+
 function getUsersEndpointCandidates(apiUrl, path) {
     const normalizedPath = String(path || '').replace(/^\/+/, '');
     const withApi = apiUrl;
@@ -198,12 +246,11 @@ export default function normal_UserProfile() {
     const [activeTab, setActiveTab] = useState('overview');
 
     const [noteModalConfig, setNoteModalConfig] = useState(null);
-    const [noteText, setNoteText] = useState('');
-    const [isSubmittingNote, setIsSubmittingNote] = useState(false);
     const [prayWords, setPrayWords] = useState('');
     const [prayFeeling, setPrayFeeling] = useState('other');
     const [prayEditId, setPrayEditId] = useState(null);
     const [isSubmittingPray, setIsSubmittingPray] = useState(false);
+    const [prayBlocks, setPrayBlocks] = useState([]);
 
     useEffect(() => {
         if (!isLogin || !user_id) {
@@ -328,19 +375,51 @@ export default function normal_UserProfile() {
 
     const resetPrayForm = () => {
         setPrayWords('');
+        setPrayBlocks([]);
         setPrayFeeling('other');
         setPrayEditId(null);
     };
 
+    const handleAddBlock = (type) => {
+        setPrayBlocks([...prayBlocks, { id: Date.now(), prayType: type, words: '' }]);
+    };
+
+    const updateBlockWords = (id, newWords) => {
+        setPrayBlocks(prayBlocks.map(b => b.id === id ? { ...b, words: newWords } : b));
+    };
+
+    const removeBlock = (id) => {
+        setPrayBlocks(prayBlocks.filter(b => b.id !== id));
+    };
+
     const handleSubmitPrayTime = async () => {
-        if (!prayWords.trim()) return;
+        let finalWords = prayWords;
+        const extraText = prayBlocks
+            .filter(b => b.words.trim())
+            .map(b => `\n\n[ ${getPrayTypeLabel(b.prayType).toUpperCase()} ]\n${b.words.trim()}`)
+            .join('');
+        
+        finalWords = (finalWords + extraText).trim();
+
+        if (!finalWords) return;
         setIsSubmittingPray(true);
         try {
             const isEditMode = Boolean(prayEditId);
             const method = isEditMode ? 'PATCH' : 'POST';
+            
             const body = isEditMode
-                ? { prayId: prayEditId, words: prayWords, feeling: prayFeeling }
-                : { userid: user_id, words: prayWords, feeling: prayFeeling };
+                ? { 
+                    prayId: prayEditId, 
+                    words: finalWords, 
+                    feeling: prayFeeling, 
+                    prayType: 'general' 
+                }
+                : { 
+                    userid: user_id, 
+                    words: finalWords, 
+                    feeling: prayFeeling,
+                    prayType: 'general'
+                };
 
             const { response, data } = await fetchUsersWithFallback(
                 API_URL,
@@ -369,7 +448,13 @@ export default function normal_UserProfile() {
 
     const handleEditPrayTime = (entry) => {
         setPrayEditId(entry._id);
-        setPrayWords(entry.words || '');
+        if (entry.prayType === 'general' || !entry.prayType) {
+            setPrayWords(entry.words || '');
+            setPrayBlocks([]);
+        } else {
+            setPrayWords('');
+            setPrayBlocks([{ id: entry._id, prayType: entry.prayType, words: entry.words || '' }]);
+        }
         setPrayFeeling(entry.feeling || 'other');
     };
 
@@ -592,39 +677,91 @@ export default function normal_UserProfile() {
                                 </p>
 
                                 <div className="flex flex-wrap gap-2 mb-4">
-                                    {PRAY_FEELINGS.map((item) => (
-                                        <button
-                                            key={item.id}
-                                            onClick={() => setPrayFeeling(item.id)}
-                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                                                prayFeeling === item.id
-                                                    ? 'bg-rose-500/20 text-rose-200 border-rose-400/40'
-                                                    : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
-                                            }`}
-                                        >
-                                            {item.label}
-                                        </button>
-                                    ))}
+                                    <div className="w-full mb-1">
+                                        <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-2">Add Prayer Section</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {PRAY_TYPES.filter(t => t.id !== 'general').map((item) => (
+                                                <button
+                                                    key={item.id}
+                                                    onClick={() => !prayEditId && handleAddBlock(item.id)}
+                                                    disabled={!!prayEditId}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 disabled:opacity-40`}
+                                                >
+                                                    + {item.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="w-full mt-2 mb-1">
+                                        <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-2">How are you feeling?</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {PRAY_FEELINGS.map((item) => (
+                                                <button
+                                                    key={item.id}
+                                                    onClick={() => setPrayFeeling(item.id)}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                                                        prayFeeling === item.id
+                                                            ? 'bg-rose-500/20 text-rose-200 border-rose-400/40'
+                                                            : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
+                                                    }`}
+                                                >
+                                                    {item.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div className="rounded-xl border border-rose-400/20 bg-black/20 p-3 mb-3 flex items-start gap-2">
+                                <div className="rounded-xl border border-rose-400/20 bg-black/20 p-3 mb-4 flex items-start gap-2">
                                     <Sparkles className="w-4 h-4 text-rose-300 mt-0.5 shrink-0" />
                                     <p className="text-xs sm:text-sm text-rose-100/90 leading-relaxed">
                                         {PRAY_FEELINGS.find((item) => item.id === prayFeeling)?.helper}
                                     </p>
                                 </div>
 
-                                <textarea
-                                    value={prayWords}
-                                    onChange={(e) => setPrayWords(e.target.value)}
-                                    placeholder="Write your prayer words here..."
-                                    rows={5}
-                                    className="w-full bg-white/[0.04] border border-white/10 focus:border-rose-400/50 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-rose-400/30 resize-none text-sm leading-relaxed transition-all mb-3"
-                                />
+                                <div className="w-full bg-white/[0.04] border border-white/10 rounded-xl p-3 focus-within:ring-1 focus-within:ring-rose-400/30 focus-within:border-rose-400/50 transition-all flex flex-col mb-4">
+                                    {(!prayEditId || prayWords || prayBlocks.length === 0) && (
+                                        <textarea
+                                            value={prayWords}
+                                            onChange={(e) => setPrayWords(e.target.value)}
+                                            placeholder="Write your general prayer words here..."
+                                            rows={5}
+                                            className="w-full bg-transparent border-none text-white placeholder-white/20 focus:outline-none focus:ring-0 resize-none text-sm leading-relaxed p-0 m-0"
+                                        />
+                                    )}
+                                    {prayBlocks.length > 0 && (
+                                        <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-white/5">
+                                            {prayBlocks.map((block, idx) => (
+                                                <div key={block.id} className="relative group flex items-center">
+                                                    <span className={`absolute left-3 text-[10px] px-2 py-0.5 rounded-md border uppercase font-bold tracking-wider ${getPrayTypeStyle(block.prayType).badge}`}>
+                                                        {getPrayTypeLabel(block.prayType)}
+                                                    </span>
+                                                    <input
+                                                        type="text"
+                                                        value={block.words}
+                                                        onChange={(e) => updateBlockWords(block.id, e.target.value)}
+                                                        placeholder="Type here..."
+                                                        className={`w-full pl-[135px] pr-10 py-3 rounded-lg border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 transition-all ${getPrayTypeStyle(block.prayType).textareaFocus} ${getPrayTypeStyle(block.prayType).cardBg.replace('hover:bg-white/5', '')}`}
+                                                    />
+                                                    {!prayEditId && (
+                                                        <button 
+                                                            onClick={() => removeBlock(block.id)}
+                                                            className="absolute right-2 p-1.5 rounded-md text-slate-400 hover:text-red-400 hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-all border border-white/5"
+                                                            title="Remove section"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
 
-                                <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-4">
                                     <p className="text-[11px] text-slate-400">
-                                        {prayWords.trim().split(/\s+/).filter(Boolean).length} words
+                                        {(prayWords + ' ' + prayBlocks.map(b => b.words).join(' ')).trim().split(/\s+/).filter(Boolean).length} total words
                                     </p>
                                     <div className="flex items-center gap-2">
                                         {prayEditId && (
@@ -637,8 +774,8 @@ export default function normal_UserProfile() {
                                         )}
                                         <button
                                             onClick={handleSubmitPrayTime}
-                                            disabled={isSubmittingPray || !prayWords.trim()}
-                                            className="px-4 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-all disabled:opacity-40 flex items-center gap-2"
+                                            disabled={isSubmittingPray || (!prayWords.trim() && !prayBlocks.some(b => b.words.trim()))}
+                                            className="px-4 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-all disabled:opacity-40 flex items-center gap-2 shadow-lg shadow-rose-500/20"
                                         >
                                             {isSubmittingPray ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                                             {prayEditId ? 'Update Note' : 'Save Note'}
@@ -655,11 +792,14 @@ export default function normal_UserProfile() {
                                 items={profile?.prayTime || []}
                                 emptyText="No prayer notes yet"
                                 renderItem={(entry) => (
-                                    <div key={entry._id} className="rounded-2xl border border-white/5 bg-black/20 p-4 sm:p-5 hover:bg-white/5 transition-all duration-300">
+                                    <div key={entry._id} className={`rounded-2xl border transition-all duration-300 p-4 sm:p-5 ${getPrayTypeStyle(entry.prayType).cardBg}`}>
                                         <div className="flex items-start justify-between gap-3 mb-2">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="bg-rose-500/20 text-rose-200 text-[10px] font-black px-2 py-0.5 rounded-md border border-rose-500/20">
+                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${getPrayTypeStyle(entry.prayType).badge}`}>
                                                     {getFeelingLabel(entry.feeling)}
+                                                </span>
+                                                <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">
+                                                    {getPrayTypeLabel(entry.prayType)}
                                                 </span>
                                                 <span className="text-[10px] text-slate-500 font-bold">
                                                     {formatDate(entry.date)}
@@ -682,9 +822,9 @@ export default function normal_UserProfile() {
                                                 </button>
                                             </div>
                                         </div>
-                                        <p className="text-sm text-slate-200 font-medium leading-relaxed whitespace-pre-wrap">
-                                            {entry.words}
-                                        </p>
+                                        <div className="mt-2">
+                                            {renderStyledPrayer(entry.words)}
+                                        </div>
                                     </div>
                                 )}
                             />

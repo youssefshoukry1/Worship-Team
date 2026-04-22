@@ -3,21 +3,30 @@ import React, { useEffect, useRef, useState, useContext } from "react";
 import axios from "axios";
 import { motion, AnimatePresence, easeOut } from "framer-motion";
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, X, Globe, ChevronDown, Mic, Music, User } from "lucide-react";
+import { Menu, X, Globe, ChevronDown, Mic, Music, User, LogOut, LogIn, UserPlus } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 import { translations } from "../i18n/translations";
 import { UserContext } from "../context/User_Context";
 
 export default function Navbar() {
     const { t, language, setLanguage } = useLanguage();
-    const { isLogin, UserRole, UserStatus, vocalsMode, setVocalsMode, churchId } = useContext(UserContext);
+    const { 
+        isLogin, setLogin, 
+        UserRole, setUserRole, 
+        UserStatus, setUserStatus,
+        user_id, setUser_id,
+        churchId, setChurchId,
+        HymnIds, setHymnIds,
+        vocalsMode, setVocalsMode 
+    } = useContext(UserContext);
     const [langMenuOpen, setLangMenuOpen] = useState(false);
     const [modeMenuOpen, setModeMenuOpen] = useState(false);
+    const [authMenuOpen, setAuthMenuOpen] = useState(false);
 
     // Default Items
     const navItems = [
         { name: "hymns", path: "/", id: "home-section" },
-        { name: "workspace", path: "/WorkSpace", id: "WorkSpace-section" },
+        { name: "workspace", path: "/WorkSpace/", id: "WorkSpace-section" },
     ];
 
     // Removed duplicated profile item from navItems
@@ -53,6 +62,24 @@ export default function Navbar() {
             return () => clearTimeout(timer);
         }
     }, [pathname]);
+
+    const handleLogout = () => {
+        localStorage.removeItem("user_Taspe7_Token");
+        localStorage.removeItem("user_Taspe7_Role");
+        localStorage.removeItem("user_Taspe7_ID");
+        localStorage.removeItem("user_Taspe7_ChurchId");
+        localStorage.removeItem("user_Taspe7_HymnIds");
+        localStorage.removeItem("user_Taspe7_Status");
+
+        setLogin(null);
+        setUserRole(null);
+        setUser_id(null);
+        setChurchId(null);
+        setHymnIds([]);
+        setUserStatus(null);
+
+        router.push("/");
+    };
 
     useEffect(() => {
         // Ping Render backend to wake it up (Free Tier Cold Start)
@@ -223,8 +250,65 @@ export default function Navbar() {
                     </AnimatePresence>
                 </div>
 
+                {/* Auth Section Desktop */}
+                <div className="relative ml-2">
+                    {!isLogin ? (
+                        <div className="relative">
+                            <button
+                                onClick={() => setAuthMenuOpen(!authMenuOpen)}
+                                className="flex items-center gap-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 px-4 py-2 rounded-full border border-sky-500/20 transition-all duration-300"
+                            >
+                                <User size={18} />
+                                <span className="text-sm font-bold">{t("login")} / {t("register")}</span>
+                                <ChevronDown size={14} className={`transition-transform duration-300 ${authMenuOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            <AnimatePresence>
+                                {authMenuOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        className="absolute right-0 mt-2 w-48 bg-[#0f172a] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-1 z-50"
+                                    >
+                                        <button
+                                            onClick={() => {
+                                                router.push("/login");
+                                                setAuthMenuOpen(false);
+                                            }}
+                                            className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-sky-400 transition flex items-center gap-3"
+                                        >
+                                            <LogIn size={16} />
+                                            <span>{t("login")}</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                router.push("/Register");
+                                                setAuthMenuOpen(false);
+                                            }}
+                                            className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-sky-400 transition flex items-center gap-3"
+                                        >
+                                            <UserPlus size={16} />
+                                            <span>{t("register")}</span>
+                                        </button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={handleLogout}
+                            className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-2 rounded-full border border-red-500/20 transition-all duration-300"
+                            title={t("logout")}
+                        >
+                            <LogOut size={18} />
+                            <span className="text-sm font-bold">{t("logout")}</span>
+                        </button>
+                    )}
+                </div>
+
                 {/* Language Switcher Desktop */}
-                <div className="relative ">
+                <div className="relative ml-2">
                     <button
                         onClick={() => setLangMenuOpen(!langMenuOpen)}
                         className="flex items-center gap-1 text-gray-300 hover:text-sky-400 transition"
@@ -480,6 +564,45 @@ export default function Navbar() {
                                         )}
                                     </AnimatePresence>
                                 </div>
+                            </li>
+
+                            {/* Auth Section Mobile */}
+                            <li className="mt-2 pt-2 border-t border-white/10">
+                                {!isLogin ? (
+                                    <div className="flex flex-col gap-1">
+                                        <button
+                                            onClick={() => {
+                                                router.push("/login");
+                                                setMenuOpen(false);
+                                            }}
+                                            className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-medium text-sm text-sky-400 hover:bg-sky-500/10"
+                                        >
+                                            <LogIn size={18} />
+                                            {t("login")}
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                router.push("/Register");
+                                                setMenuOpen(false);
+                                            }}
+                                            className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-medium text-sm text-sky-400 hover:bg-sky-500/10"
+                                        >
+                                            <UserPlus size={18} />
+                                            {t("register")}
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => {
+                                            handleLogout();
+                                            setMenuOpen(false);
+                                        }}
+                                        className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-medium text-sm text-red-400 hover:bg-red-500/10"
+                                    >
+                                        <LogOut size={18} />
+                                        {t("logout")}
+                                    </button>
+                                )}
                             </li>
                         </motion.ul>
                     )}

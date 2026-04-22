@@ -98,6 +98,24 @@ function bibleTestamentAr(testament) {
   return String(testament || '').toLowerCase() === 'new' ? 'العهد الجديد' : 'العهد القديم';
 }
 
+let offlineBiblesCache = null;
+async function getOfflineBibles() {
+  if (offlineBiblesCache) return offlineBiblesCache;
+  try {
+    const res = await fetch('/Taspe7.bibles.json');
+    if (!res.ok) return null;
+    const raw = await res.json();
+    offlineBiblesCache = raw.map(v => ({
+      ...v,
+      _id: v._id?.$oid || v._id
+    }));
+    return offlineBiblesCache;
+  } catch (e) {
+    console.error("Failed to load offline Bibles", e);
+    return null;
+  }
+}
+
 export default function Category_Humns() {
   const queryClient = useQueryClient();
   const { isLogin, UserRole, vocalsMode, user_id } = useContext(UserContext);
@@ -170,9 +188,23 @@ export default function Category_Humns() {
     let cancelled = false;
     (async () => {
       try {
-        // Seeded data is Arabic SVD only (`language: ar`); `en` returns empty from API.
-        const { data } = await axios.get(`${BIBLE_API}/books?&lang=arabic`);
-        if (!cancelled) setBibleModalBooks(normalizeBibleBooksFromApi(data));
+        const isElectron = typeof window !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron');
+        if (isElectron) {
+          const bibles = await getOfflineBibles();
+          if (bibles && !cancelled) {
+            const uniqueBooksMap = new Map();
+            bibles.forEach(v => {
+              if (!uniqueBooksMap.has(v.bookName)) {
+                uniqueBooksMap.set(v.bookName, { _id: v.bookName, bookName: v.bookName, bookNumber: v.bookNumber, testament: v.testament });
+              }
+            });
+            setBibleModalBooks(normalizeBibleBooksFromApi(Array.from(uniqueBooksMap.values())));
+          }
+        } else {
+          // Seeded data is Arabic SVD only (`language: ar`); `en` returns empty from API.
+          const { data } = await axios.get(`${BIBLE_API}/books?&lang=arabic`);
+          if (!cancelled) setBibleModalBooks(normalizeBibleBooksFromApi(data));
+        }
       } catch {
         if (!cancelled) setBibleModalBooks([]);
       } finally {
@@ -192,10 +224,19 @@ export default function Category_Humns() {
     (async () => {
       setBibleModalBrowseLoading(true);
       try {
-        const { data } = await axios.get(
-          `${BIBLE_API}/chapters/${encodeURIComponent(bibleModalBook.bookName)}?&lang=arabic`
-        );
-        if (!cancelled) setBibleModalChapters(Array.isArray(data) ? data : []);
+        const isElectron = typeof window !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron');
+        if (isElectron) {
+          const bibles = await getOfflineBibles();
+          if (bibles && !cancelled) {
+            const chapters = Array.from(new Set(bibles.filter(v => v.bookName === bibleModalBook.bookName).map(v => v.chapter))).sort((a,b)=>a-b);
+            setBibleModalChapters(chapters);
+          }
+        } else {
+          const { data } = await axios.get(
+            `${BIBLE_API}/chapters/${encodeURIComponent(bibleModalBook.bookName)}?&lang=arabic`
+          );
+          if (!cancelled) setBibleModalChapters(Array.isArray(data) ? data : []);
+        }
       } catch {
         if (!cancelled) setBibleModalChapters([]);
       } finally {
@@ -215,10 +256,19 @@ export default function Category_Humns() {
     (async () => {
       setBibleModalBrowseLoading(true);
       try {
-        const { data } = await axios.get(
-          `${BIBLE_API}/verses/${encodeURIComponent(bibleModalBook.bookName)}/${bibleModalChapter}?&lang=arabic`
-        );
-        if (!cancelled) setBibleModalVerses(Array.isArray(data) ? data : []);
+        const isElectron = typeof window !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron');
+        if (isElectron) {
+          const bibles = await getOfflineBibles();
+          if (bibles && !cancelled) {
+            const verses = bibles.filter(v => v.bookName === bibleModalBook.bookName && v.chapter === parseInt(bibleModalChapter)).sort((a,b)=>a.verseNumber - b.verseNumber);
+            setBibleModalVerses(verses);
+          }
+        } else {
+          const { data } = await axios.get(
+            `${BIBLE_API}/verses/${encodeURIComponent(bibleModalBook.bookName)}/${bibleModalChapter}?&lang=arabic`
+          );
+          if (!cancelled) setBibleModalVerses(Array.isArray(data) ? data : []);
+        }
       } catch {
         if (!cancelled) setBibleModalVerses([]);
       } finally {
@@ -237,10 +287,25 @@ export default function Category_Humns() {
       }
       setIsSearchingBible(true);
       try {
-        const { data } = await axios.get(
-          `${BIBLE_API}/search?q=${encodeURIComponent(bibleSearchQuery)}&&lang=arabic`
-        );
-        setBibleSearchResults(Array.isArray(data) ? data : []);
+        const isElectron = typeof window !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron');
+        if (isElectron) {
+          const bibles = await getOfflineBibles();
+          if (bibles) {
+            const lowerQuery = bibleSearchQuery.trim().toLowerCase();
+            const results = bibles.filter(v => 
+              (v.cleanText && v.cleanText.includes(lowerQuery)) || 
+              (v.text && v.text.includes(lowerQuery))
+            ).slice(0, 50); // limit to 50 results
+            setBibleSearchResults(results);
+          } else {
+            setBibleSearchResults([]);
+          }
+        } else {
+          const { data } = await axios.get(
+            `${BIBLE_API}/search?q=${encodeURIComponent(bibleSearchQuery)}&&lang=arabic`
+          );
+          setBibleSearchResults(Array.isArray(data) ? data : []);
+        }
       } catch (error) {
         console.error("Bible search error:", error);
         setBibleSearchResults([]);
@@ -878,6 +943,51 @@ export default function Category_Humns() {
 
   // 1. Fetch Hymns
   const fetchHymns = async ({ pageParam = 0 }) => {
+    // Check if running inside Electron
+    const isElectron = typeof window !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron');
+
+    if (isElectron) {
+      try {
+        // Fetch all hymns from local JSON (using absolute path to root)
+        const response = await fetch('/hymns.json');
+        if (!response.ok) throw new Error('Local JSON not found');
+        const rawHymns = await response.json();
+
+        // MongoDB Compass exports _id as { "$oid": "..." }. We need to flatten it.
+        const allHymns = rawHymns.map(hymn => ({
+          ...hymn,
+          _id: hymn._id?.$oid || hymn._id
+        }));
+
+        let filteredHymns = allHymns;
+
+        // Apply search filter if active
+        if (debouncedSearch.trim()) {
+          const lowerSearch = debouncedSearch.toLowerCase();
+          filteredHymns = filteredHymns.filter(hymn =>
+            (hymn.title && hymn.title.toLowerCase().includes(lowerSearch)) ||
+            (hymn.lyrics && typeof hymn.lyrics === 'string' && hymn.lyrics.toLowerCase().includes(lowerSearch)) ||
+            (hymn.lyrics && Array.isArray(hymn.lyrics) && hymn.lyrics.some(l => l.text && l.text.toLowerCase().includes(lowerSearch)))
+          );
+          return filteredHymns; // No pagination for search currently
+        }
+
+        // Apply category filter if active
+        if (activeTab && activeTab !== 'all') {
+          // Adjust 'party' based on how your categories are saved in MongoDB
+          filteredHymns = filteredHymns.filter(hymn =>
+            hymn.party && hymn.party.includes(activeTab)
+          );
+        }
+
+        // Apply pagination
+        return filteredHymns.slice(pageParam, pageParam + 10);
+      } catch (err) {
+        console.error("Offline fetch failed, falling back to online:", err);
+      }
+    }
+
+    // --- ONLINE FALLBACK (Original Logic) ---
     // If search is active, use search endpoint (No pagination for search currently)
     if (debouncedSearch.trim()) {
       try {

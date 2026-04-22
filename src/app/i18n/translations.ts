@@ -30,7 +30,10 @@ export const translations = {
     resultsFound: "results found",
     presentation: "Presentation",
     userProfile: "User Profile",
-    church_profile: "Church Profile"
+    church_profile: "Church Profile",
+    login: "Login",
+    register: "Register",
+    logout: "Logout"
   },
   ar: {
     home: "الرئيسية",
@@ -68,7 +71,10 @@ export const translations = {
     resultsFound: "نتائج وجدت",
     presentation: "العرض",
     userProfile: "الملف الشخصي",
-    church_profile: "ملف الكنيسة"
+    church_profile: "ملف الكنيسة",
+    login: "تسجيل الدخول",
+    register: "إنشاء حساب",
+    logout: "تسجيل الخروج"
   },
   de: {
     home: "Startseite",
@@ -101,6 +107,9 @@ export const translations = {
     resultsFound: "Ergebnisse gefunden",
     presentation: "Präsentation",
     userProfile: "Benutzerprofil",
-    church_profile: "Kirchenprofil"
+    church_profile: "Kirchenprofil",
+    login: "Anmelden",
+    register: "Registrieren",
+    logout: "Abmelden"
   }
 };
