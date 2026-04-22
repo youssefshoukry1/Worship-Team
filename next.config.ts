@@ -1,15 +1,15 @@
 import type { NextConfig } from "next";
 
+const isProd = process.env.NODE_ENV === 'production';
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
-  // 👇 مهم جداً لتحويل المشروع لـ static site
-  output: 'export',
-
-  // 👇 بيحل مشاكل الـ CSS/JS paths في Electron
+  // 👇 Only use 'export' and relative paths for production/Electron
+  output: isProd ? 'export' : undefined,
+  assetPrefix: isProd ? './' : '',
   trailingSlash: true,
-  assetPrefix: './',
 
   images: {
     formats: ['image/avif', 'image/webp'],
