@@ -468,7 +468,7 @@ function DisplayContent() {
             <audio ref={audioRef} autoPlay />
 
             {/* ── Main content ── */}
-            <div className="relative z-10 fixed inset-0 flex flex-col items-center justify-center">
+            <div className="relative z-10 w-full h-full flex flex-col items-center justify-center p-8">
                 <AnimatePresence mode="wait">
                     {!isConnected ? (
                         <ConnectingState />
@@ -477,20 +477,17 @@ function DisplayContent() {
                     ) : (
                         <motion.div
                             key={`${displayState?.currentHymnId}-${currentSlide}`}
-                            initial={{ opacity: 0, y: 18, filter: 'blur(6px)' }}
+                            initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }}
                             animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                            exit={{ opacity: 0, y: -12, filter: 'blur(4px)' }}
-                            transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
-                            className="w-full h-full flex flex-col items-center justify-center px-10 sm:px-20 text-center"
+                            exit={{ opacity: 0, y: -20, filter: 'blur(10px)' }}
+                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                            className="w-full flex flex-col items-center justify-center text-center"
                         >
-                            <SlideTitle title={slideTitle} />
-                            <ChordRow slideData={slideData} />
-
-                            {/* ── Lyrics ── */}
-                            <div className="presentation-wrapper slide-text w-full max-w-5xl">
+                            {/* ── Lyrics Container ── */}
+                            <div className="presentation-wrapper w-full max-w-7xl">
                                 <ChordLyrics
                                     chordedLyrics={Array.isArray(slideData) ? slideData : [slideData]}
-                                    showChords={true}
+                                    showChords={false}
                                     presentation={true}
                                 />
                             </div>
@@ -501,10 +498,10 @@ function DisplayContent() {
                                 animate={{ scaleX: 1 }}
                                 transition={{ delay: 0.3, duration: 0.6, ease: 'easeOut' }}
                                 style={{
-                                    width: '40px',
+                                    width: '60px',
                                     height: '1px',
-                                    background: 'rgba(210,160,80,0.25)',
-                                    marginTop: '32px',
+                                    background: 'linear-gradient(90deg, transparent, rgba(210,160,80,0.4), transparent)',
+                                    marginTop: '4em',
                                     borderRadius: '1px',
                                 }}
                             />

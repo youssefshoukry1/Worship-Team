@@ -34,15 +34,12 @@ export function usePresentation(dataShowId, role = 'controller') {
     const viewerPeerRef = useRef(null);
     const currentControllerIdRef = useRef(null);
 
-    // Initial setup cleanup reference
     const cleanupWebRTC = useCallback(() => {
         if (localStreamRef.current) {
             localStreamRef.current.getTracks().forEach(track => track.stop());
             localStreamRef.current = null;
         }
-        Object.values(peersRef.current).forEach(pc => {
-            pc.close();
-        });
+        Object.values(peersRef.current).forEach(pc => { pc.close(); });
         peersRef.current = {};
         setIsAudioActive(false);
 
@@ -72,14 +69,21 @@ export function usePresentation(dataShowId, role = 'controller') {
 
         socket.on('disconnect', () => {
             setIsConnected(false);
-            console.log('[Socket] Disconnected');
             cleanupWebRTC();
         });
 
-        // Display / remote roles listen for updates
+        // Display / remote roles listen for updates.
+        // Use functional setState to skip re-renders when nothing meaningful changed.
         socket.on('display-update', (state) => {
-            console.log(`[Socket] received display-update:`, state);
-            setDisplayState(state);
+            setDisplayState(prev => {
+                if (
+                    prev &&
+                    prev.currentHymnId === state.currentHymnId &&
+                    prev.currentSlide  === state.currentSlide  &&
+                    prev.type          === state.type
+                ) return prev;
+                return state;
+            });
         });
 
         // --- WebRTC signaling ---
@@ -105,9 +109,8 @@ export function usePresentation(dataShowId, role = 'controller') {
         // Controller hears a request to join audio from a viewer
         socket.on('request-audio', async ({ from }) => {
             if (role !== 'controller') return;
-            if (!localStreamRef.current) return; // Audio not active
+            if (!localStreamRef.current) return;
 
-            // Create PC for this viewer
             const pc = new RTCPeerConnection(ICE_SERVERS);
             peersRef.current[from] = pc;
 
@@ -117,18 +120,16 @@ export function usePresentation(dataShowId, role = 'controller') {
                 }
             };
 
-            // Add local tracks to PC
             localStreamRef.current.getTracks().forEach(track => {
                 pc.addTrack(track, localStreamRef.current);
             });
 
-            // Create and send offer
             try {
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
                 socket.emit('webrtc-offer', { targetId: from, offer });
             } catch (err) {
-                console.error("Error creating offer", err);
+                console.error('Error creating offer', err);
             }
         });
 
@@ -164,7 +165,7 @@ export function usePresentation(dataShowId, role = 'controller') {
                 await pc.setLocalDescription(answer);
                 socket.emit('webrtc-answer', { targetId: from, answer });
             } catch (err) {
-                console.error("Error setting up remote offer and answering", err);
+                console.error('Error setting up remote offer and answering', err);
             }
         });
 
@@ -176,7 +177,7 @@ export function usePresentation(dataShowId, role = 'controller') {
                 try {
                     await pc.setRemoteDescription(new RTCSessionDescription(answer));
                 } catch (err) {
-                    console.error("Error setting remote description from answer", err);
+                    console.error('Error setting remote description from answer', err);
                 }
             }
         });
@@ -192,7 +193,7 @@ export function usePresentation(dataShowId, role = 'controller') {
                     if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate));
                 }
             } catch (err) {
-                console.error("Error adding ice candidate", err);
+                console.error('Error adding ice candidate', err);
             }
         });
 
@@ -208,7 +209,6 @@ export function usePresentation(dataShowId, role = 'controller') {
         if (!socketRef.current || !dataShowId || role !== 'controller') return;
 
         if (isAudioActive) {
-            // Stop audio
             if (localStreamRef.current) {
                 localStreamRef.current.getTracks().forEach(track => track.stop());
                 localStreamRef.current = null;
@@ -218,18 +218,14 @@ export function usePresentation(dataShowId, role = 'controller') {
             setIsAudioActive(false);
             socketRef.current.emit('audio-stopped', { dataShowId });
         } else {
-            // Start audio
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 localStreamRef.current = stream;
                 setIsAudioActive(true);
                 socketRef.current.emit('audio-started', { dataShowId, controllerId: socketRef.current.id });
-
-                // Also listen for viewers that are already in the room:
-                // If they are missing the audio-started event, it's safer if we broadcast it to the room.
             } catch (err) {
-                console.error("Failed to get microphone:", err);
-                alert("Could not access microphone.");
+                console.error('Failed to get microphone:', err);
+                alert('Could not access microphone.');
             }
         }
     }, [isAudioActive, dataShowId, role]);
