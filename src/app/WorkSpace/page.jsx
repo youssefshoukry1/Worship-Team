@@ -102,7 +102,7 @@ const BibleCard = ({ bible, idx, updateWorkspaceHymn, removeFromWorkspace, openL
             </div>
 
             {/* Bible Content Preview - Responsive */}
-            <div 
+            <div
                 className="w-full p-2 sm:p-3 md:p-4 bg-white/5 rounded-xl border border-white/10 max-h-[120px] xs:max-h-[140px] sm:max-h-[180px] md:max-h-[220px] lg:max-h-[280px] overflow-y-auto custom-scrollbar"
                 data-lenis-prevent-wheel
             >
@@ -613,6 +613,7 @@ export default function WorkSpace() {
     const [dataShowId, setDataShowId] = useState('');
     const [dataShowIdInput, setDataShowIdInput] = useState('');
     const [showSessionPanel, setShowSessionPanel] = useState(false);
+    const [sessionExpiresAt, setSessionExpiresAt] = useState(null);
 
     useEffect(() => {
         const savedSession = localStorage.getItem('myLivePresentationId');
@@ -624,6 +625,7 @@ export default function WorkSpace() {
                     const data = await response.json();
                     if (data.exists) {
                         setDataShowId(savedSession);
+                        if (data.expiresAt) setSessionExpiresAt(data.expiresAt);
                     } else {
                         localStorage.removeItem('myLivePresentationId');
                     }
@@ -660,6 +662,7 @@ export default function WorkSpace() {
 
             if (response.ok && data.success) {
                 setDataShowId(id);
+                if (data.expiresAt) setSessionExpiresAt(data.expiresAt);
                 localStorage.setItem('myLivePresentationId', id);
                 setShowSessionPanel(false);
             } else {
@@ -1375,50 +1378,59 @@ export default function WorkSpace() {
                                 </div>
 
                                 {dataShowId && (
-                                    <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-2">
-                                        {/* Open projector window */}
-                                        <a
-                                            href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all flex-1"
-                                        >
-                                            <Tv2 size={13} /> Open Display Window
-                                        </a>
-                                        {/* Open mobile remote */}
-                                        <a
-                                            href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all flex-1"
-                                        >
-                                            <ExternalLink size={13} /> Mobile Remote
-                                        </a>
+                                    <div className="mt-4 flex flex-col gap-3">
+                                        {sessionExpiresAt && (
+                                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[11px] font-mono w-fit">
+                                                <span>⏳</span>
+                                                <span>Room expires at {new Date(sessionExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+                                            {/* Open projector window */}
+                                            <a
+                                                href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all flex-1"
+                                            >
+                                                <Tv2 size={13} /> Open Display Window
+                                            </a>
+                                            {/* Open mobile remote */}
+                                            <a
+                                                href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all flex-1"
+                                            >
+                                                <ExternalLink size={13} /> Mobile Remote
+                                            </a>
 
-                                        {/* Microphone Toggle Button */}
-                                        <button
-                                            onClick={toggleAudio}
-                                            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all flex-1 ${isAudioActive
-                                                ? 'bg-sky-500/10 border-sky-500/30 text-sky-400 hover:bg-sky-500/20'
-                                                : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
-                                                }`}
-                                        >
-                                            {isAudioActive ? <Mic size={13} className="text-sky-400 animate-pulse" /> : <MicOff size={13} />}
-                                            {isAudioActive ? 'Mic On' : 'Turn On Mic'}
-                                        </button>
+                                            {/* Microphone Toggle Button */}
+                                            <button
+                                                onClick={toggleAudio}
+                                                className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all flex-1 ${isAudioActive
+                                                    ? 'bg-sky-500/10 border-sky-500/30 text-sky-400 hover:bg-sky-500/20'
+                                                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                                    }`}
+                                            >
+                                                {isAudioActive ? <Mic size={13} className="text-sky-400 animate-pulse" /> : <MicOff size={13} />}
+                                                {isAudioActive ? 'Mic On' : 'Turn On Mic'}
+                                            </button>
 
-                                        {/* End Session Button */}
-                                        <button
-                                            onClick={() => {
-                                                if (isAudioActive) toggleAudio();
-                                                clearDisplay();
-                                                setDataShowId('');
-                                                localStorage.removeItem('myLivePresentationId');
-                                            }}
-                                            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all w-full sm:w-auto"
-                                        >
-                                            <X size={13} /> End Session
-                                        </button>
+                                            {/* End Session Button */}
+                                            <button
+                                                onClick={() => {
+                                                    if (isAudioActive) toggleAudio();
+                                                    clearDisplay();
+                                                    setDataShowId('');
+                                                    setSessionExpiresAt(null);
+                                                    localStorage.removeItem('myLivePresentationId');
+                                                }}
+                                                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all w-full sm:w-auto"
+                                            >
+                                                <X size={13} /> End Session
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </div>

@@ -99,6 +99,8 @@ function bibleTestamentAr(testament) {
 }
 
 let offlineBiblesCache = null;
+let offlineBiblesIndexCache = null;
+
 async function getOfflineBibles() {
   if (offlineBiblesCache) return offlineBiblesCache;
   try {
@@ -114,6 +116,48 @@ async function getOfflineBibles() {
     console.error("Failed to load offline Bibles", e);
     return null;
   }
+}
+
+async function getOfflineBiblesIndex() {
+  if (offlineBiblesIndexCache) return offlineBiblesIndexCache;
+  const bibles = await getOfflineBibles();
+  if (!bibles) return null;
+
+  const uniqueBooksMap = new Map();
+  const chaptersMap = new Map();
+  const versesMap = new Map();
+
+  for (const v of bibles) {
+    if (!uniqueBooksMap.has(v.bookName)) {
+      uniqueBooksMap.set(v.bookName, { _id: v.bookName, bookName: v.bookName, bookNumber: v.bookNumber, testament: v.testament });
+    }
+
+    if (!chaptersMap.has(v.bookName)) {
+      chaptersMap.set(v.bookName, new Set());
+    }
+    chaptersMap.get(v.bookName).add(v.chapter);
+
+    const key = `${v.bookName}_${v.chapter}`;
+    if (!versesMap.has(key)) {
+      versesMap.set(key, []);
+    }
+    versesMap.get(key).push(v);
+  }
+
+  for (const [bookName, chaptersSet] of chaptersMap.entries()) {
+    chaptersMap.set(bookName, Array.from(chaptersSet).sort((a, b) => a - b));
+  }
+
+  for (const [key, versesArray] of versesMap.entries()) {
+    versesArray.sort((a, b) => a.verseNumber - b.verseNumber);
+  }
+
+  offlineBiblesIndexCache = {
+    books: Array.from(uniqueBooksMap.values()),
+    chaptersMap,
+    versesMap
+  };
+  return offlineBiblesIndexCache;
 }
 
 export default function Category_Humns() {
@@ -190,15 +234,9 @@ export default function Category_Humns() {
       try {
         const isElectron = typeof window !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron');
         if (isElectron) {
-          const bibles = await getOfflineBibles();
-          if (bibles && !cancelled) {
-            const uniqueBooksMap = new Map();
-            bibles.forEach(v => {
-              if (!uniqueBooksMap.has(v.bookName)) {
-                uniqueBooksMap.set(v.bookName, { _id: v.bookName, bookName: v.bookName, bookNumber: v.bookNumber, testament: v.testament });
-              }
-            });
-            setBibleModalBooks(normalizeBibleBooksFromApi(Array.from(uniqueBooksMap.values())));
+          const index = await getOfflineBiblesIndex();
+          if (index && !cancelled) {
+            setBibleModalBooks(normalizeBibleBooksFromApi(index.books));
           }
         } else {
           // Seeded data is Arabic SVD only (`language: ar`); `en` returns empty from API.
@@ -226,9 +264,9 @@ export default function Category_Humns() {
       try {
         const isElectron = typeof window !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron');
         if (isElectron) {
-          const bibles = await getOfflineBibles();
-          if (bibles && !cancelled) {
-            const chapters = Array.from(new Set(bibles.filter(v => v.bookName === bibleModalBook.bookName).map(v => v.chapter))).sort((a,b)=>a-b);
+          const index = await getOfflineBiblesIndex();
+          if (index && !cancelled) {
+            const chapters = index.chaptersMap.get(bibleModalBook.bookName) || [];
             setBibleModalChapters(chapters);
           }
         } else {
@@ -258,9 +296,9 @@ export default function Category_Humns() {
       try {
         const isElectron = typeof window !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron');
         if (isElectron) {
-          const bibles = await getOfflineBibles();
-          if (bibles && !cancelled) {
-            const verses = bibles.filter(v => v.bookName === bibleModalBook.bookName && v.chapter === parseInt(bibleModalChapter)).sort((a,b)=>a.verseNumber - b.verseNumber);
+          const index = await getOfflineBiblesIndex();
+          if (index && !cancelled) {
+            const verses = index.versesMap.get(`${bibleModalBook.bookName}_${parseInt(bibleModalChapter)}`) || [];
             setBibleModalVerses(verses);
           }
         } else {
@@ -292,8 +330,8 @@ export default function Category_Humns() {
           const bibles = await getOfflineBibles();
           if (bibles) {
             const lowerQuery = bibleSearchQuery.trim().toLowerCase();
-            const results = bibles.filter(v => 
-              (v.cleanText && v.cleanText.includes(lowerQuery)) || 
+            const results = bibles.filter(v =>
+              (v.cleanText && v.cleanText.includes(lowerQuery)) ||
               (v.text && v.text.includes(lowerQuery))
             ).slice(0, 50); // limit to 50 results
             setBibleSearchResults(results);
@@ -481,6 +519,7 @@ export default function Category_Humns() {
   const [dataShowId, setDataShowId] = useState('');
   const [dataShowIdInput, setDataShowIdInput] = useState('');
   const [showSessionPanel, setShowSessionPanel] = useState(false);
+  const [sessionExpiresAt, setSessionExpiresAt] = useState(null);
 
   useEffect(() => {
     const savedSession = localStorage.getItem('myLivePresentationId');
@@ -491,6 +530,7 @@ export default function Category_Humns() {
           const response = await axios.get(`${BASE_URL}/presentation/check/${encodeURIComponent(savedSession)}`);
           if (response.data.exists) {
             setDataShowId(savedSession);
+            if (response.data.expiresAt) setSessionExpiresAt(response.data.expiresAt);
           } else {
             localStorage.removeItem('myLivePresentationId');
           }
@@ -521,6 +561,7 @@ export default function Category_Humns() {
       const response = await axios.post(`${BASE_URL}/presentation/create`, { dataShowId: id });
       if (response.data.success) {
         setDataShowId(id);
+        if (response.data.expiresAt) setSessionExpiresAt(response.data.expiresAt);
         localStorage.setItem('myLivePresentationId', id);
         setShowSessionPanel(false);
       }
@@ -2281,8 +2322,9 @@ export default function Category_Humns() {
                     <AnimatePresence>
                       {biblePickerOpen && (
                         <motion.div
-                          initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                          className="overflow-hidden bg-white/[0.02] border border-white/5 rounded-3xl"
+                          initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
+                          transition={{ duration: 0.15 }}
+                          className="bg-white/[0.02] border border-white/5 rounded-3xl"
                         >
                           <div
                             className="p-4 max-h-[30vh] overflow-y-auto custom-scrollbar"
@@ -2811,6 +2853,11 @@ export default function Category_Humns() {
                       </div>
                     ) : (
                       <div className="flex flex-wrap items-center gap-2">
+                        {sessionExpiresAt && (
+                          <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[11px] font-mono whitespace-nowrap">
+                            <span>⏳ Expires at {new Date(sessionExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                        )}
                         <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
                           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all">
                           <Tv2 className="w-4 h-4" /> Open Display Window
@@ -2824,7 +2871,7 @@ export default function Category_Humns() {
                           {isAudioActive ? <Mic className="w-4 h-4 animate-pulse text-sky-400" /> : <MicOff className="w-4 h-4" />}
                           {isAudioActive ? 'Mic On' : 'Mic Off'}
                         </button>
-                        <button onClick={() => { if (isAudioActive) toggleAudio(); clearDisplay(); setDataShowId(''); localStorage.removeItem('myLivePresentationId'); }}
+                        <button onClick={() => { if (isAudioActive) toggleAudio(); clearDisplay(); setDataShowId(''); setSessionExpiresAt(null); localStorage.removeItem('myLivePresentationId'); }}
                           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all ml-auto">
                           <X className="w-4 h-4" /> End Session
                         </button>
