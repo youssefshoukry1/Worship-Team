@@ -55,9 +55,11 @@ export function usePresentation(dataShowId, role = 'controller') {
         if (!dataShowId) return;
 
         const socket = io(SOCKET_URL, {
-            transports: ['websocket', 'polling'],
-            reconnectionAttempts: 10,
+            transports: ['websocket'], // Force WebSocket, skips heavy HTTP polling requests
+            reconnectionAttempts: Infinity, // Keep trying to reconnect
             reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 20000, // Longer timeout for slow/unstable networks
         });
         socketRef.current = socket;
 
@@ -82,7 +84,14 @@ export function usePresentation(dataShowId, role = 'controller') {
                     prev.currentSlide  === state.currentSlide  &&
                     prev.type          === state.type
                 ) return prev;
-                return state;
+
+                // Merge with previous state to allow partial updates (saves bandwidth)
+                return {
+                    ...prev,
+                    ...state,
+                    // If the backend omits 'slides' to save data, keep the existing ones
+                    slides: state.slides !== undefined ? state.slides : (prev ? prev.slides : [])
+                };
             });
         });
 
