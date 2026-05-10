@@ -8,6 +8,7 @@ import QueryProvider from "../../QueryProvider";
 import HymnsContextProvider from "./context/Hymns_Context";
 import { LanguageProvider } from "./context/LanguageContext";
 import  SmoothScroll  from "./SmoothScroll"
+import { SpeedInsights } from '@vercel/speed-insights/next';
 const geistSans = Geist({
     variable: "--font-geist-sans",
     subsets: ["latin"],
@@ -47,7 +48,7 @@ export default function RootLayout({
                         </UserContextProvider>
                     </LanguageProvider>
                 </SmoothScroll>
-
+                <SpeedInsights />
             </body>
         </html>
     );
