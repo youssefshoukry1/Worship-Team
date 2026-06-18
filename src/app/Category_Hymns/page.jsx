@@ -16,6 +16,9 @@ import { Virtuoso } from "react-virtuoso";
 import { usePresentation } from '../hooks/usePresentation';
 import { normalizeBibleBooksFromApi } from '../utils/bibleBooks';
 import { getApiBaseUrl } from '../utils/apiBase';
+import { useRouter } from 'next/navigation';
+import { initLocalHymns, getLocalHymns, syncRemoteHymns } from '../utils/hymnsSync';
+import { initLocalBible, getLocalBibleIndex, searchLocalBible } from '../utils/bibleSync';
 
 const API_ROOT = getApiBaseUrl();
 const BIBLE_API = `${API_ROOT}/bible`;
@@ -98,73 +101,48 @@ function bibleTestamentAr(testament) {
   return String(testament || '').toLowerCase() === 'new' ? 'العهد الجديد' : 'العهد القديم';
 }
 
-let offlineBiblesCache = null;
-let offlineBiblesIndexCache = null;
 
-async function getOfflineBibles() {
-  if (offlineBiblesCache) return offlineBiblesCache;
-  try {
-    const res = await fetch('/Taspe7.bibles.json');
-    if (!res.ok) return null;
-    const raw = await res.json();
-    offlineBiblesCache = raw.map(v => ({
-      ...v,
-      _id: v._id?.$oid || v._id
-    }));
-    return offlineBiblesCache;
-  } catch (e) {
-    console.error("Failed to load offline Bibles", e);
-    return null;
-  }
-}
-
-async function getOfflineBiblesIndex() {
-  if (offlineBiblesIndexCache) return offlineBiblesIndexCache;
-  const bibles = await getOfflineBibles();
-  if (!bibles) return null;
-
-  const uniqueBooksMap = new Map();
-  const chaptersMap = new Map();
-  const versesMap = new Map();
-
-  for (const v of bibles) {
-    if (!uniqueBooksMap.has(v.bookName)) {
-      uniqueBooksMap.set(v.bookName, { _id: v.bookName, bookName: v.bookName, bookNumber: v.bookNumber, testament: v.testament });
-    }
-
-    if (!chaptersMap.has(v.bookName)) {
-      chaptersMap.set(v.bookName, new Set());
-    }
-    chaptersMap.get(v.bookName).add(v.chapter);
-
-    const key = `${v.bookName}_${v.chapter}`;
-    if (!versesMap.has(key)) {
-      versesMap.set(key, []);
-    }
-    versesMap.get(key).push(v);
-  }
-
-  for (const [bookName, chaptersSet] of chaptersMap.entries()) {
-    chaptersMap.set(bookName, Array.from(chaptersSet).sort((a, b) => a - b));
-  }
-
-  for (const [key, versesArray] of versesMap.entries()) {
-    versesArray.sort((a, b) => a.verseNumber - b.verseNumber);
-  }
-
-  offlineBiblesIndexCache = {
-    books: Array.from(uniqueBooksMap.values()),
-    chaptersMap,
-    versesMap
-  };
-  return offlineBiblesIndexCache;
-}
 
 export default function Category_Humns() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { isLogin, UserRole, vocalsMode, user_id } = useContext(UserContext);
   const { addToWorkspace, isHymnInWorkspace } = useContext(HymnsContext)
   const { t, language, setLanguage } = useLanguage();
+
+  // Initialize local cache & register automatic background synchronization
+  useEffect(() => {
+    let active = true;
+
+    const initAndSync = async () => {
+      // 1. Ensure IndexedDB is populated with initial hymns.json
+      await initLocalHymns();
+      await initLocalBible();
+
+      // 2. Force invalidation to load cache immediately on startup
+      queryClient.invalidateQueries({ queryKey: ["humns"] });
+
+      // 3. Perform background synchronization
+      if (active) {
+        await syncRemoteHymns(queryClient);
+      }
+    };
+
+    initAndSync();
+
+    // Listen to network changes to automatically sync when Wi-Fi/data is enabled
+    const handleOnlineStatus = () => {
+      console.log("[HymnsSync] Network restored. Triggering automatic background sync...");
+      syncRemoteHymns(queryClient);
+    };
+
+    window.addEventListener('online', handleOnlineStatus);
+
+    return () => {
+      active = false;
+      window.removeEventListener('online', handleOnlineStatus);
+    };
+  }, [queryClient]);
 
 
   // Re-introduced for Role checks
@@ -174,7 +152,6 @@ export default function Category_Humns() {
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
   const [formData, setFormData] = useState({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: 'None' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingHymnId, setEditingHymnId] = useState(null); // Track which hymn is being edited
@@ -232,12 +209,9 @@ export default function Category_Humns() {
     let cancelled = false;
     (async () => {
       try {
-        const isElectron = typeof window !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron');
-        if (isElectron) {
-          const index = await getOfflineBiblesIndex();
-          if (index && !cancelled) {
-            setBibleModalBooks(normalizeBibleBooksFromApi(index.books));
-          }
+        const index = await getLocalBibleIndex();
+        if (index && index.books && index.books.length > 0) {
+          if (!cancelled) setBibleModalBooks(normalizeBibleBooksFromApi(index.books));
         } else {
           // Seeded data is Arabic SVD only (`language: ar`); `en` returns empty from API.
           const { data } = await axios.get(`${BIBLE_API}/books?&lang=arabic`);
@@ -262,10 +236,9 @@ export default function Category_Humns() {
     (async () => {
       setBibleModalBrowseLoading(true);
       try {
-        const isElectron = typeof window !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron');
-        if (isElectron) {
-          const index = await getOfflineBiblesIndex();
-          if (index && !cancelled) {
+        const index = await getLocalBibleIndex();
+        if (index) {
+          if (!cancelled) {
             const chapters = index.chaptersMap.get(bibleModalBook.bookName) || [];
             setBibleModalChapters(chapters);
           }
@@ -294,10 +267,9 @@ export default function Category_Humns() {
     (async () => {
       setBibleModalBrowseLoading(true);
       try {
-        const isElectron = typeof window !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron');
-        if (isElectron) {
-          const index = await getOfflineBiblesIndex();
-          if (index && !cancelled) {
+        const index = await getLocalBibleIndex();
+        if (index) {
+          if (!cancelled) {
             const verses = index.versesMap.get(`${bibleModalBook.bookName}_${parseInt(bibleModalChapter)}`) || [];
             setBibleModalVerses(verses);
           }
@@ -318,6 +290,8 @@ export default function Category_Humns() {
 
   // Bible Search Debounce Effect
   useEffect(() => {
+    let cancelled = false;
+
     const searchBible = async () => {
       if (!bibleSearchQuery.trim()) {
         setBibleSearchResults([]);
@@ -325,30 +299,22 @@ export default function Category_Humns() {
       }
       setIsSearchingBible(true);
       try {
-        const isElectron = typeof window !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron');
-        if (isElectron) {
-          const bibles = await getOfflineBibles();
-          if (bibles) {
-            const lowerQuery = bibleSearchQuery.trim().toLowerCase();
-            const results = bibles.filter(v =>
-              (v.cleanText && v.cleanText.includes(lowerQuery)) ||
-              (v.text && v.text.includes(lowerQuery))
-            ).slice(0, 50); // limit to 50 results
-            setBibleSearchResults(results);
-          } else {
-            setBibleSearchResults([]);
-          }
-        } else {
-          const { data } = await axios.get(
-            `${BIBLE_API}/search?q=${encodeURIComponent(bibleSearchQuery)}&&lang=arabic`
-          );
-          setBibleSearchResults(Array.isArray(data) ? data : []);
+        const index = await getLocalBibleIndex();
+        if (index) {
+          const localResults = await searchLocalBible(bibleSearchQuery);
+          if (!cancelled) setBibleSearchResults(localResults || []);
+          return;
         }
+
+        const { data } = await axios.get(
+          `${BIBLE_API}/search?q=${encodeURIComponent(bibleSearchQuery)}&&lang=arabic`
+        );
+        if (!cancelled) setBibleSearchResults(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Bible search error:", error);
-        setBibleSearchResults([]);
+        if (!cancelled) setBibleSearchResults([]);
       } finally {
-        setIsSearchingBible(false);
+        if (!cancelled) setIsSearchingBible(false);
       }
     };
 
@@ -356,7 +322,10 @@ export default function Category_Humns() {
       searchBible();
     }, 500);
 
-    return () => clearTimeout(handler);
+    return () => {
+      cancelled = true;
+      clearTimeout(handler);
+    };
   }, [bibleSearchQuery]);
 
   const handleSaveNote = async () => {
@@ -436,21 +405,17 @@ export default function Category_Humns() {
   }, [isLogin, user_id]);
 
   const closeBibleModal = () => {
-    setIsClosing(true);
-    setTimeout(() => {
-      setShowBibleModal(false);
-      setBibleSearchQuery('');
-      setBibleSearchResults([]);
-      setBibleModalBooks([]);
-      setBibleModalBook(null);
-      setBibleModalChapters([]);
-      setBibleModalChapter(null);
-      setBibleSelectedVerseIds(new Set());
-      setBibleModalVerses([]);
-      setBibleModalBooksReady(false);
-      setBiblePickerOpen(null);
-      setIsClosing(false);
-    }, 300);
+    setShowBibleModal(false);
+    setBibleSearchQuery('');
+    setBibleSearchResults([]);
+    setBibleModalBooks([]);
+    setBibleModalBook(null);
+    setBibleModalChapters([]);
+    setBibleModalChapter(null);
+    setBibleSelectedVerseIds(new Set());
+    setBibleModalVerses([]);
+    setBibleModalBooksReady(false);
+    setBiblePickerOpen(null);
   };
 
   // Save Bible verses to workspace
@@ -578,7 +543,12 @@ export default function Category_Humns() {
       const BASE_URL = "https://worship-team-api.onrender.com/api";
       const response = await axios.get(`${BASE_URL}/presentation/check/${encodeURIComponent(id)}`);
       if (response.data.exists) {
-        window.open(`/presentation/display?dataShowId=${encodeURIComponent(id)}`, '_blank');
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        if (isMobile || window.innerWidth < 640) {
+          router.push(`/presentation/display?dataShowId=${encodeURIComponent(id)}`);
+        } else {
+          window.open(`/presentation/display?dataShowId=${encodeURIComponent(id)}`, '_blank');
+        }
         setShowSessionPanel(false);
       } else {
         alert("Presentation room does not exist or has expired.");
@@ -933,12 +903,8 @@ export default function Category_Humns() {
   };
 
   const closeLyricsModal = () => {
-    setIsClosing(true);
-    setTimeout(() => {
-      setShowLyricsModal(false);
-      setSelectedLyricsHymn(null);
-      setIsClosing(false);
-    }, 300);
+    setShowLyricsModal(false);
+    setSelectedLyricsHymn(null);
     // لو قفل المودال قبل الـ 10 ثواني، نكنسل الطلب فوراً
     if (usageTimerRef.current) {
       clearTimeout(usageTimerRef.current);
@@ -984,85 +950,45 @@ export default function Category_Humns() {
 
   // 1. Fetch Hymns
   const fetchHymns = async ({ pageParam = 0 }) => {
-    // Check if running inside Electron
-    const isElectron = typeof window !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron');
-
-    if (isElectron) {
-      try {
-        // Fetch all hymns from local JSON (using absolute path to root)
-        const response = await fetch('/hymns.json');
-        if (!response.ok) throw new Error('Local JSON not found');
-        const rawHymns = await response.json();
-
-        // MongoDB Compass exports _id as { "$oid": "..." }. We need to flatten it.
-        const allHymns = rawHymns.map(hymn => ({
-          ...hymn,
-          _id: hymn._id?.$oid || hymn._id
-        }));
-
-        let filteredHymns = allHymns;
-
-        // Apply search filter if active
-        if (debouncedSearch.trim()) {
-          const lowerSearch = debouncedSearch.toLowerCase();
-          filteredHymns = filteredHymns.filter(hymn =>
-            (hymn.title && hymn.title.toLowerCase().includes(lowerSearch)) ||
-            (hymn.lyrics && typeof hymn.lyrics === 'string' && hymn.lyrics.toLowerCase().includes(lowerSearch)) ||
-            (hymn.lyrics && Array.isArray(hymn.lyrics) && hymn.lyrics.some(l => l.text && l.text.toLowerCase().includes(lowerSearch)))
-          );
-          return filteredHymns; // No pagination for search currently
-        }
-
-        // Apply category filter if active
-        if (activeTab && activeTab !== 'all') {
-          // Adjust 'party' based on how your categories are saved in MongoDB
-          filteredHymns = filteredHymns.filter(hymn =>
-            hymn.party && hymn.party.includes(activeTab)
-          );
-        }
-
-        // Apply pagination
-        return filteredHymns.slice(pageParam, pageParam + 10);
-      } catch (err) {
-        console.error("Offline fetch failed, falling back to online:", err);
-      }
-    }
-
-    // --- ONLINE FALLBACK (Original Logic) ---
-    // If search is active, use search endpoint (No pagination for search currently)
-    if (debouncedSearch.trim()) {
-      try {
-        const { data } = await axios.get(
-          `https://worship-team-api.onrender.com/api/hymns/search?q=${encodeURIComponent(debouncedSearch)}`
-        );
-        return data;
-      } catch (error) {
-        console.error("Error searching hymns:", error);
-        return [];
-      }
-    }
-
-    // Otherwise, fetch by category with pagination
-    const baseUrl = "https://worship-team-api.onrender.com/api/hymns";
-    let endpoint = "";
-
-    switch (activeTab) {
-      case 'christmass': endpoint = "/christmass"; break;
-      case 'prayer_times': endpoint = "/prayer_times"; break;
-      case 'praise': endpoint = "/praise"; break;
-      case 'cross': endpoint = "/cross"; break;
-      case 'kids': endpoint = "/kids"; break;
-      default: endpoint = ""; break;
-    }
-
-    const url = `${baseUrl}${endpoint}?skip=${pageParam}&limit=10`;
-
     try {
-      const { data } = await axios.get(url);
-      console.log(`📊 Fetched page with skip=${pageParam}, got ${data.length} items`);
-      return data;
+      // ── SEARCH LOGIC ──────────────────────────────────────────────────
+      if (debouncedSearch.trim()) {
+        const isOnline = typeof window !== 'undefined' && navigator.onLine;
+
+        if (isOnline) {
+          // Use the remote Atlas fuzzy search API (best results: scoring + fuzzy matching)
+          try {
+            const { data } = await axios.get(
+              `https://worship-team-api.onrender.com/api/hymns/search?q=${encodeURIComponent(debouncedSearch)}`
+            );
+            console.log(`[HymnsSync] Online search returned ${data.length} results from API.`);
+            return Array.isArray(data) ? data : [];
+          } catch (apiErr) {
+            console.warn("[HymnsSync] API search failed, falling back to local search:", apiErr.message);
+            // Fall through to local search below
+          }
+        }
+
+        // Offline fallback: search local IndexedDB (returns up to 40 results)
+        console.log("[HymnsSync] Offline: using local search (up to 40 results).");
+        return await getLocalHymns({
+          activeTab,
+          search: debouncedSearch,
+          pageParam,
+          limit: 10
+        });
+      }
+
+      // ── CATEGORY BROWSING: always uses local cache with pagination ────
+      const result = await getLocalHymns({
+        activeTab,
+        search: '',
+        pageParam,
+        limit: 10
+      });
+      return result;
     } catch (error) {
-      console.error("Error fetching hymns:", error);
+      console.error("[HymnsSync] Error in fetchHymns:", error);
       return [];
     }
   };
@@ -1093,6 +1019,7 @@ export default function Category_Humns() {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
+      await syncRemoteHymns(queryClient);
       queryClient.invalidateQueries(["humns"]);
       alert(t("hymnAdded"));
       closeModal();
@@ -1137,6 +1064,7 @@ export default function Category_Humns() {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
+      await syncRemoteHymns(queryClient);
       queryClient.invalidateQueries(["humns"]);
       alert(t("hymnUpdated"));
       closeModal();
@@ -1167,6 +1095,7 @@ export default function Category_Humns() {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
+      await syncRemoteHymns(queryClient);
       queryClient.invalidateQueries(["humns"]);
     } catch (error) {
       console.error("Error deleting hymn:", error);
@@ -1249,11 +1178,7 @@ export default function Category_Humns() {
   };
 
   const closeModal = () => {
-    setIsClosing(true);
-    setTimeout(() => {
-      setShowModal(false);
-      setIsClosing(false);
-    }, 300);
+    setShowModal(false);
   };
 
   const categories = [
@@ -1525,10 +1450,10 @@ export default function Category_Humns() {
         <AnimatePresence>
           {showSearchBar && (
             <motion.div
-              initial={{ opacity: 0, width: 0, scale: 0.9 }}
-              animate={{ opacity: 1, width: '250px', scale: 1 }}
-              exit={{ opacity: 0, width: 0, scale: 0.9 }}
-              transition={{ duration: 0.3, type: "spring", stiffness: 200, damping: 25 }}
+              initial={{ opacity: 0, width: 0 }}
+              animate={{ opacity: 1, width: '250px' }}
+              exit={{ opacity: 0, width: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
               className="overflow-hidden flex items-center"
             >
               <div className="relative w-full h-10">
@@ -1660,6 +1585,12 @@ export default function Category_Humns() {
                 <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-2">
                   <a
                     href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
+                    onClick={(e) => {
+                        if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
+                            e.preventDefault();
+                            router.push(`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`);
+                        }
+                    }}
                     target="_blank" rel="noopener noreferrer"
                     className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all flex-1"
                   >
@@ -1667,6 +1598,12 @@ export default function Category_Humns() {
                   </a>
                   <a
                     href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`}
+                    onClick={(e) => {
+                        if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
+                            e.preventDefault();
+                            router.push(`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`);
+                        }
+                    }}
                     target="_blank" rel="noopener noreferrer"
                     className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all flex-1"
                   >
@@ -1780,12 +1717,10 @@ export default function Category_Humns() {
           {showModal && (
             <Portal>
               <div
-                className={`fixed inset-0 z-9999 flex justify-center items-center p-4 transition-all duration-300
-                ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/70"}`}
+                className="fixed inset-0 z-9999 flex justify-center items-center p-4 backdrop-blur-md bg-black/70"
               >
                 <div
-                  className={`w-full max-w-md max-h-[90vh] bg-[#0c0c20] border border-white/10 rounded-2xl shadow-2xl overflow-y-auto relative transform transition-all duration-300
-                  ${isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
+                  className="w-full max-w-md max-h-[90vh] bg-[#0c0c20] border border-white/10 rounded-2xl shadow-2xl overflow-y-auto relative"
                   data-lenis-prevent-wheel
                 >
                   {/* Header */}
@@ -2071,20 +2006,17 @@ export default function Category_Humns() {
           {showLyricsModal && selectedLyricsHymn && (
             <Portal>
               <div
-                className={`fixed inset-0 z-9999 flex justify-center items-end sm:items-center transition-opacity duration-300
-                ${isClosing ? 'opacity-0' : 'opacity-100'} bg-black/70`}
+                className="fixed inset-0 z-9999 flex justify-center items-end sm:items-center bg-black/70"
               >
-                <motion.div
-                  initial={{ y: "100%", opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: "100%", opacity: 0 }}
+                <div
                   style={{
                     backgroundColor: lyricsThemes[lyricsTheme].bg,
-                    boxShadow: lyricsTheme === 'warm' ? '0 10px 40px rgba(139, 94, 60, 0.15)' : '0 10px 40px rgba(0, 0, 0, 0.5)'
+                    boxShadow: lyricsTheme === 'warm' ? '0 10px 40px rgba(139, 94, 60, 0.15)' : '0 10px 40px rgba(0, 0, 0, 0.5)',
+                    willChange: 'transform, opacity'
                   }}
                   className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative overflow-hidden`}
                 >
-                  {(() => {
+                  {(()  => {
                     const hasChords = selectedLyricsHymn?.lyrics ? (
                       typeof selectedLyricsHymn.lyrics === 'string'
                         ? selectedLyricsHymn.lyrics.includes('[')
@@ -2212,7 +2144,7 @@ export default function Category_Humns() {
                               >
                                 {theme.label}
                                 {lyricsTheme === key && (
-                                  <motion.div layoutId="activeTheme" className="absolute inset-0 rounded-lg border-2 border-sky-400/20" />
+                                  <div className="absolute inset-0 rounded-lg border-2 border-sky-400/20" />
                                 )}
                               </button>
                             ))}
@@ -2242,7 +2174,7 @@ export default function Category_Humns() {
                         : 'bg-linear-to-t from-[#0E2238] to-transparent'
                     }`}
                   />
-                </motion.div>
+                </div>
               </div>
             </Portal>
           )}
@@ -2251,13 +2183,11 @@ export default function Category_Humns() {
           {showBibleModal && (
             <Portal>
               {/* Fixed the wrapper by adding overflow-hidden to prevent background interaction */}
-              <div className={`fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-6 transition-all duration-500 overflow-hidden ${isClosing ? 'opacity-0' : 'opacity-100'}`}>
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-6 overflow-hidden">
                 {/* Dynamic Background Blur */}
                 <div className="absolute inset-0 bg-[#050505]/80 backdrop-blur-xl" onClick={closeBibleModal} />
 
-                <motion.div
-                  initial={{ opacity: 0, y: 30, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                <div
                   className="relative w-full h-full sm:h-[85vh] max-w-4xl bg-white/[0.02] border border-white/10 sm:rounded-[2.5rem] shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden backdrop-blur-2xl"
                 >
                   {/* Futuristic Top Bar - Ultra Thin */}
@@ -2607,7 +2537,7 @@ export default function Category_Humns() {
 
                   {/* Smart Progress Indicator (Optional Decorative) */}
                   <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-sky-500/50 to-transparent" />
-                </motion.div>
+                </div>
               </div>
             </Portal>
           )}
@@ -2858,11 +2788,25 @@ export default function Category_Humns() {
                             <span>⏳ Expires at {new Date(sessionExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
                         )}
-                        <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
+                        <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`} 
+                          onClick={(e) => {
+                              if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
+                                  e.preventDefault();
+                                  router.push(`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`);
+                              }
+                          }}
+                          target="_blank" rel="noopener noreferrer"
                           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all">
                           <Tv2 className="w-4 h-4" /> Open Display Window
                         </a>
-                        <a href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
+                        <a href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`} 
+                          onClick={(e) => {
+                              if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
+                                  e.preventDefault();
+                                  router.push(`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`);
+                              }
+                          }}
+                          target="_blank" rel="noopener noreferrer"
                           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all">
                           <ExternalLink className="w-4 h-4" /> Mobile Remote
                         </a>
@@ -2891,13 +2835,9 @@ export default function Category_Humns() {
 
       {/* Note Modal */}
       {/* ── Note Write Modal ── z-[500] sits above everything including bible modal at z-[100] */}
-      <AnimatePresence>
-        {noteModalConfig && (
+      {noteModalConfig && (
           <Portal>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            <div
               className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center p-0 sm:p-6"
               style={{ isolation: 'isolate' }}
             >
@@ -2906,11 +2846,7 @@ export default function Category_Humns() {
                 className="absolute inset-0 bg-black/70 backdrop-blur-md"
                 onClick={(e) => { e.stopPropagation(); setNoteModalConfig(null); setNoteText(''); }}
               />
-              <motion.div
-                initial={{ y: 60, opacity: 0, scale: 0.97 }}
-                animate={{ y: 0, opacity: 1, scale: 1 }}
-                exit={{ y: 40, opacity: 0, scale: 0.97 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+              <div
                 className="relative w-full sm:max-w-lg bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border border-indigo-500/20 rounded-t-3xl sm:rounded-3xl shadow-[0_0_60px_-10px_rgba(99,102,241,0.3)] overflow-hidden flex flex-col"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -2977,30 +2913,21 @@ export default function Category_Humns() {
                     {language === 'ar' ? 'حفظ الملاحظة' : 'Save Note'}
                   </button>
                 </div>
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
           </Portal>
         )}
-      </AnimatePresence>
 
       {/* ── View Note Modal ── beautiful read view at z-[500] */}
-      <AnimatePresence>
-        {viewNoteConfig && (
+      {viewNoteConfig && (
           <Portal>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            <div
               className="fixed inset-0 z-[500] flex items-center justify-center p-4 sm:p-8"
               style={{ isolation: 'isolate' }}
               onClick={(e) => { e.stopPropagation(); setViewNoteConfig(null); }}
             >
               <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
-              <motion.div
-                initial={{ scale: 0.92, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.94, opacity: 0, y: 10 }}
-                transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+              <div
                 className="relative w-full max-w-md bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border border-indigo-500/30 rounded-3xl shadow-[0_0_80px_-10px_rgba(99,102,241,0.4)] overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -3060,11 +2987,10 @@ export default function Category_Humns() {
                     </button>
                   </div>
                 </div>
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
           </Portal>
         )}
-      </AnimatePresence>
 
     </div >
 

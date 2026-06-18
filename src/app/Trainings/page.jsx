@@ -164,12 +164,9 @@ export default function Trainings() {
   };
 
   const closeLyricsModal = () => {
-    setIsClosing(true);
-    setTimeout(() => {
-      setShowLyricsModal(false);
-      setSelectedLyricsHymn(null);
-      setIsClosing(false);
-    }, 300);
+    setShowLyricsModal(false);
+    setSelectedLyricsHymn(null);
+    setIsClosing(false);
   };
 
 
@@ -848,18 +845,15 @@ export default function Trainings() {
       {showLyricsModal && selectedLyricsHymn && (
         <Portal>
           <div
-            className={`fixed inset-0 z-9999 flex justify-center items-end sm:items-center transition-opacity duration-300
-                ${isClosing ? 'opacity-0' : 'opacity-100'} bg-black/70`}
+            className={`fixed inset-0 z-9999 flex justify-center items-end sm:items-center bg-black/70`}
           >
-            <motion.div
-              initial={{ y: "100%", opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: "100%", opacity: 0 }}
+            <div
               style={{
                 backgroundColor: lyricsThemes[lyricsTheme].bg,
-                boxShadow: lyricsTheme === 'warm' ? '0 10px 40px rgba(139, 94, 60, 0.15)' : '0 10px 40px rgba(0, 0, 0, 0.5)'
+                boxShadow: lyricsTheme === 'warm' ? '0 10px 40px rgba(139, 94, 60, 0.15)' : '0 10px 40px rgba(0, 0, 0, 0.5)',
+                willChange: 'transform, opacity'
               }}
-              className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative transition-colors duration-500 overflow-hidden`}
+              className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative overflow-hidden`}
             >
               {(() => {
                 const hasChords = selectedLyricsHymn?.lyrics ? (
@@ -1018,7 +1012,7 @@ export default function Trainings() {
                     : 'bg-linear-to-t from-[#0E2238] to-transparent'
                 }`}
               />
-            </motion.div>
+            </div>
           </div>
         </Portal>
       )}      {showDataShow && selectedLyricsHymn && (

@@ -1,7 +1,7 @@
 'use client';
-import React, { useContext, useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { PlayCircle, Trash2, Heart, Music, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle, Radio, ExternalLink, Tv2, ChevronUp, Mic, MicOff, EyeOff, BookOpen, Eye, Loader2, Check } from 'lucide-react';
+import React, { useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import { PlayCircle, Trash2, Heart, Music, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle, Radio, ExternalLink, Tv2, ChevronUp, ChevronDown, Mic, MicOff, EyeOff, BookOpen, Eye, Loader2, Check, Pencil, Eraser, Trash, Hand, GripVertical } from 'lucide-react';
 import Metronome from '../Metronome/page';
 import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
@@ -10,6 +10,7 @@ import { Virtuoso } from 'react-virtuoso';
 import { transposeScale, transposeChords, transposeLyrics } from '../utils/musicUtils';
 import { usePresentation } from '../hooks/usePresentation';
 import { getApiBaseUrl } from '../utils/apiBase';
+import { useRouter } from 'next/navigation';
 const API_URL = getApiBaseUrl();
 
 function getUsersEndpointCandidates(path) {
@@ -412,7 +413,355 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
     );
 };
 
+const SubjectWorkspaceItem = ({ subject, index, removeFromWorkspace, variants, openLyrics, editSubject }) => {
+    return (
+        <motion.div
+            variants={variants}
+            className="group relative grid grid-cols-12 gap-2 sm:gap-4 p-3 sm:p-5 items-center 
+                               bg-[#1a1528]/60 hover:bg-[#231a38] 
+                               border border-white/5 hover:border-purple-500/30 
+                               rounded-2xl transition-all duration-300 backdrop-blur-sm
+                               hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
+        >
+            <div className="col-span-1 sm:col-span-1 text-center font-mono text-xs sm:text-sm text-gray-600 group-hover:text-purple-400 transition-colors">
+                {(index + 1).toString().padStart(2, '0')}
+            </div>
+
+            <div className="col-span-11 sm:col-span-5 md:col-span-5 relative z-10 flex items-center gap-2 py-4">
+                <FileText className="w-4 h-4 text-purple-400 group-hover:text-purple-300 transition-colors shrink-0" title="Subject" />
+                <h3 className="font-bold text-sm sm:text-lg text-gray-200 group-hover:text-white transition-colors tracking-wide truncate">
+                    {subject.title}
+                </h3>
+            </div>
+
+            <div className="col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0 lg:top-2">
+                <div className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-xs sm:text-sm font-bold text-purple-300">
+                    <span>📝</span>
+                    <span className="whitespace-nowrap">Subject</span>
+                </div>
+            </div>
+
+            <div className="col-span-6 sm:col-span-1 flex justify-center items-center relative z-10 px-2 lg:top-2">
+                <button
+                    onClick={() => removeFromWorkspace(subject._id)}
+                    className="p-2.5 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 sm:border-transparent hover:border-red-500/20 bg-white/5 sm:bg-transparent flex-1 sm:flex-none flex justify-center"
+                    title="Remove from Workspace"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            </div>
+
+            <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-1 sm:gap-2 relative z-10 lg:top-2">
+                <button
+                    onClick={() => openLyrics({ ...subject, lyrics: subject.text })}
+                    className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-black/20 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-white/5 hover:border-sky-500/30 transition-all group/btn flex-1 sm:flex-none justify-center"
+                    title="Read Note"
+                >
+                    <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover/btn:scale-110 transition-transform" />
+                    <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Read Note</span>
+                </button>
+                <button
+                    onClick={() => editSubject(subject)}
+                    className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-black/20 hover:bg-purple-500/20 text-gray-400 hover:text-purple-300 border border-white/5 hover:border-purple-500/30 transition-all group/btn flex-1 sm:flex-none justify-center"
+                    title="Edit Note"
+                >
+                    <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover/btn:scale-110 transition-transform" />
+                    <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider hidden sm:inline">Edit</span>
+                </button>
+            </div>
+        </motion.div>
+    );
+};
+
+// ── DrawingCanvas ────────────────────────────────────────────────────────────
+// Stroke-based canvas overlay.
+// Eraser dual-mode:
+//   click  (no drag)  → removes the nearest entire stroke
+//   hold + drag       → partial pixel-erase (stored as {type:'erase'} stroke)
+// scrollMode: when true canvas becomes pointer-events:none so the hymn scrolls.
+function DrawingCanvas({ hymnId, tool, color, size, scrollMode, initialStrokes, onStrokesChange, scrollRef }) {
+    const canvasRef = useRef(null);
+    const strokesRef = useRef([...(initialStrokes || [])]);
+    const isDrawing = useRef(false);
+    const currentPoints = useRef([]);
+    const rafId = useRef(null);
+    const dprRef = useRef(1);
+    // Eraser dual-mode refs
+    const eraserMovedRef = useRef(false);
+    const eraserDownPosRef = useRef(null);
+    const eraserPathRef = useRef([]);
+
+    // Redraw all stored strokes — handles both pen and erase-type entries
+    const redrawAll = useCallback((ctx, canvas) => {
+        if (!ctx || !canvas) return;
+        const dpr = dprRef.current;
+        ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+        ctx.save();
+        ctx.translate(0, -(scrollRef?.current?.scrollTop || 0));
+        strokesRef.current.forEach(stroke => {
+            if (stroke.type === 'erase') {
+                ctx.globalCompositeOperation = 'destination-out';
+                stroke.points.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, stroke.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.globalCompositeOperation = 'source-over';
+                return;
+            }
+            const { points, color: sc, size: ss } = stroke;
+            if (!points || points.length === 0) return;
+            ctx.beginPath();
+            ctx.strokeStyle = sc;
+            ctx.lineWidth = ss;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.globalCompositeOperation = 'source-over';
+            if (points.length === 1) {
+                ctx.arc(points[0].x, points[0].y, ss / 2, 0, Math.PI * 2);
+                ctx.fillStyle = sc;
+                ctx.fill();
+            } else {
+                ctx.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+                ctx.stroke();
+            }
+        });
+        ctx.restore();
+    }, [scrollRef]);
+
+    // Sync canvas resolution to its actual display size to prevent stretching
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        
+        let currentW = 0;
+        let currentH = 0;
+
+        const observer = new ResizeObserver((entries) => {
+            const entry = entries[0];
+            if (!entry) return;
+            const rect = entry.contentRect;
+            const dpr = window.devicePixelRatio || 1;
+            const newW = Math.floor(rect.width * dpr);
+            const newH = Math.floor(rect.height * dpr);
+            
+            // Only update if dimensions actually changed
+            if (newW !== currentW || newH !== currentH) {
+                currentW = newW;
+                currentH = newH;
+                dprRef.current = dpr;
+                canvas.width = newW;
+                canvas.height = newH;
+                const ctx = canvas.getContext('2d');
+                ctx.scale(dpr, dpr);
+                redrawAll(ctx, canvas);
+            }
+        });
+        
+        observer.observe(canvas);
+        return () => observer.disconnect();
+    }, [redrawAll]);
+
+    // When hymnId changes load the new hymn's saved strokes
+    useEffect(() => {
+        strokesRef.current = [...(initialStrokes || [])];
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        redrawAll(ctx, canvas);
+    }, [hymnId, initialStrokes, redrawAll]);
+
+    // Re-render canvas strokes when scrolling the parent
+    useEffect(() => {
+        const el = scrollRef?.current;
+        if (!el) return;
+        const onScroll = () => {
+            const canvas = canvasRef.current;
+            if (canvas) redrawAll(canvas.getContext('2d'), canvas);
+        };
+        el.addEventListener('scroll', onScroll);
+        return () => el.removeEventListener('scroll', onScroll);
+    }, [scrollRef, redrawAll]);
+
+    const getPos = useCallback((e) => {
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        return { 
+            x: e.clientX - rect.left, 
+            y: (e.clientY - rect.top) + (scrollRef?.current?.scrollTop || 0) 
+        };
+    }, [scrollRef]);
+
+    // Find nearest pen stroke index (erase strokes are skipped)
+    const findNearestStrokeIdx = useCallback((x, y) => {
+        const THRESHOLD = 20;
+        let nearestIdx = -1;
+        let nearestDist = THRESHOLD;
+        strokesRef.current.forEach((stroke, idx) => {
+            if (stroke.type === 'erase') return;
+            for (const p of stroke.points) {
+                const d = Math.hypot(p.x - x, p.y - y);
+                if (d < nearestDist) { nearestDist = d; nearestIdx = idx; }
+            }
+        });
+        return nearestIdx;
+    }, []);
+
+    const onPointerDown = useCallback((e) => {
+        e.preventDefault();
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        canvas.setPointerCapture(e.pointerId);
+        const pos = getPos(e);
+        isDrawing.current = true;
+
+        if (tool === 'eraser') {
+            eraserMovedRef.current = false;
+            eraserDownPosRef.current = pos;
+            eraserPathRef.current = [pos];
+            return;
+        }
+
+        currentPoints.current = [pos];
+    }, [tool]);
+
+    const drawLastSegment = useCallback(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || !isDrawing.current) return;
+        const pts = currentPoints.current;
+        if (pts.length < 2) return;
+        const ctx = canvas.getContext('2d');
+        const prev = pts[pts.length - 2];
+        const curr = pts[pts.length - 1];
+        ctx.save();
+        ctx.translate(0, -(scrollRef?.current?.scrollTop || 0));
+        ctx.beginPath();
+        ctx.moveTo(prev.x, prev.y);
+        ctx.lineTo(curr.x, curr.y);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = size;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.stroke();
+        ctx.restore();
+        rafId.current = null;
+    }, [color, size, scrollRef]);
+
+    const onPointerMove = useCallback((e) => {
+        e.preventDefault();
+        if (!isDrawing.current) return;
+        const pos = getPos(e);
+
+        if (tool === 'eraser') {
+            const start = eraserDownPosRef.current;
+            if (start && Math.hypot(pos.x - start.x, pos.y - start.y) > 4) {
+                eraserMovedRef.current = true;
+            }
+            if (eraserMovedRef.current) {
+                eraserPathRef.current.push(pos);
+                // Live erase preview via destination-out
+                const canvas = canvasRef.current;
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, size * 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalCompositeOperation = 'source-over';
+                }
+            }
+            return;
+        }
+
+        currentPoints.current.push(pos);
+        if (!rafId.current) {
+            rafId.current = requestAnimationFrame(drawLastSegment);
+        }
+    }, [tool, size, drawLastSegment]);
+
+    const onPointerUp = useCallback((e) => {
+        e.preventDefault();
+        if (!isDrawing.current) return;
+        isDrawing.current = false;
+
+        if (tool === 'eraser') {
+            const canvas = canvasRef.current;
+            const pos = getPos(e);
+            if (!eraserMovedRef.current) {
+                // Single click → remove entire nearest stroke
+                const idx = findNearestStrokeIdx(pos.x, pos.y);
+                if (idx !== -1) strokesRef.current = strokesRef.current.filter((_, i) => i !== idx);
+            } else if (eraserPathRef.current.length > 0) {
+                // Drag → persist erase path so redrawAll replays it correctly
+                strokesRef.current = [...strokesRef.current, {
+                    type: 'erase',
+                    points: [...eraserPathRef.current],
+                    size: size * 3,
+                }];
+            }
+            if (canvas) redrawAll(canvas.getContext('2d'), canvas);
+            onStrokesChange([...strokesRef.current]);
+            eraserPathRef.current = [];
+            eraserMovedRef.current = false;
+            eraserDownPosRef.current = null;
+            return;
+        }
+
+        if (rafId.current) { cancelAnimationFrame(rafId.current); rafId.current = null; }
+        const pts = currentPoints.current;
+        if (pts.length > 0) {
+            const newStroke = { color, size, points: [...pts] };
+            strokesRef.current = [...strokesRef.current, newStroke];
+            const canvas = canvasRef.current;
+            if (canvas) redrawAll(canvas.getContext('2d'), canvas);
+            onStrokesChange([...strokesRef.current]);
+        }
+        currentPoints.current = [];
+    }, [tool, size, color, redrawAll, onStrokesChange, findNearestStrokeIdx]);
+
+    const handleClear = useCallback(() => {
+        strokesRef.current = [];
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const dpr = dprRef.current;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+        onStrokesChange([]);
+    }, [onStrokesChange]);
+
+    useEffect(() => {
+        if (canvasRef.current) canvasRef.current._clearDrawing = handleClear;
+    }, [handleClear]);
+
+    return (
+        <canvas
+            ref={canvasRef}
+            data-draw-canvas="true"
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerLeave={onPointerUp}
+            style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                touchAction: scrollMode ? 'auto' : 'none',
+                cursor: scrollMode ? 'default' : (tool === 'eraser' ? 'cell' : 'crosshair'),
+                zIndex: 40,
+                borderRadius: 'inherit',
+                pointerEvents: scrollMode ? 'none' : 'auto',
+            }}
+        />
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function WorkSpace() {
+    const router = useRouter();
     //3 button ui & ux
     // ── Smart Dock ─────────────────────────────────────────────────────
     const [dockOpen, setDockOpen] = useState(false);
@@ -448,7 +797,9 @@ export default function WorkSpace() {
         return () => document.removeEventListener('pointerdown', fn);
     }, [dockOpen]);
     // ───────────────────────────────────────────────────────────────────
-    const { workspace, removeFromWorkspace, updateWorkspaceHymn } = useContext(HymnsContext);
+    const { workspace, removeFromWorkspace, updateWorkspaceHymn, addToWorkspace } = useContext(HymnsContext);
+    const [showSubjectModal, setShowSubjectModal] = useState(false);
+    const [subjectForm, setSubjectForm] = useState({ id: null, title: 'Title 1', text: '' });
     const { isLogin, UserRole, vocalsMode, user_id } = useContext(UserContext);
 
     // Categories Configuration for Icon Lookup
@@ -483,6 +834,18 @@ export default function WorkSpace() {
     const [lyricsTheme, setLyricsTheme] = useState('main');
     const [fontSize, setFontSize] = useState(18);
     const lyricsScrollRef = useRef(null); // Ref for lyrics scroll container
+
+    // ── Drawing State ────────────────────────────────────────────────────
+    const [drawingMode, setDrawingMode] = useState(false);
+    const [drawTool, setDrawTool] = useState('pen');          // 'pen' | 'eraser'
+    const [drawColor, setDrawColor] = useState('#38BDF8');    // default sky blue
+    const [drawSize, setDrawSize] = useState(4);
+    const [drawScrollMode, setDrawScrollMode] = useState(false); // passes touch through canvas
+    const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
+    const drawDragControls = useDragControls();
+    // Map of hymnId -> strokes[] (persists while app session is open)
+    const [savedDrawings, setSavedDrawings] = useState({});
+    // ─────────────────────────────────────────────────────────────────────
     // Persist showChords state in localStorage for lyrics modal
     const [showChords, setShowChords] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -682,7 +1045,12 @@ export default function WorkSpace() {
             const response = await fetch(`${BASE_URL}/presentation/check/${encodeURIComponent(id)}`);
             const data = await response.json();
             if (data.exists) {
-                window.open(`/presentation/display?dataShowId=${encodeURIComponent(id)}`, '_blank');
+                const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                if (isMobile || window.innerWidth < 640) {
+                    router.push(`/presentation/display?dataShowId=${encodeURIComponent(id)}`);
+                } else {
+                    window.open(`/presentation/display?dataShowId=${encodeURIComponent(id)}`, '_blank');
+                }
                 setShowSessionPanel(false);
             } else {
                 alert("Presentation room does not exist or has expired.");
@@ -844,7 +1212,8 @@ export default function WorkSpace() {
                 .replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
                 .split('\n\n')
                 .map(b => b.trim())
-                .filter(Boolean);
+                .filter(Boolean)
+                .map((text, index) => ({ title: `Part ${index + 1}`, type: 'verse', text }));
         }
 
         // Handles the new Array of objects format
@@ -901,12 +1270,10 @@ export default function WorkSpace() {
     };
 
     const closeLyricsModal = () => {
-        setIsClosing(true);
-        setTimeout(() => {
-            setShowLyricsModal(false);
-            setSelectedLyricsHymn(null);
-            setIsClosing(false);
-        }, 300);
+        setDrawingMode(false);
+        setShowLyricsModal(false);
+        setSelectedLyricsHymn(null);
+        setIsClosing(false);
     };
 
     // Attached via onScroll prop to guarantee firing in Portals
@@ -1308,6 +1675,21 @@ export default function WorkSpace() {
                                     )}
 
                                     <div className="dock-divider" />
+                                    
+                                    <button
+                                        className="act-btn act-btn--subject"
+                                        onClick={() => {
+                                            setSubjectForm({ id: null, title: 'Title 1', text: '' });
+                                            setShowSubjectModal(true);
+                                            setDockOpen(false);
+                                        }}
+                                        style={{ color: '#c084fc' }}
+                                    >
+                                        <span className="act-icon"><PlusCircle size={17} strokeWidth={2.2} /></span>
+                                        <span className="act-label">Add Subject</span>
+                                    </button>
+
+                                    <div className="dock-divider" />
                                     {/* pdf download button */}
                                     <button
                                         ref={dlRef}
@@ -1389,6 +1771,12 @@ export default function WorkSpace() {
                                             {/* Open projector window */}
                                             <a
                                                 href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
+                                                onClick={(e) => {
+                                                    if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
+                                                        e.preventDefault();
+                                                        router.push(`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`);
+                                                    }
+                                                }}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all flex-1"
@@ -1398,6 +1786,12 @@ export default function WorkSpace() {
                                             {/* Open mobile remote */}
                                             <a
                                                 href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`}
+                                                onClick={(e) => {
+                                                    if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
+                                                        e.preventDefault();
+                                                        router.push(`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`);
+                                                    }
+                                                }}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all flex-1"
@@ -1467,6 +1861,18 @@ export default function WorkSpace() {
                                                 openLyrics={openLyrics}
                                                 openPresentation={openPresentation}
                                             />
+                                        ) : item.isSubject ? (
+                                            <SubjectWorkspaceItem
+                                                subject={item}
+                                                index={index}
+                                                removeFromWorkspace={removeFromWorkspace}
+                                                variants={itemVariants}
+                                                openLyrics={openLyrics}
+                                                editSubject={(subj) => {
+                                                    setSubjectForm({ id: subj._id, title: subj.title, text: subj.text });
+                                                    setShowSubjectModal(true);
+                                                }}
+                                            />
                                         ) : (
                                             <WorkspaceItem
                                                 hymn={item}
@@ -1496,18 +1902,15 @@ export default function WorkSpace() {
                 {showLyricsModal && selectedLyricsHymn && (
                     <Portal>
                         <div
-                            className={`fixed inset-0 z-[9999] flex justify-center items-end sm:items-center transition-all duration-300
-                ${isClosing ? "opacity-0 backdrop-blur-sm" : "opacity-100 backdrop-blur-md bg-black/60"}`}
+                            className={`fixed inset-0 z-[9999] flex justify-center items-end sm:items-center bg-black/70`}
                         >
-                            <motion.div
-                                initial={{ y: "100%", opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                exit={{ y: "100%", opacity: 0 }}
+                            <div
                                 style={{
                                     backgroundColor: lyricsThemes[lyricsTheme].bg,
-                                    boxShadow: lyricsTheme === 'warm' ? '0 10px 40px rgba(0, 0, 0, 0.1)' : '0 10px 40px rgba(0, 0, 0, 0.5)'
+                                    boxShadow: lyricsTheme === 'warm' ? '0 10px 40px rgba(0, 0, 0, 0.1)' : '0 10px 40px rgba(0, 0, 0, 0.5)',
+                                    willChange: 'transform, opacity'
                                 }}
-                                className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative transition-colors duration-500 overflow-hidden`}
+                                className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative overflow-hidden`}
                             >
                                 {(() => {
                                     const hasChords = selectedLyricsHymn?.lyrics ? (
@@ -1544,6 +1947,19 @@ export default function WorkSpace() {
                                                     </div>
 
                                                     <div className="flex items-center gap-2">
+                                                        {/* Draw Toggle — lives here so it's above the canvas (z-50 > canvas z-40) */}
+                                                        <button
+                                                            onClick={() => setDrawingMode(m => !m)}
+                                                            title={drawingMode ? 'Exit drawing mode' : 'Draw on hymn'}
+                                                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border
+                                                                ${drawingMode
+                                                                    ? 'bg-purple-500 text-white border-purple-400 shadow-lg shadow-purple-500/30'
+                                                                    : (lyricsTheme === 'warm' ? 'bg-black/5 text-black/60 border-black/10 hover:bg-black/10' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10')}`}
+                                                        >
+                                                            <Pencil className="w-3.5 h-3.5" />
+                                                            <span className="hidden sm:inline">{drawingMode ? 'Drawing' : 'Draw'}</span>
+                                                        </button>
+
                                                         <button
                                                             onClick={() => {
                                                                 openPresentation(selectedLyricsHymn, selectedLyricsHymn.transposeStep || 0);
@@ -1640,12 +2056,14 @@ export default function WorkSpace() {
                                                         </button>
                                                     ))}
                                                 </div>
+
                                             </div>
 
-                                            <div className="px-6 sm:px-10 py-10">
+                                            <div className="px-6 sm:px-10 py-10 relative min-h-full">
                                                 <div
                                                     className="w-full max-w-2xl mx-auto transition-all duration-500"
                                                     dir="rtl"
+                                                    style={{ pointerEvents: drawingMode ? 'none' : 'auto', userSelect: drawingMode ? 'none' : 'auto' }}
                                                 >
                                                     {renderLyricsWithChords(selectedLyricsHymn.lyrics || selectedLyricsHymn.verses)}
                                                 </div>
@@ -1656,6 +2074,195 @@ export default function WorkSpace() {
                                     );
                                 })()}
 
+                                {/* ── Drawing Canvas Overlay (Viewport fixed relative to Modal) ── */}
+                                {drawingMode && (
+                                    <DrawingCanvas
+                                        hymnId={selectedLyricsHymn._id}
+                                        tool={drawTool}
+                                        color={drawColor}
+                                        size={drawSize}
+                                        scrollMode={drawScrollMode}
+                                        initialStrokes={savedDrawings[selectedLyricsHymn._id] || []}
+                                        onStrokesChange={(strokes) => setSavedDrawings(prev => ({ ...prev, [selectedLyricsHymn._id]: strokes }))}
+                                        scrollRef={lyricsScrollRef}
+                                    />
+                                )}
+
+                                {/* ── Drawing Floating Toolbar ── */}
+                                <AnimatePresence>
+                                    {drawingMode && (
+                                        <motion.div
+                                            key="draw-toolbar-anchor"
+                                            initial={{ opacity: 0, y: 16, scale: 0.9 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: 16, scale: 0.9 }}
+                                            transition={{ duration: 0.2, type: 'spring', stiffness: 380, damping: 28 }}
+                                            className="absolute bottom-14 left-1/2 -translate-x-1/2 z-50"
+                                        >
+                                            {/* Draggable wrapper — drag initiated only from the grip handle */}
+                                            <motion.div
+                                                drag
+                                                dragMomentum={false}
+                                                dragElastic={0}
+                                                dragControls={drawDragControls}
+                                                dragListener={false}
+                                                style={{ touchAction: 'none' }}
+                                            >
+                                            <AnimatePresence mode="wait">
+                                            {toolbarCollapsed ? (
+                                                /* ── Collapsed pill ── */
+                                                <motion.div
+                                                    key="collapsed"
+                                                    initial={{ opacity: 0, scale: 0.8 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    exit={{ opacity: 0, scale: 0.8 }}
+                                                    transition={{ duration: 0.15 }}
+                                                    className="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl shadow-2xl border border-white/15"
+                                                    style={{ background: 'rgba(10,20,40,0.94)', backdropFilter: 'blur(20px)' }}
+                                                >
+                                                    <button
+                                                        onClick={() => setToolbarCollapsed(false)}
+                                                        title="Expand drawing controls"
+                                                        className="flex items-center gap-1.5 hover:opacity-75 transition-opacity"
+                                                    >
+                                                        <div
+                                                            className="w-4 h-4 rounded-full ring-2 ring-white/20"
+                                                            style={{ background: drawScrollMode ? '#10B981' : (drawTool === 'eraser' ? '#F97316' : drawColor) }}
+                                                        />
+                                                        <Pencil className="w-3 h-3 text-white/40" />
+                                                    </button>
+                                                    <div
+                                                        onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); drawDragControls.start(e); }}
+                                                        className="pl-0.5 text-white/20 hover:text-white/50 transition-colors cursor-grab active:cursor-grabbing touch-none select-none"
+                                                        title="Drag"
+                                                    >
+                                                        <GripVertical className="w-3.5 h-3.5" />
+                                                    </div>
+                                                </motion.div>
+                                            ) : (
+                                                /* ── Expanded toolbar ── */
+                                                <motion.div
+                                                    key="expanded"
+                                                    initial={{ opacity: 0, scale: 0.9 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    exit={{ opacity: 0, scale: 0.9 }}
+                                                    transition={{ duration: 0.15 }}
+                                                    className="flex flex-col sm:flex-row items-center gap-2 sm:gap-1 px-3 py-2.5 sm:px-2 sm:py-2 rounded-[1.5rem] sm:rounded-2xl shadow-2xl border border-white/10"
+                                                    style={{ background: 'rgba(10,20,40,0.94)', backdropFilter: 'blur(20px)' }}
+                                                >
+                                                    {/* --- Row 1: Actions & Tools --- */}
+                                                    <div className="flex items-center gap-1">
+                                                        {/* Drag handle */}
+                                                        <div
+                                                            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); drawDragControls.start(e); }}
+                                                            className="px-1 py-1 text-white/25 hover:text-white/60 cursor-grab active:cursor-grabbing transition-colors touch-none select-none rounded-lg hover:bg-white/5"
+                                                            title="Hold to drag toolbar"
+                                                        >
+                                                            <GripVertical className="w-4 h-4" />
+                                                        </div>
+                                                        <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+                                                        {/* Pen */}
+                                                        <button
+                                                            onClick={() => { setDrawTool('pen'); setDrawScrollMode(false); }}
+                                                            title="Pen"
+                                                            className={`p-1.5 rounded-xl transition-all ${drawTool === 'pen' && !drawScrollMode ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/40' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+                                                        >
+                                                            <Pencil className="w-4 h-4" />
+                                                        </button>
+
+                                                        {/* Eraser */}
+                                                        <button
+                                                            onClick={() => { setDrawTool('eraser'); setDrawScrollMode(false); }}
+                                                            title="Eraser — click to remove stroke, drag to erase area"
+                                                            className={`p-1.5 rounded-xl transition-all ${drawTool === 'eraser' && !drawScrollMode ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/40' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+                                                        >
+                                                            <Eraser className="w-4 h-4" />
+                                                        </button>
+
+                                                        {/* Scroll mode */}
+                                                        <button
+                                                            onClick={() => setDrawScrollMode(m => !m)}
+                                                            title={drawScrollMode ? 'Drawing mode (scroll disabled)' : 'Scroll mode — canvas passes touch through'}
+                                                            className={`p-1.5 rounded-xl transition-all ${drawScrollMode ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+                                                        >
+                                                            <Hand className="w-4 h-4" />
+                                                        </button>
+
+                                                        <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+                                                        {/* Clear all */}
+                                                        <button
+                                                            onClick={() => {
+                                                                const canvasEl = document.querySelector('canvas[data-draw-canvas]');
+                                                                if (canvasEl?._clearDrawing) canvasEl._clearDrawing();
+                                                                else setSavedDrawings(prev => ({ ...prev, [selectedLyricsHymn._id]: [] }));
+                                                            }}
+                                                            title="Clear all drawings"
+                                                            className="p-1.5 rounded-xl text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                                                        >
+                                                            <Trash className="w-4 h-4" />
+                                                        </button>
+
+                                                        <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+                                                        {/* Collapse */}
+                                                        <button
+                                                            onClick={() => setToolbarCollapsed(true)}
+                                                            title="Collapse controls"
+                                                            className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                                                        >
+                                                            <ChevronDown className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="hidden sm:block w-px h-5 bg-white/10 mx-0.5" />
+                                                    <div className="sm:hidden w-full h-px bg-white/10" />
+
+                                                    {/* --- Row 2: Colors & Size --- */}
+                                                    <div className="flex items-center gap-1">
+                                                        {/* Color swatches */}
+                                                        {['#38BDF8', '#F472B6', '#4ADE80', '#FACC15', '#FB923C', '#ffffff'].map(c => (
+                                                            <button
+                                                                key={c}
+                                                                onClick={() => { setDrawColor(c); setDrawTool('pen'); setDrawScrollMode(false); }}
+                                                                title={c}
+                                                                className={`w-5 h-5 rounded-full shrink-0 transition-all border-2 ${drawColor === c && drawTool === 'pen' && !drawScrollMode ? 'scale-125 border-white shadow-lg' : 'border-transparent hover:scale-110'}`}
+                                                                style={{ background: c }}
+                                                            />
+                                                        ))}
+
+                                                        {/* Custom color picker */}
+                                                        <label title="Custom color" className="relative w-5 h-5 shrink-0 rounded-full overflow-hidden cursor-pointer border-2 border-dashed border-white/30 hover:border-white/60 transition-all flex items-center justify-center">
+                                                            <span className="text-[8px] text-white/60 font-bold leading-none">+</span>
+                                                            <input
+                                                                type="color"
+                                                                value={drawColor}
+                                                                onChange={e => { setDrawColor(e.target.value); setDrawTool('pen'); setDrawScrollMode(false); }}
+                                                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                                                            />
+                                                        </label>
+
+                                                        <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+                                                        {/* Size controls */}
+                                                        <div className="flex items-center gap-1 bg-white/5 rounded-xl px-1.5 py-1">
+                                                            <button onClick={() => setDrawSize(s => Math.max(1, s - 1))} className="text-white/60 hover:text-white w-4 h-4 flex items-center justify-center text-sm font-black leading-none transition-colors">−</button>
+                                                            <div
+                                                                className="rounded-full shrink-0 transition-all"
+                                                                style={{ width: Math.max(4, drawSize * 1.5), height: Math.max(4, drawSize * 1.5), minWidth: 4, minHeight: 4, background: drawTool === 'eraser' ? '#fb923c' : drawColor }}
+                                                            />
+                                                            <button onClick={() => setDrawSize(s => Math.min(24, s + 1))} className="text-white/60 hover:text-white w-4 h-4 flex items-center justify-center text-sm font-black leading-none transition-colors">+</button>
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                            </AnimatePresence>
+                                            </motion.div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
                                 {/* Aesthetic Footer Gradient */}
                                 <div className={`absolute bottom-0 left-0 right-0 h-12 pointer-events-none transition-colors duration-500
                     ${lyricsTheme === 'warm'
@@ -1665,7 +2272,7 @@ export default function WorkSpace() {
                                             : 'bg-linear-to-t from-[#0E2238] to-transparent'
                                     }`}
                                 />
-                            </motion.div>
+                            </div>
                         </div>
                     </Portal>
                 )}
@@ -1903,11 +2510,25 @@ export default function WorkSpace() {
                                         </div>
                                     ) : (
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
+                                            <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`} 
+                                                onClick={(e) => {
+                                                    if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
+                                                        e.preventDefault();
+                                                        router.push(`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`);
+                                                    }
+                                                }}
+                                                target="_blank" rel="noopener noreferrer"
                                                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all">
                                                 <Tv2 className="w-4 h-4" /> Open Display Window
                                             </a>
-                                            <a href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
+                                            <a href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`} 
+                                                onClick={(e) => {
+                                                    if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
+                                                        e.preventDefault();
+                                                        router.push(`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`);
+                                                    }
+                                                }}
+                                                target="_blank" rel="noopener noreferrer"
                                                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-400 text-xs font-semibold hover:bg-sky-500/20 transition-all">
                                                 <ExternalLink className="w-4 h-4" /> Mobile Remote
                                             </a>
@@ -1959,7 +2580,7 @@ export default function WorkSpace() {
                                                 openLyrics={openLyrics}
                                                 openPresentation={openPresentation}
                                             />
-                                        ) : (
+                                        ) : item.isSubject ? null : (
                                             <SetlistCustomizerCard
                                                 key={item._id}
                                                 hymn={item}
@@ -2038,6 +2659,149 @@ export default function WorkSpace() {
                                             New Service / Event
                                         </button>
                                     </div>
+                                </div>
+                            </motion.div>
+                        </div>
+                    </Portal>
+                )}
+
+                {/* --- Subject Modal --- */}
+                {showSubjectModal && (
+                    <Portal>
+                        <div className="fixed inset-0 z-[9999] flex justify-center items-center p-4 bg-black/70 backdrop-blur-md text-white">
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                className="w-full max-w-2xl bg-[#0E2238] border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden max-h-[90vh]"
+                            >
+                                <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5 backdrop-blur-md z-10 shrink-0">
+                                    <h2 className="text-xl font-bold text-sky-400">
+                                        {subjectForm.id ? "Edit Subject" : "Add Subject"}
+                                    </h2>
+                                    <button onClick={() => setShowSubjectModal(false)} className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full">
+                                        <X size={20} />
+                                    </button>
+                                </div>
+
+                                <div className="p-6 overflow-y-auto space-y-6 custom-scrollbar flex-1 relative" data-lenis-prevent-wheel>
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[10px] uppercase font-bold text-sky-400/70 tracking-wider">Title (Optional)</label>
+                                        <input
+                                            type="text"
+                                            value={subjectForm.title}
+                                            onChange={e => setSubjectForm(prev => ({ ...prev, title: e.target.value }))}
+                                            className="w-full bg-black/40 border border-white/10 hover:border-white/20 rounded-xl px-4 py-3 text-lg font-bold text-center focus:outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/50 transition-all placeholder-gray-600"
+                                            placeholder="Title 1"
+                                            dir="auto"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-3">
+                                        <div className="flex justify-between items-center pb-2 border-b border-white/5">
+                                            <label className="text-[10px] uppercase font-bold text-sky-400/70 tracking-wider">Notes & Sections</label>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const currentArr = Array.isArray(subjectForm.text) ? [...subjectForm.text] : (typeof subjectForm.text === 'string' && subjectForm.text.trim() ? [{ type: 'verse', title: '1', text: subjectForm.text }] : []);
+                                                    currentArr.push({ type: 'verse', title: String(currentArr.length + 1), text: '' });
+                                                    setSubjectForm(prev => ({ ...prev, text: currentArr }));
+                                                }}
+                                                className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 transition-all border border-sky-500/20 hover:border-sky-500/40"
+                                            >
+                                                <PlusCircle size={14} /> Add Section
+                                            </button>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <AnimatePresence initial={false}>
+                                                {(() => {
+                                                    const currentArr = Array.isArray(subjectForm.text) ? subjectForm.text : (typeof subjectForm.text === 'string' && subjectForm.text.trim() ? [{ type: 'verse', title: '1', text: subjectForm.text }] : [{ type: 'verse', title: '1', text: '' }]);
+                                                    return currentArr.map((stanza, sIdx) => (
+                                                        <motion.div 
+                                                            key={sIdx} 
+                                                            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                            animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
+                                                            exit={{ opacity: 0, height: 0, marginTop: 0, overflow: 'hidden' }}
+                                                            transition={{ duration: 0.2 }}
+                                                            className="p-1 rounded-xl border relative flex flex-col gap-0 transition-colors bg-[#151525] border-white/10 group focus-within:border-sky-500/30 focus-within:shadow-[0_0_15px_rgba(56,189,248,0.1)]"
+                                                        >
+                                                            <div className="flex justify-between items-center gap-2 px-3 py-2 border-b border-white/5 bg-white/[0.02] rounded-t-xl">
+                                                                <input
+                                                                    type="text"
+                                                                    value={stanza.title}
+                                                                    onChange={(e) => {
+                                                                        const newArr = [...currentArr];
+                                                                        newArr[sIdx].title = e.target.value;
+                                                                        setSubjectForm(prev => ({ ...prev, text: newArr }));
+                                                                    }}
+                                                                    className="text-xs font-bold bg-transparent border-none outline-none w-32 px-1 focus:ring-0 text-gray-300 placeholder-gray-600 transition-colors focus:text-white"
+                                                                    placeholder={`Section ${sIdx + 1}`}
+                                                                    dir="auto"
+                                                                />
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const newArr = currentArr.filter((_, i) => i !== sIdx);
+                                                                        setSubjectForm(prev => ({ ...prev, text: newArr }));
+                                                                    }}
+                                                                    className="text-gray-500 hover:text-red-400 transition-colors p-1.5 rounded-md hover:bg-red-500/10 opacity-50 group-hover:opacity-100 focus:opacity-100"
+                                                                    title="Remove section"
+                                                                >
+                                                                    <X size={14} />
+                                                                </button>
+                                                            </div>
+                                                            <textarea
+                                                                value={stanza.text}
+                                                                onChange={(e) => {
+                                                                    const newArr = [...currentArr];
+                                                                    newArr[sIdx].text = e.target.value;
+                                                                    setSubjectForm(prev => ({ ...prev, text: newArr }));
+                                                                }}
+                                                                rows={4}
+                                                                className="w-full bg-transparent border-none px-4 py-3 text-sm focus:outline-none transition-colors resize-y custom-scrollbar text-gray-200 placeholder-gray-600/50"
+                                                                placeholder="Write your notes here..."
+                                                                dir="auto"
+                                                            />
+                                                        </motion.div>
+                                                    ));
+                                                })()}
+                                            </AnimatePresence>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-6 border-t border-white/10 bg-white/5 backdrop-blur-md flex justify-end gap-3 shrink-0">
+                                    <button
+                                        onClick={() => setShowSubjectModal(false)}
+                                        className="px-6 py-2 rounded-xl font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const finalTitle = subjectForm.title.trim() || 'Title 1';
+                                            const finalText = Array.isArray(subjectForm.text) ? subjectForm.text : (typeof subjectForm.text === 'string' && subjectForm.text.trim() ? [{ type: 'verse', title: '1', text: subjectForm.text }] : [{ type: 'verse', title: '1', text: '' }]);
+                                            
+                                            if (subjectForm.id) {
+                                                updateWorkspaceHymn(subjectForm.id, {
+                                                    title: finalTitle,
+                                                    text: finalText,
+                                                    lyrics: finalText // Keep in sync for Lyrics Modal
+                                                });
+                                            } else {
+                                                const newId = 'subj_' + Date.now();
+                                                addToWorkspace({
+                                                    _id: newId,
+                                                    isSubject: true,
+                                                    title: finalTitle,
+                                                    text: finalText,
+                                                    lyrics: finalText
+                                                });
+                                            }
+                                            setShowSubjectModal(false);
+                                        }}
+                                        className="bg-sky-500 hover:bg-sky-400 text-white px-8 py-2 rounded-xl font-bold transition-all shadow-lg shadow-sky-500/20"
+                                    >
+                                        Save
+                                    </button>
                                 </div>
                             </motion.div>
                         </div>
