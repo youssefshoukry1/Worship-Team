@@ -101,6 +101,16 @@ export async function getLocalBibleIndex() {
   return memoryIndexCache;
 }
 
+const normalizeArabic = (text) => {
+  if (!text) return '';
+  return text
+    .replace(/[\u064B-\u065F\u0670]/g, '') // Remove diacritics (Tashkeel)
+    .replace(/[أإآ]/g, 'ا') // Normalize Alef
+    .replace(/[ىي]/g, 'ي') // Normalize Yaa
+    .replace(/ة/g, 'ه') // Normalize Ta Marbuta
+    .toLowerCase();
+};
+
 /**
  * Search the Bible locally.
  */
@@ -112,9 +122,40 @@ export async function searchLocalBible(query) {
 
   if (!memoryBiblesCache) memoryBiblesCache = bibles;
   
-  const lowerQuery = query.trim().toLowerCase();
-  return bibles.filter(v => 
-    (v.cleanText && v.cleanText.includes(lowerQuery)) ||
-    (v.text && v.text.includes(lowerQuery))
-  ).slice(0, 50);
+  const normalizedQuery = normalizeArabic(query.trim());
+  const queryWords = normalizedQuery.split(/\s+/).filter(Boolean);
+
+  if (queryWords.length === 0) return [];
+
+  // Lazily compute a normalized search string for each verse for extreme performance
+  if (bibles.length > 0 && !bibles[0]._searchCache) {
+      for (let i = 0; i < bibles.length; i++) {
+          const v = bibles[i];
+          bibles[i]._searchCache = normalizeArabic((v.cleanText || '') + ' ' + (v.text || ''));
+      }
+  }
+
+  // 1. Exact Phrase Match (Highest Priority)
+  let results = bibles.filter(v => v._searchCache.includes(normalizedQuery));
+
+  // 2. AND Logic Match (If Exact Phrase fails, all words must be present)
+  if (results.length === 0) {
+      results = bibles.filter(v => queryWords.every(word => v._searchCache.includes(word)));
+  }
+
+  // 3. OR Logic Match (If AND fails, fallback to any word match)
+  if (results.length === 0) {
+      const scoredResults = bibles.map(v => {
+          let score = 0;
+          for (let i = 0; i < queryWords.length; i++) {
+              if (v._searchCache.includes(queryWords[i])) score++;
+          }
+          return { verse: v, score };
+      }).filter(item => item.score > 0);
+
+      scoredResults.sort((a, b) => b.score - a.score);
+      results = scoredResults.map(item => item.verse);
+  }
+
+  return results.slice(0, 50);
 }

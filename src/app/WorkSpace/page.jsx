@@ -534,7 +534,7 @@ function DrawingCanvas({ hymnId, tool, color, size, scrollMode, initialStrokes, 
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
-        
+
         let currentW = 0;
         let currentH = 0;
 
@@ -545,7 +545,7 @@ function DrawingCanvas({ hymnId, tool, color, size, scrollMode, initialStrokes, 
             const dpr = window.devicePixelRatio || 1;
             const newW = Math.floor(rect.width * dpr);
             const newH = Math.floor(rect.height * dpr);
-            
+
             // Only update if dimensions actually changed
             if (newW !== currentW || newH !== currentH) {
                 currentW = newW;
@@ -558,7 +558,7 @@ function DrawingCanvas({ hymnId, tool, color, size, scrollMode, initialStrokes, 
                 redrawAll(ctx, canvas);
             }
         });
-        
+
         observer.observe(canvas);
         return () => observer.disconnect();
     }, [redrawAll]);
@@ -587,9 +587,9 @@ function DrawingCanvas({ hymnId, tool, color, size, scrollMode, initialStrokes, 
     const getPos = useCallback((e) => {
         const canvas = canvasRef.current;
         const rect = canvas.getBoundingClientRect();
-        return { 
-            x: e.clientX - rect.left, 
-            y: (e.clientY - rect.top) + (scrollRef?.current?.scrollTop || 0) 
+        return {
+            x: e.clientX - rect.left,
+            y: (e.clientY - rect.top) + (scrollRef?.current?.scrollTop || 0)
         };
     }, [scrollRef]);
 
@@ -1675,7 +1675,7 @@ export default function WorkSpace() {
                                     )}
 
                                     <div className="dock-divider" />
-                                    
+
                                     <button
                                         className="act-btn act-btn--subject"
                                         onClick={() => {
@@ -2108,156 +2108,156 @@ export default function WorkSpace() {
                                                 dragListener={false}
                                                 style={{ touchAction: 'none' }}
                                             >
-                                            <AnimatePresence mode="wait">
-                                            {toolbarCollapsed ? (
-                                                /* ── Collapsed pill ── */
-                                                <motion.div
-                                                    key="collapsed"
-                                                    initial={{ opacity: 0, scale: 0.8 }}
-                                                    animate={{ opacity: 1, scale: 1 }}
-                                                    exit={{ opacity: 0, scale: 0.8 }}
-                                                    transition={{ duration: 0.15 }}
-                                                    className="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl shadow-2xl border border-white/15"
-                                                    style={{ background: 'rgba(10,20,40,0.94)', backdropFilter: 'blur(20px)' }}
-                                                >
-                                                    <button
-                                                        onClick={() => setToolbarCollapsed(false)}
-                                                        title="Expand drawing controls"
-                                                        className="flex items-center gap-1.5 hover:opacity-75 transition-opacity"
-                                                    >
-                                                        <div
-                                                            className="w-4 h-4 rounded-full ring-2 ring-white/20"
-                                                            style={{ background: drawScrollMode ? '#10B981' : (drawTool === 'eraser' ? '#F97316' : drawColor) }}
-                                                        />
-                                                        <Pencil className="w-3 h-3 text-white/40" />
-                                                    </button>
-                                                    <div
-                                                        onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); drawDragControls.start(e); }}
-                                                        className="pl-0.5 text-white/20 hover:text-white/50 transition-colors cursor-grab active:cursor-grabbing touch-none select-none"
-                                                        title="Drag"
-                                                    >
-                                                        <GripVertical className="w-3.5 h-3.5" />
-                                                    </div>
-                                                </motion.div>
-                                            ) : (
-                                                /* ── Expanded toolbar ── */
-                                                <motion.div
-                                                    key="expanded"
-                                                    initial={{ opacity: 0, scale: 0.9 }}
-                                                    animate={{ opacity: 1, scale: 1 }}
-                                                    exit={{ opacity: 0, scale: 0.9 }}
-                                                    transition={{ duration: 0.15 }}
-                                                    className="flex flex-col sm:flex-row items-center gap-2 sm:gap-1 px-3 py-2.5 sm:px-2 sm:py-2 rounded-[1.5rem] sm:rounded-2xl shadow-2xl border border-white/10"
-                                                    style={{ background: 'rgba(10,20,40,0.94)', backdropFilter: 'blur(20px)' }}
-                                                >
-                                                    {/* --- Row 1: Actions & Tools --- */}
-                                                    <div className="flex items-center gap-1">
-                                                        {/* Drag handle */}
-                                                        <div
-                                                            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); drawDragControls.start(e); }}
-                                                            className="px-1 py-1 text-white/25 hover:text-white/60 cursor-grab active:cursor-grabbing transition-colors touch-none select-none rounded-lg hover:bg-white/5"
-                                                            title="Hold to drag toolbar"
+                                                <AnimatePresence mode="wait">
+                                                    {toolbarCollapsed ? (
+                                                        /* ── Collapsed pill ── */
+                                                        <motion.div
+                                                            key="collapsed"
+                                                            initial={{ opacity: 0, scale: 0.8 }}
+                                                            animate={{ opacity: 1, scale: 1 }}
+                                                            exit={{ opacity: 0, scale: 0.8 }}
+                                                            transition={{ duration: 0.15 }}
+                                                            className="flex items-center gap-1.5 px-2.5 py-2 rounded-2xl shadow-2xl border border-white/15"
+                                                            style={{ background: 'rgba(10,20,40,0.94)', backdropFilter: 'blur(20px)' }}
                                                         >
-                                                            <GripVertical className="w-4 h-4" />
-                                                        </div>
-                                                        <div className="w-px h-5 bg-white/10 mx-0.5" />
-
-                                                        {/* Pen */}
-                                                        <button
-                                                            onClick={() => { setDrawTool('pen'); setDrawScrollMode(false); }}
-                                                            title="Pen"
-                                                            className={`p-1.5 rounded-xl transition-all ${drawTool === 'pen' && !drawScrollMode ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/40' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
-                                                        >
-                                                            <Pencil className="w-4 h-4" />
-                                                        </button>
-
-                                                        {/* Eraser */}
-                                                        <button
-                                                            onClick={() => { setDrawTool('eraser'); setDrawScrollMode(false); }}
-                                                            title="Eraser — click to remove stroke, drag to erase area"
-                                                            className={`p-1.5 rounded-xl transition-all ${drawTool === 'eraser' && !drawScrollMode ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/40' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
-                                                        >
-                                                            <Eraser className="w-4 h-4" />
-                                                        </button>
-
-                                                        {/* Scroll mode */}
-                                                        <button
-                                                            onClick={() => setDrawScrollMode(m => !m)}
-                                                            title={drawScrollMode ? 'Drawing mode (scroll disabled)' : 'Scroll mode — canvas passes touch through'}
-                                                            className={`p-1.5 rounded-xl transition-all ${drawScrollMode ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
-                                                        >
-                                                            <Hand className="w-4 h-4" />
-                                                        </button>
-
-                                                        <div className="w-px h-5 bg-white/10 mx-0.5" />
-
-                                                        {/* Clear all */}
-                                                        <button
-                                                            onClick={() => {
-                                                                const canvasEl = document.querySelector('canvas[data-draw-canvas]');
-                                                                if (canvasEl?._clearDrawing) canvasEl._clearDrawing();
-                                                                else setSavedDrawings(prev => ({ ...prev, [selectedLyricsHymn._id]: [] }));
-                                                            }}
-                                                            title="Clear all drawings"
-                                                            className="p-1.5 rounded-xl text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                                                        >
-                                                            <Trash className="w-4 h-4" />
-                                                        </button>
-
-                                                        <div className="w-px h-5 bg-white/10 mx-0.5" />
-
-                                                        {/* Collapse */}
-                                                        <button
-                                                            onClick={() => setToolbarCollapsed(true)}
-                                                            title="Collapse controls"
-                                                            className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all"
-                                                        >
-                                                            <ChevronDown className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-
-                                                    <div className="hidden sm:block w-px h-5 bg-white/10 mx-0.5" />
-                                                    <div className="sm:hidden w-full h-px bg-white/10" />
-
-                                                    {/* --- Row 2: Colors & Size --- */}
-                                                    <div className="flex items-center gap-1">
-                                                        {/* Color swatches */}
-                                                        {['#38BDF8', '#F472B6', '#4ADE80', '#FACC15', '#FB923C', '#ffffff'].map(c => (
                                                             <button
-                                                                key={c}
-                                                                onClick={() => { setDrawColor(c); setDrawTool('pen'); setDrawScrollMode(false); }}
-                                                                title={c}
-                                                                className={`w-5 h-5 rounded-full shrink-0 transition-all border-2 ${drawColor === c && drawTool === 'pen' && !drawScrollMode ? 'scale-125 border-white shadow-lg' : 'border-transparent hover:scale-110'}`}
-                                                                style={{ background: c }}
-                                                            />
-                                                        ))}
-
-                                                        {/* Custom color picker */}
-                                                        <label title="Custom color" className="relative w-5 h-5 shrink-0 rounded-full overflow-hidden cursor-pointer border-2 border-dashed border-white/30 hover:border-white/60 transition-all flex items-center justify-center">
-                                                            <span className="text-[8px] text-white/60 font-bold leading-none">+</span>
-                                                            <input
-                                                                type="color"
-                                                                value={drawColor}
-                                                                onChange={e => { setDrawColor(e.target.value); setDrawTool('pen'); setDrawScrollMode(false); }}
-                                                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                                                            />
-                                                        </label>
-
-                                                        <div className="w-px h-5 bg-white/10 mx-0.5" />
-
-                                                        {/* Size controls */}
-                                                        <div className="flex items-center gap-1 bg-white/5 rounded-xl px-1.5 py-1">
-                                                            <button onClick={() => setDrawSize(s => Math.max(1, s - 1))} className="text-white/60 hover:text-white w-4 h-4 flex items-center justify-center text-sm font-black leading-none transition-colors">−</button>
+                                                                onClick={() => setToolbarCollapsed(false)}
+                                                                title="Expand drawing controls"
+                                                                className="flex items-center gap-1.5 hover:opacity-75 transition-opacity"
+                                                            >
+                                                                <div
+                                                                    className="w-4 h-4 rounded-full ring-2 ring-white/20"
+                                                                    style={{ background: drawScrollMode ? '#10B981' : (drawTool === 'eraser' ? '#F97316' : drawColor) }}
+                                                                />
+                                                                <Pencil className="w-3 h-3 text-white/40" />
+                                                            </button>
                                                             <div
-                                                                className="rounded-full shrink-0 transition-all"
-                                                                style={{ width: Math.max(4, drawSize * 1.5), height: Math.max(4, drawSize * 1.5), minWidth: 4, minHeight: 4, background: drawTool === 'eraser' ? '#fb923c' : drawColor }}
-                                                            />
-                                                            <button onClick={() => setDrawSize(s => Math.min(24, s + 1))} className="text-white/60 hover:text-white w-4 h-4 flex items-center justify-center text-sm font-black leading-none transition-colors">+</button>
-                                                        </div>
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                            </AnimatePresence>
+                                                                onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); drawDragControls.start(e); }}
+                                                                className="pl-0.5 text-white/20 hover:text-white/50 transition-colors cursor-grab active:cursor-grabbing touch-none select-none"
+                                                                title="Drag"
+                                                            >
+                                                                <GripVertical className="w-3.5 h-3.5" />
+                                                            </div>
+                                                        </motion.div>
+                                                    ) : (
+                                                        /* ── Expanded toolbar ── */
+                                                        <motion.div
+                                                            key="expanded"
+                                                            initial={{ opacity: 0, scale: 0.9 }}
+                                                            animate={{ opacity: 1, scale: 1 }}
+                                                            exit={{ opacity: 0, scale: 0.9 }}
+                                                            transition={{ duration: 0.15 }}
+                                                            className="flex flex-col sm:flex-row items-center gap-2 sm:gap-1 px-3 py-2.5 sm:px-2 sm:py-2 rounded-[1.5rem] sm:rounded-2xl shadow-2xl border border-white/10"
+                                                            style={{ background: 'rgba(10,20,40,0.94)', backdropFilter: 'blur(20px)' }}
+                                                        >
+                                                            {/* --- Row 1: Actions & Tools --- */}
+                                                            <div className="flex items-center gap-1">
+                                                                {/* Drag handle */}
+                                                                <div
+                                                                    onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); drawDragControls.start(e); }}
+                                                                    className="px-1 py-1 text-white/25 hover:text-white/60 cursor-grab active:cursor-grabbing transition-colors touch-none select-none rounded-lg hover:bg-white/5"
+                                                                    title="Hold to drag toolbar"
+                                                                >
+                                                                    <GripVertical className="w-4 h-4" />
+                                                                </div>
+                                                                <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+                                                                {/* Pen */}
+                                                                <button
+                                                                    onClick={() => { setDrawTool('pen'); setDrawScrollMode(false); }}
+                                                                    title="Pen"
+                                                                    className={`p-1.5 rounded-xl transition-all ${drawTool === 'pen' && !drawScrollMode ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/40' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+                                                                >
+                                                                    <Pencil className="w-4 h-4" />
+                                                                </button>
+
+                                                                {/* Eraser */}
+                                                                <button
+                                                                    onClick={() => { setDrawTool('eraser'); setDrawScrollMode(false); }}
+                                                                    title="Eraser — click to remove stroke, drag to erase area"
+                                                                    className={`p-1.5 rounded-xl transition-all ${drawTool === 'eraser' && !drawScrollMode ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/40' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+                                                                >
+                                                                    <Eraser className="w-4 h-4" />
+                                                                </button>
+
+                                                                {/* Scroll mode */}
+                                                                <button
+                                                                    onClick={() => setDrawScrollMode(m => !m)}
+                                                                    title={drawScrollMode ? 'Drawing mode (scroll disabled)' : 'Scroll mode — canvas passes touch through'}
+                                                                    className={`p-1.5 rounded-xl transition-all ${drawScrollMode ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+                                                                >
+                                                                    <Hand className="w-4 h-4" />
+                                                                </button>
+
+                                                                <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+                                                                {/* Clear all */}
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const canvasEl = document.querySelector('canvas[data-draw-canvas]');
+                                                                        if (canvasEl?._clearDrawing) canvasEl._clearDrawing();
+                                                                        else setSavedDrawings(prev => ({ ...prev, [selectedLyricsHymn._id]: [] }));
+                                                                    }}
+                                                                    title="Clear all drawings"
+                                                                    className="p-1.5 rounded-xl text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                                                                >
+                                                                    <Trash className="w-4 h-4" />
+                                                                </button>
+
+                                                                <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+                                                                {/* Collapse */}
+                                                                <button
+                                                                    onClick={() => setToolbarCollapsed(true)}
+                                                                    title="Collapse controls"
+                                                                    className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                                                                >
+                                                                    <ChevronDown className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+
+                                                            <div className="hidden sm:block w-px h-5 bg-white/10 mx-0.5" />
+                                                            <div className="sm:hidden w-full h-px bg-white/10" />
+
+                                                            {/* --- Row 2: Colors & Size --- */}
+                                                            <div className="flex items-center gap-1">
+                                                                {/* Color swatches */}
+                                                                {['#38BDF8', '#F472B6', '#4ADE80', '#FACC15', '#FB923C', '#ffffff'].map(c => (
+                                                                    <button
+                                                                        key={c}
+                                                                        onClick={() => { setDrawColor(c); setDrawTool('pen'); setDrawScrollMode(false); }}
+                                                                        title={c}
+                                                                        className={`w-5 h-5 rounded-full shrink-0 transition-all border-2 ${drawColor === c && drawTool === 'pen' && !drawScrollMode ? 'scale-125 border-white shadow-lg' : 'border-transparent hover:scale-110'}`}
+                                                                        style={{ background: c }}
+                                                                    />
+                                                                ))}
+
+                                                                {/* Custom color picker */}
+                                                                <label title="Custom color" className="relative w-5 h-5 shrink-0 rounded-full overflow-hidden cursor-pointer border-2 border-dashed border-white/30 hover:border-white/60 transition-all flex items-center justify-center">
+                                                                    <span className="text-[8px] text-white/60 font-bold leading-none">+</span>
+                                                                    <input
+                                                                        type="color"
+                                                                        value={drawColor}
+                                                                        onChange={e => { setDrawColor(e.target.value); setDrawTool('pen'); setDrawScrollMode(false); }}
+                                                                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                                                                    />
+                                                                </label>
+
+                                                                <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+                                                                {/* Size controls */}
+                                                                <div className="flex items-center gap-1 bg-white/5 rounded-xl px-1.5 py-1">
+                                                                    <button onClick={() => setDrawSize(s => Math.max(1, s - 1))} className="text-white/60 hover:text-white w-4 h-4 flex items-center justify-center text-sm font-black leading-none transition-colors">−</button>
+                                                                    <div
+                                                                        className="rounded-full shrink-0 transition-all"
+                                                                        style={{ width: Math.max(4, drawSize * 1.5), height: Math.max(4, drawSize * 1.5), minWidth: 4, minHeight: 4, background: drawTool === 'eraser' ? '#fb923c' : drawColor }}
+                                                                    />
+                                                                    <button onClick={() => setDrawSize(s => Math.min(24, s + 1))} className="text-white/60 hover:text-white w-4 h-4 flex items-center justify-center text-sm font-black leading-none transition-colors">+</button>
+                                                                </div>
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
                                             </motion.div>
                                         </motion.div>
                                     )}
@@ -2510,7 +2510,7 @@ export default function WorkSpace() {
                                         </div>
                                     ) : (
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`} 
+                                            <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
                                                 onClick={(e) => {
                                                     if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
                                                         e.preventDefault();
@@ -2521,7 +2521,7 @@ export default function WorkSpace() {
                                                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all">
                                                 <Tv2 className="w-4 h-4" /> Open Display Window
                                             </a>
-                                            <a href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`} 
+                                            <a href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`}
                                                 onClick={(e) => {
                                                     if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
                                                         e.preventDefault();
@@ -2716,8 +2716,8 @@ export default function WorkSpace() {
                                                 {(() => {
                                                     const currentArr = Array.isArray(subjectForm.text) ? subjectForm.text : (typeof subjectForm.text === 'string' && subjectForm.text.trim() ? [{ type: 'verse', title: '1', text: subjectForm.text }] : [{ type: 'verse', title: '1', text: '' }]);
                                                     return currentArr.map((stanza, sIdx) => (
-                                                        <motion.div 
-                                                            key={sIdx} 
+                                                        <motion.div
+                                                            key={sIdx}
                                                             initial={{ opacity: 0, height: 0, marginTop: 0 }}
                                                             animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
                                                             exit={{ opacity: 0, height: 0, marginTop: 0, overflow: 'hidden' }}
@@ -2779,7 +2779,7 @@ export default function WorkSpace() {
                                         onClick={() => {
                                             const finalTitle = subjectForm.title.trim() || 'Title 1';
                                             const finalText = Array.isArray(subjectForm.text) ? subjectForm.text : (typeof subjectForm.text === 'string' && subjectForm.text.trim() ? [{ type: 'verse', title: '1', text: subjectForm.text }] : [{ type: 'verse', title: '1', text: '' }]);
-                                            
+
                                             if (subjectForm.id) {
                                                 updateWorkspaceHymn(subjectForm.id, {
                                                     title: finalTitle,

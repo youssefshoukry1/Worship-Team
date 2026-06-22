@@ -299,17 +299,31 @@ export default function Category_Humns() {
       }
       setIsSearchingBible(true);
       try {
-        const index = await getLocalBibleIndex();
-        if (index) {
-          const localResults = await searchLocalBible(bibleSearchQuery);
-          if (!cancelled) setBibleSearchResults(localResults || []);
-          return;
+        let searchedOnline = false;
+
+        // Try Online (MongoDB) First if the device is connected
+        if (navigator.onLine) {
+          try {
+            const { data } = await axios.get(
+              `${BIBLE_API}/search?q=${encodeURIComponent(bibleSearchQuery)}&&lang=arabic`
+            );
+            if (!cancelled) setBibleSearchResults(Array.isArray(data) ? data : []);
+            searchedOnline = true;
+          } catch (err) {
+            console.warn("Online Bible search failed, falling back to offline search", err);
+          }
         }
 
-        const { data } = await axios.get(
-          `${BIBLE_API}/search?q=${encodeURIComponent(bibleSearchQuery)}&&lang=arabic`
-        );
-        if (!cancelled) setBibleSearchResults(Array.isArray(data) ? data : []);
+        // Fallback to Offline if Online failed or if device is offline
+        if (!searchedOnline) {
+          const index = await getLocalBibleIndex();
+          if (index) {
+            const localResults = await searchLocalBible(bibleSearchQuery);
+            if (!cancelled) setBibleSearchResults(localResults || []);
+          } else {
+            if (!cancelled) setBibleSearchResults([]);
+          }
+        }
       } catch (error) {
         console.error("Bible search error:", error);
         if (!cancelled) setBibleSearchResults([]);
