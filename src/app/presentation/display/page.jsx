@@ -1,9 +1,9 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentation } from '../../hooks/usePresentation';
 import { useSearchParams } from 'next/navigation';
-import { Wifi, WifiOff, Mic } from 'lucide-react';
+import { Wifi, WifiOff, Mic, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Suspense } from 'react';
 import ChordLyrics from '../../components/ChordLyrics';
 
@@ -346,6 +346,31 @@ function DisplayContent() {
     const { isConnected, displayState, remoteAudioStream } = usePresentation(dataShowId, 'display');
     const audioRef = useRef(null);
 
+    // ── Font Scale ─────────────────────────────────────────────────────
+    const SCALE_KEY = 'presentation_font_scale';
+    const SCALE_MIN = 0.5;
+    const SCALE_MAX = 2.0;
+    const SCALE_STEP = 0.1;
+    const [fontScale, setFontScale] = useState(() => {
+        if (typeof window === 'undefined') return 1;
+        const saved = parseFloat(localStorage.getItem(SCALE_KEY));
+        return isNaN(saved) ? 1 : Math.min(Math.max(saved, SCALE_MIN), SCALE_MAX);
+    });
+    const [controlsOpen, setControlsOpen] = useState(false);
+
+    const changeScale = useCallback((delta) => {
+        setFontScale(prev => {
+            const next = Math.min(Math.max(parseFloat((prev + delta).toFixed(1)), SCALE_MIN), SCALE_MAX);
+            localStorage.setItem(SCALE_KEY, String(next));
+            return next;
+        });
+    }, []);
+
+    const resetScale = useCallback(() => {
+        setFontScale(1);
+        localStorage.removeItem(SCALE_KEY);
+    }, []);
+
     // Hide layout navbar on mount, restore on unmount
     useEffect(() => {
         const selectors = ['nav', 'header', '[class*="navbar"]', '[class*="Navbar"]', '[class*="header"]', '[class*="Header"]'];
@@ -395,6 +420,139 @@ function DisplayContent() {
             <SlideCounter current={currentSlide} total={totalSlides} />
             <CloseButton />
 
+            {/* ── Font Size Controls ── */}
+            {/* Always-visible toggle icon + expandable panel, bottom-left */}
+            <div className="absolute bottom-6 left-6 z-50">
+                <AnimatePresence mode="wait">
+                    {controlsOpen ? (
+                        /* ── Expanded panel ── */
+                        <motion.div
+                            key="panel"
+                            initial={{ opacity: 0, scale: 0.9, y: 6 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 6 }}
+                            transition={{ duration: 0.2, ease: 'easeOut' }}
+                            className="flex items-center gap-1"
+                            style={{
+                                background: 'rgba(10,15,30,0.82)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                backdropFilter: 'blur(14px)',
+                                borderRadius: '999px',
+                                padding: '5px 8px',
+                                boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+                            }}
+                        >
+                            {/* Decrease */}
+                            <button
+                                onClick={() => changeScale(-SCALE_STEP)}
+                                disabled={fontScale <= SCALE_MIN}
+                                title="Decrease font size"
+                                style={{
+                                    width: 32, height: 32, borderRadius: '50%',
+                                    background: 'rgba(255,255,255,0.06)',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: fontScale <= SCALE_MIN ? 'not-allowed' : 'pointer',
+                                    opacity: fontScale <= SCALE_MIN ? 0.3 : 1,
+                                    transition: 'opacity 0.2s, background 0.2s',
+                                }}
+                            >
+                                <ZoomOut size={14} style={{ color: 'rgba(255,255,255,0.65)' }} />
+                            </button>
+
+                            {/* Percentage label */}
+                            <span style={{
+                                fontFamily: 'monospace',
+                                fontSize: '11px',
+                                color: fontScale !== 1 ? 'rgba(210,160,80,0.85)' : 'rgba(255,255,255,0.35)',
+                                letterSpacing: '0.05em',
+                                minWidth: '34px',
+                                textAlign: 'center',
+                                transition: 'color 0.3s',
+                            }}>
+                                {Math.round(fontScale * 100)}%
+                            </span>
+
+                            {/* Increase */}
+                            <button
+                                onClick={() => changeScale(SCALE_STEP)}
+                                disabled={fontScale >= SCALE_MAX}
+                                title="Increase font size"
+                                style={{
+                                    width: 32, height: 32, borderRadius: '50%',
+                                    background: 'rgba(255,255,255,0.06)',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: fontScale >= SCALE_MAX ? 'not-allowed' : 'pointer',
+                                    opacity: fontScale >= SCALE_MAX ? 0.3 : 1,
+                                    transition: 'opacity 0.2s, background 0.2s',
+                                }}
+                            >
+                                <ZoomIn size={14} style={{ color: 'rgba(255,255,255,0.65)' }} />
+                            </button>
+
+                            {/* Reset — only shows when not at 100% */}
+                            {fontScale !== 1 && (
+                                <button
+                                    onClick={resetScale}
+                                    title="Reset to 100%"
+                                    style={{
+                                        width: 32, height: 32, borderRadius: '50%',
+                                        background: 'rgba(255,255,255,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    <RotateCcw size={12} style={{ color: 'rgba(255,255,255,0.45)' }} />
+                                </button>
+                            )}
+
+                            {/* Close / collapse */}
+                            <button
+                                onClick={() => setControlsOpen(false)}
+                                title="Close"
+                                style={{
+                                    width: 32, height: 32, borderRadius: '50%',
+                                    background: 'rgba(255,255,255,0.04)',
+                                    border: '1px solid rgba(255,255,255,0.06)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: 'pointer', marginLeft: 2,
+                                }}
+                            >
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                    <line x1="1" y1="1" x2="9" y2="9" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" strokeLinecap="round" />
+                                    <line x1="9" y1="1" x2="1" y2="9" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5" strokeLinecap="round" />
+                                </svg>
+                            </button>
+                        </motion.div>
+                    ) : (
+                        /* ── Collapsed icon button ── */
+                        <motion.button
+                            key="icon"
+                            initial={{ opacity: 0, scale: 0.85 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.85 }}
+                            transition={{ duration: 0.18 }}
+                            onClick={() => setControlsOpen(true)}
+                            title="Font size"
+                            style={{
+                                width: 36, height: 36, borderRadius: '50%',
+                                background: 'rgba(10,15,30,0.65)',
+                                border: `1px solid ${fontScale !== 1 ? 'rgba(210,160,80,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                                backdropFilter: 'blur(10px)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                cursor: 'pointer',
+                                boxShadow: fontScale !== 1 ? '0 0 10px rgba(210,160,80,0.15)' : 'none',
+                                transition: 'border-color 0.3s, box-shadow 0.3s',
+                            }}
+                        >
+                            <ZoomIn size={15} style={{ color: fontScale !== 1 ? 'rgba(210,160,80,0.8)' : 'rgba(255,255,255,0.4)' }} />
+                        </motion.button>
+                    )}
+                </AnimatePresence>
+            </div>
+
             {/* ── Live audio indicator ── */}
             {remoteAudioStream && (
                 <div
@@ -439,6 +597,7 @@ function DisplayContent() {
                                     chordedLyrics={Array.isArray(slideData) ? slideData : [slideData]}
                                     showChords={false}
                                     presentation={true}
+                                    fontScale={fontScale}
                                 />
                             </div>
 

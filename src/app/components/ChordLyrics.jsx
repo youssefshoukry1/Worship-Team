@@ -12,14 +12,17 @@ const ChordLyrics = ({
     showChords = true,
     fontSize = 18,
     theme = {},
-    presentation = false
+    presentation = false,
+    fontScale = 1,
 }) => {
     if (!chordedLyrics || !Array.isArray(chordedLyrics)) return null;
 
     // Default styles if theme is partially provided
     const textStyle = {
         color: theme.text || (presentation ? '#fff' : '#000'),
-        fontSize: presentation ? 'clamp(18px, 4.8vw, 68px)' : `${fontSize}px`,
+        fontSize: presentation
+            ? `clamp(${Math.round(18 * fontScale)}px, ${(4.8 * fontScale).toFixed(2)}vw, ${Math.round(68 * fontScale)}px)`
+            : `${fontSize}px`,
         lineHeight: presentation ? '1.4' : '1.6'
     };
 
