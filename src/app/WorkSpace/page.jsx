@@ -1050,8 +1050,7 @@ export default function WorkSpace() {
 
         setIsCreatingSession(true);
         try {
-            const BASE_URL = "https://worship-team-api.onrender.com/api";
-            const response = await fetch(`${BASE_URL}/presentation/create`, {
+            const response = await fetch(`${API_URL}/presentation/create`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ dataShowId: id })
@@ -1079,8 +1078,7 @@ export default function WorkSpace() {
 
         setIsJoiningSession(true);
         try {
-            const BASE_URL = "https://worship-team-api.onrender.com/api";
-            const response = await fetch(`${BASE_URL}/presentation/check/${encodeURIComponent(id)}`);
+            const response = await fetch(`${API_URL}/presentation/check/${encodeURIComponent(id)}`);
             const data = await response.json();
             if (data.exists) {
                 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1418,38 +1416,19 @@ export default function WorkSpace() {
         }
     }, [dataShowIndex, showDataShow]);
 
+    // Robust broadcast sync: whenever session connects or hymn/lyrics change while presentation is open.
+    // Uses the already-computed dataShowSlides memo — avoids duplicating the regex/split/map work.
+    // NOTE: dataShowIndex intentionally NOT in deps — including it caused a full hymn-change
+    // broadcast (large payload with all slides) on every single slide navigation.
     useEffect(() => {
         if (showDataShow && dataShowId && selectedLyricsHymn && isConnected) {
-            let slides = [];
-            if (selectedLyricsHymn.isBible && selectedLyricsHymn.verses) {
-                slides = selectedLyricsHymn.verses.map(v => ({
-                    title: `${selectedLyricsHymn.title} ${v.verseNumber}`,
-                    type: 'verse',
-                    text: v.text
-                }));
-            } else if (Array.isArray(selectedLyricsHymn.lyrics)) {
-                selectedLyricsHymn.lyrics.forEach(stanza => {
-                    const blocks = stanza.text.split(/\n\s*\n/).filter(b => b.trim() !== '');
-                    blocks.forEach(block => {
-                        slides.push({
-                            title: stanza.title,
-                            type: stanza.type,
-                            text: block.replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
-                        });
-                    });
-                });
-            } else {
-                slides = (selectedLyricsHymn.lyrics || '')
-                    .replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
-                    .split('\n\n')
-                    .map(b => b.trim())
-                    .filter(Boolean);
-            }
-            broadcastHymn(selectedLyricsHymn, slides);
-            broadcastSlide(dataShowIndex);
+            // dataShowSlides is already memoised; reuse it directly
+            broadcastHymn(selectedLyricsHymn, dataShowSlides);
+            // No broadcastSlide here — hymn-change resets to slide 0 on the server,
+            // and the separate dataShowIndex effect handles subsequent navigation.
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [showDataShow, dataShowId, selectedLyricsHymn, isConnected, broadcastHymn, showChords, dataShowIndex]);
+    }, [showDataShow, dataShowId, selectedLyricsHymn, isConnected, broadcastHymn, showChords]);
 
     // Broadcast slide change whenever dataShowIndex moves exclusively
     useEffect(() => {

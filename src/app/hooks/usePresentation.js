@@ -51,6 +51,18 @@ export function usePresentation(dataShowId, role = 'controller') {
         currentControllerIdRef.current = null;
     }, []);
 
+    // Keep-alive: ping the server every 10 minutes while a session is active.
+    // Render's free tier spins down after ~15 min of inactivity; this prevents
+    // a cold-start delay from appearing mid-presentation.
+    useEffect(() => {
+        if (!dataShowId) return;
+        const PING_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+        const keepAlive = setInterval(() => {
+            fetch(`${SOCKET_URL}/api/ping`).catch(() => {}); // silent — best-effort
+        }, PING_INTERVAL_MS);
+        return () => clearInterval(keepAlive);
+    }, [dataShowId]);
+
     useEffect(() => {
         if (!dataShowId) return;
 

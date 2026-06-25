@@ -56,6 +56,101 @@ const grainStyle = `
   }
 `;
 
+/* ─── Module-level style constants ──────────────────────────────────────────
+   Defined outside components so the same object reference is reused every
+   render, letting React's shallow-equality reconciliation bail out early
+   instead of allocating fresh objects on every re-render.
+   Only truly static styles live here; anything that depends on runtime
+   props or state remains inline where it appears.
+────────────────────────────────────────────────────────────────────────────*/
+const S = {
+    grainBg: {
+        background: 'radial-gradient(ellipse 80% 60% at 50% 40%, #1a1008 0%, #0a0806 40%, #000000 100%)'
+    },
+    badgeConnected: {
+        background: 'rgba(20,40,20,0.55)',
+        border: '1px solid rgba(74,222,128,0.2)',
+        boxShadow: '0 0 12px rgba(74,222,128,0.08)',
+    },
+    badgeDisconnected: {
+        background: 'rgba(40,10,10,0.55)',
+        border: '1px solid rgba(248,113,113,0.2)',
+    },
+    closeBtn: {
+        width: 38,
+        height: 38,
+        borderRadius: '50%',
+        border: '1px solid rgba(255,255,255,0.1)',
+        background: 'rgba(255,255,255,0.04)',
+        backdropFilter: 'blur(10px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+    },
+    hymnLabel: {
+        fontFamily: "'IM Fell English SC', serif",
+        fontSize: '13px',
+        letterSpacing: '0.12em',
+        color: 'rgba(210,160,80,0.35)',
+    },
+    crossWrapper: { position: 'relative', width: 64, height: 64 },
+    crossGlow: {
+        position: 'absolute', inset: 0,
+        background: 'radial-gradient(circle, rgba(210,160,80,0.08) 0%, transparent 70%)',
+        filter: 'blur(8px)',
+    },
+    waitingLabel: {
+        fontFamily: "'IM Fell English SC', serif",
+        fontSize: '13px',
+        letterSpacing: '0.35em',
+        color: 'rgba(255,255,255,0.18)',
+        textTransform: 'uppercase',
+        marginBottom: '8px',
+    },
+    waitingRoom: {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        letterSpacing: '0.2em',
+        color: 'rgba(210,160,80,0.18)',
+    },
+    connectingSpinner: { animation: 'spin 1.2s linear infinite', transformOrigin: 'center' },
+    connectingLabel: {
+        fontFamily: "'IM Fell English SC', serif",
+        fontSize: '12px',
+        letterSpacing: '0.35em',
+        color: 'rgba(255,255,255,0.2)',
+        textTransform: 'uppercase',
+    },
+    slideTitle: {
+        fontFamily: "'Amiri', serif",
+        fontSize: 'clamp(14px, 1.8vw, 20px)',
+        letterSpacing: '0.25em',
+        color: 'rgba(210,160,80,0.55)',
+        padding: '6px 24px',
+        borderRadius: '999px',
+        border: '1px solid rgba(210,160,80,0.12)',
+        background: 'rgba(210,160,80,0.04)',
+        backdropFilter: 'blur(8px)',
+        whiteSpace: 'nowrap',
+    },
+    chordPillText: {
+        fontFamily: "'Cinzel', serif",
+        fontSize: 'clamp(14px, 1.6vw, 20px)',
+        fontWeight: 600,
+        color: 'rgba(140,220,255,0.9)',
+        letterSpacing: '0.05em',
+    },
+    liveAudioBadge: {
+        background: 'rgba(5,40,25,0.6)',
+        border: '1px solid rgba(52,211,153,0.25)',
+        backdropFilter: 'blur(10px)',
+    },
+    liveAudioText: { fontSize: 11, letterSpacing: '0.15em', color: 'rgba(52,211,153,0.8)', fontFamily: 'monospace' },
+    rootFont: { fontFamily: "'Amiri', serif" },
+};
+
 function GrainBackground() {
     return (
         <>
@@ -63,9 +158,7 @@ function GrainBackground() {
             {/* Deep atmospheric base (Static for performance) */}
             <div
                 className="fixed inset-0 z-0 pointer-events-none"
-                style={{
-                    background: `radial-gradient(ellipse 80% 60% at 50% 40%, #1a1008 0%, #0a0806 40%, #000000 100%)`
-                }}
+                style={S.grainBg}
             />
         </>
     );
@@ -76,11 +169,7 @@ function ConnectionBadge({ isConnected, dataShowId }) {
         <div className="absolute top-5 right-5 z-50 status-badge">
             {isConnected ? (
                 <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full backdrop-blur-md"
-                    style={{
-                        background: 'rgba(20,40,20,0.55)',
-                        border: '1px solid rgba(74,222,128,0.2)',
-                        boxShadow: '0 0 12px rgba(74,222,128,0.08)',
-                    }}
+                    style={S.badgeConnected}
                 >
                     <span className="relative flex h-2 w-2">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60" />
@@ -92,10 +181,7 @@ function ConnectionBadge({ isConnected, dataShowId }) {
                 </div>
             ) : (
                 <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full backdrop-blur-md"
-                    style={{
-                        background: 'rgba(40,10,10,0.55)',
-                        border: '1px solid rgba(248,113,113,0.2)',
-                    }}
+                    style={S.badgeDisconnected}
                 >
                     <WifiOff size={11} className="text-red-400" />
                     <span className="text-xs font-mono tracking-widest text-red-400/70">Connecting…</span>
@@ -143,19 +229,7 @@ function CloseButton() {
             onClick={handleClose}
             className="absolute bottom-6 right-6 z-50 group"
             title="Close display"
-            style={{
-                width: 38,
-                height: 38,
-                borderRadius: '50%',
-                border: '1px solid rgba(255,255,255,0.1)',
-                background: 'rgba(255,255,255,0.04)',
-                backdropFilter: 'blur(10px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-            }}
+            style={S.closeBtn}
             onMouseEnter={e => {
                 e.currentTarget.style.borderColor = 'rgba(255,80,80,0.4)';
                 e.currentTarget.style.background = 'rgba(255,50,50,0.08)';
@@ -179,12 +253,7 @@ function HymnLabel({ title }) {
     return (
         <div
             className="absolute top-5 left-5 z-10"
-            style={{
-                fontFamily: "'IM Fell English SC', serif",
-                fontSize: '13px',
-                letterSpacing: '0.12em',
-                color: 'rgba(210,160,80,0.35)',
-            }}
+            style={S.hymnLabel}
         >
             {title}
         </div>
@@ -202,37 +271,21 @@ function WaitingState({ dataShowId }) {
             className="text-center flex flex-col items-center gap-6"
         >
             {/* Decorative cross with golden tint */}
-            <div style={{ position: 'relative', width: 64, height: 64 }}>
+            <div style={S.crossWrapper}>
                 <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" width="64" height="64">
                     <rect x="28" y="4" width="8" height="56" rx="4" fill="rgba(210,160,80,0.12)" />
                     <rect x="4" y="22" width="56" height="8" rx="4" fill="rgba(210,160,80,0.12)" />
                 </svg>
                 {/* Glow behind cross */}
-                <div style={{
-                    position: 'absolute', inset: 0,
-                    background: 'radial-gradient(circle, rgba(210,160,80,0.08) 0%, transparent 70%)',
-                    filter: 'blur(8px)',
-                }} />
+                <div style={S.crossGlow} />
             </div>
 
             <div>
-                <p style={{
-                    fontFamily: "'IM Fell English SC', serif",
-                    fontSize: '13px',
-                    letterSpacing: '0.35em',
-                    color: 'rgba(255,255,255,0.18)',
-                    textTransform: 'uppercase',
-                    marginBottom: '8px',
-                }}>
+                <p style={S.waitingLabel}>
                     Waiting for presenter
                 </p>
                 {dataShowId && (
-                    <p style={{
-                        fontFamily: 'monospace',
-                        fontSize: '11px',
-                        letterSpacing: '0.2em',
-                        color: 'rgba(210,160,80,0.18)',
-                    }}>
+                    <p style={S.waitingRoom}>
                         Room · {dataShowId}
                     </p>
                 )}
@@ -256,17 +309,11 @@ function ConnectingState() {
                 <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(210,160,80,0.5)" strokeWidth="2"
                     strokeDasharray="25 76"
                     strokeLinecap="round"
-                    style={{ animation: 'spin 1.2s linear infinite', transformOrigin: 'center' }}
+                    style={S.connectingSpinner}
                 />
                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </svg>
-            <p style={{
-                fontFamily: "'IM Fell English SC', serif",
-                fontSize: '12px',
-                letterSpacing: '0.35em',
-                color: 'rgba(255,255,255,0.2)',
-                textTransform: 'uppercase',
-            }}>
+            <p style={S.connectingLabel}>
                 Connecting
             </p>
         </motion.div>
@@ -281,18 +328,7 @@ function SlideTitle({ title }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className="absolute top-10 left-1/2 -translate-x-1/2"
-            style={{
-                fontFamily: "'Amiri', serif",
-                fontSize: 'clamp(14px, 1.8vw, 20px)',
-                letterSpacing: '0.25em',
-                color: 'rgba(210,160,80,0.55)',
-                padding: '6px 24px',
-                borderRadius: '999px',
-                border: '1px solid rgba(210,160,80,0.12)',
-                background: 'rgba(210,160,80,0.04)',
-                backdropFilter: 'blur(8px)',
-                whiteSpace: 'nowrap',
-            }}
+            style={S.slideTitle}
             dir="rtl"
         >
             {title}
@@ -312,6 +348,7 @@ function ChordRow({ slideData }) {
                     key={idx}
                     className="chord-pill"
                     style={{
+                        // animationDelay is dynamic — must stay inline
                         animationDelay: `${idx * 60}ms`,
                         padding: '5px 14px',
                         borderRadius: '8px',
@@ -322,13 +359,7 @@ function ChordRow({ slideData }) {
                 >
                     <span
                         dir="ltr"
-                        style={{
-                            fontFamily: "'Cinzel', serif",
-                            fontSize: 'clamp(14px, 1.6vw, 20px)',
-                            fontWeight: 600,
-                            color: 'rgba(140,220,255,0.9)',
-                            letterSpacing: '0.05em',
-                        }}
+                        style={S.chordPillText}
                     >
                         {seg.chord}
                     </span>
@@ -411,7 +442,7 @@ function DisplayContent() {
     const isCleared    = displayState?.type === 'clear' || (!displayState?.currentHymnId && displayState?.type !== 'sync');
 
     return (
-        <div className="display-root grain-layer fixed inset-0 select-none overflow-hidden" style={{ fontFamily: "'Amiri', serif" }}>
+        <div className="display-root grain-layer fixed inset-0 select-none overflow-hidden" style={S.rootFont}>
             <GrainBackground />
 
             {/* ── Chrome ── */}
@@ -557,14 +588,10 @@ function DisplayContent() {
             {remoteAudioStream && (
                 <div
                     className="absolute top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full status-badge"
-                    style={{
-                        background: 'rgba(5,40,25,0.6)',
-                        border: '1px solid rgba(52,211,153,0.25)',
-                        backdropFilter: 'blur(10px)',
-                    }}
+                    style={S.liveAudioBadge}
                 >
                     <Mic size={11} className="text-emerald-400" />
-                    <span style={{ fontSize: 11, letterSpacing: '0.15em', color: 'rgba(52,211,153,0.8)', fontFamily: 'monospace' }}>
+                    <span style={S.liveAudioText}>
                         LIVE AUDIO
                     </span>
                     <span className="relative flex h-1.5 w-1.5">

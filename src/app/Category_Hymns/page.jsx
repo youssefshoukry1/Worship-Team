@@ -574,8 +574,7 @@ export default function Category_Humns() {
 
     setIsCreatingSession(true);
     try {
-      const BASE_URL = "https://worship-team-api.onrender.com/api";
-      const response = await axios.post(`${BASE_URL}/presentation/create`, { dataShowId: id });
+      const response = await axios.post(`${API_ROOT}/presentation/create`, { dataShowId: id });
       if (response.data.success) {
         setDataShowId(id);
         if (response.data.expiresAt) setSessionExpiresAt(response.data.expiresAt);
@@ -595,8 +594,7 @@ export default function Category_Humns() {
 
     setIsJoiningSession(true);
     try {
-      const BASE_URL = "https://worship-team-api.onrender.com/api";
-      const response = await axios.get(`${BASE_URL}/presentation/check/${encodeURIComponent(id)}`);
+      const response = await axios.get(`${API_ROOT}/presentation/check/${encodeURIComponent(id)}`);
       if (response.data.exists) {
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         if (isMobile || window.innerWidth < 640) {
@@ -756,39 +754,14 @@ export default function Category_Humns() {
     }
   }, [dataShowIndex, showDataShow]);
 
-  // Robust broadcast sync: whenever session connects or hymn/lyrics change while presentation is open
+  // Robust broadcast sync: whenever session connects or hymn/lyrics change while presentation is open.
+  // Uses the already-computed dataShowSlides memo — avoids duplicating the regex/split/map work.
   useEffect(() => {
     if (showDataShow && dataShowId && selectedLyricsHymn && isConnected) {
-      let slides = [];
-      if (Array.isArray(selectedLyricsHymn.lyrics)) {
-        const lyricsToUse = selectedLyricsHymn.transposeStep
-          ? transposeLyrics(selectedLyricsHymn.lyrics, selectedLyricsHymn.transposeStep)
-          : selectedLyricsHymn.lyrics;
-
-        lyricsToUse.forEach(stanza => {
-          const blocks = stanza.text.split(/\n\s*\n/).filter(b => b.trim() !== '');
-          blocks.forEach(block => {
-            slides.push({
-              title: stanza.title,
-              type: stanza.type,
-              text: block.replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
-            });
-          });
-        });
-      } else {
-        const lyricsToUse = selectedLyricsHymn.transposeStep
-          ? transposeLyrics(selectedLyricsHymn.lyrics, selectedLyricsHymn.transposeStep)
-          : (selectedLyricsHymn.lyrics || '');
-
-        slides = lyricsToUse
-          .replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
-          .split('\n\n')
-          .map(b => b.trim())
-          .filter(Boolean);
-      }
-
-      broadcastHymn(selectedLyricsHymn, slides);
-      broadcastSlide(dataShowIndex);
+      // dataShowSlides is already memoised above; reuse it directly
+      broadcastHymn(selectedLyricsHymn, dataShowSlides);
+      // No broadcastSlide here — hymn-change resets to slide 0 on the server,
+      // and the separate dataShowIndex effect handles subsequent navigation.
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDataShow, dataShowId, selectedLyricsHymn, isConnected, broadcastHymn, showChords]);
