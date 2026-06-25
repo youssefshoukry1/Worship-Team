@@ -3,6 +3,8 @@
 import { useContext, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Portal from '../Portal/Portal';
+import { queueOfflineAction } from '../utils/offlineQueue';
+import { showToast } from '../components/ToastContainer';
 import {
     Activity,
     Book,
@@ -439,6 +441,33 @@ export default function normal_UserProfile() {
             }));
             resetPrayForm();
         } catch (submitError) {
+            const isNetworkError = !navigator.onLine || submitError.message.includes('Failed to fetch') || submitError.message.includes('Network Error') || submitError.message.includes('Load failed');
+            if (isNetworkError) {
+                const isEditMode = Boolean(prayEditId);
+                const method = isEditMode ? 'PATCH' : 'POST';
+                const body = isEditMode
+                    ? { prayId: prayEditId, words: finalWords, feeling: prayFeeling, prayType: 'general' }
+                    : { userid: user_id, words: finalWords, feeling: prayFeeling, prayType: 'general' };
+                
+                await queueOfflineAction(`${API_URL}/users/pray-time${isEditMode ? `/${user_id}` : ''}`, method, body, { Authorization: `Bearer ${isLogin}` });
+                
+                // Optimistic UI update
+                setProfile(prev => {
+                    const newEntry = isEditMode ? { ...body, _id: prayEditId, date: new Date().toISOString() } : { ...body, _id: 'temp-' + Date.now(), date: new Date().toISOString() };
+                    let existing = prev.prayTime || [];
+                    if (isEditMode) {
+                        existing = existing.map(e => e._id === prayEditId ? { ...e, ...newEntry } : e);
+                    } else {
+                        existing = [newEntry, ...existing];
+                    }
+                    return { ...prev, prayTime: existing };
+                });
+                resetPrayForm();
+                showToast({ message: '📶 You\'re offline — your prayer is saved and will sync automatically once you\'re back online.', type: 'offline', duration: 6000 });
+                setIsSubmittingPray(false);
+                return;
+            }
+
             console.error('Pray time save error:', submitError);
             alert(submitError.message || 'Failed to save pray time');
         } finally {
@@ -482,6 +511,17 @@ export default function normal_UserProfile() {
                 resetPrayForm();
             }
         } catch (deleteError) {
+            const isNetworkError = !navigator.onLine || deleteError.message.includes('Failed to fetch') || deleteError.message.includes('Network Error') || deleteError.message.includes('Load failed');
+            if (isNetworkError) {
+                await queueOfflineAction(`${API_URL}/users/pray-time/${user_id}`, 'DELETE', { prayId }, { Authorization: `Bearer ${isLogin}` });
+                setProfile(prev => ({
+                    ...prev,
+                    prayTime: (prev?.prayTime || []).filter((entry) => entry._id !== prayId)
+                }));
+                if (prayEditId === prayId) resetPrayForm();
+                showToast({ message: '📶 You\'re offline — this prayer will be removed once you\'re back online.', type: 'offline', duration: 6000 });
+                return;
+            }
             console.error('Pray time delete error:', deleteError);
             alert(deleteError.message || 'Failed to delete pray time');
         }

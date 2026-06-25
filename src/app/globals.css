@@ -336,3 +336,18 @@ html.lenis {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+/* ── Live Session Looping Border Animations ── */
+@keyframes border-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-border-spin-fast {
+  animation: border-spin 3s linear infinite;
+}
+
+.animate-border-spin-slow {
+  animation: border-spin 8s linear infinite;
+}

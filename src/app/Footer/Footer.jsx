@@ -1,7 +1,13 @@
 "use client";
 import React from "react";
+import { usePathname } from "next/navigation";
 
 export default function Footer() {
+    const pathname = usePathname();
+
+    if (pathname?.startsWith('/presentation')) {
+        return null;
+    }
     return (
         <footer className="w-full  bg-blue-950/20 backdrop-blur-xl border-t border-sky-500/10 py-8 relative overflow-hidden">
             {/* Glow Effect */}

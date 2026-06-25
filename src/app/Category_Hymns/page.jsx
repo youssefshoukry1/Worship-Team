@@ -19,6 +19,8 @@ import { getApiBaseUrl } from '../utils/apiBase';
 import { useRouter } from 'next/navigation';
 import { initLocalHymns, getLocalHymns, syncRemoteHymns } from '../utils/hymnsSync';
 import { initLocalBible, getLocalBibleIndex, searchLocalBible } from '../utils/bibleSync';
+import { queueOfflineAction } from '../utils/offlineQueue';
+import { showToast } from '../components/ToastContainer';
 
 const API_ROOT = getApiBaseUrl();
 const BIBLE_API = `${API_ROOT}/bible`;
@@ -380,6 +382,39 @@ export default function Category_Humns() {
       setNoteModalConfig(null);
       setNoteText('');
     } catch (err) {
+      const isNetworkError = !navigator.onLine || err.message === 'Network Error' || err.code === 'ECONNABORTED';
+
+      if (isNetworkError) {
+        if (noteModalConfig?.type === 'bible') {
+          const verse = noteModalConfig.data;
+          await queueOfflineAction(`${API_ROOT}/users/bible-note`, 'POST', {
+            userid,
+            verseId: verse._id,
+            bookName: bibleModalBook?.bookName || verse.bookName || 'Unknown',
+            chapter: bibleModalChapter || verse.chapter || 1,
+            verseNumber: verse.verseNumber,
+            text: verse.text,
+            note: noteText
+          }, { Authorization: `Bearer ${token}` });
+          
+          writeLocalBibleNote(verse?._id, noteText);
+          setVerseNotes(prev => ({ ...prev, [verse?._id]: noteText }));
+        } else if (noteModalConfig?.type === 'hymn') {
+          const hymn = noteModalConfig.data;
+          await queueOfflineAction(`${API_ROOT}/users/hymn-note`, 'POST', {
+            userid,
+            hymnId: hymn._id || hymn.hymnId,
+            title: hymn.title,
+            note: noteText
+          }, { Authorization: `Bearer ${token}` });
+        }
+        
+        setNoteModalConfig(null);
+        setNoteText('');
+        showToast({ message: '📶 You\'re offline — your note is saved and will sync automatically once you\'re back online.', type: 'offline', duration: 6000 });
+        return;
+      }
+
       if (err?.response?.status === 404 && noteModalConfig?.type === 'bible') {
         const verse = noteModalConfig.data;
         writeLocalBibleNote(verse?._id, noteText);
@@ -499,6 +534,8 @@ export default function Category_Humns() {
   const [dataShowIdInput, setDataShowIdInput] = useState('');
   const [showSessionPanel, setShowSessionPanel] = useState(false);
   const [sessionExpiresAt, setSessionExpiresAt] = useState(null);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [isJoiningSession, setIsJoiningSession] = useState(false);
 
   useEffect(() => {
     const savedSession = localStorage.getItem('myLivePresentationId');
@@ -535,6 +572,7 @@ export default function Category_Humns() {
     const id = dataShowIdInput.trim();
     if (!id) return;
 
+    setIsCreatingSession(true);
     try {
       const BASE_URL = "https://worship-team-api.onrender.com/api";
       const response = await axios.post(`${BASE_URL}/presentation/create`, { dataShowId: id });
@@ -546,6 +584,8 @@ export default function Category_Humns() {
       }
     } catch (error) {
       alert(error.response?.data?.error || "Failed to create session");
+    } finally {
+      setIsCreatingSession(false);
     }
   };
 
@@ -553,6 +593,7 @@ export default function Category_Humns() {
     const id = dataShowIdInput.trim();
     if (!id) return;
 
+    setIsJoiningSession(true);
     try {
       const BASE_URL = "https://worship-team-api.onrender.com/api";
       const response = await axios.get(`${BASE_URL}/presentation/check/${encodeURIComponent(id)}`);
@@ -562,13 +603,16 @@ export default function Category_Humns() {
           router.push(`/presentation/display?dataShowId=${encodeURIComponent(id)}`);
         } else {
           window.open(`/presentation/display?dataShowId=${encodeURIComponent(id)}`, '_blank');
+          setIsJoiningSession(false);
         }
         setShowSessionPanel(false);
       } else {
         alert("Presentation room does not exist or has expired.");
+        setIsJoiningSession(false);
       }
     } catch (error) {
       alert("Failed to join session: could not connect to server");
+      setIsJoiningSession(false);
     }
   };
   // ──────────────────────────────────────────────────────────────────
@@ -1428,6 +1472,10 @@ export default function Category_Humns() {
   };
 
 
+  if (isJoiningSession) {
+    return <Loading />;
+  }
+
   return (<section id="Category_Humns" className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#17275c] text-white px-4 sm:px-6 py-10 relative overflow-hidden">
     {/* Background Gradients */}
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_70%)]" />
@@ -1554,19 +1602,34 @@ export default function Category_Humns() {
 
         {/* Live Session Panel */}
         <div className="relative">
-          <button
-            onClick={() => setShowSessionPanel(p => !p)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all font-semibold text-sm border
-                  ${isConnected
-                ? 'bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20'
-                : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
-              }`}
+          <div className={`relative p-[1px] rounded-full overflow-hidden transition-all duration-300
+            ${isConnected 
+              ? 'shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]' 
+              : 'shadow-[0_0_15px_rgba(255,255,255,0.02)]'}`}
           >
-            <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse' : ''}`} />
-            {isConnected ? (
-              <><span className="text-[10px] text-green-500 font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
-            ) : 'Live Session'}
-          </button>
+            {/* Animated looping gradient background */}
+            <div className={`absolute -inset-[100%] pointer-events-none z-0 ${isConnected ? 'animate-border-spin-fast' : 'animate-border-spin-slow'}`}
+              style={{
+                background: isConnected 
+                  ? 'conic-gradient(from 0deg, transparent 0deg, transparent 120deg, #10b981 180deg, #34d399 240deg, #3b82f6 300deg, transparent 360deg)'
+                  : 'conic-gradient(from 0deg, transparent 0deg, transparent 180deg, rgba(255,255,255,0.15) 270deg, transparent 360deg)'
+              }}
+            />
+            {/* Mask button overlay */}
+            <button
+              onClick={() => setShowSessionPanel(p => !p)}
+              className={`relative z-10 flex items-center gap-2 px-5 py-2.5 rounded-full transition-all font-semibold text-sm w-full h-full justify-center
+                    ${isConnected
+                  ? 'bg-[#0c142c] text-green-400 hover:bg-[#121d3f]'
+                  : 'bg-[#0a1020] text-gray-400 hover:bg-[#0f172f] hover:text-white'
+                }`}
+            >
+              <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse text-green-400' : ''}`} />
+              {isConnected ? (
+                <><span className="text-[10px] text-green-400 font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
+              ) : 'Live Session'}
+            </button>
+          </div>
 
           {showSessionPanel && (
             <div className="absolute right-0 mt-2 z-50 p-4 bg-[#0c1627] border border-white/10 rounded-2xl shadow-2xl w-[90vw] sm:w-[400px]">
@@ -1583,13 +1646,20 @@ export default function Category_Humns() {
                 <div className="flex gap-2">
                   <button
                     onClick={handleCreateSession}
-                    className="flex-1 sm:flex-none px-4 py-2 bg-sky-500 hover:bg-sky-400 rounded-xl text-sm font-bold transition-all whitespace-nowrap"
+                    disabled={isCreatingSession}
+                    className="flex items-center justify-center gap-2 flex-1 sm:flex-none px-4 py-2 bg-sky-500 hover:bg-sky-400 disabled:bg-sky-500/50 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-all whitespace-nowrap"
                   >
-                    Create
+                    {isCreatingSession ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Creating...</span>
+                      </>
+                    ) : 'Create'}
                   </button>
                   <button
                     onClick={handleJoinSession}
-                    className="flex-1 sm:flex-none px-4 py-2 bg-indigo-500 hover:bg-indigo-400 rounded-xl text-sm font-bold transition-all whitespace-nowrap"
+                    disabled={isJoiningSession}
+                    className="flex-1 sm:flex-none px-4 py-2 bg-indigo-500 hover:bg-indigo-400 disabled:bg-indigo-500/50 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-all whitespace-nowrap"
                   >
                     Join
                   </button>
@@ -1602,6 +1672,7 @@ export default function Category_Humns() {
                     onClick={(e) => {
                         if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
                             e.preventDefault();
+                            setIsJoiningSession(true);
                             router.push(`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`);
                         }
                     }}
@@ -1615,6 +1686,7 @@ export default function Category_Humns() {
                     onClick={(e) => {
                         if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
                             e.preventDefault();
+                            setIsJoiningSession(true);
                             router.push(`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`);
                         }
                     }}
@@ -2791,8 +2863,25 @@ export default function Category_Humns() {
                             className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600 min-w-0"
                             onKeyDown={e => { if (e.key === 'Enter') handleCreateSession(); }}
                           />
-                          <button onClick={handleCreateSession} className="px-4 py-2 bg-sky-500 hover:bg-sky-400 rounded-xl text-sm font-bold transition-all whitespace-nowrap">Create</button>
-                          <button onClick={handleJoinSession} className="px-4 py-2 bg-indigo-500/80 hover:bg-indigo-500 rounded-xl text-sm font-bold transition-all whitespace-nowrap">Join</button>
+                          <button 
+                            onClick={handleCreateSession} 
+                            disabled={isCreatingSession}
+                            className="flex items-center justify-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-400 disabled:bg-sky-500/50 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-all whitespace-nowrap"
+                          >
+                            {isCreatingSession ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Creating...</span>
+                              </>
+                            ) : 'Create'}
+                          </button>
+                          <button 
+                            onClick={handleJoinSession} 
+                            disabled={isJoiningSession}
+                            className="px-4 py-2 bg-indigo-500/80 hover:bg-indigo-500 disabled:bg-indigo-500/40 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-all whitespace-nowrap"
+                          >
+                            Join
+                          </button>
                         </div>
                       </div>
                     ) : (
@@ -2806,6 +2895,7 @@ export default function Category_Humns() {
                           onClick={(e) => {
                               if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
                                   e.preventDefault();
+                                  setIsJoiningSession(true);
                                   router.push(`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`);
                               }
                           }}
@@ -2817,6 +2907,7 @@ export default function Category_Humns() {
                           onClick={(e) => {
                               if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
                                   e.preventDefault();
+                                  setIsJoiningSession(true);
                                   router.push(`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`);
                               }
                           }}

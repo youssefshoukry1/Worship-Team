@@ -110,6 +110,10 @@ export default function Navbar() {
         },
     };
 
+    if (pathname?.startsWith('/presentation')) {
+        return null;
+    }
+
     return (
         <nav className="sticky w-full flex justify-between items-center py-3 px-6 top-0 z-50 bg-blue-950/20 backdrop-blur-xl border-b border-sky-500/10 transition-all duration-300">
             {/* Logo */}
