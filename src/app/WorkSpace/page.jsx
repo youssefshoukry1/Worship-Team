@@ -206,7 +206,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                                 type="button"
                                 onClick={() => {
                                     const newArray = Array.isArray(localLyrics) ? [...localLyrics] : (typeof localLyrics === 'string' && localLyrics.trim() ? [{ type: 'verse', title: '1', text: localLyrics }] : []);
-                                    newArray.push({ type: 'verse', title: String(newArray.filter(l => l.type === 'verse').length + 1), text: '' });
+                                    newArray.push({ type: 'verse', title: String(newArray.filter(l => l.type === 'verse').length + 1), text: '', slideMode: 'manual', slideBreaks: [] });
                                     setLocalLyrics(newArray);
                                 }}
                                 className="text-[10px] font-bold px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-white transition-colors"
@@ -217,7 +217,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                                 type="button"
                                 onClick={() => {
                                     const newArray = Array.isArray(localLyrics) ? [...localLyrics] : (typeof localLyrics === 'string' && localLyrics.trim() ? [{ type: 'verse', title: '1', text: localLyrics }] : []);
-                                    newArray.push({ type: 'chorus', title: 'القرار', text: '' });
+                                    newArray.push({ type: 'chorus', title: 'القرار', text: '', slideMode: 'manual', slideBreaks: [] });
                                     setLocalLyrics(newArray);
                                 }}
                                 className="text-[10px] font-bold px-2 py-1 rounded bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 transition-colors"
@@ -1755,17 +1755,17 @@ export default function WorkSpace() {
                         {/* Toggle button */}
                         <div className="relative inline-block animate-live-session-parent-2xl">
                             <div className={`relative p-[1px] rounded-2xl overflow-hidden transition-all duration-300 inline-block animate-live-session-intro
-                                ${isConnected 
-                                  ? 'shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]' 
-                                  : 'shadow-[0_0_15px_rgba(255,255,255,0.02)]'}`}
+                                ${isConnected
+                                    ? 'shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]'
+                                    : 'shadow-[0_0_15px_rgba(255,255,255,0.02)]'}`}
                             >
                                 {/* Animated looping gradient background */}
                                 <div className={`absolute -inset-[100%] pointer-events-none z-0 ${isConnected ? 'animate-border-spin-fast' : 'animate-border-spin-slow'}`}
-                                  style={{
-                                    background: isConnected 
-                                      ? 'conic-gradient(from 0deg, transparent 0deg, transparent 120deg, #10b981 180deg, #34d399 240deg, #3b82f6 300deg, transparent 360deg)'
-                                      : 'conic-gradient(from 0deg, transparent 0deg, transparent 180deg, rgba(255,255,255,0.15) 270deg, transparent 360deg)'
-                                  }}
+                                    style={{
+                                        background: isConnected
+                                            ? 'conic-gradient(from 0deg, transparent 0deg, transparent 120deg, #10b981 180deg, #34d399 240deg, #3b82f6 300deg, transparent 360deg)'
+                                            : 'conic-gradient(from 0deg, transparent 0deg, transparent 180deg, rgba(255,255,255,0.15) 270deg, transparent 360deg)'
+                                    }}
                                 />
                                 {/* Mask button overlay */}
                                 <button
@@ -3126,7 +3126,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
 
             {/* Media Link */}
             <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-1 sm:gap-2 relative z-10 lg:top-2">
-                {hymn.link ? (
+                {/* {hymn.link ? (
                     <a
                         href={hymn.link}
                         target="_blank"
@@ -3141,7 +3141,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
                         <PlayCircle className="w-4 h-4 shrink-0 opacity-20" />
                         <span className="text-xs sm:text-sm font-medium">Coming soon</span>
                     </div>
-                )}
+                )} */}
 
                 {hymn.lyrics && (
                     <>

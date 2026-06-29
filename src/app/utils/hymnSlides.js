@@ -20,14 +20,14 @@ export function normalizeStanzaForEdit(stanza) {
     type: stanza.type || 'verse',
     title: stanza.title || '',
     text: stanza.text || '',
-    slideMode: stanza.slideMode === 'manual' ? 'manual' : 'auto',
+    slideMode: 'manual',
     slideBreaks: Array.isArray(stanza.slideBreaks) ? [...stanza.slideBreaks] : [],
   };
 
   const hasBlankLineSplits = base.text.includes('\n\n');
   const hasManualBreaks = base.slideBreaks.length > 0;
 
-  if (hasBlankLineSplits && !hasManualBreaks && base.slideMode !== 'manual') {
+  if (hasBlankLineSplits && !hasManualBreaks) {
     const blocks = base.text.split(/\n\s*\n/).filter((b) => b.trim() !== '');
     const allLines = [];
     const slideBreaks = [];
@@ -58,8 +58,8 @@ export function normalizeStanzaForEdit(stanza) {
   return {
     ...base,
     text: lines.join('\n'),
-    slideMode: base.slideMode,
-    slideBreaks: base.slideMode === 'manual' ? validBreaks : [],
+    slideMode: 'manual',
+    slideBreaks: validBreaks,
   };
 }
 
@@ -71,8 +71,8 @@ export function prepareLyricsForSave(lyrics) {
       type: normalized.type,
       title: normalized.title,
       text: normalized.text,
-      slideMode: normalized.slideMode,
-      slideBreaks: normalized.slideMode === 'manual' ? normalized.slideBreaks : [],
+      slideMode: 'manual',
+      slideBreaks: normalized.slideBreaks,
     };
   });
 }
@@ -169,20 +169,8 @@ export function countStanzaSlides(stanza, options = {}) {
   const lines = getLyricLines(stanza.text);
   if (!lines.length) return 0;
 
-  const hasLegacyBlankLines =
-    stanza.text.includes('\n\n') &&
-    !(stanza.slideBreaks?.length) &&
-    stanza.slideMode !== 'manual';
-
-  if (stanza.slideMode === 'manual' && stanza.slideBreaks?.length) {
-    return manualGroupLinesIntoSlides(lines, stanza.slideBreaks).length;
-  }
-
-  if (hasLegacyBlankLines) {
-    return stanza.text.split(/\n\s*\n/).filter((b) => b.trim() !== '').length;
-  }
-
-  return autoGroupLinesIntoSlides(lines, options).length;
+  const normalized = normalizeStanzaForEdit(stanza);
+  return manualGroupLinesIntoSlides(lines, normalized.slideBreaks).length;
 }
 
 function applyChordDisplay(text, showChords) {
@@ -194,20 +182,8 @@ export function buildStanzaSlides(stanza, options = {}) {
   const lines = getLyricLines(stanza.text);
   if (!lines.length) return [];
 
-  const hasLegacyBlankLines =
-    stanza.text.includes('\n\n') &&
-    !(stanza.slideBreaks?.length) &&
-    stanza.slideMode !== 'manual';
-
-  let blocks;
-
-  if (stanza.slideMode === 'manual' && stanza.slideBreaks?.length) {
-    blocks = manualGroupLinesIntoSlides(lines, stanza.slideBreaks);
-  } else if (hasLegacyBlankLines) {
-    blocks = stanza.text.split(/\n\s*\n/).filter((b) => b.trim() !== '');
-  } else {
-    blocks = autoGroupLinesIntoSlides(lines, options);
-  }
+  const normalized = normalizeStanzaForEdit(stanza);
+  const blocks = manualGroupLinesIntoSlides(lines, normalized.slideBreaks);
 
   return blocks.map((block) => applyChordDisplay(block.trim(), showChords));
 }

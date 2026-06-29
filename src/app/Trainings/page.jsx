@@ -24,6 +24,7 @@ import Loading from "../loading";
 import Portal from '../Portal/Portal.jsx'
 import { useLanguage } from "../context/LanguageContext";
 import { buildHymnPresentationSlides } from '../utils/hymnSlides';
+import { transposeChords } from '../utils/musicUtils';
 
 export default function Trainings() {
   const queryClient = useQueryClient();
@@ -289,6 +290,10 @@ export default function Trainings() {
           dir="rtl"
         >
           {segments.map((seg, j) => {
+            const transposedChord = (showChords && seg.chord)
+              ? (selectedLyricsHymn?.transposeStep ? transposeChords(seg.chord, selectedLyricsHymn.transposeStep) : seg.chord)
+              : null;
+
             return (
               <span key={j} className={`inline-flex flex-col items-center max-w-full ${showChords ? 'min-w-[0.2em]' : ''}`}>
                 {/* Chord row - Clean text, no badges */}
@@ -303,7 +308,7 @@ export default function Trainings() {
                       visibility: seg.chord ? 'visible' : 'hidden'
                     }}
                   >
-                    {seg.chord || '\u00A0'}
+                    {transposedChord || '\u00A0'}
                   </span>
                 )}
                 {/* Lyrics row */}
@@ -321,6 +326,18 @@ export default function Trainings() {
     };
 
     if (Array.isArray(lyricsData)) {
+      // Check if it's Bible verses (have verseNumber) or Hymn stanzas (have text and type/title)
+      const isBible = lyricsData.length > 0 && 'verseNumber' in lyricsData[0];
+
+      if (isBible) {
+        return lyricsData.map((verse, idx) => (
+          <div key={idx} className="mb-8 p-6 rounded-2xl bg-white/5 border border-white/5 text-right" dir="rtl">
+            <div className="text-[10px] mb-2 font-black tracking-widest text-sky-400 opacity-60">VERSE {verse.verseNumber}</div>
+            <div className="text-xl sm:text-2xl text-white font-bold leading-relaxed">{verse.text}</div>
+          </div>
+        ));
+      }
+
       return lyricsData.map((stanza, idx) => (
         <div key={idx} className={`mb-12 flex flex-col items-center ${stanza.type === 'chorus' ? 'bg-white/5 py-8 px-6 rounded-3xl mx-[-1rem] sm:mx-0 border border-white/5 shadow-inner' : ''}`}>
           {stanza.title && (
@@ -665,9 +682,9 @@ export default function Trainings() {
 
                               {/* Actions */}
                               <div className="flex items-center gap-1 shrink-0">
-                                {p.lyrics ? (
+                                {(hymn.lyrics || hymn.verses) ? (
                                   <button
-                                    onClick={() => openLyrics(p)}
+                                    onClick={() => openLyrics(hymn)}
                                     className="p-1.5 rounded-lg text-gray-400 hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
                                     title={t("lyrics")}
                                   >
@@ -675,9 +692,9 @@ export default function Trainings() {
                                   </button>
                                 ) : null}
 
-                                {p.link ? (
+                                {/* {hymn.link ? (
                                   <a
-                                    href={p.link}
+                                    href={hymn.link}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="p-1.5 rounded-lg text-gray-400 hover:text-sky-300 hover:bg-sky-500/10 transition-colors"
@@ -685,7 +702,7 @@ export default function Trainings() {
                                   >
                                     <PlayCircle className="w-4 h-4" />
                                   </a>
-                                ) : null}
+                                ) : null} */}
 
                                 {(["Admin", "MANEGER", "PROGRAMER", "ADMIN"].includes(UserRole) || user_id === m._id) && (
                                   <button
@@ -991,7 +1008,7 @@ export default function Trainings() {
                         className="w-full max-w-2xl mx-auto transition-all duration-500"
                         dir="rtl"
                       >
-                        {renderLyricsWithChords(selectedLyricsHymn.lyrics)}
+                        {renderLyricsWithChords(selectedLyricsHymn.lyrics || selectedLyricsHymn.verses)}
                       </div>
                       {/* Extra spacing at bottom for better scrolling feel */}
                       <div className="h-20" />

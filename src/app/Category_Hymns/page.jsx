@@ -403,7 +403,7 @@ export default function Category_Humns() {
             text: verse.text,
             note: noteText
           }, { Authorization: `Bearer ${token}` });
-          
+
           writeLocalBibleNote(verse?._id, noteText);
           setVerseNotes(prev => ({ ...prev, [verse?._id]: noteText }));
         } else if (noteModalConfig?.type === 'hymn') {
@@ -415,7 +415,7 @@ export default function Category_Humns() {
             note: noteText
           }, { Authorization: `Bearer ${token}` });
         }
-        
+
         setNoteModalConfig(null);
         setNoteText('');
         showToast({ message: '📶 You\'re offline — your note is saved and will sync automatically once you\'re back online.', type: 'offline', duration: 6000 });
@@ -1595,14 +1595,14 @@ export default function Category_Humns() {
         {/* Live Session Panel */}
         <div className="relative animate-live-session-parent-full">
           <div className={`relative p-[1px] rounded-full overflow-hidden transition-all duration-300 animate-live-session-intro
-            ${isConnected 
-              ? 'shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]' 
+            ${isConnected
+              ? 'shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]'
               : 'shadow-[0_0_15px_rgba(255,255,255,0.02)]'}`}
           >
             {/* Animated looping gradient background */}
             <div className={`absolute -inset-[100%] pointer-events-none z-0 ${isConnected ? 'animate-border-spin-fast' : 'animate-border-spin-slow'}`}
               style={{
-                background: isConnected 
+                background: isConnected
                   ? 'conic-gradient(from 0deg, transparent 0deg, transparent 120deg, #10b981 180deg, #34d399 240deg, #3b82f6 300deg, transparent 360deg)'
                   : 'conic-gradient(from 0deg, transparent 0deg, transparent 180deg, rgba(255,255,255,0.15) 270deg, transparent 360deg)'
               }}
@@ -1662,11 +1662,11 @@ export default function Category_Humns() {
                   <a
                     href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
                     onClick={(e) => {
-                        if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
-                            e.preventDefault();
-                            setIsJoiningSession(true);
-                            router.push(`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`);
-                        }
+                      if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
+                        e.preventDefault();
+                        setIsJoiningSession(true);
+                        router.push(`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`);
+                      }
                     }}
                     target="_blank" rel="noopener noreferrer"
                     className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all flex-1"
@@ -1676,11 +1676,11 @@ export default function Category_Humns() {
                   <a
                     href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`}
                     onClick={(e) => {
-                        if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
-                            e.preventDefault();
-                            setIsJoiningSession(true);
-                            router.push(`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`);
-                        }
+                      if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
+                        e.preventDefault();
+                        setIsJoiningSession(true);
+                        router.push(`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`);
+                      }
                     }}
                     target="_blank" rel="noopener noreferrer"
                     className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all flex-1"
@@ -1833,7 +1833,7 @@ export default function Category_Humns() {
                             type="button"
                             onClick={() => {
                               const newArray = Array.isArray(formData.lyrics) ? [...formData.lyrics] : [];
-                              newArray.push({ type: 'verse', title: String(newArray.filter(l => l.type === 'verse').length + 1), text: '', slideMode: 'auto', slideBreaks: [] });
+                              newArray.push({ type: 'verse', title: String(newArray.filter(l => l.type === 'verse').length + 1), text: '', slideMode: 'manual', slideBreaks: [] });
                               setFormData({ ...formData, lyrics: newArray });
                             }}
                             className="text-xs font-bold px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 text-white transition-colors flex items-center gap-1.5 shadow-sm"
@@ -1844,7 +1844,7 @@ export default function Category_Humns() {
                             type="button"
                             onClick={() => {
                               const newArray = Array.isArray(formData.lyrics) ? [...formData.lyrics] : [];
-                              newArray.push({ type: 'chorus', title: 'القرار', text: '', slideMode: 'auto', slideBreaks: [] });
+                              newArray.push({ type: 'chorus', title: 'القرار', text: '', slideMode: 'manual', slideBreaks: [] });
                               setFormData({ ...formData, lyrics: newArray });
                             }}
                             className="text-xs font-bold px-3 py-1.5 rounded-lg bg-sky-500/20 border border-sky-500/30 hover:bg-sky-500/30 text-sky-200 transition-colors flex items-center gap-1.5 shadow-sm shadow-sky-500/10"
@@ -2110,7 +2110,7 @@ export default function Category_Humns() {
                   }}
                   className={`w-full sm:max-w-3xl h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-3xl rounded-t-[2.5rem] flex flex-col relative overflow-hidden`}
                 >
-                  {(()  => {
+                  {(() => {
                     const hasChords = selectedLyricsHymn?.lyrics ? (
                       typeof selectedLyricsHymn.lyrics === 'string'
                         ? selectedLyricsHymn.lyrics.includes('[')
@@ -2871,8 +2871,8 @@ export default function Category_Humns() {
                             className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600 min-w-0"
                             onKeyDown={e => { if (e.key === 'Enter') handleCreateSession(); }}
                           />
-                          <button 
-                            onClick={handleCreateSession} 
+                          <button
+                            onClick={handleCreateSession}
                             disabled={isCreatingSession}
                             className="flex items-center justify-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-400 disabled:bg-sky-500/50 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-all whitespace-nowrap"
                           >
@@ -2883,8 +2883,8 @@ export default function Category_Humns() {
                               </>
                             ) : 'Create'}
                           </button>
-                          <button 
-                            onClick={handleJoinSession} 
+                          <button
+                            onClick={handleJoinSession}
                             disabled={isJoiningSession}
                             className="px-4 py-2 bg-indigo-500/80 hover:bg-indigo-500 disabled:bg-indigo-500/40 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-all whitespace-nowrap"
                           >
@@ -2899,25 +2899,25 @@ export default function Category_Humns() {
                             <span>⏳ Expires at {new Date(sessionExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
                         )}
-                        <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`} 
+                        <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
                           onClick={(e) => {
-                              if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
-                                  e.preventDefault();
-                                  setIsJoiningSession(true);
-                                  router.push(`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`);
-                              }
+                            if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
+                              e.preventDefault();
+                              setIsJoiningSession(true);
+                              router.push(`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`);
+                            }
                           }}
                           target="_blank" rel="noopener noreferrer"
                           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all">
                           <Tv2 className="w-4 h-4" /> Open Display Window
                         </a>
-                        <a href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`} 
+                        <a href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`}
                           onClick={(e) => {
-                              if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
-                                  e.preventDefault();
-                                  setIsJoiningSession(true);
-                                  router.push(`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`);
-                              }
+                            if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
+                              e.preventDefault();
+                              setIsJoiningSession(true);
+                              router.push(`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`);
+                            }
                           }}
                           target="_blank" rel="noopener noreferrer"
                           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all">
@@ -2949,161 +2949,161 @@ export default function Category_Humns() {
       {/* Note Modal */}
       {/* ── Note Write Modal ── z-[500] sits above everything including bible modal at z-[100] */}
       {noteModalConfig && (
-          <Portal>
+        <Portal>
+          <div
+            className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center p-0 sm:p-6"
+            style={{ isolation: 'isolate' }}
+          >
+            {/* Backdrop - stopPropagation prevents bible modal from reacting */}
             <div
-              className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center p-0 sm:p-6"
-              style={{ isolation: 'isolate' }}
+              className="absolute inset-0 bg-black/70 backdrop-blur-md"
+              onClick={(e) => { e.stopPropagation(); setNoteModalConfig(null); setNoteText(''); }}
+            />
+            <div
+              className="relative w-full sm:max-w-lg bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border border-indigo-500/20 rounded-t-3xl sm:rounded-3xl shadow-[0_0_60px_-10px_rgba(99,102,241,0.3)] overflow-hidden flex flex-col"
+              onClick={(e) => e.stopPropagation()}
             >
-              {/* Backdrop - stopPropagation prevents bible modal from reacting */}
-              <div
-                className="absolute inset-0 bg-black/70 backdrop-blur-md"
-                onClick={(e) => { e.stopPropagation(); setNoteModalConfig(null); setNoteText(''); }}
-              />
-              <div
-                className="relative w-full sm:max-w-lg bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border border-indigo-500/20 rounded-t-3xl sm:rounded-3xl shadow-[0_0_60px_-10px_rgba(99,102,241,0.3)] overflow-hidden flex flex-col"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Decorative top bar mobile */}
-                <div className="sm:hidden w-10 h-1 bg-white/20 rounded-full mx-auto mt-3 mb-1" />
+              {/* Decorative top bar mobile */}
+              <div className="sm:hidden w-10 h-1 bg-white/20 rounded-full mx-auto mt-3 mb-1" />
 
-                {/* Glowing header strip */}
-                <div className="h-px bg-gradient-to-r from-transparent via-indigo-500/60 to-transparent" />
+              {/* Glowing header strip */}
+              <div className="h-px bg-gradient-to-r from-transparent via-indigo-500/60 to-transparent" />
 
-                <div className="px-6 py-5 flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-                      <FileText className="w-4 h-4 text-indigo-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-white">
-                        {noteModalConfig.existingNote ? (language === 'ar' ? 'تعديل الملاحظة' : 'Edit Note') : (language === 'ar' ? 'إضافة ملاحظة' : 'Add Note')}
-                      </h3>
-                      <p className="text-[10px] text-indigo-400/60 font-mono uppercase tracking-widest mt-0.5">
-                        {noteModalConfig.type === 'bible' ? `Verse ${noteModalConfig.data.verseNumber}` : 'Hymn'}
-                      </p>
-                    </div>
+              <div className="px-6 py-5 flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4 text-indigo-400" />
                   </div>
-                  <button
-                    onClick={() => { setNoteModalConfig(null); setNoteText(''); }}
-                    className="p-1.5 text-white/30 hover:text-white/80 rounded-lg hover:bg-white/10 transition-all shrink-0 mt-0.5"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">
+                      {noteModalConfig.existingNote ? (language === 'ar' ? 'تعديل الملاحظة' : 'Edit Note') : (language === 'ar' ? 'إضافة ملاحظة' : 'Add Note')}
+                    </h3>
+                    <p className="text-[10px] text-indigo-400/60 font-mono uppercase tracking-widest mt-0.5">
+                      {noteModalConfig.type === 'bible' ? `Verse ${noteModalConfig.data.verseNumber}` : 'Hymn'}
+                    </p>
+                  </div>
                 </div>
+                <button
+                  onClick={() => { setNoteModalConfig(null); setNoteText(''); }}
+                  className="p-1.5 text-white/30 hover:text-white/80 rounded-lg hover:bg-white/10 transition-all shrink-0 mt-0.5"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-                {/* Verse preview */}
-                <div className="mx-6 mb-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                  <p className="text-sm text-white/50 leading-relaxed line-clamp-3" dir="rtl">
-                    {noteModalConfig.type === 'bible' ? noteModalConfig.data.text : noteModalConfig.data.title}
-                  </p>
-                </div>
+              {/* Verse preview */}
+              <div className="mx-6 mb-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                <p className="text-sm text-white/50 leading-relaxed line-clamp-3" dir="rtl">
+                  {noteModalConfig.type === 'bible' ? noteModalConfig.data.text : noteModalConfig.data.title}
+                </p>
+              </div>
 
-                <div className="px-6 pb-2">
-                  <textarea
-                    autoFocus
-                    value={noteText}
-                    onChange={(e) => setNoteText(e.target.value)}
-                    placeholder={language === 'ar' ? 'اكتب ملاحظتك هنا...' : 'Write your note here...'}
-                    rows={4}
-                    className="w-full bg-white/[0.04] border border-white/10 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 resize-none text-sm leading-relaxed transition-all"
-                    dir="rtl"
-                  />
-                </div>
+              <div className="px-6 pb-2">
+                <textarea
+                  autoFocus
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  placeholder={language === 'ar' ? 'اكتب ملاحظتك هنا...' : 'Write your note here...'}
+                  rows={4}
+                  className="w-full bg-white/[0.04] border border-white/10 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 resize-none text-sm leading-relaxed transition-all"
+                  dir="rtl"
+                />
+              </div>
 
-                <div className="flex items-center gap-3 px-6 py-5">
-                  <button
-                    onClick={() => { setNoteModalConfig(null); setNoteText(''); }}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white/40 hover:text-white/70 hover:bg-white/5 transition-all border border-white/10"
-                  >
-                    {language === 'ar' ? 'إلغاء' : 'Cancel'}
-                  </button>
-                  <button
-                    onClick={handleSaveNote}
-                    disabled={isSubmittingNote || !noteText.trim()}
-                    className="flex-[2] py-2.5 rounded-xl text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
-                  >
-                    {isSubmittingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                    {language === 'ar' ? 'حفظ الملاحظة' : 'Save Note'}
-                  </button>
-                </div>
+              <div className="flex items-center gap-3 px-6 py-5">
+                <button
+                  onClick={() => { setNoteModalConfig(null); setNoteText(''); }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white/40 hover:text-white/70 hover:bg-white/5 transition-all border border-white/10"
+                >
+                  {language === 'ar' ? 'إلغاء' : 'Cancel'}
+                </button>
+                <button
+                  onClick={handleSaveNote}
+                  disabled={isSubmittingNote || !noteText.trim()}
+                  className="flex-[2] py-2.5 rounded-xl text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
+                >
+                  {isSubmittingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  {language === 'ar' ? 'حفظ الملاحظة' : 'Save Note'}
+                </button>
               </div>
             </div>
-          </Portal>
-        )}
+          </div>
+        </Portal>
+      )}
 
       {/* ── View Note Modal ── beautiful read view at z-[500] */}
       {viewNoteConfig && (
-          <Portal>
+        <Portal>
+          <div
+            className="fixed inset-0 z-[500] flex items-center justify-center p-4 sm:p-8"
+            style={{ isolation: 'isolate' }}
+            onClick={(e) => { e.stopPropagation(); setViewNoteConfig(null); }}
+          >
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
             <div
-              className="fixed inset-0 z-[500] flex items-center justify-center p-4 sm:p-8"
-              style={{ isolation: 'isolate' }}
-              onClick={(e) => { e.stopPropagation(); setViewNoteConfig(null); }}
+              className="relative w-full max-w-md bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border border-indigo-500/30 rounded-3xl shadow-[0_0_80px_-10px_rgba(99,102,241,0.4)] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
-              <div
-                className="relative w-full max-w-md bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border border-indigo-500/30 rounded-3xl shadow-[0_0_80px_-10px_rgba(99,102,241,0.4)] overflow-hidden"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Ambient glow */}
-                <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-                <div className="h-px bg-gradient-to-r from-transparent via-indigo-400/50 to-transparent" />
+              {/* Ambient glow */}
+              <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="h-px bg-gradient-to-r from-transparent via-indigo-400/50 to-transparent" />
 
-                <div className="p-6">
-                  {/* Reference tag */}
-                  <div className="flex items-center gap-2 mb-5">
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/25">
-                      <BookOpen className="w-3 h-3 text-indigo-400" />
-                      <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">
-                        Verse {viewNoteConfig.verse.verseNumber}
-                      </span>
-                    </div>
+              <div className="p-6">
+                {/* Reference tag */}
+                <div className="flex items-center gap-2 mb-5">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/25">
+                    <BookOpen className="w-3 h-3 text-indigo-400" />
+                    <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">
+                      Verse {viewNoteConfig.verse.verseNumber}
+                    </span>
                   </div>
+                </div>
 
-                  {/* The verse text */}
-                  <div className="mb-5 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-                    <p className="text-white/60 text-sm leading-relaxed" dir="rtl">
-                      {viewNoteConfig.verse.text}
-                    </p>
-                  </div>
+                {/* The verse text */}
+                <div className="mb-5 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+                  <p className="text-white/60 text-sm leading-relaxed" dir="rtl">
+                    {viewNoteConfig.verse.text}
+                  </p>
+                </div>
 
-                  {/* Divider with label */}
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="flex-1 h-px bg-indigo-500/20" />
-                    <span className="text-[10px] font-bold text-indigo-400/60 uppercase tracking-widest">Your Note</span>
-                    <div className="flex-1 h-px bg-indigo-500/20" />
-                  </div>
+                {/* Divider with label */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex-1 h-px bg-indigo-500/20" />
+                  <span className="text-[10px] font-bold text-indigo-400/60 uppercase tracking-widest">Your Note</span>
+                  <div className="flex-1 h-px bg-indigo-500/20" />
+                </div>
 
-                  {/* The note */}
-                  <div className="relative">
-                    <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-indigo-500 to-indigo-500/0 rounded-full" />
-                    <p className="pl-4 text-indigo-100 text-sm leading-relaxed" dir="rtl">
-                      {viewNoteConfig.note}
-                    </p>
-                  </div>
+                {/* The note */}
+                <div className="relative">
+                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-indigo-500 to-indigo-500/0 rounded-full" />
+                  <p className="pl-4 text-indigo-100 text-sm leading-relaxed" dir="rtl">
+                    {viewNoteConfig.note}
+                  </p>
+                </div>
 
-                  <div className="flex gap-3 mt-6">
-                    <button
-                      onClick={() => {
-                        setViewNoteConfig(null);
-                        setNoteText(viewNoteConfig.note);
-                        setNoteModalConfig({ type: 'bible', data: viewNoteConfig.verse, existingNote: viewNoteConfig.note });
-                      }}
-                      className="flex-1 py-2.5 rounded-xl text-xs font-bold border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/10 transition-all"
-                    >
-                      Edit Note
-                    </button>
-                    <button
-                      onClick={() => setViewNoteConfig(null)}
-                      className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-indigo-600/80 hover:bg-indigo-500 text-white transition-all"
-                    >
-                      Close
-                    </button>
-                  </div>
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setViewNoteConfig(null);
+                      setNoteText(viewNoteConfig.note);
+                      setNoteModalConfig({ type: 'bible', data: viewNoteConfig.verse, existingNote: viewNoteConfig.note });
+                    }}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-bold border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/10 transition-all"
+                  >
+                    Edit Note
+                  </button>
+                  <button
+                    onClick={() => setViewNoteConfig(null)}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-indigo-600/80 hover:bg-indigo-500 text-white transition-all"
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </div>
-          </Portal>
-        )}
+          </div>
+        </Portal>
+      )}
 
     </div >
 
@@ -3314,7 +3314,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       {/* Media Link */}
       <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-row justify-center items-center gap-1 sm:gap-2 relative z-10 lg:top-2">
 
-        {humn.link ? (
+        {/* {humn.link ? (
           <a
             href={humn.link}
             target="_blank"
@@ -3329,7 +3329,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
             <PlayCircle className="w-4 h-4 shrink-0 opacity-20" />
             <span className="text-xs sm:text-sm font-medium">{t("listen")}</span>
           </div>
-        )}
+        )} */}
 
         {humn.lyrics && (
           <>
