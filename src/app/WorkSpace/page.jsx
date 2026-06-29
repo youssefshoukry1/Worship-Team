@@ -14,6 +14,7 @@ import { getApiBaseUrl } from '../utils/apiBase';
 import { useRouter } from 'next/navigation';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { showToast } from '../components/ToastContainer';
+import { buildHymnPresentationSlides } from '../utils/hymnSlides';
 const API_URL = getApiBaseUrl();
 
 function getUsersEndpointCandidates(path) {
@@ -1003,6 +1004,7 @@ export default function WorkSpace() {
     // Data Show State
     const [showDataShow, setShowDataShow] = useState(false);
     const [dataShowIndex, setDataShowIndex] = useState(0);
+    const [presentationViewport, setPresentationViewport] = useState({ width: 1200, height: 900 });
 
     // ── Live Presentation (Socket.io) ──────────────────────────────────
     const [dataShowId, setDataShowId] = useState('');
@@ -1241,40 +1243,41 @@ export default function WorkSpace() {
 
         let lyricsArray = selectedLyricsHymn.lyrics;
 
-        // If lyrics is still a string (legacy), split it
         if (typeof lyricsArray === 'string') {
             const lyricsToUse = selectedLyricsHymn.transposeStep
                 ? transposeLyrics(lyricsArray, selectedLyricsHymn.transposeStep)
                 : lyricsArray;
 
-            return lyricsToUse
-                .replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
-                .split('\n\n')
-                .map(b => b.trim())
-                .filter(Boolean)
-                .map((text, index) => ({ title: `Part ${index + 1}`, type: 'verse', text }));
+            return buildHymnPresentationSlides(lyricsToUse, {
+                showChords,
+                viewportHeight: presentationViewport.height,
+                viewportWidth: presentationViewport.width,
+            });
         }
 
-        // Handles the new Array of objects format
         if (Array.isArray(lyricsArray)) {
             const lyricsToUse = selectedLyricsHymn.transposeStep
                 ? transposeLyrics(lyricsArray, selectedLyricsHymn.transposeStep)
                 : lyricsArray;
 
-            const slides = [];
-            lyricsToUse.forEach(stanza => {
-                // Split the stanza text into blocks by empty lines
-                const blocks = stanza.text.split(/\n\s*\n/).filter(b => b.trim() !== '');
-                blocks.forEach(block => {
-                    const text = block.replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '');
-                    slides.push({ title: stanza.title, type: stanza.type, text });
-                });
+            return buildHymnPresentationSlides(lyricsToUse, {
+                showChords,
+                viewportHeight: presentationViewport.height,
+                viewportWidth: presentationViewport.width,
             });
-            return slides;
         }
 
         return [];
-    }, [selectedLyricsHymn?.lyrics, selectedLyricsHymn?.transposeStep, showChords]);
+    }, [
+        selectedLyricsHymn?.lyrics,
+        selectedLyricsHymn?.transposeStep,
+        selectedLyricsHymn?.isBible,
+        selectedLyricsHymn?.verses,
+        selectedLyricsHymn?.title,
+        showChords,
+        presentationViewport.height,
+        presentationViewport.width,
+    ]);
 
     const openLyrics = (hymn, transposeStep = 0) => {
         setSelectedLyricsHymn({ ...hymn, transposeStep });
@@ -1331,6 +1334,16 @@ export default function WorkSpace() {
             document.documentElement.style.overflow = '';
         };
     }, [showLyricsModal, showDataShow, showSetlistModal]);
+
+    useEffect(() => {
+        if (!showDataShow || typeof window === 'undefined') return;
+        const updateViewport = () => {
+            setPresentationViewport({ width: window.innerWidth, height: window.innerHeight });
+        };
+        updateViewport();
+        window.addEventListener('resize', updateViewport);
+        return () => window.removeEventListener('resize', updateViewport);
+    }, [showDataShow]);
 
     // Data Show Swipe - Native Touch Events (No Library)
     useEffect(() => {
@@ -1740,33 +1753,35 @@ export default function WorkSpace() {
                     {/* ── Live Session Panel ───────────────────────────────────── */}
                     <div className="mt-6">
                         {/* Toggle button */}
-                        <div className={`relative p-[1px] rounded-2xl overflow-hidden transition-all duration-300 inline-block
-                            ${isConnected 
-                              ? 'shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]' 
-                              : 'shadow-[0_0_15px_rgba(255,255,255,0.02)]'}`}
-                        >
-                            {/* Animated looping gradient background */}
-                            <div className={`absolute -inset-[100%] pointer-events-none z-0 ${isConnected ? 'animate-border-spin-fast' : 'animate-border-spin-slow'}`}
-                              style={{
-                                background: isConnected 
-                                  ? 'conic-gradient(from 0deg, transparent 0deg, transparent 120deg, #10b981 180deg, #34d399 240deg, #3b82f6 300deg, transparent 360deg)'
-                                  : 'conic-gradient(from 0deg, transparent 0deg, transparent 180deg, rgba(255,255,255,0.15) 270deg, transparent 360deg)'
-                              }}
-                            />
-                            {/* Mask button overlay */}
-                            <button
-                                onClick={() => setShowSessionPanel(p => !p)}
-                                className={`relative z-10 flex items-center gap-2 px-5 py-2.5 rounded-2xl transition-all font-bold text-sm w-full h-full justify-center
-                                    ${isConnected
-                                        ? 'bg-[#0c142c] text-green-400 hover:bg-[#121d3f]'
-                                        : 'bg-[#0a1020] text-gray-400 hover:bg-[#0f172f] hover:text-white'
-                                    }`}
+                        <div className="relative inline-block animate-live-session-parent-2xl">
+                            <div className={`relative p-[1px] rounded-2xl overflow-hidden transition-all duration-300 inline-block animate-live-session-intro
+                                ${isConnected 
+                                  ? 'shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]' 
+                                  : 'shadow-[0_0_15px_rgba(255,255,255,0.02)]'}`}
                             >
-                                <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse text-green-400' : ''}`} />
-                                {isConnected ? (
-                                    <><span className="text-[10px] text-green-400 font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
-                                ) : 'Start Live Session'}
-                            </button>
+                                {/* Animated looping gradient background */}
+                                <div className={`absolute -inset-[100%] pointer-events-none z-0 ${isConnected ? 'animate-border-spin-fast' : 'animate-border-spin-slow'}`}
+                                  style={{
+                                    background: isConnected 
+                                      ? 'conic-gradient(from 0deg, transparent 0deg, transparent 120deg, #10b981 180deg, #34d399 240deg, #3b82f6 300deg, transparent 360deg)'
+                                      : 'conic-gradient(from 0deg, transparent 0deg, transparent 180deg, rgba(255,255,255,0.15) 270deg, transparent 360deg)'
+                                  }}
+                                />
+                                {/* Mask button overlay */}
+                                <button
+                                    onClick={() => setShowSessionPanel(p => !p)}
+                                    className={`relative z-10 flex items-center gap-2 px-5 py-2.5 rounded-2xl transition-all font-bold text-sm w-full h-full justify-center
+                                        ${isConnected
+                                            ? 'bg-[#0c142c] text-green-400 hover:bg-[#121d3f]'
+                                            : 'bg-[#0a1020] text-gray-400 hover:bg-[#0f172f] hover:text-white'
+                                        }`}
+                                >
+                                    <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse text-green-400' : ''}`} />
+                                    {isConnected ? (
+                                        <><span className="text-[10px] text-green-400 font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
+                                    ) : 'Start Live Session'}
+                                </button>
+                            </div>
                         </div>
 
                         {/* Session setup drawer */}

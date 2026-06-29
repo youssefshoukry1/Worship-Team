@@ -23,6 +23,7 @@ import axios from "axios";
 import Loading from "../loading";
 import Portal from '../Portal/Portal.jsx'
 import { useLanguage } from "../context/LanguageContext";
+import { buildHymnPresentationSlides } from '../utils/hymnSlides';
 
 export default function Trainings() {
   const queryClient = useQueryClient();
@@ -123,36 +124,22 @@ export default function Trainings() {
   // Data Show State
   const [showDataShow, setShowDataShow] = useState(false);
   const [dataShowIndex, setDataShowIndex] = useState(0);
+  const [presentationViewport, setPresentationViewport] = useState({ width: 1200, height: 900 });
 
   const dataShowSlides = React.useMemo(() => {
     if (!selectedLyricsHymn?.lyrics) return [];
 
-    let lyricsArray = selectedLyricsHymn.lyrics;
-
-    // Handle legacy string format
-    if (typeof lyricsArray === 'string') {
-      return lyricsArray
-        .split('\n\n')
-        .map(b => b.trim())
-        .filter(Boolean)
-        .map(slide => showChords ? slide.replace(/\[/g, ' [') : slide.replace(/\[.*?\]/g, ''));
-    }
-
-    // Handle new Array of objects format
-    if (Array.isArray(lyricsArray)) {
-      const slides = [];
-      lyricsArray.forEach(stanza => {
-        const blocks = stanza.text.split(/\n\s*\n/).filter(b => b.trim() !== '');
-        blocks.forEach(block => {
-          const text = showChords ? block.replace(/\[/g, ' [') : block.replace(/\[.*?\]/g, '');
-          slides.push({ title: stanza.title, type: stanza.type, text });
-        });
-      });
-      return slides;
-    }
-
-    return [];
-  }, [selectedLyricsHymn?.lyrics, showChords]);
+    return buildHymnPresentationSlides(selectedLyricsHymn.lyrics, {
+      showChords,
+      viewportHeight: presentationViewport.height,
+      viewportWidth: presentationViewport.width,
+    });
+  }, [
+    selectedLyricsHymn?.lyrics,
+    showChords,
+    presentationViewport.height,
+    presentationViewport.width,
+  ]);
 
 
   const openLyrics = (hymn) => {
@@ -185,6 +172,16 @@ export default function Trainings() {
       document.documentElement.style.overflow = '';
     };
   }, [showLyricsModal, showDataShow, showReportModal, showModel]);
+
+  useEffect(() => {
+    if (!showDataShow || typeof window === 'undefined') return;
+    const updateViewport = () => {
+      setPresentationViewport({ width: window.innerWidth, height: window.innerHeight });
+    };
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, [showDataShow]);
 
   // Data Show Swipe - Native Touch Events (No Library)
   useEffect(() => {

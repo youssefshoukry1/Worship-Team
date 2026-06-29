@@ -21,6 +21,13 @@ import { initLocalHymns, getLocalHymns, syncRemoteHymns } from '../utils/hymnsSy
 import { initLocalBible, getLocalBibleIndex, searchLocalBible } from '../utils/bibleSync';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { showToast } from '../components/ToastContainer';
+import StanzaSlideControls from '../components/StanzaSlideControls';
+import {
+  buildHymnPresentationSlides,
+  normalizeStanzaForEdit,
+  prepareLyricsForSave,
+  sanitizeSlideBreaks,
+} from '../utils/hymnSlides';
 
 const API_ROOT = getApiBaseUrl();
 const BIBLE_API = `${API_ROOT}/bible`;
@@ -527,6 +534,7 @@ export default function Category_Humns() {
   //Data Show
   const [showDataShow, setShowDataShow] = useState(false);
   const [dataShowIndex, setDataShowIndex] = useState(0);
+  const [presentationViewport, setPresentationViewport] = useState({ width: 1200, height: 900 });
   const thumbContainerRef = React.useRef(null);
 
   // ── Live Presentation (Socket.io) ──────────────────────────────────
@@ -632,6 +640,16 @@ export default function Category_Humns() {
     };
   }, [showModal, showLyricsModal, showDataShow, showBibleModal]);
 
+  useEffect(() => {
+    if (!showDataShow || typeof window === 'undefined') return;
+    const updateViewport = () => {
+      setPresentationViewport({ width: window.innerWidth, height: window.innerHeight });
+    };
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, [showDataShow]);
+
 
 
   const dataShowSlides = React.useMemo(() => {
@@ -639,40 +657,38 @@ export default function Category_Humns() {
 
     let lyricsArray = selectedLyricsHymn.lyrics;
 
-    // If lyrics is still a string (legacy), split it
     if (typeof lyricsArray === 'string') {
       const lyricsToUse = selectedLyricsHymn.transposeStep
         ? transposeLyrics(lyricsArray, selectedLyricsHymn.transposeStep)
         : lyricsArray;
 
-      return lyricsToUse
-        .replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '')
-        .split('\n\n')
-        .map(b => b.trim())
-        .filter(Boolean);
+      return buildHymnPresentationSlides(lyricsToUse, {
+        showChords,
+        viewportHeight: presentationViewport.height,
+        viewportWidth: presentationViewport.width,
+      });
     }
 
-    // Handles the new Array of objects format
     if (Array.isArray(lyricsArray)) {
       const lyricsToUse = selectedLyricsHymn.transposeStep
         ? transposeLyrics(lyricsArray, selectedLyricsHymn.transposeStep)
         : lyricsArray;
 
-      const slides = [];
-      lyricsToUse.forEach(stanza => {
-        // Split the stanza text into blocks by empty lines
-        const blocks = stanza.text.split(/\n\s*\n/).filter(b => b.trim() !== '');
-        blocks.forEach(block => {
-          const text = block.replace(showChords ? /\[/g : /\[.*?\]/g, showChords ? ' [' : '');
-          slides.push({ title: stanza.title, type: stanza.type, text });
-        });
+      return buildHymnPresentationSlides(lyricsToUse, {
+        showChords,
+        viewportHeight: presentationViewport.height,
+        viewportWidth: presentationViewport.width,
       });
-      return slides;
     }
 
     return [];
-
-  }, [selectedLyricsHymn?.lyrics, selectedLyricsHymn?.transposeStep, showChords]);
+  }, [
+    selectedLyricsHymn?.lyrics,
+    selectedLyricsHymn?.transposeStep,
+    showChords,
+    presentationViewport.height,
+    presentationViewport.width,
+  ]);
 
   //Data show Swipe - Native Touch Events (No Library)
   useEffect(() => {
@@ -1046,7 +1062,7 @@ export default function Category_Humns() {
     try {
       const url = "https://worship-team-api.onrender.com/api/hymns/create";
 
-      await axios.post(url, formData, {
+      await axios.post(url, { ...formData, lyrics: prepareLyricsForSave(formData.lyrics) }, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
@@ -1091,7 +1107,7 @@ export default function Category_Humns() {
     try {
       const url = `https://worship-team-api.onrender.com/api/hymns/${id}`;
 
-      await axios.patch(url, formData, {
+      await axios.patch(url, { ...formData, lyrics: prepareLyricsForSave(formData.lyrics) }, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
@@ -1193,10 +1209,13 @@ export default function Category_Humns() {
   };
 
   const openEditModal = (hymn) => {
-    // Pre-fill form with hymn data for editing
+    const rawLyrics = Array.isArray(hymn.lyrics)
+      ? hymn.lyrics
+      : (hymn.lyrics ? [{ type: 'verse', title: '1', text: hymn.lyrics }] : []);
+
     setFormData({
       title: hymn.title || '',
-      lyrics: Array.isArray(hymn.lyrics) ? hymn.lyrics : (hymn.lyrics ? [{ type: 'verse', title: '1', text: hymn.lyrics }] : []),
+      lyrics: rawLyrics.map(normalizeStanzaForEdit),
       scale: hymn.scale || '',
       relatedChords: hymn.relatedChords || '',
       link: hymn.link || '',
@@ -1222,7 +1241,7 @@ export default function Category_Humns() {
   ];
 
   // Helper to check permission
-  const canEdit = UserRole === 'ADMIN' || UserRole === 'MANEGER' || UserRole === 'PROGRAMER';
+  const canEdit = UserRole === 'WEBSITE_ADMIN' || UserRole === 'PROGRAMER';
 
   // Animation Variants
   const containerVariants = {
@@ -1574,8 +1593,8 @@ export default function Category_Humns() {
         )}
 
         {/* Live Session Panel */}
-        <div className="relative">
-          <div className={`relative p-[1px] rounded-full overflow-hidden transition-all duration-300
+        <div className="relative animate-live-session-parent-full">
+          <div className={`relative p-[1px] rounded-full overflow-hidden transition-all duration-300 animate-live-session-intro
             ${isConnected 
               ? 'shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]' 
               : 'shadow-[0_0_15px_rgba(255,255,255,0.02)]'}`}
@@ -1814,7 +1833,7 @@ export default function Category_Humns() {
                             type="button"
                             onClick={() => {
                               const newArray = Array.isArray(formData.lyrics) ? [...formData.lyrics] : [];
-                              newArray.push({ type: 'verse', title: String(newArray.filter(l => l.type === 'verse').length + 1), text: '' });
+                              newArray.push({ type: 'verse', title: String(newArray.filter(l => l.type === 'verse').length + 1), text: '', slideMode: 'auto', slideBreaks: [] });
                               setFormData({ ...formData, lyrics: newArray });
                             }}
                             className="text-xs font-bold px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 text-white transition-colors flex items-center gap-1.5 shadow-sm"
@@ -1825,7 +1844,7 @@ export default function Category_Humns() {
                             type="button"
                             onClick={() => {
                               const newArray = Array.isArray(formData.lyrics) ? [...formData.lyrics] : [];
-                              newArray.push({ type: 'chorus', title: 'القرار', text: '' });
+                              newArray.push({ type: 'chorus', title: 'القرار', text: '', slideMode: 'auto', slideBreaks: [] });
                               setFormData({ ...formData, lyrics: newArray });
                             }}
                             className="text-xs font-bold px-3 py-1.5 rounded-lg bg-sky-500/20 border border-sky-500/30 hover:bg-sky-500/30 text-sky-200 transition-colors flex items-center gap-1.5 shadow-sm shadow-sky-500/10"
@@ -1904,11 +1923,27 @@ export default function Category_Humns() {
                             id={`lyrics-textarea-${idx}`}
                             dir="rtl"
                             className="w-full p-3 rounded-lg bg-black/40 border border-black/50 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[100px] resize-y whitespace-pre-wrap text-sm leading-relaxed custom-scrollbar shadow-inner"
-                            placeholder="كلمات المقطع هنا..."
+                            placeholder="كلمات المقطع هنا (سطر واحد لكل بيت — بدون فراغات بين الشرائح)..."
                             value={stanza.text}
                             onChange={(e) => {
                               const newArray = [...formData.lyrics];
-                              newArray[idx].text = e.target.value;
+                              const text = e.target.value;
+                              const lineCount = text.split('\n').filter((l) => l.trim()).length;
+                              newArray[idx] = {
+                                ...newArray[idx],
+                                text,
+                                slideBreaks: sanitizeSlideBreaks(newArray[idx].slideBreaks, lineCount),
+                              };
+                              setFormData({ ...formData, lyrics: newArray });
+                            }}
+                          />
+
+                          <StanzaSlideControls
+                            stanza={stanza}
+                            stanzaIndex={idx}
+                            onChange={(stanzaIdx, updatedStanza) => {
+                              const newArray = [...formData.lyrics];
+                              newArray[stanzaIdx] = updatedStanza;
                               setFormData({ ...formData, lyrics: newArray });
                             }}
                           />
