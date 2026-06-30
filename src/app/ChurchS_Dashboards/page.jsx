@@ -202,7 +202,7 @@ function PendingHymnsPanel({ isLogin }) {
   const [rejectLoading, setRejectLoading] = useState(false);
 
   const { data: pendingList = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['hymnsPending', activeFilter],
+    queryKey: ['hymnsPending', activeFilter, isLogin],
     queryFn: async () => {
       const params = activeFilter !== 'all' ? `?status=${activeFilter}` : '';
       const res = await axios.get(`${API_URL}/hymns/pending${params}`, {
@@ -211,12 +211,13 @@ function PendingHymnsPanel({ isLogin }) {
       return res.data;
     },
     enabled: !!isLogin,
-    staleTime: 30_000, // 30s cache — avoids re-fetching on every render
+    staleTime: 0,        // always re-fetch when tab switches
+    refetchOnMount: true,
   });
 
   // Count badges for tabs
   const { data: allCounts = {} } = useQuery({
-    queryKey: ['hymnsPendingCounts'],
+    queryKey: ['hymnsPendingCounts', isLogin],
     queryFn: async () => {
       const res = await axios.get(`${API_URL}/hymns/pending`, {
         headers: { Authorization: `Bearer ${isLogin}` }
@@ -230,7 +231,8 @@ function PendingHymnsPanel({ isLogin }) {
       };
     },
     enabled: !!isLogin,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const handleApprove = async (pendingId) => {
@@ -241,7 +243,7 @@ function PendingHymnsPanel({ isLogin }) {
       });
       showToast({ message: '✅ Hymn request approved successfully!', type: 'success', duration: 4000 });
       queryClient.invalidateQueries({ queryKey: ['hymnsPending'] });
-      queryClient.invalidateQueries({ queryKey: ['hymnsPendingCounts'] });
+      queryClient.invalidateQueries({ queryKey: ['hymnsPendingCounts', isLogin] });
     } catch (err) {
       console.error(err);
       showToast({ message: 'Failed to approve request', type: 'error' });
@@ -261,7 +263,7 @@ function PendingHymnsPanel({ isLogin }) {
       );
       showToast({ message: '❌ Request rejected.', type: 'info', duration: 4000 });
       queryClient.invalidateQueries({ queryKey: ['hymnsPending'] });
-      queryClient.invalidateQueries({ queryKey: ['hymnsPendingCounts'] });
+      queryClient.invalidateQueries({ queryKey: ['hymnsPendingCounts', isLogin] });
       setRejectTarget(null);
       setRejectNote('');
     } catch (err) {

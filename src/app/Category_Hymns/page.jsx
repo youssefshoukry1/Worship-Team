@@ -12,6 +12,7 @@ import { UserContext } from '../context/User_Context';
 import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2, Mic, MicOff, BookOpen, ChevronDown, Loader2 } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
+import { showToast } from '../components/ToastContainer';
 import { Virtuoso } from "react-virtuoso";
 import { usePresentation } from '../hooks/usePresentation';
 import { normalizeBibleBooksFromApi } from '../utils/bibleBooks';
@@ -20,7 +21,6 @@ import { useRouter } from 'next/navigation';
 import { initLocalHymns, getLocalHymns, syncRemoteHymns } from '../utils/hymnsSync';
 import { initLocalBible, getLocalBibleIndex, searchLocalBible } from '../utils/bibleSync';
 import { queueOfflineAction } from '../utils/offlineQueue';
-import { showToast } from '../components/ToastContainer';
 import StanzaSlideControls from '../components/StanzaSlideControls';
 import {
   buildHymnPresentationSlides,
@@ -1062,23 +1062,31 @@ export default function Category_Humns() {
     try {
       const url = "https://worship-team-api.onrender.com/api/hymns/create";
 
-      await axios.post(url, { ...formData, lyrics: prepareLyricsForSave(formData.lyrics) }, {
+      const response = await axios.post(url, { ...formData, lyrics: prepareLyricsForSave(formData.lyrics) }, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
+      // 202 = queued as pending (non-PROGRAMER role)
+      if (response.status === 202 && response.data?.pending) {
+        showToast({ message: '⏳ ' + response.data.message, type: 'info', duration: 7000 });
+        closeModal();
+        setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', BPM: '', timeSignature: 'None', party: ['all'] });
+        return;
+      }
+
       await syncRemoteHymns(queryClient);
       queryClient.invalidateQueries(["humns"]);
-      alert(t("hymnAdded"));
+      showToast({ message: '✅ Hymn added successfully!', type: 'success', duration: 4000 });
       closeModal();
       setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', BPM: '', timeSignature: 'None', party: ['all'] });
     } catch (error) {
       console.error("Error adding hymn:", error);
       if (error.response?.status === 409) {
-        alert(t("duplicateFound").replace("{title}", error.response.data.existingTitle));
+        showToast({ message: t("duplicateFound").replace("{title}", error.response.data.existingTitle), type: 'error' });
       } else if (error.response?.data?.message) {
-        alert("Error: " + error.response.data.message);
+        showToast({ message: "Error: " + error.response.data.message, type: 'error' });
       } else {
-        alert("Failed to add hymn. Please check all fields.");
+        showToast({ message: 'Failed to add hymn. Please check all fields.', type: 'error' });
       }
     } finally {
       setIsSubmitting(false);
@@ -1107,22 +1115,31 @@ export default function Category_Humns() {
     try {
       const url = `https://worship-team-api.onrender.com/api/hymns/${id}`;
 
-      await axios.patch(url, { ...formData, lyrics: prepareLyricsForSave(formData.lyrics) }, {
+      const response = await axios.patch(url, { ...formData, lyrics: prepareLyricsForSave(formData.lyrics) }, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
+      // 202 = queued as pending (non-PROGRAMER role)
+      if (response.status === 202 && response.data?.pending) {
+        showToast({ message: '⏳ ' + response.data.message, type: 'info', duration: 7000 });
+        closeModal();
+        setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: 'None' });
+        setEditingHymnId(null);
+        return;
+      }
+
       await syncRemoteHymns(queryClient);
       queryClient.invalidateQueries(["humns"]);
-      alert(t("hymnUpdated"));
+      showToast({ message: '✅ Hymn updated successfully!', type: 'success', duration: 4000 });
       closeModal();
       setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: 'None' });
       setEditingHymnId(null);
     } catch (error) {
       console.error("Error editing hymn:", error);
       if (error.response?.data?.message) {
-        alert("Error updating hymn: " + error.response.data.message);
+        showToast({ message: 'Error updating hymn: ' + error.response.data.message, type: 'error' });
       } else {
-        alert("Failed to update hymn.");
+        showToast({ message: 'Failed to update hymn.', type: 'error' });
       }
     } finally {
       setIsSubmitting(false);
@@ -1135,17 +1152,24 @@ export default function Category_Humns() {
     if (!confirm(t("confirmDeleteHymn"))) return;
 
     try {
-      // User: Replace this URL with your actual Delete API endpoint
       const url = `https://worship-team-api.onrender.com/api/hymns/${id}`;
 
-      await axios.delete(url, {
+      const response = await axios.delete(url, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
+      // 202 = queued as pending (non-PROGRAMER role)
+      if (response.status === 202 && response.data?.pending) {
+        showToast({ message: '⏳ ' + response.data.message, type: 'info', duration: 7000 });
+        return;
+      }
+
       await syncRemoteHymns(queryClient);
       queryClient.invalidateQueries(["humns"]);
+      showToast({ message: '🗑️ Hymn deleted.', type: 'success', duration: 3000 });
     } catch (error) {
       console.error("Error deleting hymn:", error);
+      showToast({ message: 'Failed to delete hymn.', type: 'error' });
     }
   };
 
