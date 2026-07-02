@@ -104,8 +104,8 @@ export default function Website_Admin_Profile() {
   const chunkData = adminTasksData?.data || [];
 
   // Calculate total hymns across all chunks or just the single chunk
-  const totalHymns = roleData === 'PROGRAMER' || roleData === 'WEBSITE_ADMIN'
-    ? chunkData.reduce((sum, chunk) => sum + chunk.tasks.length, 0)
+  const totalHymns = roleData === 'PROGRAMER'
+    ? chunkData.reduce((sum, chunk) => sum + chunk.tasks?.length || 0, 0)
     : chunkData.length;
 
   return (
@@ -313,6 +313,12 @@ export default function Website_Admin_Profile() {
 }
 
 function AdminTaskSection({ admin, tasks, openEditModal, openLyrics, userRole }) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
+  const totalPages = Math.ceil(tasks.length / itemsPerPage);
+  const currentTasks = tasks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
     <div className="bg-[#0c0c20] border border-white/10 rounded-2xl p-6">
       {admin && (
@@ -334,48 +340,74 @@ function AdminTaskSection({ admin, tasks, openEditModal, openLyrics, userRole })
           <p>No hymns need editing at the moment.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {tasks.map((hymn) => (
-            <div key={hymn._id} className="bg-white/5 border border-white/10 p-5 rounded-xl hover:bg-white/10 transition-colors relative flex flex-col justify-between h-full">
-              
-              {/* Status Markers */}
-              {hymn.adminStatus === 'pending' && (
-                <div className="absolute top-3 right-3 bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 z-10">
-                  <Clock size={12} /> Pending Review
-                </div>
-              )}
-              {hymn.adminStatus === 'approved' && (
-                <div className="absolute top-3 right-3 bg-green-500/20 text-green-400 border border-green-500/30 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 z-10">
-                  <CheckCircle size={12} /> Approved
-                </div>
-              )}
+        <div className="flex flex-col gap-4">
+          <div className="max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {currentTasks.map((hymn) => (
+                <div key={hymn._id} className="bg-white/5 border border-white/10 p-5 rounded-xl hover:bg-white/10 transition-colors relative flex flex-col justify-between h-full">
+                  
+                  {/* Status Markers */}
+                  {hymn.adminStatus === 'pending' && (
+                    <div className="absolute top-3 right-3 bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 z-10">
+                      <Clock size={12} /> Pending Review
+                    </div>
+                  )}
+                  {hymn.adminStatus === 'approved' && (
+                    <div className="absolute top-3 right-3 bg-green-500/20 text-green-400 border border-green-500/30 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 z-10">
+                      <CheckCircle size={12} /> Approved
+                    </div>
+                  )}
 
-              <div className="mt-2 relative z-0">
-                <h3 className="text-lg font-bold text-white mb-1" dir="rtl">{hymn.title}</h3>
-                {userRole !== 'PROGRAMER' && (
-                  <p className="text-xs text-gray-400 line-clamp-2" dir="rtl">
-                    {typeof hymn.lyrics === 'string' ? hymn.lyrics : hymn.lyrics?.[0]?.text}
-                  </p>
-                )}
-              </div>
+                  <div className="mt-2 relative z-0">
+                    <h3 className="text-lg font-bold text-white mb-1" dir="rtl">{hymn.title}</h3>
+                    {userRole !== 'PROGRAMER' && (
+                      <p className="text-xs text-gray-400 line-clamp-2" dir="rtl">
+                        {typeof hymn.lyrics === 'string' ? hymn.lyrics : hymn.lyrics?.[0]?.text}
+                      </p>
+                    )}
+                  </div>
 
-              <div className="flex gap-2 mt-4 pt-4 border-t border-white/10 relative z-0">
-                <button
-                  onClick={() => openEditModal(hymn)}
-                  className="flex-1 flex items-center justify-center gap-2 bg-sky-500/20 text-sky-300 py-2 rounded-lg font-bold text-sm hover:bg-sky-500/30 transition-colors"
-                >
-                  <Edit2 size={16} /> Edit
-                </button>
-                <button
-                  onClick={() => openLyrics(hymn)}
-                  className="flex-none p-2 bg-white/5 text-gray-300 rounded-lg hover:bg-white/10 transition-colors"
-                  title="View Lyrics"
-                >
-                  <Eye size={18} />
-                </button>
-              </div>
+                  <div className="flex gap-2 mt-4 pt-4 border-t border-white/10 relative z-0">
+                    <button
+                      onClick={() => openEditModal(hymn)}
+                      className="flex-1 flex items-center justify-center gap-2 bg-sky-500/20 text-sky-300 py-2 rounded-lg font-bold text-sm hover:bg-sky-500/30 transition-colors"
+                    >
+                      <Edit2 size={16} /> Edit
+                    </button>
+                    <button
+                      onClick={() => openLyrics(hymn)}
+                      className="flex-none p-2 bg-white/5 text-gray-300 rounded-lg hover:bg-white/10 transition-colors"
+                      title="View Lyrics"
+                    >
+                      <Eye size={18} />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-4 mt-4 pt-4 border-t border-white/10">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 rounded-lg bg-white/5 text-white disabled:opacity-50 transition-colors hover:bg-white/10"
+              >
+                Previous
+              </button>
+              <span className="text-gray-400 text-sm">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 rounded-lg bg-white/5 text-white disabled:opacity-50 transition-colors hover:bg-white/10"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
