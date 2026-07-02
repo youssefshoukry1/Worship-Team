@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState, useContext } from "react";
 import axios from "axios";
 import { motion, AnimatePresence, easeOut } from "framer-motion";
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, X, Globe, ChevronDown, Mic, Music, User, LogOut, LogIn, UserPlus } from "lucide-react";
+import { Menu, X, Globe, ChevronDown, Mic, Music, User, LogOut, LogIn, UserPlus, ShieldAlert } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 import { translations } from "../i18n/translations";
 import { UserContext } from "../context/User_Context";
@@ -179,6 +179,24 @@ export default function Navbar() {
                             >
                                 {/* @ts-ignore */}
                                 {t("dashboard")}
+                            </button>
+                        </motion.li>
+                    )}
+
+                {/* Admin Tasks Link (WEBSITE_ADMIN or PROGRAMER) */}
+                {isLogin && UserRole &&
+                    ["WEBSITE_ADMIN", "PROGRAMER"].includes(UserRole) && (
+                        <motion.li variants={itemVariants} className="list-none ml-2">
+                            <button
+                                onClick={() => router.push("/Website_Admin_Profile")}
+                                className={`flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full transition-all duration-300 border border-white/10
+                ${pathname === "/Website_Admin_Profile"
+                                        ? "bg-rose-500/20 text-rose-400 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.3)]"
+                                        : "bg-white/5 text-gray-300 hover:text-white hover:bg-rose-500/20 hover:border-rose-500/30 hover:shadow-[0_0_10px_rgba(244,63,94,0.2)]"
+                                    }`}
+                                title={"Admin Tasks"}
+                            >
+                                <ShieldAlert size={18} />
                             </button>
                         </motion.li>
                     )}
@@ -425,6 +443,26 @@ export default function Navbar() {
                                             }`}
                                     >
                                         {t("dashboard")}
+                                    </button>
+                                </li>
+                            )}
+
+                            {/* Mobile Admin Tasks Button */}
+                            {isLogin && UserRole && ["WEBSITE_ADMIN", "PROGRAMER"].includes(UserRole) && (
+                                <li>
+                                    <button
+                                        onClick={() => {
+                                            router.push("/Website_Admin_Profile");
+                                            setMenuOpen(false);
+                                        }}
+                                        className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-transparent
+                ${pathname === "/Website_Admin_Profile"
+                                                ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
+                                                : "text-gray-300 hover:bg-white/5 hover:text-white"
+                                            }`}
+                                    >
+                                        <ShieldAlert size={18} />
+                                        Admin Tasks
                                     </button>
                                 </li>
                             )}

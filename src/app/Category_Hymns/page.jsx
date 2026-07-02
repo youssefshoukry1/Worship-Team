@@ -1066,14 +1066,19 @@ export default function Category_Humns() {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
+      console.log('[CREATE_HYMN] Response status:', response.status);
+      console.log('[CREATE_HYMN] Response data:', response.data);
+
       // 202 = queued as pending (non-PROGRAMER role)
       if (response.status === 202 && response.data?.pending) {
+        console.log('[CREATE_HYMN] Request queued as pending');
         showToast({ message: '⏳ ' + response.data.message, type: 'info', duration: 7000 });
         closeModal();
         setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', BPM: '', timeSignature: 'None', party: ['all'] });
         return;
       }
 
+      console.log('[CREATE_HYMN] Request approved directly (PROGRAMER role)');
       await syncRemoteHymns(queryClient);
       queryClient.invalidateQueries(["humns"]);
       showToast({ message: '✅ Hymn added successfully!', type: 'success', duration: 4000 });
@@ -1119,8 +1124,12 @@ export default function Category_Humns() {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
+      console.log('[EDIT_HYMN] Response status:', response.status);
+      console.log('[EDIT_HYMN] Response data:', response.data);
+
       // 202 = queued as pending (non-PROGRAMER role)
       if (response.status === 202 && response.data?.pending) {
+        console.log('[EDIT_HYMN] Request queued as pending');
         showToast({ message: '⏳ ' + response.data.message, type: 'info', duration: 7000 });
         closeModal();
         setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: 'None' });
@@ -1128,6 +1137,7 @@ export default function Category_Humns() {
         return;
       }
 
+      console.log('[EDIT_HYMN] Request approved directly (PROGRAMER role)');
       await syncRemoteHymns(queryClient);
       queryClient.invalidateQueries(["humns"]);
       showToast({ message: '✅ Hymn updated successfully!', type: 'success', duration: 4000 });
@@ -1158,12 +1168,17 @@ export default function Category_Humns() {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
 
+      console.log('[DELETE_HYMN] Response status:', response.status);
+      console.log('[DELETE_HYMN] Response data:', response.data);
+
       // 202 = queued as pending (non-PROGRAMER role)
       if (response.status === 202 && response.data?.pending) {
+        console.log('[DELETE_HYMN] Request queued as pending');
         showToast({ message: '⏳ ' + response.data.message, type: 'info', duration: 7000 });
         return;
       }
 
+      console.log('[DELETE_HYMN] Request approved directly (PROGRAMER role)');
       await syncRemoteHymns(queryClient);
       queryClient.invalidateQueries(["humns"]);
       showToast({ message: '🗑️ Hymn deleted.', type: 'success', duration: 3000 });
