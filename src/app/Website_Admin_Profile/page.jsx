@@ -103,10 +103,8 @@ export default function Website_Admin_Profile() {
   const roleData = adminTasksData?.role;
   const chunkData = adminTasksData?.data || [];
 
-  // Calculate total hymns across all chunks or just the single chunk
-  const totalHymns = roleData === 'PROGRAMER' || roleData === 'WEBSITE_ADMIN'
-    ? chunkData.reduce((sum, chunk) => sum + chunk.tasks?.length || 0, 0)
-    : chunkData.length;
+  // Use the total tasks count returned by the API
+  const totalHymns = adminTasksData?.totalTasksCount || 0;
 
   return (
     <section className="min-h-screen bg-[#050510] text-white pt-24 pb-20 px-4 md:px-8">
