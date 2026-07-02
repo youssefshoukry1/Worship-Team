@@ -707,7 +707,7 @@ function PendingHymnsPanel({ isLogin }) {
                 };
 
                 return (
-                  <div className="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col" style={{ WebkitOverflowScrolling: 'touch' }}>
+                  <div className="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col" style={{ WebkitOverflowScrolling: 'touch' }} data-lenis-prevent-wheel>
                     {/* Sticky Header */}
                     <div
                       className="sticky top-0 z-50 pt-2 pb-4 flex flex-col shrink-0 transition-colors duration-500"
@@ -1008,7 +1008,7 @@ function PendingHymnsPanel({ isLogin }) {
 
             {/* ══ DESKTOP VIEW ══ */}
             <div className="hidden sm:flex flex-1 flex-col min-h-0">
-              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar" dir="rtl">
+              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar" dir="rtl" data-lenis-prevent-wheel>
                 <div className="max-w-7xl mx-auto grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-4">
                   {dataShowSlides.map((slide, i) => {
                     const isActive = dataShowIndex === i;

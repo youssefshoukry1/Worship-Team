@@ -310,6 +310,7 @@ export default function Website_Admin_Profile() {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 20 }}
                   className="w-full max-w-md max-h-[90vh] bg-[#0c0c20] border border-white/10 rounded-2xl shadow-2xl overflow-y-auto relative"
+                  data-lenis-prevent-wheel
                 >
                   <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
                     <h2 className="text-2xl font-bold bg-linear-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
@@ -522,7 +523,7 @@ export default function Website_Admin_Profile() {
                   };
 
                   return (
-                    <div className="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col" style={{ WebkitOverflowScrolling: 'touch' }}>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col" style={{ WebkitOverflowScrolling: 'touch' }} data-lenis-prevent-wheel>
                       {/* Sticky Header */}
                       <div
                         className="sticky top-0 z-50 pt-2 pb-4 flex flex-col shrink-0 transition-colors duration-500"
@@ -823,7 +824,7 @@ export default function Website_Admin_Profile() {
 
               {/* ══ DESKTOP VIEW ══ */}
               <div className="hidden sm:flex flex-1 flex-col min-h-0">
-                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar" dir="rtl">
+                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar" dir="rtl" data-lenis-prevent-wheel>
                   <div className="max-w-7xl mx-auto grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-4">
                     {dataShowSlides.map((slide, i) => {
                       const isActive = dataShowIndex === i;
@@ -900,7 +901,7 @@ function AdminTaskSection({ admin, tasks, openEditModal, openLyrics, userRole })
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+          <div className="max-h-[500px] overflow-y-auto custom-scrollbar pr-2" data-lenis-prevent-wheel>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {currentTasks.map((hymn) => (
                 <div key={hymn._id} className="bg-white/5 border border-white/10 p-5 rounded-xl hover:bg-white/10 transition-colors relative flex flex-col justify-between h-full">
