@@ -103,6 +103,11 @@ export default function Website_Admin_Profile() {
   const roleData = adminTasksData?.role;
   const chunkData = adminTasksData?.data || [];
 
+  // Calculate total hymns across all chunks or just the single chunk
+  const totalHymns = roleData === 'PROGRAMER' || roleData === 'WEBSITE_ADMIN'
+    ? chunkData.reduce((sum, chunk) => sum + chunk.tasks.length, 0)
+    : chunkData.length;
+
   return (
     <section className="min-h-screen bg-[#050510] text-white pt-24 pb-20 px-4 md:px-8">
       <div className="max-w-7xl mx-auto flex flex-col gap-8">
@@ -118,15 +123,18 @@ export default function Website_Admin_Profile() {
             <p className="text-gray-400 mt-2 text-sm">
               {roleData === 'PROGRAMER' ? 'Overview of all Website Admin tasks' : 'Hymns assigned to you that require structuring'}
             </p>
+            <div className="mt-2 inline-flex items-center px-3 py-1 bg-sky-500/20 border border-sky-500/30 text-sky-400 rounded-lg text-sm font-bold">
+              Total Hymns to Edit: {totalHymns}
+            </div>
           </div>
         </div>
 
         {roleData === 'PROGRAMER' ? (
           chunkData.map((adminChunk, i) => (
-            <AdminTaskSection key={i} admin={adminChunk.admin} tasks={adminChunk.tasks} openEditModal={openEditModal} openLyrics={openLyrics} />
+            <AdminTaskSection key={i} admin={adminChunk.admin} tasks={adminChunk.tasks} openEditModal={openEditModal} openLyrics={openLyrics} userRole={UserRole} />
           ))
         ) : (
-          <AdminTaskSection tasks={chunkData} openEditModal={openEditModal} openLyrics={openLyrics} />
+          <AdminTaskSection tasks={chunkData} openEditModal={openEditModal} openLyrics={openLyrics} userRole={UserRole} />
         )}
 
         {/* --- Edit Modal --- */}
@@ -304,7 +312,7 @@ export default function Website_Admin_Profile() {
   );
 }
 
-function AdminTaskSection({ admin, tasks, openEditModal, openLyrics }) {
+function AdminTaskSection({ admin, tasks, openEditModal, openLyrics, userRole }) {
   return (
     <div className="bg-[#0c0c20] border border-white/10 rounded-2xl p-6">
       {admin && (
@@ -344,9 +352,11 @@ function AdminTaskSection({ admin, tasks, openEditModal, openLyrics }) {
 
               <div className="mt-2 relative z-0">
                 <h3 className="text-lg font-bold text-white mb-1" dir="rtl">{hymn.title}</h3>
-                <p className="text-xs text-gray-400 line-clamp-2" dir="rtl">
-                  {typeof hymn.lyrics === 'string' ? hymn.lyrics : hymn.lyrics?.[0]?.text}
-                </p>
+                {userRole !== 'PROGRAMER' && (
+                  <p className="text-xs text-gray-400 line-clamp-2" dir="rtl">
+                    {typeof hymn.lyrics === 'string' ? hymn.lyrics : hymn.lyrics?.[0]?.text}
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-2 mt-4 pt-4 border-t border-white/10 relative z-0">
