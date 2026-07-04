@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 // Password strength helper
-function getPasswordStrength(pw: string) {
+function getPasswordStrength(pw) {
     if (!pw) return { score: 0, label: "", color: "" };
     let score = 0;
     if (pw.length >= 6) score++;
@@ -25,7 +25,7 @@ function getPasswordStrength(pw: string) {
 export default function ResetPassword() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const token = searchParams.get("token"); 
+    const token = searchParams.get("token");
 
     const [apiError, setError] = useState("");
     const [isLoading, setLoading] = useState(false);
@@ -62,7 +62,7 @@ export default function ResetPassword() {
                 );
                 setSuccess(true);
                 setTimeout(() => router.push("/login"), 3500);
-            } catch (err: any) {
+            } catch (err) {
                 setError(err.response?.data?.msg || "Something went wrong. Please try again.");
             } finally {
                 setLoading(false);
