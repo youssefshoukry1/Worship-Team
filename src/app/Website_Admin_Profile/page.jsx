@@ -371,7 +371,7 @@ export default function Website_Admin_Profile() {
           </div>
 
           {showSummaryDetails && (
-            <div className="grid gap-4 xl:grid-cols-[1.35fr_0.85fr]">
+            <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-[#0f172a] border border-white/10 rounded-3xl p-5 sm:p-6 shadow-[0_18px_40px_rgba(8,30,63,0.18)] transition hover:-translate-y-0.5">
                   <div className="flex items-start justify-between gap-3">
@@ -391,7 +391,7 @@ export default function Website_Admin_Profile() {
                     <div className="min-w-0">
                       <p className="text-xs text-sky-200 uppercase tracking-[0.18em] font-semibold">{approvedLabel}</p>
                       <h2 className="mt-3 text-3xl font-bold text-white">{approvedCount}</h2>
-                      <p className="mt-2 text-xs text-gray-400">Total approved hymns shown below.</p>
+                      <p className="mt-2 text-xs text-gray-400">Total approved hymns.</p>
                     </div>
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500/15 text-white">
                       <ClipboardCheck className="w-6 h-6" />
@@ -400,44 +400,42 @@ export default function Website_Admin_Profile() {
                 </div>
               </div>
 
-              <div className="bg-[#0d1322] border border-white/10 rounded-3xl p-5 sm:p-6 shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs text-slate-300 uppercase tracking-[0.18em] font-semibold">Review summary</p>
-                    <h3 className="mt-2 text-lg font-bold text-white">Latest approvals & rejections</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="bg-[#0d1322] border border-white/10 rounded-3xl p-5 shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-300">Approved</p>
+                    <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-semibold text-emerald-200">{recentApproved.length}</span>
                   </div>
-                  <span className="rounded-full bg-sky-500/20 px-3 py-1 text-[10px] font-semibold uppercase text-sky-100">{recentApproved.length + recentRejected.length} items</span>
+                  <div className="mt-3 space-y-2">
+                    {recentApproved.length > 0 ? (
+                      recentApproved.slice(0, 3).map((item, index) => (
+                        <div key={`approved-${index}`} className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-2.5 text-sm text-white">
+                          <p className="font-semibold truncate">{item.title}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-400">No approved hymns yet.</p>
+                    )}
+                  </div>
                 </div>
 
-                <div className="mt-4 space-y-3 max-h-[240px] overflow-y-auto pr-1 custom-scrollbar">
-                  {recentApproved.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-300">Approved</p>
-                      {recentApproved.map((item, index) => (
-                        <div key={`approved-${index}`} className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-white">
+                <div className="bg-[#0d1322] border border-white/10 rounded-3xl p-5 shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-300">Rejected</p>
+                    <span className="rounded-full bg-rose-500/15 px-2.5 py-1 text-[10px] font-semibold text-rose-200">{recentRejected.length}</span>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {recentRejected.length > 0 ? (
+                      recentRejected.slice(0, 3).map((item, index) => (
+                        <div key={`rejected-${index}`} className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-2.5 text-sm text-white">
                           <p className="font-semibold truncate">{item.title}</p>
+                          <p className="mt-1 text-xs text-rose-100/90 break-words">{item.message}</p>
                         </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {recentRejected.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-300">Rejected</p>
-                      {recentRejected.map((item, index) => (
-                        <div key={`rejected-${index}`} className="rounded-3xl border border-rose-500/20 bg-rose-500/10 p-3 text-sm text-white">
-                          <p className="font-semibold truncate">{item.title}</p>
-                          <p className="mt-1 text-xs text-rose-100/90">{item.message}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {recentApproved.length === 0 && recentRejected.length === 0 && (
-                    <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-4 text-sm text-gray-400">
-                      No review activity yet. Approved or rejected hymns will appear here.
-                    </div>
-                  )}
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-400">No rejected hymns yet.</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
