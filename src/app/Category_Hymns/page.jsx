@@ -9,7 +9,7 @@ import Portal from '../Portal/Portal';
 import Metronome from '../Metronome/page';
 import { UserContext } from '../context/User_Context';
 // Add BookOpen to this line
-import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2, Mic, MicOff, BookOpen, ChevronDown, Loader2 } from 'lucide-react';
+import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2, Mic, MicOff, BookOpen, ChevronDown, Loader2, Copy, Share2, ClipboardCheck } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
 import { showToast } from '../components/ToastContainer';
@@ -530,6 +530,7 @@ export default function Category_Humns() {
   const [fontSize, setFontSize] = useState(18);
   const [showChords, setShowChords] = useState(true); // Toggle for chords visibility
   const lyricsScrollRef = React.useRef(null); // Ref for lyrics scroll container
+  const [copiedLyrics, setCopiedLyrics] = useState(false);
 
   //Data Show
   const [showDataShow, setShowDataShow] = useState(false);
@@ -1299,6 +1300,63 @@ export default function Category_Humns() {
   };
 
 
+
+  // ── Helper: extract plain-text lyrics with verse/chorus labels ──
+  const getLyricsPlainText = () => {
+    if (!selectedLyricsHymn) return '';
+    const hymn = selectedLyricsHymn;
+    const title = hymn.title || '';
+    const lyricsData = hymn.lyrics || hymn.verses;
+    if (!lyricsData) return title;
+    const stripChords = (text) => text.replace(/\[.*?\]/g, '');
+    let lines = [`🎵 ${title}`, ''];
+    if (Array.isArray(lyricsData)) {
+      const isBible = lyricsData.length > 0 && 'verseNumber' in lyricsData[0];
+      if (isBible) {
+        lyricsData.forEach((v) => {
+          lines.push(`[Verse ${v.verseNumber}]`);
+          lines.push(stripChords(v.text || ''));
+          lines.push('');
+        });
+      } else {
+        lyricsData.forEach((stanza) => {
+          const label = stanza.title
+            ? (stanza.type === 'chorus' ? `[Chorus - ${stanza.title}]` : `[Verse ${stanza.title}]`)
+            : (stanza.type === 'chorus' ? '[Chorus]' : '[Verse]');
+          lines.push(label);
+          lines.push(stripChords(stanza.text || ''));
+          lines.push('');
+        });
+      }
+    } else if (typeof lyricsData === 'string') {
+      lines.push(stripChords(lyricsData));
+    }
+    return lines.join('\n').trim();
+  };
+
+  const handleCopyLyrics = async () => {
+    const text = getLyricsPlainText();
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = text; el.style.position = 'fixed'; el.style.opacity = '0';
+      document.body.appendChild(el); el.select(); document.execCommand('copy');
+      document.body.removeChild(el);
+    }
+    setCopiedLyrics(true);
+    setTimeout(() => setCopiedLyrics(false), 2500);
+  };
+
+  const handleShareLyrics = async () => {
+    const text = getLyricsPlainText();
+    const title = selectedLyricsHymn?.title || 'Hymn';
+    if (navigator.share) {
+      try { await navigator.share({ title, text }); return; } catch { /* cancelled */ }
+    }
+    await handleCopyLyrics();
+  };
+  // ─────────────────────────────────────────────────────────────────
 
   const renderLyricsWithChords = (lyricsData) => {
     if (!lyricsData) return null;
@@ -2259,28 +2317,62 @@ export default function Category_Humns() {
                           </div>
 
 
-                          {/* Theme Selector */}
-                          <div className={`flex p-1 rounded-xl border transition-colors duration-300 ${lyricsTheme === 'warm' ? 'bg-amber-900/5 border-amber-900/10' : 'bg-white/5 border-white/10'}`}>
-                            {Object.entries(lyricsThemes).map(([key, theme]) => (
-                              <button
-                                key={key}
-                                onClick={() => setLyricsTheme(key)}
-                                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 relative overflow-hidden
-                                ${lyricsTheme === key
-                                    ? 'shadow-lg scale-100 z-10'
-                                    : 'opacity-40 hover:opacity-100 scale-95'}`}
-                                style={{
-                                  backgroundColor: lyricsTheme === key ? theme.bg : 'transparent',
-                                  color: lyricsTheme === key ? theme.text : (lyricsTheme === 'warm' ? '#2D2926' : '#fff'),
-                                  border: lyricsTheme === key ? `1px solid ${theme.border || 'transparent'}` : 'none'
-                                }}
-                              >
-                                {theme.label}
-                                {lyricsTheme === key && (
-                                  <div className="absolute inset-0 rounded-lg border-2 border-sky-400/20" />
-                                )}
-                              </button>
-                            ))}
+                          {/* Right side: Theme Selector + Share/Copy buttons */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* Theme Selector */}
+                            <div className={`flex p-1 rounded-xl border transition-colors duration-300 ${lyricsTheme === 'warm' ? 'bg-amber-900/5 border-amber-900/10' : 'bg-white/5 border-white/10'}`}>
+                              {Object.entries(lyricsThemes).map(([key, theme]) => (
+                                <button
+                                  key={key}
+                                  onClick={() => setLyricsTheme(key)}
+                                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 relative overflow-hidden
+                                  ${lyricsTheme === key
+                                      ? 'shadow-lg scale-100 z-10'
+                                      : 'opacity-40 hover:opacity-100 scale-95'}`}
+                                  style={{
+                                    backgroundColor: lyricsTheme === key ? theme.bg : 'transparent',
+                                    color: lyricsTheme === key ? theme.text : (lyricsTheme === 'warm' ? '#2D2926' : '#fff'),
+                                    border: lyricsTheme === key ? `1px solid ${theme.border || 'transparent'}` : 'none'
+                                  }}
+                                >
+                                  {theme.label}
+                                  {lyricsTheme === key && (
+                                    <div className="absolute inset-0 rounded-lg border-2 border-sky-400/20" />
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* ── Copy Button ── */}
+                            <button
+                              onClick={handleCopyLyrics}
+                              title="Copy lyrics"
+                              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border
+                                ${copiedLyrics
+                                  ? 'bg-emerald-500 text-white border-emerald-400 shadow-lg shadow-emerald-500/30'
+                                  : (lyricsTheme === 'warm'
+                                    ? 'bg-black/5 text-black/60 border-black/10 hover:bg-black/10 hover:text-black'
+                                    : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white')}`}
+                            >
+                              {copiedLyrics ? (
+                                <><ClipboardCheck className="w-3.5 h-3.5" /><span className="hidden sm:inline">Copied!</span></>
+                              ) : (
+                                <><Copy className="w-3.5 h-3.5" /><span className="hidden sm:inline">Copy</span></>
+                              )}
+                            </button>
+
+                            {/* ── Share Button ── */}
+                            <button
+                              onClick={handleShareLyrics}
+                              title="Share lyrics"
+                              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border
+                                ${lyricsTheme === 'warm'
+                                  ? 'bg-black/5 text-black/60 border-black/10 hover:bg-sky-500 hover:text-white hover:border-sky-400'
+                                  : 'bg-white/5 text-white/60 border-white/10 hover:bg-sky-500 hover:text-white hover:border-sky-400'}`}
+                            >
+                              <Share2 className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Share</span>
+                            </button>
                           </div>
                         </div>
 

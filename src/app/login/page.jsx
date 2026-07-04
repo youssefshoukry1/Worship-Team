@@ -102,7 +102,15 @@ export default function Login() {
                         </div>
 
                         <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-300">Password</label>
+                            <div className="flex items-center justify-between mb-1">
+                                <label htmlFor="password" className="block text-sm font-medium text-gray-300">Password</label>
+                                <a
+                                    href="/forgot-password"
+                                    className="text-xs text-sky-400 hover:text-sky-300 transition-colors font-medium"
+                                >
+                                    Forgot password?
+                                </a>
+                            </div>
                             <input
                                 onChange={formik.handleChange}
                                 onBlur={formik.handleBlur}
@@ -118,6 +126,7 @@ export default function Login() {
                                 <div className="mt-1 text-red-400 text-xs">{formik.errors.password}</div>
                             )}
                         </div>
+
 
                         <button
                             type="submit"
