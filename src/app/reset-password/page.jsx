@@ -4,11 +4,11 @@ import axios from "axios";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 // Password strength helper
-function getPasswordStrength(pw) {
+function getPasswordStrength(pw: string) {
     if (!pw) return { score: 0, label: "", color: "" };
     let score = 0;
     if (pw.length >= 6) score++;
@@ -24,8 +24,8 @@ function getPasswordStrength(pw) {
 
 export default function ResetPassword() {
     const router = useRouter();
-    const params = useParams();
-    const token = params?.token;
+    const searchParams = useSearchParams();
+    const token = searchParams.get("token"); 
 
     const [apiError, setError] = useState("");
     const [isLoading, setLoading] = useState(false);
@@ -62,7 +62,7 @@ export default function ResetPassword() {
                 );
                 setSuccess(true);
                 setTimeout(() => router.push("/login"), 3500);
-            } catch (err) {
+            } catch (err: any) {
                 setError(err.response?.data?.msg || "Something went wrong. Please try again.");
             } finally {
                 setLoading(false);
@@ -136,7 +136,7 @@ export default function ResetPassword() {
                                 {formik.values.password && (
                                     <div className="strength-wrap">
                                         <div className="strength-bars">
-                                            {[1,2,3,4,5].map((n) => (
+                                            {[1, 2, 3, 4, 5].map((n) => (
                                                 <div
                                                     key={n}
                                                     className="strength-bar"
@@ -256,279 +256,6 @@ export default function ResetPassword() {
                     </div>
                 )}
             </div>
-
-            <style jsx>{`
-                .rp-root {
-                    min-height: 100vh;
-                    display: flex; align-items: center; justify-content: center;
-                    padding: 24px 16px;
-                    background: linear-gradient(135deg, #020617 0%, #0f172a 50%, #172554 100%);
-                    position: relative; overflow: hidden;
-                    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-                }
-                .rp-orb {
-                    position: absolute; border-radius: 50%;
-                    filter: blur(80px); pointer-events: none;
-                    animation: rpOrb 9s ease-in-out infinite;
-                }
-                .rp-orb-1 {
-                    width: 400px; height: 400px;
-                    background: radial-gradient(circle, rgba(56,189,248,0.13) 0%, transparent 70%);
-                    top: -120px; right: -80px;
-                }
-                .rp-orb-2 {
-                    width: 320px; height: 320px;
-                    background: radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%);
-                    bottom: -80px; left: -60px;
-                    animation-delay: -4s;
-                }
-                .rp-orb-3 {
-                    width: 180px; height: 180px;
-                    background: radial-gradient(circle, rgba(37,99,235,0.1) 0%, transparent 70%);
-                    top: 40%; left: 20%;
-                    animation-delay: -7s;
-                }
-                @keyframes rpOrb {
-                    0%, 100% { transform: translateY(0) scale(1); }
-                    50% { transform: translateY(-18px) scale(1.04); }
-                }
-
-                .rp-card {
-                    position: relative; z-index: 10;
-                    width: 100%; max-width: 460px;
-                    background: rgba(255,255,255,0.04);
-                    backdrop-filter: blur(24px);
-                    -webkit-backdrop-filter: blur(24px);
-                    border: 1px solid rgba(255,255,255,0.09);
-                    border-radius: 24px;
-                    padding: 40px 36px;
-                    box-shadow: 0 32px 64px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.05);
-                }
-
-                /* brand */
-                .rp-brand {
-                    display: flex; align-items: center; gap: 10px;
-                    justify-content: center; margin-bottom: 24px;
-                }
-                .rp-brand-icon {
-                    width: 36px; height: 36px;
-                    background: linear-gradient(135deg, #0ea5e9, #2563eb);
-                    border-radius: 10px;
-                    display: flex; align-items: center; justify-content: center;
-                    font-size: 16px; color: white;
-                    box-shadow: 0 4px 14px rgba(14,165,233,0.35);
-                }
-                .rp-brand-name {
-                    font-size: 20px; font-weight: 800;
-                    background: linear-gradient(135deg, #38bdf8, #818cf8);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                }
-
-                /* header */
-                .rp-header { text-align: center; margin-bottom: 28px; }
-                .rp-lock-icon { font-size: 40px; margin-bottom: 12px; }
-                .rp-title {
-                    font-size: 24px; font-weight: 800;
-                    color: #f1f5f9; margin: 0 0 8px; letter-spacing: -0.4px;
-                }
-                .rp-subtitle { font-size: 14px; color: #94a3b8; margin: 0; }
-
-                /* error */
-                .rp-error {
-                    display: flex; align-items: center; gap: 8px;
-                    padding: 12px 16px;
-                    background: rgba(239,68,68,0.1);
-                    border: 1px solid rgba(239,68,68,0.25);
-                    border-radius: 12px; color: #fca5a5;
-                    font-size: 14px; margin-bottom: 20px;
-                }
-
-                /* form */
-                .rp-form { display: flex; flex-direction: column; gap: 20px; }
-                .rp-field { display: flex; flex-direction: column; gap: 6px; }
-                .rp-label {
-                    font-size: 13px; font-weight: 600;
-                    color: #cbd5e1; letter-spacing: 0.3px;
-                }
-                .rp-input-wrap { position: relative; display: flex; align-items: center; }
-                .rp-input-icon {
-                    position: absolute; left: 14px;
-                    font-size: 15px; z-index: 1; pointer-events: none;
-                }
-                .rp-input {
-                    width: 100%;
-                    padding: 13px 44px 13px 42px;
-                    background: rgba(0,0,0,0.25);
-                    border: 1px solid rgba(255,255,255,0.1);
-                    border-radius: 12px;
-                    color: #f1f5f9; font-size: 15px;
-                    outline: none;
-                    transition: border-color 0.2s, box-shadow 0.2s;
-                    font-family: inherit;
-                    box-sizing: border-box;
-                }
-                .rp-input::placeholder { color: #475569; }
-                .rp-input:focus {
-                    border-color: #0ea5e9;
-                    box-shadow: 0 0 0 3px rgba(14,165,233,0.15);
-                }
-                .rp-input-error { border-color: rgba(239,68,68,0.5) !important; }
-                .rp-eye-btn {
-                    position: absolute; right: 12px;
-                    background: none; border: none; cursor: pointer;
-                    font-size: 16px; opacity: 0.5;
-                    transition: opacity 0.2s; padding: 4px;
-                }
-                .rp-eye-btn:hover { opacity: 1; }
-                .rp-check {
-                    position: absolute; right: 40px;
-                    color: #22c55e; font-size: 16px; font-weight: 700;
-                }
-                .rp-field-error {
-                    font-size: 12px; color: #f87171; margin: 0;
-                }
-
-                /* strength */
-                .strength-wrap {
-                    display: flex; align-items: center; gap: 10px; margin-top: 6px;
-                }
-                .strength-bars { display: flex; gap: 4px; flex: 1; }
-                .strength-bar {
-                    flex: 1; height: 4px; border-radius: 2px;
-                }
-                .strength-label { font-size: 12px; font-weight: 600; min-width: 44px; }
-
-                /* rules */
-                .rp-rules {
-                    background: rgba(0,0,0,0.15);
-                    border: 1px solid rgba(255,255,255,0.07);
-                    border-radius: 12px;
-                    padding: 14px 16px;
-                }
-                .rp-rules-title {
-                    font-size: 12px; color: #64748b;
-                    margin: 0 0 8px; font-weight: 600;
-                    text-transform: uppercase; letter-spacing: 0.5px;
-                }
-                .rp-rules-list {
-                    list-style: none; padding: 0; margin: 0;
-                    display: flex; flex-direction: column; gap: 4px;
-                }
-                .rp-rule {
-                    font-size: 13px; color: #64748b;
-                    display: flex; align-items: center; gap: 8px;
-                    transition: color 0.2s;
-                }
-                .rule-met { color: #22c55e; }
-                .rule-unmet { color: #f87171; }
-                .rule-dot { font-size: 14px; width: 16px; flex-shrink: 0; }
-
-                /* submit button */
-                .rp-submit-btn {
-                    width: 100%; padding: 14px 20px;
-                    background: linear-gradient(135deg, #0ea5e9, #2563eb);
-                    border: none; border-radius: 12px;
-                    color: white; font-size: 15px; font-weight: 700;
-                    cursor: pointer; font-family: inherit;
-                    transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
-                    box-shadow: 0 4px 20px rgba(14,165,233,0.3);
-                }
-                .rp-submit-btn:not(.rp-btn-disabled):hover {
-                    opacity: 0.9;
-                    transform: translateY(-1px);
-                    box-shadow: 0 8px 28px rgba(14,165,233,0.4);
-                }
-                .rp-submit-btn:not(.rp-btn-disabled):active { transform: scale(0.98); }
-                .rp-btn-disabled { opacity: 0.45; cursor: not-allowed; }
-                .rp-btn-inner {
-                    display: flex; align-items: center;
-                    justify-content: center; gap: 8px;
-                }
-                .rp-spinner {
-                    width: 18px; height: 18px;
-                    border: 2px solid rgba(255,255,255,0.3);
-                    border-top-color: white;
-                    border-radius: 50%;
-                    animation: rpSpin 0.7s linear infinite;
-                }
-                @keyframes rpSpin { to { transform: rotate(360deg); } }
-
-                /* back link */
-                .rp-back { text-align: center; margin-top: 20px; }
-                .rp-back-link {
-                    font-size: 13px; color: #64748b;
-                    text-decoration: none; transition: color 0.2s;
-                }
-                .rp-back-link:hover { color: #38bdf8; }
-
-                /* success */
-                .rp-success { text-align: center; padding: 8px 0 16px; }
-                .rp-success-icon-wrap {
-                    position: relative;
-                    width: 80px; height: 80px;
-                    margin: 0 auto 24px;
-                    display: flex; align-items: center; justify-content: center;
-                }
-                .rp-success-icon {
-                    width: 80px; height: 80px;
-                    background: linear-gradient(135deg, rgba(34,197,94,0.2), rgba(22,163,74,0.2));
-                    border: 2px solid rgba(34,197,94,0.4);
-                    border-radius: 50%;
-                    display: flex; align-items: center; justify-content: center;
-                    font-size: 32px; color: #22c55e; font-weight: 900;
-                    animation: rp-iconPop 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
-                }
-                .rp-success-ring {
-                    position: absolute; inset: -8px;
-                    border: 2px solid rgba(34,197,94,0.2);
-                    border-radius: 50%;
-                    animation: rp-ringExpand 1.3s ease-out infinite;
-                }
-                @keyframes rp-iconPop {
-                    0% { transform: scale(0); opacity: 0; }
-                    100% { transform: scale(1); opacity: 1; }
-                }
-                @keyframes rp-ringExpand {
-                    0% { transform: scale(1); opacity: 0.5; }
-                    100% { transform: scale(1.4); opacity: 0; }
-                }
-                .rp-success-title {
-                    font-size: 24px; font-weight: 800; color: #f1f5f9; margin: 0 0 12px;
-                }
-                .rp-success-text {
-                    font-size: 14px; color: #94a3b8; line-height: 1.7; margin: 0 0 24px;
-                }
-                .rp-redirect-bar {
-                    height: 4px; background: rgba(255,255,255,0.08);
-                    border-radius: 2px; overflow: hidden; margin-bottom: 20px;
-                }
-                .rp-redirect-fill {
-                    height: 100%;
-                    background: linear-gradient(90deg, #0ea5e9, #22c55e);
-                    border-radius: 2px;
-                    animation: rp-fillBar 3.5s linear forwards;
-                }
-                @keyframes rp-fillBar {
-                    from { width: 0%; }
-                    to { width: 100%; }
-                }
-                .rp-login-link {
-                    display: inline-flex; align-items: center; gap: 6px;
-                    padding: 10px 24px;
-                    background: rgba(14,165,233,0.12);
-                    border: 1px solid rgba(14,165,233,0.25);
-                    border-radius: 10px;
-                    color: #38bdf8; font-size: 14px; font-weight: 600;
-                    text-decoration: none;
-                    transition: background 0.2s, border-color 0.2s;
-                }
-                .rp-login-link:hover {
-                    background: rgba(14,165,233,0.2);
-                    border-color: rgba(14,165,233,0.4);
-                }
-            `}</style>
         </div>
     );
 }
