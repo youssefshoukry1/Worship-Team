@@ -7,7 +7,6 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-// Password strength helper
 function getPasswordStrength(pw) {
     if (!pw) return { score: 0, label: "", color: "" };
     let score = 0;
@@ -73,44 +72,45 @@ export default function ResetPassword() {
     const strength = getPasswordStrength(formik.values.password);
 
     return (
-        <div className="rp-root">
-            {/* animated background */}
-            <div className="rp-orb rp-orb-1" />
-            <div className="rp-orb rp-orb-2" />
-            <div className="rp-orb rp-orb-3" />
+        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#030712]">
+            {/* 🌌 الخلفية المضيئة المتناسقة مع الـ Layout */}
+            <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-blue-600/20 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-1/4 right-1/4 w-82 h-82 bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none" />
 
-            <div className="rp-card">
+            {/* 💳 الكارت الزجاجي المعزول بلون نص واضح جداً */}
+            <div className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl relative z-10 text-slate-100">
+                
                 {/* Brand */}
-                <div className="rp-brand">
-                    <div className="rp-brand-icon">✝</div>
-                    <span className="rp-brand-name">Taspe7</span>
+                <div className="flex items-center justify-center gap-2 mb-8">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold">✝</div>
+                    <span className="text-xl font-extrabold tracking-wider text-white">Taspe7</span>
                 </div>
 
                 {!success ? (
                     <>
-                        <div className="rp-header">
-                            <div className="rp-lock-icon">🔐</div>
-                            <h2 className="rp-title">Reset Your Password</h2>
-                            <p className="rp-subtitle">
+                        <div className="text-center mb-6">
+                            <div className="text-3xl mb-2">🔐</div>
+                            <h2 className="text-2xl font-bold text-white mb-2">Reset Your Password</h2>
+                            <p className="text-sm text-slate-400">
                                 Create a strong new password for your account.
                             </p>
                         </div>
 
                         {apiError && (
-                            <div className="rp-error" role="alert">
+                            <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg flex items-center gap-2 text-sm mb-4" role="alert">
                                 <span>⚠️</span>
                                 <span>{apiError}</span>
                             </div>
                         )}
 
-                        <form onSubmit={formik.handleSubmit} className="rp-form" noValidate>
+                        <form onSubmit={formik.handleSubmit} className="space-y-5" noValidate>
                             {/* New Password */}
-                            <div className="rp-field">
-                                <label htmlFor="rp-password" className="rp-label">
+                            <div className="flex flex-col gap-1.5">
+                                <label htmlFor="rp-password" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                                     New Password
                                 </label>
-                                <div className="rp-input-wrap">
-                                    <span className="rp-input-icon">🔒</span>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔒</span>
                                     <input
                                         id="rp-password"
                                         name="password"
@@ -119,12 +119,12 @@ export default function ResetPassword() {
                                         onChange={formik.handleChange}
                                         onBlur={formik.handleBlur}
                                         placeholder="••••••••"
-                                        className={`rp-input ${formik.touched.password && formik.errors.password ? "rp-input-error" : ""}`}
+                                        className={`w-full bg-slate-950/50 border ${formik.touched.password && formik.errors.password ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-blue-500'} rounded-lg py-2.5 pl-10 pr-10 text-white placeholder-slate-600 outline-none transition-all text-sm`}
                                         autoComplete="new-password"
                                     />
                                     <button
                                         type="button"
-                                        className="rp-eye-btn"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
                                         onClick={() => setShowPassword(!showPassword)}
                                         aria-label="Toggle password visibility"
                                     >
@@ -134,39 +134,36 @@ export default function ResetPassword() {
 
                                 {/* Strength bar */}
                                 {formik.values.password && (
-                                    <div className="strength-wrap">
-                                        <div className="strength-bars">
+                                    <div className="mt-2 flex items-center gap-2">
+                                        <div className="flex gap-1 flex-1">
                                             {[1, 2, 3, 4, 5].map((n) => (
                                                 <div
                                                     key={n}
-                                                    className="strength-bar"
+                                                    className="h-1 flex-1 rounded-full transition-all duration-300"
                                                     style={{
-                                                        background: n <= strength.score
-                                                            ? strength.color
-                                                            : "rgba(255,255,255,0.08)",
-                                                        transition: "background 0.3s ease"
+                                                        background: n <= strength.score ? strength.color : "rgba(255,255,255,0.08)",
                                                     }}
                                                 />
                                             ))}
                                         </div>
-                                        <span className="strength-label" style={{ color: strength.color }}>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: strength.color }}>
                                             {strength.label}
                                         </span>
                                     </div>
                                 )}
 
                                 {formik.touched.password && formik.errors.password && (
-                                    <p className="rp-field-error">{formik.errors.password}</p>
+                                    <p className="text-xs text-red-400 mt-1">{formik.errors.password}</p>
                                 )}
                             </div>
 
                             {/* Confirm Password */}
-                            <div className="rp-field">
-                                <label htmlFor="rp-confirm" className="rp-label">
+                            <div className="flex flex-col gap-1.5">
+                                <label htmlFor="rp-confirm" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                                     Confirm Password
                                 </label>
-                                <div className="rp-input-wrap">
-                                    <span className="rp-input-icon">🔑</span>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔑</span>
                                     <input
                                         id="rp-confirm"
                                         name="confirmPassword"
@@ -175,38 +172,38 @@ export default function ResetPassword() {
                                         onChange={formik.handleChange}
                                         onBlur={formik.handleBlur}
                                         placeholder="••••••••"
-                                        className={`rp-input ${formik.touched.confirmPassword && formik.errors.confirmPassword ? "rp-input-error" : ""}`}
+                                        className={`w-full bg-slate-950/50 border ${formik.touched.confirmPassword && formik.errors.confirmPassword ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-blue-500'} rounded-lg py-2.5 pl-10 pr-10 text-white placeholder-slate-600 outline-none transition-all text-sm`}
                                         autoComplete="new-password"
                                     />
                                     <button
                                         type="button"
-                                        className="rp-eye-btn"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
                                         onClick={() => setShowConfirm(!showConfirm)}
                                         aria-label="Toggle confirm password visibility"
                                     >
                                         {showConfirm ? "🙈" : "👁"}
                                     </button>
                                     {formik.values.confirmPassword && formik.values.password === formik.values.confirmPassword && (
-                                        <span className="rp-check">✓</span>
+                                        <span className="absolute right-9 top-1/2 -translate-y-1/2 text-emerald-400 text-xs">✓</span>
                                     )}
                                 </div>
                                 {formik.touched.confirmPassword && formik.errors.confirmPassword && (
-                                    <p className="rp-field-error">{formik.errors.confirmPassword}</p>
+                                    <p className="text-xs text-red-400 mt-1">{formik.errors.confirmPassword}</p>
                                 )}
                             </div>
 
                             {/* Password rules hint */}
-                            <div className="rp-rules">
-                                <p className="rp-rules-title">Password must:</p>
-                                <ul className="rp-rules-list">
+                            <div className="bg-slate-950/40 border border-white/5 rounded-lg p-3 text-xs">
+                                <p className="text-slate-400 font-medium mb-2">Password must:</p>
+                                <ul className="space-y-1.5 text-slate-300">
                                     {[
                                         { rule: "Be 6–8 characters long", met: formik.values.password.length >= 6 && formik.values.password.length <= 8 },
                                         { rule: "Start with a capital letter", met: /^[A-Z]/.test(formik.values.password) },
                                         { rule: "Contain only letters & numbers", met: /^[A-Za-z0-9]+$/.test(formik.values.password) && formik.values.password.length > 0 },
                                     ].map(({ rule, met }) => (
-                                        <li key={rule} className={`rp-rule ${formik.values.password ? (met ? "rule-met" : "rule-unmet") : ""}`}>
-                                            <span className="rule-dot">{formik.values.password ? (met ? "✓" : "✕") : "·"}</span>
-                                            {rule}
+                                        <li key={rule} className={`flex items-center gap-2 ${formik.values.password ? (met ? "text-emerald-400" : "text-red-400/80") : "text-slate-500"}`}>
+                                            <span className="font-bold">{formik.values.password ? (met ? "✓" : "✕") : "·"}</span>
+                                            <span>{rule}</span>
                                         </li>
                                     ))}
                                 </ul>
@@ -215,42 +212,41 @@ export default function ResetPassword() {
                             <button
                                 type="submit"
                                 disabled={isLoading || !formik.isValid || !formik.dirty}
-                                className={`rp-submit-btn ${isLoading || !formik.isValid || !formik.dirty ? "rp-btn-disabled" : ""}`}
+                                className={`w-full py-3 px-4 rounded-lg font-bold text-sm text-white transition-all ${
+                                    isLoading || !formik.isValid || !formik.dirty 
+                                    ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5" 
+                                    : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                                }`}
                             >
                                 {isLoading ? (
-                                    <span className="rp-btn-inner">
-                                        <span className="rp-spinner" />
+                                    <span className="flex items-center justify-center gap-2">
+                                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                         Resetting Password...
                                     </span>
                                 ) : (
-                                    <span className="rp-btn-inner">
-                                        <span>Reset Password</span>
-                                        <span>→</span>
+                                    <span className="flex items-center justify-center gap-1">
+                                        Reset Password →
                                     </span>
                                 )}
                             </button>
                         </form>
 
-                        <div className="rp-back">
-                            <Link href="/forgot-password" className="rp-back-link">
+                        <div className="mt-6 text-center">
+                            <Link href="/forgot-password" className="text-xs text-slate-400 hover:text-blue-400 transition-colors">
                                 ← Request a new link
                             </Link>
                         </div>
                     </>
                 ) : (
-                    <div className="rp-success">
-                        <div className="rp-success-icon-wrap">
-                            <div className="rp-success-icon">✓</div>
-                            <div className="rp-success-ring" />
+                    <div className="text-center py-6">
+                        <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center text-2xl mx-auto mb-4 animate-bounce">
+                            ✓
                         </div>
-                        <h2 className="rp-success-title">Password Reset!</h2>
-                        <p className="rp-success-text">
+                        <h2 className="text-2xl font-bold text-white mb-2">Password Reset!</h2>
+                        <p className="text-sm text-slate-400 mb-6">
                             Your password has been successfully updated. You're being redirected to login…
                         </p>
-                        <div className="rp-redirect-bar">
-                            <div className="rp-redirect-fill" />
-                        </div>
-                        <Link href="/login" className="rp-login-link">
+                        <Link href="/login" className="inline-block w-full py-2.5 bg-white/10 hover:bg-white/10 text-white rounded-lg text-sm font-semibold transition-colors border border-white/10">
                             Go to Login →
                         </Link>
                     </div>
