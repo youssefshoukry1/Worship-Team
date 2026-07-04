@@ -333,7 +333,10 @@ export default function Website_Admin_Profile() {
   const approvedSummary = adminTasksData?.approvedSummary || {};
   const approvedCount = approvedSummary.totalApproved || 0;
   const recentApproved = approvedSummary.recentApproved || [];
+  const rejectedCount = approvedSummary.totalRejected || 0;
+  const recentRejected = approvedSummary.recentRejected || [];
   const approvedLabel = roleData === 'PROGRAMER' ? 'Approved by you' : 'Approved by PROGRAMER';
+  const rejectedLabel = roleData === 'PROGRAMER' ? 'Rejected by you' : 'Rejected by PROGRAMER';
   const totalHymns = adminTasksData?.totalTasksCount || 0;
   const totalPages = adminTasksData?.totalPages || 1;
 
@@ -400,22 +403,39 @@ export default function Website_Admin_Profile() {
               <div className="bg-[#0d1322] border border-white/10 rounded-3xl p-5 sm:p-6 shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs text-slate-300 uppercase tracking-[0.18em] font-semibold">Approved hymn titles</p>
-                    <h3 className="mt-2 text-lg font-bold text-white">{approvedCount > 0 ? 'Latest approved hymns' : 'Nothing approved yet'}</h3>
+                    <p className="text-xs text-slate-300 uppercase tracking-[0.18em] font-semibold">Review summary</p>
+                    <h3 className="mt-2 text-lg font-bold text-white">Latest approvals & rejections</h3>
                   </div>
-                  <span className="rounded-full bg-sky-500/20 px-3 py-1 text-[10px] font-semibold uppercase text-sky-100">{recentApproved.length} items</span>
+                  <span className="rounded-full bg-sky-500/20 px-3 py-1 text-[10px] font-semibold uppercase text-sky-100">{recentApproved.length + recentRejected.length} items</span>
                 </div>
 
-                <div className="mt-4 space-y-2 max-h-[180px] overflow-y-auto pr-1 custom-scrollbar">
-                  {recentApproved.length > 0 ? (
-                    recentApproved.map((item, index) => (
-                      <div key={index} className="rounded-3xl border border-white/10 bg-white/5 p-3 transition hover:border-sky-500/20 hover:bg-sky-500/10 text-sm text-white">
-                        <p className="font-semibold truncate">{item.title}</p>
-                      </div>
-                    ))
-                  ) : (
+                <div className="mt-4 space-y-3 max-h-[240px] overflow-y-auto pr-1 custom-scrollbar">
+                  {recentApproved.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-300">Approved</p>
+                      {recentApproved.map((item, index) => (
+                        <div key={`approved-${index}`} className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-white">
+                          <p className="font-semibold truncate">{item.title}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {recentRejected.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-300">Rejected</p>
+                      {recentRejected.map((item, index) => (
+                        <div key={`rejected-${index}`} className="rounded-3xl border border-rose-500/20 bg-rose-500/10 p-3 text-sm text-white">
+                          <p className="font-semibold truncate">{item.title}</p>
+                          <p className="mt-1 text-xs text-rose-100/90">{item.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {recentApproved.length === 0 && recentRejected.length === 0 && (
                     <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-4 text-sm text-gray-400">
-                      No approved hymns yet. After review, titles appear here.
+                      No review activity yet. Approved or rejected hymns will appear here.
                     </div>
                   )}
                 </div>
