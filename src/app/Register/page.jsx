@@ -148,7 +148,7 @@ export default function Register() {
                 {/* Brand */}
                 <div className="reg-brand">
                     <div className="reg-brand-icon">✝</div>
-                    <span className="reg-brand-name">Taspe7</span>
+                    <span className="reg-brand-name"></span>
                 </div>
 
                 <h2 className="reg-title">Create Account</h2>
