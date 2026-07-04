@@ -449,10 +449,24 @@ export default function Website_Admin_Profile() {
 
           {roleData === 'PROGRAMER' ? (
             chunkData.map((adminChunk, i) => (
-              <AdminTaskSection key={i} admin={adminChunk.admin} tasks={adminChunk.tasks} openEditModal={openEditModal} openLyrics={openLyrics} userRole={UserRole} />
+              <AdminTaskSection
+                key={i}
+                admin={adminChunk.admin}
+                tasks={adminChunk.tasks}
+                openEditModal={openEditModal}
+                openLyrics={openLyrics}
+                userRole={UserRole}
+                totalTasksCount={adminChunk.tasks.length}
+              />
             ))
           ) : (
-            <AdminTaskSection tasks={chunkData} openEditModal={openEditModal} openLyrics={openLyrics} userRole={UserRole} />
+            <AdminTaskSection
+              tasks={chunkData}
+              openEditModal={openEditModal}
+              openLyrics={openLyrics}
+              userRole={UserRole}
+              totalTasksCount={totalHymns}
+            />
           )}
 
           {/* --- Edit Modal --- */}
@@ -1062,7 +1076,7 @@ export default function Website_Admin_Profile() {
   );
 }
 
-function AdminTaskSection({ admin, tasks, openEditModal, openLyrics, userRole }) {
+function AdminTaskSection({ admin, tasks, openEditModal, openLyrics, userRole, totalTasksCount }) {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
@@ -1074,13 +1088,13 @@ function AdminTaskSection({ admin, tasks, openEditModal, openLyrics, userRole })
       {admin && (
         <h2 className="text-xl font-bold text-white mb-4 border-b border-white/10 pb-4">
           Admin: <span className="text-sky-400">{admin.Name}</span>
-          <span className="text-gray-500 text-sm ml-4">({tasks.length} tasks)</span>
+          <span className="text-gray-500 text-sm ml-4">({totalTasksCount ?? tasks.length} tasks)</span>
         </h2>
       )}
       {!admin && (
         <h2 className="text-xl font-bold text-white mb-4 border-b border-white/10 pb-4 flex justify-between">
           <span>Your Tasks</span>
-          <span className="text-sky-400">{tasks.length} Hymns</span>
+          <span className="text-sky-400">{totalTasksCount ?? tasks.length} Hymns</span>
         </h2>
       )}
 
