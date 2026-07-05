@@ -491,7 +491,7 @@ export default function Website_Admin_Profile() {
           <AnimatePresence>
             {isModalOpen && (
               <Portal>
-                <div className="fixed inset-0 z-[9999] flex justify-center items-center bg-black/70 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[9990] flex justify-center items-center bg-black/70 backdrop-blur-sm p-4">
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -604,13 +604,31 @@ export default function Website_Admin_Profile() {
                         ))}
                       </div>
 
-                      <button
-                        onClick={() => edit_Hymn(editingHymnId)}
-                        disabled={isSubmitting || !formData.title || !formData.lyrics?.length || formData.lyrics.some(l => !l.text.trim())}
-                        className={`mt-4 w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all ${(isSubmitting || !formData.title || !formData.lyrics?.length) ? 'bg-gray-600 cursor-not-allowed' : 'bg-linear-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500'}`}
-                      >
-                        {isSubmitting ? t("updating") : t("updateSong")}
-                      </button>
+                      <div className="flex gap-3 mt-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedLyricsHymn({
+                              title: formData.title || 'Hymn Preview',
+                              lyrics: prepareLyricsForSave(formData.lyrics)
+                            });
+                            setShowLyricsModal(true);
+                          }}
+                          disabled={!formData.title || !formData.lyrics?.length || formData.lyrics.some(l => !l.text.trim())}
+                          className={`flex-1 py-3.5 rounded-xl font-bold transition-all border border-sky-500/30 bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 flex items-center justify-center gap-2 ${(!formData.title || !formData.lyrics?.length || formData.lyrics.some(l => !l.text.trim())) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <Eye size={18} />
+                          {language === 'ar' ? 'معاينة الكلمات' : (language === 'de' ? 'Vorschau' : 'Preview')}
+                        </button>
+                        <button
+                          onClick={() => edit_Hymn(editingHymnId)}
+                          disabled={isSubmitting || !formData.title || !formData.lyrics?.length || formData.lyrics.some(l => !l.text.trim())}
+                          className={`flex-1 py-3.5 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${(isSubmitting || !formData.title || !formData.lyrics?.length || formData.lyrics.some(l => !l.text.trim())) ? 'bg-gray-600 cursor-not-allowed' : 'bg-linear-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500'}`}
+                        >
+                          <Edit2 size={18} />
+                          {isSubmitting ? t("updating") : t("updateSong")}
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 </div>
@@ -621,7 +639,7 @@ export default function Website_Admin_Profile() {
           {/* --- Lyrics Modal — matches Category_Hymns style --- */}
           {showLyricsModal && selectedLyricsHymn && (
             <Portal>
-              <div className="fixed inset-0 z-9999 flex justify-center items-end sm:items-center bg-black/70">
+              <div className="fixed inset-0 z-[9995] flex justify-center items-end sm:items-center bg-black/70">
                 <div
                   style={{
                     backgroundColor: lyricsThemes[lyricsTheme].bg,
@@ -885,7 +903,7 @@ export default function Website_Admin_Profile() {
           {/* --- Data Show (Presentation) Presenter View - Independent --- */}
           {showDataShow && selectedLyricsHymn && (
             <Portal>
-              <div id="showDataContainer" className="fixed inset-0 z-10000 bg-[#020617] flex flex-col">
+              <div id="showDataContainer" className="fixed inset-0 z-[10000] bg-[#020617] flex flex-col">
                 {/* ── Shared Header ── */}
                 <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-[#0f172a] border-b border-white/10 shrink-0 z-20">
                   <div className="flex flex-col min-w-0">
