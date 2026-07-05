@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useContext } from 'react';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../loading';
 import Portal from '../Portal/Portal';
@@ -15,7 +16,8 @@ import {
   sanitizeSlideBreaks,
   buildHymnPresentationSlides,
 } from '../utils/hymnSlides';
-import apiClient from '../utils/axiosClient';
+
+const API_URL = 'https://worship-team-api.onrender.com/api';
 
 export default function Website_Admin_Profile() {
   const { t, language } = useLanguage();
@@ -201,21 +203,16 @@ export default function Website_Admin_Profile() {
   const [adminPage, setAdminPage] = useState(1);
   const [adminLimit] = useState(18);
 
-  const { data: adminTasksData, isLoading } = useQuery({
+  const { data: adminTasksData, isLoading, refetch } = useQuery({
     queryKey: ['adminTasks', adminPage, adminLimit],
     queryFn: async () => {
-      const { data } = await apiClient.get('/hymns/admin-tasks', {
-        params: { page: adminPage, limit: adminLimit },
-        headers: isLogin ? { Authorization: `Bearer ${isLogin}` } : undefined,
+      const res = await axios.get(`${API_URL}/hymns/admin-tasks?page=${adminPage}&limit=${adminLimit}`, {
+        headers: { Authorization: `Bearer ${isLogin}` }
       });
-      return data;
+      return res.data;
     },
     enabled: !!isLogin && (UserRole === 'WEBSITE_ADMIN' || UserRole === 'PROGRAMER'),
     keepPreviousData: true,
-    staleTime: 1000 * 60 * 2,
-    gcTime: 1000 * 60 * 10,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
   });
 
   const openEditModal = (hymn) => {
@@ -309,11 +306,8 @@ export default function Website_Admin_Profile() {
 
     setIsSubmitting(true);
     try {
-      const response = await apiClient.patch(`/hymns/${id}`, {
-        ...formData,
-        lyrics: prepareLyricsForSave(formData.lyrics),
-      }, {
-        headers: isLogin ? { Authorization: `Bearer ${isLogin}` } : undefined,
+      const response = await axios.patch(`${API_URL}/hymns/${id}`, { ...formData, lyrics: prepareLyricsForSave(formData.lyrics) }, {
+        headers: { Authorization: `Bearer ${isLogin}` }
       });
 
       if (response.status === 202 && response.data?.pending) {
@@ -322,7 +316,7 @@ export default function Website_Admin_Profile() {
         showToast({ message: 'Hymn updated successfully!', type: 'success', duration: 4000 });
       }
       closeModal();
-      queryClient.invalidateQueries({ queryKey: ['adminTasks'] });
+      refetch();
     } catch (error) {
       console.error("Error editing hymn:", error);
       showToast({ message: 'Error updating hymn', type: 'error' });
