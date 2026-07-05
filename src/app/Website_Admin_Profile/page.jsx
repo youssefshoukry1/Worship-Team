@@ -206,6 +206,7 @@ export default function Website_Admin_Profile() {
     queryFn: async () => {
       const { data } = await apiClient.get('/hymns/admin-tasks', {
         params: { page: adminPage, limit: adminLimit },
+        headers: isLogin ? { Authorization: `Bearer ${isLogin}` } : undefined,
       });
       return data;
     },
@@ -311,6 +312,8 @@ export default function Website_Admin_Profile() {
       const response = await apiClient.patch(`/hymns/${id}`, {
         ...formData,
         lyrics: prepareLyricsForSave(formData.lyrics),
+      }, {
+        headers: isLogin ? { Authorization: `Bearer ${isLogin}` } : undefined,
       });
 
       if (response.status === 202 && response.data?.pending) {

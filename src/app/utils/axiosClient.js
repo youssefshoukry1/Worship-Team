@@ -13,12 +13,13 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-    if (typeof window !== 'undefined') {
-        const token = window.localStorage.getItem('user_Taspe7_Token');
-        if (token) {
-            config.headers = config.headers ?? {};
-            config.headers.Authorization = `Bearer ${token}`;
-        }
+    const hasExplicitAuth = config.headers?.Authorization;
+    const storedToken = typeof window !== 'undefined' ? window.localStorage.getItem('user_Taspe7_Token') : null;
+    const token = hasExplicitAuth || storedToken;
+
+    if (token) {
+        config.headers = config.headers ?? {};
+        config.headers.Authorization = typeof token === 'string' && token.startsWith('Bearer ') ? token : `Bearer ${token}`;
     }
 
     if (config.params) {
