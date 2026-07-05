@@ -438,3 +438,7 @@ html.lenis {
     box-shadow: 0 0 30px rgba(56, 189, 248, 0);
   }
 }
+
+textarea::-webkit-resizer {
+  display: none !important;
+}

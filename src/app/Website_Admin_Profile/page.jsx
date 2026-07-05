@@ -16,6 +16,8 @@ import {
   sanitizeSlideBreaks,
   buildHymnPresentationSlides,
 } from '../utils/hymnSlides';
+import { useRef } from 'react';
+
 
 const API_URL = 'https://worship-team-api.onrender.com/api';
 
@@ -340,6 +342,41 @@ export default function Website_Admin_Profile() {
   const totalHymns = adminTasksData?.totalTasksCount || 0;
   const totalPages = adminTasksData?.totalPages || 1;
 
+  ////////////////////textarea//////////
+
+  const handleResizeStart = (e) => {
+    // بنجيب الـ div الأب القريب، ومنه بنوصل للـ textarea القريبة من المقبض ده
+    const wrapper = e.currentTarget.parentElement;
+    const textarea = wrapper?.querySelector('textarea');
+    if (!textarea) return;
+
+    const initialHeight = textarea.offsetHeight;
+    const initialY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    const handleResizeMove = (moveEvent) => {
+      const currentY = moveEvent.touches ? moveEvent.touches[0].clientY : moveEvent.clientY;
+      const newHeight = initialHeight + (currentY - initialY);
+
+      if (newHeight > 250) { // الحد الأدنى للارتفاع
+        textarea.style.height = `${newHeight}px`;
+      }
+    };
+
+    const handleResizeEnd = () => {
+      window.removeEventListener('mousemove', handleResizeMove);
+      window.removeEventListener('mouseup', handleResizeEnd);
+      window.removeEventListener('touchmove', handleResizeMove);
+      window.removeEventListener('touchend', handleResizeEnd);
+    };
+
+    if (e.touches) {
+      window.addEventListener('touchmove', handleResizeMove, { passive: false });
+      window.addEventListener('touchend', handleResizeEnd);
+    } else {
+      window.addEventListener('mousemove', handleResizeMove);
+      window.addEventListener('mouseup', handleResizeEnd);
+    }
+  };
   return (
     <section className="min-h-screen bg-[#050510] text-white pt-24 pb-20 px-4 md:px-8">
       <div className="max-w-7xl mx-auto flex flex-col gap-8">
@@ -575,22 +612,35 @@ export default function Website_Admin_Profile() {
                                 <X className="w-4 h-4" />
                               </button>
                             </div>
-                            <textarea
-                              dir="rtl"
-                              className="w-full p-3 rounded-lg bg-black/40 border border-black/50 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[250px] resize-y text-sm"
-                              value={stanza.text}
-                              onChange={(e) => {
-                                const newArray = [...formData.lyrics];
-                                const text = e.target.value;
-                                const lineCount = text.split('\n').filter((l) => l.trim()).length;
-                                newArray[idx] = {
-                                  ...newArray[idx],
-                                  text,
-                                  slideBreaks: sanitizeSlideBreaks(newArray[idx].slideBreaks, lineCount),
-                                };
-                                setFormData({ ...formData, lyrics: newArray });
-                              }}
-                            />
+                            <div className="relative w-full">
+                              <textarea
+                                dir="rtl"
+                                /* شيلنا الـ ref تماماً عشان نمنع مشاكل الـ Hooks والـ map */
+                                className="w-full p-3 rounded-lg bg-black/40 border border-black/50 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[250px] resize-none text-sm"
+                                value={stanza.text}
+                                onChange={(e) => {
+                                  const newArray = [...formData.lyrics];
+                                  const text = e.target.value;
+                                  const lineCount = text.split('\n').filter((l) => l.trim()).length;
+                                  newArray[idx] = {
+                                    ...newArray[idx],
+                                    text,
+                                    slideBreaks: sanitizeSlideBreaks(newArray[idx].slideBreaks, lineCount),
+                                  };
+                                  setFormData({ ...formData, lyrics: newArray });
+                                }}
+                              />
+
+                              {/* المقبض المخصص الكبير شغال PC وتاتش موبايل */}
+                              <div
+                                onTouchStart={handleResizeStart}
+                                onMouseDown={handleResizeStart}
+                                className="absolute bottom-2 left-2 w-10 h-10 flex items-end justify-start p-1 cursor-nwse-resize select-none active:scale-95 transition-transform"
+                                style={{ touchAction: 'none' }}
+                              >
+                                <span className="text-sky-400 text-lg font-bold">◢</span>
+                              </div>
+                            </div>
                             <StanzaSlideControls
                               stanza={stanza}
                               stanzaIndex={idx}
