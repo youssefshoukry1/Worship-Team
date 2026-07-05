@@ -577,7 +577,7 @@ export default function Website_Admin_Profile() {
                             </div>
                             <textarea
                               dir="rtl"
-                              className="w-full p-3 rounded-lg bg-black/40 border border-black/50 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[100px] resize-y text-sm"
+                              className="w-full p-3 rounded-lg bg-black/40 border border-black/50 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[250px] resize-y text-sm"
                               value={stanza.text}
                               onChange={(e) => {
                                 const newArray = [...formData.lyrics];
