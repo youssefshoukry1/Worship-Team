@@ -142,24 +142,27 @@ export function autoGroupLinesIntoSlides(lines, options = {}) {
 export function manualGroupLinesIntoSlides(lines, slideBreaks = []) {
   if (!lines.length) return [];
 
-  const breaks = [...new Set(slideBreaks)]
-    .filter((i) => i >= 0 && i < lines.length - 1)
-    .sort((a, b) => a - b);
+  const slides = [];
+  let currentLines = [];
 
-  if (!breaks.length) {
-    return [lines.join('\n')];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.trim() === '---') {
+      if (currentLines.length > 0) {
+        slides.push(currentLines.join('\n'));
+        currentLines = [];
+      }
+    } else {
+      currentLines.push(line);
+      if (slideBreaks.includes(i)) {
+        slides.push(currentLines.join('\n'));
+        currentLines = [];
+      }
+    }
   }
 
-  const slides = [];
-  let start = 0;
-
-  breaks.forEach((breakAfterIdx) => {
-    slides.push(lines.slice(start, breakAfterIdx + 1).join('\n'));
-    start = breakAfterIdx + 1;
-  });
-
-  if (start < lines.length) {
-    slides.push(lines.slice(start).join('\n'));
+  if (currentLines.length > 0) {
+    slides.push(currentLines.join('\n'));
   }
 
   return slides.filter(Boolean);

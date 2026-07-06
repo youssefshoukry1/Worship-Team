@@ -33,7 +33,13 @@ export const translations = {
     church_profile: "Church Profile",
     login: "Login",
     register: "Register",
-    logout: "Logout"
+    logout: "Logout",
+    scale: "Scale / Key",
+    bpm: "BPM (Tempo)",
+    timeSignature: "Time Signature",
+    relatedChords: "Related Chords",
+    updating: "Updating...",
+    updateSong: "Update Song"
   },
   ar: {
     home: "الرئيسية",
@@ -74,7 +80,13 @@ export const translations = {
     church_profile: "ملف الكنيسة",
     login: "تسجيل الدخول",
     register: "إنشاء حساب",
-    logout: "تسجيل الخروج"
+    logout: "تسجيل الخروج",
+    scale: "المقام / السلم الموسيقي",
+    bpm: "السرعة (BPM)",
+    timeSignature: "الوزن الموسيقي",
+    relatedChords: "الكوردات المرتبطة",
+    updating: "جاري التحديث...",
+    updateSong: "تعديل الترنيمة"
   },
   de: {
     home: "Startseite",
@@ -110,6 +122,12 @@ export const translations = {
     church_profile: "Kirchenprofil",
     login: "Anmelden",
     register: "Registrieren",
-    logout: "Abmelden"
+    logout: "Abmelden",
+    scale: "Tonart",
+    bpm: "BPM (Tempo)",
+    timeSignature: "Taktart",
+    relatedChords: "Verwandte Akkorde",
+    updating: "Aktualisieren...",
+    updateSong: "Lied aktualisieren"
   }
 };

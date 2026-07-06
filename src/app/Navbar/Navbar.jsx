@@ -5,7 +5,8 @@ import { motion, AnimatePresence, easeOut } from "framer-motion";
 import { useRouter, usePathname } from "next/navigation";
 import { Menu, X, Globe, ChevronDown, Mic, Music, User, LogOut, LogIn, UserPlus, ShieldAlert } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
-import { translations } from "../i18n/translations";
+// Adjust import according to your file structure
+import { translations } from "../i18n/translations"; 
 import { UserContext } from "../context/User_Context";
 
 export default function Navbar() {
@@ -28,8 +29,6 @@ export default function Navbar() {
         { name: "hymns", path: "/", id: "home-section" },
         { name: "workspace", path: "/WorkSpace/", id: "WorkSpace-section" },
     ];
-
-    // Removed duplicated profile item from navItems
 
     const router = useRouter();
     const pathname = usePathname();
@@ -118,7 +117,7 @@ export default function Navbar() {
         <nav className="sticky w-full flex justify-between items-center py-3 px-6 top-0 z-50 bg-blue-950/20 backdrop-blur-xl border-b border-sky-500/10 transition-all duration-300">
             {/* Logo */}
             <div
-                className="relative font-bold text-2xl tracking-tight bg-linear-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent drop-shadow-sm cursor-pointer"
+                className="relative font-bold text-2xl tracking-tight bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent drop-shadow-sm cursor-pointer"
                 onClick={() => router.push("/")}
             >
                 {t("praiseTeam")}
@@ -126,56 +125,54 @@ export default function Navbar() {
 
             {/* Desktop Menu */}
             <motion.ul
-                className="relative hidden md:flex gap-8 items-center "
+                className="relative hidden md:flex gap-8 items-center"
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
             >
+                {navItems.map(({ name, path, id }) => (
+                    <motion.li key={name} variants={itemVariants} className="list-none">
+                        <button
+                            onClick={() => handleNavClick(path, id)}
+                            className={`text-sm lg:text-base font-medium cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg hover:bg-white/5
+                            ${pathname === path
+                                ? "text-sky-400 bg-white/5"
+                                : "text-gray-300 hover:text-sky-300"
+                            }`}
+                        >
+                            {/* @ts-ignore */}
+                            {t(name)}
+                        </button>
+                    </motion.li>
+                ))}
 
-                {navItems
-                    .map(({ name, path, id }) => (
-                        <motion.li key={name} variants={itemVariants} className="list-none">
-                            <button
-                                onClick={() => handleNavClick(path, id)}
-                                className={`text-sm lg:text-base font-medium cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg hover:bg-white/5
-            ${pathname === path
-                                        ? "text-sky-400 bg-white/5"
-                                        : "text-gray-300 hover:text-sky-300"
-                                    }`}
-                            >
-                                {/* @ts-ignore */}
-                                {t(name)}
-                            </button>
-                        </motion.li>
-                    ))}
-
-                {/* Training Link (Approved Users) - Placed next to Language Switcher like Dashboard */}
+                {/* Training Link (Approved Users) */}
                 {isLogin && UserStatus === "approved" && (
                     <motion.li variants={itemVariants} className="list-none">
                         <button
                             onClick={() => router.push("/Trainings")}
                             className={`text-sm lg:text-base font-bold cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg border border-sky-500/30
-                ${pathname === "/Trainings"
-                                    ? "text-sky-400 bg-sky-500/20 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
-                                    : "text-sky-300 hover:text-white hover:bg-sky-500/20 hover:shadow-[0_0_10px_rgba(14,165,233,0.2)]"
-                                }`}
+                            ${pathname === "/Trainings"
+                                ? "text-sky-400 bg-sky-500/20 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
+                                : "text-sky-300 hover:text-white hover:bg-sky-500/20 hover:shadow-[0_0_10px_rgba(14,165,233,0.2)]"
+                            }`}
                         >
                             {t("training")}
                         </button>
                     </motion.li>
                 )}
 
-                {/* Dashboard Link (Admin/Manager/Programmers) - Placed next to Language Switcher */}
+                {/* Dashboard Link (Admin/Manager/Programmers) */}
                 {isLogin && UserRole &&
                     ["ADMIN", "MANEGER", "PROGRAMER"].includes(UserRole) && (
                         <motion.li variants={itemVariants} className="list-none">
                             <button
                                 onClick={() => router.push("/Dashboard")}
                                 className={`text-sm lg:text-base font-bold cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg border border-sky-500/30
-                ${pathname === "/Dashboard"
-                                        ? "text-sky-400 bg-sky-500/20 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
-                                        : "text-sky-300 hover:text-white hover:bg-sky-500/20 hover:shadow-[0_0_10px_rgba(14,165,233,0.2)]"
-                                    }`}
+                                ${pathname === "/Dashboard"
+                                    ? "text-sky-400 bg-sky-500/20 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
+                                    : "text-sky-300 hover:text-white hover:bg-sky-500/20 hover:shadow-[0_0_10px_rgba(14,165,233,0.2)]"
+                                }`}
                             >
                                 {/* @ts-ignore */}
                                 {t("dashboard")}
@@ -185,15 +182,15 @@ export default function Navbar() {
 
                 {/* Admin Tasks Link (WEBSITE_ADMIN or PROGRAMER) */}
                 {isLogin && UserRole &&
-                    ["WEBSITE_ADMIN", "PROGRAMER"].includes(UserRole) && (
+                    ["WEBSITE_ADMIN", "PROGRAMER", "MUSIC_ADMIN"].includes(UserRole) && (
                         <motion.li variants={itemVariants} className="list-none ml-2">
                             <button
                                 onClick={() => router.push("/Website_Admin_Profile")}
                                 className={`flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full transition-all duration-300 border border-white/10
-                ${pathname === "/Website_Admin_Profile"
-                                        ? "bg-rose-500/20 text-rose-400 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.3)]"
-                                        : "bg-white/5 text-gray-300 hover:text-white hover:bg-rose-500/20 hover:border-rose-500/30 hover:shadow-[0_0_10px_rgba(244,63,94,0.2)]"
-                                    }`}
+                                ${pathname === "/Website_Admin_Profile"
+                                    ? "bg-rose-500/20 text-rose-400 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.3)]"
+                                    : "bg-white/5 text-gray-300 hover:text-white hover:bg-rose-500/20 hover:border-rose-500/30 hover:shadow-[0_0_10px_rgba(244,63,94,0.2)]"
+                                }`}
                                 title={"Admin Tasks"}
                             >
                                 <ShieldAlert size={18} />
@@ -207,10 +204,10 @@ export default function Navbar() {
                         <button
                             onClick={() => router.push(churchId && churchId !== 'undefined' && churchId !== 'null' ? "/Church_UserProfile" : "/normal_UserProfile")}
                             className={`flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full transition-all duration-300 border border-white/10
-                ${pathname === "/Church_UserProfile" || pathname === "/normal_UserProfile"
-                                    ? "bg-sky-500/20 text-sky-400 border-sky-500/30 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
-                                    : "bg-white/5 text-gray-300 hover:text-white hover:bg-sky-500/20 hover:border-sky-500/30 hover:shadow-[0_0_10px_rgba(14,165,233,0.2)]"
-                                }`}
+                            ${pathname === "/Church_UserProfile" || pathname === "/normal_UserProfile"
+                                ? "bg-sky-500/20 text-sky-400 border-sky-500/30 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
+                                : "bg-white/5 text-gray-300 hover:text-white hover:bg-sky-500/20 hover:border-sky-500/30 hover:shadow-[0_0_10px_rgba(14,165,233,0.2)]"
+                            }`}
                             title={churchId && churchId !== 'undefined' && churchId !== 'null' ? t("church_profile") : t("userProfile")}
                         >
                             <User size={18} />
@@ -243,14 +240,11 @@ export default function Navbar() {
                                         setModeMenuOpen(false);
                                     }}
                                     className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
-                      ${vocalsMode
-                                            ? "text-sky-400 font-bold bg-white/5"
-                                            : "text-gray-300"
-                                        }
-                    `}
+                                    ${vocalsMode ? "text-sky-400 font-bold bg-white/5" : "text-gray-300"}
+                                    `}
                                 >
                                     <Mic size={16} />
-                                    <span>Vocal Mood</span>
+                                    <span>Vocal Mode</span>
                                 </button>
                                 <button
                                     onClick={() => {
@@ -258,14 +252,11 @@ export default function Navbar() {
                                         setModeMenuOpen(false);
                                     }}
                                     className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
-                      ${!vocalsMode
-                                            ? "text-sky-400 font-bold bg-white/5"
-                                            : "text-gray-300"
-                                        }
-                    `}
+                                    ${!vocalsMode ? "text-sky-400 font-bold bg-white/5" : "text-gray-300"}
+                                    `}
                                 >
                                     <Music size={16} />
-                                    <span>Musician Mood</span>
+                                    <span>Musician Mode</span>
                                 </button>
                             </motion.div>
                         )}
@@ -356,17 +347,10 @@ export default function Navbar() {
                                             setLangMenuOpen(false);
                                         }}
                                         className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition
-                      ${language === lang
-                                                ? "text-sky-400 font-bold"
-                                                : "text-gray-300"
-                                            }
-                    `}
+                                        ${language === lang ? "text-sky-400 font-bold" : "text-gray-300"}
+                                        `}
                                     >
-                                        {lang === "en"
-                                            ? "English"
-                                            : lang === "ar"
-                                                ? "العربية"
-                                                : "Deutsch"}
+                                        {lang === "en" ? "English" : lang === "ar" ? "العربية" : "Deutsch"}
                                     </button>
                                 ))}
                             </motion.div>
@@ -399,10 +383,10 @@ export default function Navbar() {
                                     <button
                                         onClick={() => handleNavClick(path, id)}
                                         className={`block w-full text-left px-4 py-3 rounded-xl transition-all font-medium text-sm
-                ${pathname === path
-                                                ? "bg-sky-500/20 text-sky-400"
-                                                : "text-gray-300 hover:bg-white/5 hover:text-white"
-                                            }`}
+                                        ${pathname === path
+                                            ? "bg-sky-500/20 text-sky-400"
+                                            : "text-gray-300 hover:bg-white/5 hover:text-white"
+                                        }`}
                                     >
                                         {t(name)}
                                     </button>
@@ -418,10 +402,10 @@ export default function Navbar() {
                                             setMenuOpen(false);
                                         }}
                                         className={`block w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-sky-500/30
-                ${pathname === "/Trainings"
-                                                ? "bg-sky-500/20 text-sky-400"
-                                                : "text-sky-300 hover:bg-sky-500/20 hover:text-white"
-                                            }`}
+                                        ${pathname === "/Trainings"
+                                            ? "bg-sky-500/20 text-sky-400"
+                                            : "text-sky-300 hover:bg-sky-500/20 hover:text-white"
+                                        }`}
                                     >
                                         {t("training")}
                                     </button>
@@ -437,10 +421,10 @@ export default function Navbar() {
                                             setMenuOpen(false);
                                         }}
                                         className={`block w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-sky-500/30
-                ${pathname === "/Dashboard"
-                                                ? "bg-sky-500/20 text-sky-400"
-                                                : "text-sky-300 hover:bg-sky-500/20 hover:text-white"
-                                            }`}
+                                        ${pathname === "/Dashboard"
+                                            ? "bg-sky-500/20 text-sky-400"
+                                            : "text-sky-300 hover:bg-sky-500/20 hover:text-white"
+                                        }`}
                                     >
                                         {t("dashboard")}
                                     </button>
@@ -448,7 +432,7 @@ export default function Navbar() {
                             )}
 
                             {/* Mobile Admin Tasks Button */}
-                            {isLogin && UserRole && ["WEBSITE_ADMIN", "PROGRAMER"].includes(UserRole) && (
+                            {isLogin && UserRole && ["WEBSITE_ADMIN", "PROGRAMER", "MUSIC_ADMIN"].includes(UserRole) && (
                                 <li>
                                     <button
                                         onClick={() => {
@@ -456,10 +440,10 @@ export default function Navbar() {
                                             setMenuOpen(false);
                                         }}
                                         className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-transparent
-                ${pathname === "/Website_Admin_Profile"
-                                                ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
-                                                : "text-gray-300 hover:bg-white/5 hover:text-white"
-                                            }`}
+                                        ${pathname === "/Website_Admin_Profile"
+                                            ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
+                                            : "text-gray-300 hover:bg-white/5 hover:text-white"
+                                        }`}
                                     >
                                         <ShieldAlert size={18} />
                                         Admin Tasks
@@ -476,17 +460,16 @@ export default function Navbar() {
                                             setMenuOpen(false);
                                         }}
                                         className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-transparent
-                ${pathname === "/Church_UserProfile" || pathname === "/normal_UserProfile"
-                                                ? "bg-sky-500/20 text-sky-400 border-sky-500/30"
-                                                : "text-gray-300 hover:bg-white/5 hover:text-white"
-                                            }`}
+                                        ${pathname === "/Church_UserProfile" || pathname === "/normal_UserProfile"
+                                            ? "bg-sky-500/20 text-sky-400 border-sky-500/30"
+                                            : "text-gray-300 hover:bg-white/5 hover:text-white"
+                                        }`}
                                     >
                                         <User size={18} />
                                         {churchId && churchId !== 'undefined' && churchId !== 'null' ? t("church_profile") : t("userProfile")}
                                     </button>
                                 </li>
                             )}
-
 
                             {/* Mobile Mode Switcher */}
                             <li className="w-full">
@@ -499,11 +482,7 @@ export default function Navbar() {
                                             {vocalsMode ? <Mic size={20} /> : <Music size={20} />}
                                             <span>{vocalsMode ? "Vocal Mode" : "Musician Mode"}</span>
                                         </span>
-                                        <ChevronDown
-                                            size={14}
-                                            className={`transition-transform ${modeMenuOpen ? "rotate-180" : ""
-                                                }`}
-                                        />
+                                        <ChevronDown size={14} className={`transition-transform ${modeMenuOpen ? "rotate-180" : ""}`} />
                                     </button>
 
                                     <AnimatePresence>
@@ -522,14 +501,11 @@ export default function Navbar() {
                                                         setMenuOpen(false);
                                                     }}
                                                     className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
-                              ${vocalsMode
-                                                            ? "text-sky-400 font-bold bg-white/5"
-                                                            : "text-gray-300"
-                                                        }
-                    `}
+                                                    ${vocalsMode ? "text-sky-400 font-bold bg-white/5" : "text-gray-300"}
+                                                    `}
                                                 >
                                                     <Mic size={16} />
-                                                    <span>Vocal Mood</span>
+                                                    <span>Vocal Mode</span>
                                                 </button>
                                                 <button
                                                     onClick={() => {
@@ -538,14 +514,11 @@ export default function Navbar() {
                                                         setMenuOpen(false);
                                                     }}
                                                     className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
-                              ${!vocalsMode
-                                                            ? "text-sky-400 font-bold bg-white/5"
-                                                            : "text-gray-300"
-                                                        }
-                    `}
+                                                    ${!vocalsMode ? "text-sky-400 font-bold bg-white/5" : "text-gray-300"}
+                                                    `}
                                                 >
                                                     <Music size={16} />
-                                                    <span>Musician Mood</span>
+                                                    <span>Musician Mode</span>
                                                 </button>
                                             </motion.div>
                                         )}
@@ -564,11 +537,7 @@ export default function Navbar() {
                                             <Globe size={20} />
                                             <span className="uppercase">{language}</span>
                                         </span>
-                                        <ChevronDown
-                                            size={14}
-                                            className={`transition-transform ${langMenuOpen ? "rotate-180" : ""
-                                                }`}
-                                        />
+                                        <ChevronDown size={14} className={`transition-transform ${langMenuOpen ? "rotate-180" : ""}`} />
                                     </button>
 
                                     <AnimatePresence>
@@ -586,20 +555,13 @@ export default function Navbar() {
                                                         onClick={() => {
                                                             setLanguage(lang);
                                                             setLangMenuOpen(false);
-                                                            setMenuOpen(false); // Close main menu after language selection
+                                                            setMenuOpen(false);
                                                         }}
                                                         className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition
-                              ${language === lang
-                                                                ? "text-sky-400 font-bold"
-                                                                : "text-gray-300"
-                                                            }
-                            `}
+                                                        ${language === lang ? "text-sky-400 font-bold" : "text-gray-300"}
+                                                        `}
                                                     >
-                                                        {lang === "en"
-                                                            ? "English"
-                                                            : lang === "ar"
-                                                                ? "العربية"
-                                                                : "Deutsch"}
+                                                        {lang === "en" ? "English" : lang === "ar" ? "العربية" : "Deutsch"}
                                                     </button>
                                                 ))}
                                             </motion.div>
@@ -608,42 +570,44 @@ export default function Navbar() {
                                 </div>
                             </li>
 
-                            {/* Auth Section Mobile */}
-                            <li className="mt-2 pt-2 border-t border-white/10">
+                            {/* Mobile Auth Buttons */}
+                            <li className="w-full mt-2 pt-2 border-t border-white/10">
                                 {!isLogin ? (
-                                    <div className="flex flex-col gap-1">
+                                    <div className="flex flex-col gap-2 p-2">
                                         <button
                                             onClick={() => {
                                                 router.push("/login");
                                                 setMenuOpen(false);
                                             }}
-                                            className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-medium text-sm text-sky-400 hover:bg-sky-500/10"
+                                            className="flex items-center justify-center gap-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 px-4 py-2 rounded-xl border border-sky-500/20 transition-all duration-300"
                                         >
                                             <LogIn size={18} />
-                                            {t("login")}
+                                            <span className="text-sm font-bold">{t("login")}</span>
                                         </button>
                                         <button
                                             onClick={() => {
                                                 router.push("/Register");
                                                 setMenuOpen(false);
                                             }}
-                                            className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-medium text-sm text-sky-400 hover:bg-sky-500/10"
+                                            className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-gray-300 px-4 py-2 rounded-xl border border-transparent transition-all duration-300"
                                         >
                                             <UserPlus size={18} />
-                                            {t("register")}
+                                            <span className="text-sm font-bold">{t("register")}</span>
                                         </button>
                                     </div>
                                 ) : (
-                                    <button
-                                        onClick={() => {
-                                            handleLogout();
-                                            setMenuOpen(false);
-                                        }}
-                                        className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-medium text-sm text-red-400 hover:bg-red-500/10"
-                                    >
-                                        <LogOut size={18} />
-                                        {t("logout")}
-                                    </button>
+                                    <div className="p-2">
+                                        <button
+                                            onClick={() => {
+                                                handleLogout();
+                                                setMenuOpen(false);
+                                            }}
+                                            className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-2 rounded-xl border border-red-500/20 transition-all duration-300"
+                                        >
+                                            <LogOut size={18} />
+                                            <span className="text-sm font-bold">{t("logout")}</span>
+                                        </button>
+                                    </div>
                                 )}
                             </li>
                         </motion.ul>

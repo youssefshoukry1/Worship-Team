@@ -1573,66 +1573,52 @@ export default function Category_Humns() {
     <div className="relative z-10 max-w-7xl mx-auto">
 
 
-      {/* Search Section - Centered under Title */}
-      <div className="mb-8 flex items-center justify-center gap-3 relative z-20 h-12">
-        {/* Search Toggle (Icon Only) */}
-        <button
-          onClick={() => {
-            setShowSearchBar(!showSearchBar);
-            if (showSearchBar) {
-              setSearch(''); // Clear search when closing
-            }
-          }}
-          className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 border backdrop-blur-xl relative overflow-hidden group shadow-lg z-30
-                 ${showSearchBar
-              ? 'bg-red-500/10 border-red-500/20 text-red-400 rotate-90 scale-90'
-              : 'bg-white/5 border-white/20 text-sky-200 hover:bg-white/10 hover:text-white hover:border-sky-400/30 hover:shadow-[0_0_15px_rgba(56,189,248,0.3)]'
-            }`}
-          title={showSearchBar ? "Close Search" : "Search Hymns"}
-        >
-          {showSearchBar ? (
-            <X className="w-5 h-5" />
-          ) : (
-            <Search className="w-5 h-5" />
-          )}
-        </button>
+{/* Search Section - Centered under Title */}
+<div className="mb-8 flex items-center justify-center gap-3 relative z-20 h-12">
+  {/* Search Toggle (Icon Only) */}
+  <button
+    onClick={() => {
+      setShowSearchBar(!showSearchBar);
+      if (showSearchBar) {
+        setSearch('');
+      }
+    }}
+    className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 border backdrop-blur-xl relative overflow-hidden group shadow-lg z-30
+           ${showSearchBar
+        ? 'bg-red-500/10 border-red-500/20 text-red-400 rotate-90 scale-90'
+        : 'bg-white/5 border-white/20 text-sky-200 hover:bg-white/10 hover:text-white hover:border-sky-400/30 hover:shadow-[0_0_15px_rgba(56,189,248,0.3)]'
+      }`}
+    title={showSearchBar ? "Close Search" : "Search Hymns"}
+  >
+    {showSearchBar ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+  </button>
 
-        {/* Modern Side-by-Side Glass Input */}
-        <AnimatePresence>
-          {showSearchBar && (
-            <motion.div
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: '250px' }}
-              exit={{ opacity: 0, width: 0 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="overflow-hidden flex items-center"
-            >
-              <div className="relative w-full h-10">
-                <div className="absolute inset-0 bg-white/5 border border-white/10 rounded-full backdrop-blur-xl shadow-inner" />
+  {/* Simple, dependency-free fade animation (no framer-motion, no lag) */}
+{showSearchBar && (
+  <div className="relative h-10 w-[250px] flex items-center flex-shrink-0 search-fade-in">
+    <div className="absolute inset-0 bg-white/5 border border-white/10 rounded-full backdrop-blur-md shadow-inner" />
 
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={t("searchPlaceholder")}
-                  className="w-full h-full pl-4 pr-8 py-2 bg-transparent text-sm text-white placeholder-gray-400/70 
-                                outline-none relative z-10 font-light tracking-wide"
-                  autoFocus
-                />
-                {search && (
-                  <button
-                    onClick={() => setSearch('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-white/20 text-gray-400 hover:text-white transition-all z-20"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+    <input
+      autoFocus
+      type="text"
+      value={search}
+      onChange={(e) => setSearch(e.target.value)}
+      placeholder={t("searchPlaceholder")}
+      className="w-full h-full pl-4 pr-8 py-2 bg-transparent text-sm text-white placeholder-gray-400/70 
+                 outline-none relative z-10 font-light tracking-wide"
+    />
+    {search && (
+      <button
+        onClick={() => setSearch('')}
+        className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-white/20 text-gray-400 hover:text-white transition-all z-20"
+      >
+        <X className="w-3 h-3" />
+      </button>
+    )}
+  </div>
+)}
 
+</div>
       {/* Categories Tabs */}
       {
         showSearchBar ?

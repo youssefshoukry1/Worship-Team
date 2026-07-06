@@ -1,5 +1,5 @@
 'use client'
-import React, { useContext, useState } from 'react'
+import React, { useContext, useEffect, useMemo, useState } from 'react'
 import Login from '../login/page'
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserContext } from '../context/User_Context'
@@ -20,15 +20,15 @@ const API_URL = "https://worship-team-api.onrender.com/api";
 // ─── Action type badge config ─────────────────────────────────────────────────
 const ACTION_CONFIG = {
   create: { label: 'CREATE', color: 'text-emerald-300', bg: 'bg-emerald-500/15', border: 'border-emerald-500/30' },
-  edit:   { label: 'EDIT',   color: 'text-amber-300',   bg: 'bg-amber-500/15',   border: 'border-amber-500/30' },
-  delete: { label: 'DELETE', color: 'text-red-300',     bg: 'bg-red-500/15',     border: 'border-red-500/30' },
+  edit: { label: 'EDIT', color: 'text-amber-300', bg: 'bg-amber-500/15', border: 'border-amber-500/30' },
+  delete: { label: 'DELETE', color: 'text-red-300', bg: 'bg-red-500/15', border: 'border-red-500/30' },
 };
 
 // ─── Status badge config ──────────────────────────────────────────────────────
 const STATUS_CONFIG = {
-  pending:  { label: 'Pending',  Icon: Clock,         color: 'text-sky-300',     bg: 'bg-sky-500/10',     border: 'border-sky-500/20' },
-  approved: { label: 'Approved', Icon: CheckCircle2,  color: 'text-emerald-300', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-  rejected: { label: 'Rejected', Icon: XCircle,       color: 'text-red-300',     bg: 'bg-red-500/10',     border: 'border-red-500/20' },
+  pending: { label: 'Pending', Icon: Clock, color: 'text-sky-300', bg: 'bg-sky-500/10', border: 'border-sky-500/20' },
+  approved: { label: 'Approved', Icon: CheckCircle2, color: 'text-emerald-300', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+  rejected: { label: 'Rejected', Icon: XCircle, color: 'text-red-300', bg: 'bg-red-500/10', border: 'border-red-500/20' },
 };
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
@@ -61,10 +61,9 @@ function PendingCard({ request, onApprove, onRejectOpen, onViewLyrics, processin
       className="bg-[#0f172a]/90 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden relative group"
     >
       {/* top accent bar — color based on action */}
-      <div className={`h-0.5 w-full ${
-        request.actionType === 'create' ? 'bg-emerald-500' :
-        request.actionType === 'edit'   ? 'bg-amber-500'   : 'bg-red-500'
-      }`} />
+      <div className={`h-0.5 w-full ${request.actionType === 'create' ? 'bg-emerald-500' :
+        request.actionType === 'edit' ? 'bg-amber-500' : 'bg-red-500'
+        }`} />
 
       <div className="p-5">
         {/* Header row */}
@@ -92,10 +91,9 @@ function PendingCard({ request, onApprove, onRejectOpen, onViewLyrics, processin
           <div>
             <span className="text-gray-600 block text-[10px] font-bold uppercase tracking-wider mb-0.5">Requested by</span>
             <span className="text-gray-200 font-medium">{request.requestedByName}</span>
-            <span className={`ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/5 ${
-              request.requestedByRole === 'ADMIN' ? 'text-amber-400' :
+            <span className={`ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/5 ${request.requestedByRole === 'ADMIN' ? 'text-amber-400' :
               request.requestedByRole === 'MANEGER' ? 'text-violet-400' : 'text-sky-400'
-            }`}>{request.requestedByRole}</span>
+              }`}>{request.requestedByRole}</span>
           </div>
           <div className="text-right">
             <span className="text-gray-600 block text-[10px] font-bold uppercase tracking-wider mb-0.5">Submitted</span>
@@ -150,7 +148,7 @@ function PendingCard({ request, onApprove, onRejectOpen, onViewLyrics, processin
               <div className="bg-black/40 border border-white/5 rounded-xl p-3 text-[11px] text-gray-300 font-mono leading-relaxed max-h-40 overflow-y-auto custom-scrollbar">
                 {request.payload.title && <div><span className="text-sky-400">title:</span> {request.payload.title}</div>}
                 {request.payload.scale && <div><span className="text-sky-400">scale:</span> {request.payload.scale}</div>}
-                {request.payload.BPM   && <div><span className="text-sky-400">BPM:</span>   {request.payload.BPM}</div>}
+                {request.payload.BPM && <div><span className="text-sky-400">BPM:</span>   {request.payload.BPM}</div>}
                 {request.payload.party && <div><span className="text-sky-400">party:</span> {Array.isArray(request.payload.party) ? request.payload.party.join(', ') : request.payload.party}</div>}
                 {request.payload.lyrics && (
                   <div>
@@ -403,7 +401,7 @@ function PendingHymnsPanel({ isLogin }) {
       const list = res.data;
       return {
         all: list.length,
-        pending:  list.filter(r => r.status === 'pending').length,
+        pending: list.filter(r => r.status === 'pending').length,
         approved: list.filter(r => r.status === 'approved').length,
         rejected: list.filter(r => r.status === 'rejected').length,
       };
@@ -453,10 +451,10 @@ function PendingHymnsPanel({ isLogin }) {
   };
 
   const TABS = [
-    { key: 'pending',  label: 'Pending',  count: allCounts.pending },
+    { key: 'pending', label: 'Pending', count: allCounts.pending },
     { key: 'approved', label: 'Approved', count: allCounts.approved },
     { key: 'rejected', label: 'Rejected', count: allCounts.rejected },
-    { key: 'all',      label: 'All',      count: allCounts.all },
+    { key: 'all', label: 'All', count: allCounts.all },
   ];
 
   return (
@@ -493,18 +491,16 @@ function PendingHymnsPanel({ isLogin }) {
           <button
             key={tab.key}
             onClick={() => setActiveFilter(tab.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
-              activeFilter === tab.key
-                ? 'bg-violet-500/20 border-violet-500/40 text-violet-300 shadow-[0_0_15px_rgba(139,92,246,0.15)]'
-                : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition-all ${activeFilter === tab.key
+              ? 'bg-violet-500/20 border-violet-500/40 text-violet-300 shadow-[0_0_15px_rgba(139,92,246,0.15)]'
+              : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
+              }`}
           >
             <Filter className="w-3.5 h-3.5" />
             {tab.label}
             {tab.count != null && (
-              <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
-                activeFilter === tab.key ? 'bg-violet-500/40 text-violet-200' : 'bg-white/10 text-gray-400'
-              }`}>
+              <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${activeFilter === tab.key ? 'bg-violet-500/40 text-violet-200' : 'bg-white/10 text-gray-400'
+                }`}>
                 {tab.count}
               </span>
             )}
@@ -1095,6 +1091,63 @@ export default function ChurchS_Dashboards() {
     enabled: !!isLogin
   });
 
+  const REVIEW_STORAGE_KEY = 'church-dashboard-review-window';
+  const [reviewWindowActive, setReviewWindowActive] = useState(false);
+  const [reviewWindowStartedAt, setReviewWindowStartedAt] = useState(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const saved = window.localStorage.getItem(REVIEW_STORAGE_KEY);
+      if (!saved) return;
+
+      const parsed = JSON.parse(saved);
+      if (parsed?.active && parsed?.startedAt) {
+        setReviewWindowActive(true);
+        setReviewWindowStartedAt(parsed.startedAt);
+      }
+    } catch (error) {
+      console.error('Failed to load review window state', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const payload = reviewWindowActive && reviewWindowStartedAt
+      ? { active: true, startedAt: reviewWindowStartedAt }
+      : { active: false, startedAt: null };
+
+    window.localStorage.setItem(REVIEW_STORAGE_KEY, JSON.stringify(payload));
+  }, [reviewWindowActive, reviewWindowStartedAt]);
+
+  const dailyAdminReviewList = useMemo(() => {
+    if (!Array.isArray(allUsers) || !reviewWindowActive || !reviewWindowStartedAt) return [];
+
+    const startTime = new Date(reviewWindowStartedAt);
+    if (Number.isNaN(startTime.getTime())) return [];
+
+    return allUsers
+      .filter((user) => user?.role === 'WEBSITE_ADMIN' || user?.role === 'MUSIC_ADMIN')
+      .map((user) => {
+        const approvedCount = Array.isArray(user?.approvedByProgramerHistory)
+          ? user.approvedByProgramerHistory.filter((entry) => {
+            const approvedAt = entry?.approvedAt ? new Date(entry.approvedAt) : null;
+            if (!approvedAt || Number.isNaN(approvedAt.getTime())) return false;
+            return approvedAt >= startTime;
+          }).length
+          : 0;
+
+        return {
+          ...user,
+          approvedCount,
+        };
+      })
+      .filter((user) => user.approvedCount < 4)
+      .sort((a, b) => a.approvedCount - b.approvedCount || (a.Name || '').localeCompare(b.Name || ''));
+  }, [allUsers, reviewWindowActive, reviewWindowStartedAt]);
+
   // Role Check
   const allowedRoles = ['PROGRAMER', 'MANEGER', 'ADMIN'];
   if (!isLogin) return <Login />;
@@ -1207,6 +1260,52 @@ export default function ChurchS_Dashboards() {
           </button>
         </div>
 
+        <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2">
+            <AlertCircle className={`w-4 h-4 mt-0.5 ${reviewWindowActive ? 'text-emerald-300' : 'text-amber-300'}`} />
+            <div>
+              <p className="text-sm font-semibold text-white">Daily hymn review</p>
+              <p className="text-xs text-gray-400">
+                {reviewWindowActive
+                  ? `Tracking approvals since ${new Date(reviewWindowStartedAt).toLocaleString()}.`
+                  : 'Start a day to begin tracking who is below the 4-hymn target.'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              if (reviewWindowActive) {
+                setReviewWindowActive(false);
+                setReviewWindowStartedAt(null);
+              } else {
+                setReviewWindowActive(true);
+                setReviewWindowStartedAt(new Date().toISOString());
+              }
+            }}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all ${reviewWindowActive ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'}`}
+          >
+            {reviewWindowActive ? 'End Day' : 'Start Day'}
+          </button>
+        </div>
+
+        {reviewWindowActive && dailyAdminReviewList.length > 0 && (
+          <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 mt-0.5 text-amber-300" />
+              <div>
+                <p className="text-sm font-semibold text-amber-200">Needs attention today</p>
+                <p className="text-xs text-amber-100/80">
+                  {dailyAdminReviewList.length} website admin{dailyAdminReviewList.length > 1 ? 's are' : ' is'} below the 4-hymn target for the current review day.
+                </p>
+              </div>
+            </div>
+            <div className="text-xs text-amber-100/70">
+              <div className="font-semibold">{dailyAdminReviewList.slice(0, 3).map((user) => `${user.Name || 'Unnamed'} (${user.approvedCount}/4)`).join(', ')}</div>
+              <div>End the day to reset and start again.</div>
+            </div>
+          </div>
+        )}
+
         {/* ── PROGRAMER ONLY: Pending Hymn Approval Panel ────────────────── */}
         {UserRole === 'PROGRAMER' && (
           <PendingHymnsPanel isLogin={isLogin} />
@@ -1261,7 +1360,7 @@ export default function ChurchS_Dashboards() {
                         <div key={u._id} className="flex justify-between items-center text-sm p-2 rounded-lg bg-white/5 border border-white/5">
                           <span className="text-gray-200 truncate max-w-[40%]" title={u.Name}>{u.Name}</span>
 
-                            <select
+                          <select
                             value={u.role || 'USER'}
                             onChange={(e) => handleUserRoleChange(u._id, e.target.value)}
                             className={`text-xs px-2 py-0.5 rounded-lg border outline-none cursor-pointer transition-colors max-w-[50%]
@@ -1273,6 +1372,8 @@ export default function ChurchS_Dashboards() {
                             <option value="ADMIN" className="bg-[#0f172a] text-amber-300">ADMIN</option>
                             <option value="MANEGER" className="bg-[#0f172a] text-emerald-300">MANEGER</option>
                             <option value="PROGRAMER" className="bg-[#0f172a] text-sky-300">PROGRAMER</option>
+                            <option value="WEBSITE_ADMIN" className="bg-[#0f172a] text-rose-300">WEBSITE_ADMIN</option>
+                            <option value="MUSIC_ADMIN" className="bg-[#0f172a] text-indigo-300">MUSIC_ADMIN</option>
                           </select>
                         </div>
                       ))

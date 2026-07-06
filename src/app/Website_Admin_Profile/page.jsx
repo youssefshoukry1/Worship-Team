@@ -8,8 +8,7 @@ import Portal from '../Portal/Portal';
 import { UserContext } from '../context/User_Context';
 import { useLanguage } from "../context/LanguageContext";
 import { showToast } from '../components/ToastContainer';
-import { Edit2, Eye, X, PlusCircle, Music, ShieldAlert, CheckCircle, Clock, Monitor, Copy, Share2, ClipboardCheck } from 'lucide-react';
-import StanzaSlideControls from '../components/StanzaSlideControls';
+import { Edit2, Eye, X, PlusCircle, Music, ShieldAlert, CheckCircle, Clock, Monitor, Copy, Share2, ClipboardCheck, Scissors } from 'lucide-react';
 import {
   normalizeStanzaForEdit,
   prepareLyricsForSave,
@@ -204,16 +203,23 @@ export default function Website_Admin_Profile() {
 
   const [adminPage, setAdminPage] = useState(1);
   const [adminLimit] = useState(18);
+  const [taskTypeState, setTaskTypeState] = useState('lyrics');
+
+  React.useEffect(() => {
+    if (UserRole === 'MUSIC_ADMIN') {
+      setTaskTypeState('music');
+    }
+  }, [UserRole]);
 
   const { data: adminTasksData, isLoading, refetch } = useQuery({
-    queryKey: ['adminTasks', adminPage, adminLimit],
+    queryKey: ['adminTasks', adminPage, adminLimit, taskTypeState],
     queryFn: async () => {
-      const res = await axios.get(`${API_URL}/hymns/admin-tasks?page=${adminPage}&limit=${adminLimit}`, {
+      const res = await axios.get(`${API_URL}/hymns/admin-tasks?page=${adminPage}&limit=${adminLimit}&taskType=${taskTypeState}`, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
       return res.data;
     },
-    enabled: !!isLogin && (UserRole === 'WEBSITE_ADMIN' || UserRole === 'PROGRAMER'),
+    enabled: !!isLogin && (UserRole === 'WEBSITE_ADMIN' || UserRole === 'PROGRAMER' || UserRole === 'MUSIC_ADMIN'),
     keepPreviousData: true,
   });
 
@@ -302,9 +308,11 @@ export default function Website_Admin_Profile() {
 
   const edit_Hymn = async (id) => {
     if (!isLogin) return;
-    if (!formData.title.trim()) { alert(t("enterTitle")); return; }
-    if (!Array.isArray(formData.lyrics) || formData.lyrics.length === 0) { alert(t("addSection")); return; }
-    if (formData.lyrics.some(l => !l.text.trim())) { alert(t("sectionTextRequired")); return; }
+    if (UserRole !== 'MUSIC_ADMIN') {
+      if (!formData.title.trim()) { alert(t("enterTitle")); return; }
+      if (!Array.isArray(formData.lyrics) || formData.lyrics.length === 0) { alert(t("addSection")); return; }
+      if (formData.lyrics.some(l => !l.text.trim())) { alert(t("sectionTextRequired")); return; }
+    }
 
     setIsSubmitting(true);
     try {
@@ -328,7 +336,7 @@ export default function Website_Admin_Profile() {
   };
 
   if (isLoading) return <Loading />;
-  if (!isLogin || (UserRole !== 'WEBSITE_ADMIN' && UserRole !== 'PROGRAMER')) return null;
+  if (!isLogin || (UserRole !== 'WEBSITE_ADMIN' && UserRole !== 'PROGRAMER' && UserRole !== 'MUSIC_ADMIN')) return null;
 
   const roleData = adminTasksData?.role;
   const chunkData = adminTasksData?.data || [];
@@ -382,17 +390,37 @@ export default function Website_Admin_Profile() {
       <div className="max-w-7xl mx-auto flex flex-col gap-8">
 
         <div className="flex flex-col gap-4">
+          {UserRole === 'PROGRAMER' && (
+            <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/10 self-start shadow-inner">
+              <button
+                onClick={() => { setTaskTypeState('lyrics'); setAdminPage(1); }}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${taskTypeState === 'lyrics' ? 'bg-rose-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+              >
+                Lyrics Tasks
+              </button>
+              <button
+                onClick={() => { setTaskTypeState('music'); setAdminPage(1); }}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${taskTypeState === 'music' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+              >
+                Music Tasks
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-white/5 p-6 rounded-2xl border border-white/10">
             <div className="flex items-center gap-4">
-              <div className="p-4 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-400">
+              <div className={`p-4 rounded-full border ${taskTypeState === 'music' ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400' : 'bg-rose-500/20 border-rose-500/30 text-rose-400'}`}>
                 <ShieldAlert size={32} />
               </div>
               <div>
                 <h1 className="text-3xl font-bold bg-linear-to-r from-rose-400 to-pink-500 bg-clip-text text-transparent">
-                  Admin Editing Tasks
+                  {taskTypeState === 'music' ? 'Music Admin Tasks' : 'Admin Editing Tasks'}
                 </h1>
                 <p className="text-gray-400 mt-2 text-sm">
-                  {roleData === 'PROGRAMER' ? 'Overview of all Website Admin tasks' : 'Hymns assigned to you that require structuring'}
+                  {roleData === 'PROGRAMER'
+                    ? (taskTypeState === 'music' ? 'Overview of all Music Admin tasks' : 'Overview of all Website Admin tasks')
+                    : (UserRole === 'MUSIC_ADMIN' ? 'Hymns assigned to you that require scale and chords' : 'Hymns assigned to you that require structuring')
+                  }
                 </p>
                 <div className="mt-2 inline-flex items-center px-3 py-1 bg-sky-500/20 border border-sky-500/30 text-sky-400 rounded-lg text-sm font-bold">
                   Total Hymns to Edit: {totalHymns}
@@ -478,7 +506,7 @@ export default function Website_Admin_Profile() {
             </div>
           )}
 
-          {roleData === 'WEBSITE_ADMIN' && totalPages > 1 && (
+          {(roleData === 'WEBSITE_ADMIN' || roleData === 'MUSIC_ADMIN') && totalPages > 1 && (
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
               <span>
                 Showing page {adminPage} of {totalPages}
@@ -537,8 +565,8 @@ export default function Website_Admin_Profile() {
                     data-lenis-prevent-wheel
                   >
                     <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                      <h2 className="text-2xl font-bold bg-linear-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
-                        {editingHymnId ? `✏️ ${t("editHymn")}` : `🎵 ${t("addNewHymn")}`}
+                      <h2 className={`text-2xl font-bold bg-linear-to-r bg-clip-text text-transparent ${UserRole === 'MUSIC_ADMIN' ? 'from-indigo-400 to-purple-500' : 'from-sky-400 to-blue-500'}`}>
+                        {UserRole === 'MUSIC_ADMIN' ? `🎸 ${t("editHymn")}` : `✏️ ${t("editHymn")}`}
                       </h2>
                       <button onClick={closeModal} className="text-gray-400 hover:text-white transition">
                         <X className="w-6 h-6" />
@@ -546,139 +574,238 @@ export default function Website_Admin_Profile() {
                     </div>
 
                     <div className="p-6 flex flex-col gap-4">
-                      <div>
-                        <label className="block text-gray-400 text-sm mb-2">{t("songTitle")}</label>
-                        <input
-                          type="text"
-                          className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition"
-                          value={formData.title}
-                          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        />
+                      {/* Hymn Title (read-only for MUSIC_ADMIN, it shows what hymn they are editing) */}
+                      <div className="px-3 py-2 rounded-xl bg-white/5 border border-white/10">
+                        <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Hymn</p>
+                        <p className="text-white font-bold text-base" dir="rtl">{formData.title || '—'}</p>
                       </div>
 
-                      <div className="flex flex-col gap-3">
-                        <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/10">
-                          <label className="text-gray-200 text-sm font-semibold">{t("lyrics")}</label>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newArray = Array.isArray(formData.lyrics) ? [...formData.lyrics] : [];
-                                newArray.push({ type: 'verse', title: String(newArray.filter(l => l.type === 'verse').length + 1), text: '', slideMode: 'manual', slideBreaks: [] });
-                                setFormData({ ...formData, lyrics: newArray });
-                              }}
-                              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 text-white transition-colors flex items-center gap-1.5"
-                            >
-                              <PlusCircle className="w-4 h-4" /> العدد
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newArray = Array.isArray(formData.lyrics) ? [...formData.lyrics] : [];
-                                newArray.push({ type: 'chorus', title: 'القرار', text: '', slideMode: 'manual', slideBreaks: [] });
-                                setFormData({ ...formData, lyrics: newArray });
-                              }}
-                              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-sky-500/20 border border-sky-500/30 hover:bg-sky-500/30 text-sky-200 transition-colors flex items-center gap-1.5"
-                            >
-                              <PlusCircle className="w-4 h-4" /> القرار
-                            </button>
-                          </div>
-                        </div>
-
-                        {Array.isArray(formData.lyrics) && formData.lyrics.map((stanza, idx) => (
-                          <div key={idx} className={`p-4 rounded-xl border relative flex flex-col gap-3 transition-colors ${stanza.type === 'chorus' ? 'bg-sky-500/10 border-sky-500/30 shadow-[inset_0_0_20px_rgba(56,189,248,0.05)]' : 'bg-[#151525] border-white/10'}`}>
-                            <div className="flex justify-between items-center gap-2 pb-2 border-b border-white/5">
-                              <input
-                                type="text"
-                                value={stanza.title}
-                                onChange={(e) => {
-                                  const newArray = [...formData.lyrics];
-                                  newArray[idx].title = e.target.value;
-                                  setFormData({ ...formData, lyrics: newArray });
-                                }}
-                                className={`text-sm font-bold bg-transparent border-none outline-none w-32 px-1 focus:ring-0 ${stanza.type === 'chorus' ? 'text-white placeholder-white/50' : 'text-gray-300 placeholder-gray-500'}`}
-                                placeholder={stanza.type === 'chorus' ? "القرار" : "1"}
-                                dir="rtl"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (!confirm('هل تريد مسح هذا المقطع؟')) return;
-                                  const newArray = formData.lyrics.filter((_, i) => i !== idx);
-                                  setFormData({ ...formData, lyrics: newArray });
-                                }}
-                                className="text-gray-500 hover:text-red-400 p-1.5 rounded-full hover:bg-red-500/10"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                            <div className="relative w-full">
-                              <textarea
-                                dir="rtl"
-                                /* شيلنا الـ ref تماماً عشان نمنع مشاكل الـ Hooks والـ map */
-                                className="w-full p-3 rounded-lg bg-black/40 border border-black/50 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[250px] resize-none text-sm"
-                                value={stanza.text}
-                                onChange={(e) => {
-                                  const newArray = [...formData.lyrics];
-                                  const text = e.target.value;
-                                  const lineCount = text.split('\n').filter((l) => l.trim()).length;
-                                  newArray[idx] = {
-                                    ...newArray[idx],
-                                    text,
-                                    slideBreaks: sanitizeSlideBreaks(newArray[idx].slideBreaks, lineCount),
-                                  };
-                                  setFormData({ ...formData, lyrics: newArray });
-                                }}
-                              />
-
-                              {/* المقبض المخصص الكبير شغال PC وتاتش موبايل */}
-                              <div
-                                onTouchStart={handleResizeStart}
-                                onMouseDown={handleResizeStart}
-                                className="absolute bottom-2 left-2 w-10 h-10 flex items-end justify-start p-1 cursor-nwse-resize select-none active:scale-95 transition-transform"
-                                style={{ touchAction: 'none' }}
-                              >
-                                <span className="text-sky-400 text-lg font-bold">◢</span>
-                              </div>
-                            </div>
-                            <StanzaSlideControls
-                              stanza={stanza}
-                              stanzaIndex={idx}
-                              onChange={(stanzaIdx, updatedStanza) => {
-                                const newArray = [...formData.lyrics];
-                                newArray[stanzaIdx] = updatedStanza;
-                                setFormData({ ...formData, lyrics: newArray });
-                              }}
+                      {/* ── MUSIC_ADMIN: 4-field simplified form ── */}
+                      {UserRole === 'MUSIC_ADMIN' ? (
+                        <>
+                          {/* Scale / Key */}
+                          <div>
+                            <label className="block text-gray-400 text-sm mb-2">{t("scale")}</label>
+                            <input
+                              type="text"
+                              className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition"
+                              placeholder="e.g. C Major"
+                              value={formData.scale}
+                              onChange={(e) => setFormData({ ...formData, scale: e.target.value })}
                             />
                           </div>
-                        ))}
-                      </div>
 
-                      <div className="flex gap-3 mt-4">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedLyricsHymn({
-                              title: formData.title || 'Hymn Preview',
-                              lyrics: prepareLyricsForSave(formData.lyrics)
-                            });
-                            setShowLyricsModal(true);
-                          }}
-                          disabled={!formData.title || !formData.lyrics?.length || formData.lyrics.some(l => !l.text.trim())}
-                          className={`flex-1 py-3.5 rounded-xl font-bold transition-all border border-sky-500/30 bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 flex items-center justify-center gap-2 ${(!formData.title || !formData.lyrics?.length || formData.lyrics.some(l => !l.text.trim())) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          <Eye size={18} />
-                          {language === 'ar' ? 'معاينة الكلمات' : (language === 'de' ? 'Vorschau' : 'Preview')}
-                        </button>
-                        <button
-                          onClick={() => edit_Hymn(editingHymnId)}
-                          disabled={isSubmitting || !formData.title || !formData.lyrics?.length || formData.lyrics.some(l => !l.text.trim())}
-                          className={`flex-1 py-3.5 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${(isSubmitting || !formData.title || !formData.lyrics?.length || formData.lyrics.some(l => !l.text.trim())) ? 'bg-gray-600 cursor-not-allowed' : 'bg-linear-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500'}`}
-                        >
-                          <Edit2 size={18} />
-                          {isSubmitting ? t("updating") : t("updateSong")}
-                        </button>
-                      </div>
+                          {/* BPM + Time Signature side by side */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-gray-400 text-sm mb-2">{t("bpm")}</label>
+                              <input
+                                type="text"
+                                className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition"
+                                placeholder="e.g. 120"
+                                value={formData.BPM}
+                                onChange={(e) => setFormData({ ...formData, BPM: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-gray-400 text-sm mb-2">{t("timeSignature")}</label>
+                              <select
+                                className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition [&>option]:bg-gray-900"
+                                value={formData.timeSignature}
+                                onChange={(e) => setFormData({ ...formData, timeSignature: e.target.value })}
+                              >
+                                <option value="None">None</option>
+                                <option value="2/2">2/2</option>
+                                <option value="1/4">1/4</option>
+                                <option value="2/4">2/4</option>
+                                <option value="3/4">3/4</option>
+                                <option value="4/4">4/4</option>
+                                <option value="5/4">5/4</option>
+                                <option value="6/8">6/8</option>
+                                <option value="7/8">7/8</option>
+                                <option value="8/8">8/8</option>
+                                <option value="9/8">9/8</option>
+                                <option value="10/8">10/8</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Related Chords */}
+                          <div>
+                            <label className="block text-gray-400 text-sm mb-2">{t("relatedChords")}</label>
+                            <input
+                              type="text"
+                              className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition placeholder-gray-600"
+                              placeholder="e.g. G, C, D, Em"
+                              value={formData.relatedChords}
+                              onChange={(e) => setFormData({ ...formData, relatedChords: e.target.value })}
+                            />
+                            {formData.relatedChords && (
+                              <div className="flex flex-wrap gap-1.5 px-1 mt-2">
+                                {formData.relatedChords.split(/[, ]+/).filter(Boolean).map((chord, i) => (
+                                  <span key={i} className="text-[10px] font-bold text-green-300 bg-green-500/10 px-2 py-0.5 rounded-lg border border-green-500/20">
+                                    {chord}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Submit button for MUSIC_ADMIN */}
+                          <button
+                            onClick={() => edit_Hymn(editingHymnId)}
+                            disabled={isSubmitting}
+                            className={`w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 mt-2 ${isSubmitting ? 'bg-gray-600 cursor-not-allowed' : 'bg-linear-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500'}`}
+                          >
+                            <Edit2 size={18} />
+                            {isSubmitting ? t("updating") : t("updateSong")}
+                          </button>
+                        </>
+                      ) : (
+                        /* ── Default: Full lyrics editor for WEBSITE_ADMIN / PROGRAMER ── */
+                        <>
+                          <div className="flex flex-col gap-3">
+                            <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/10">
+                              <label className="text-gray-200 text-sm font-semibold">{t("lyrics")}</label>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newArray = Array.isArray(formData.lyrics) ? [...formData.lyrics] : [];
+                                    newArray.push({ type: 'verse', title: String(newArray.filter(l => l.type === 'verse').length + 1), text: '', slideMode: 'manual', slideBreaks: [] });
+                                    setFormData({ ...formData, lyrics: newArray });
+                                  }}
+                                  className="text-xs font-bold px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 text-white transition-colors flex items-center gap-1.5"
+                                >
+                                  <PlusCircle className="w-4 h-4" /> العدد
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newArray = Array.isArray(formData.lyrics) ? [...formData.lyrics] : [];
+                                    newArray.push({ type: 'chorus', title: 'القرار', text: '', slideMode: 'manual', slideBreaks: [] });
+                                    setFormData({ ...formData, lyrics: newArray });
+                                  }}
+                                  className="text-xs font-bold px-3 py-1.5 rounded-lg bg-sky-500/20 border border-sky-500/30 hover:bg-sky-500/30 text-sky-200 transition-colors flex items-center gap-1.5"
+                                >
+                                  <PlusCircle className="w-4 h-4" /> القرار
+                                </button>
+                              </div>
+                            </div>
+
+                            {Array.isArray(formData.lyrics) && formData.lyrics.map((stanza, idx) => (
+                              <div key={idx} className={`p-4 rounded-xl border relative flex flex-col gap-3 transition-colors ${stanza.type === 'chorus' ? 'bg-sky-500/10 border-sky-500/30 shadow-[inset_0_0_20px_rgba(56,189,248,0.05)]' : 'bg-[#151525] border-white/10'}`}>
+                                <div className="flex justify-between items-center gap-2 pb-2 border-b border-white/5">
+                                  <input
+                                    type="text"
+                                    value={stanza.title}
+                                    onChange={(e) => {
+                                      const newArray = [...formData.lyrics];
+                                      newArray[idx].title = e.target.value;
+                                      setFormData({ ...formData, lyrics: newArray });
+                                    }}
+                                    className={`text-sm font-bold bg-transparent border-none outline-none w-32 px-1 focus:ring-0 ${stanza.type === 'chorus' ? 'text-white placeholder-white/50' : 'text-gray-300 placeholder-gray-500'}`}
+                                    placeholder={stanza.type === 'chorus' ? "القرار" : "1"}
+                                    dir="rtl"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (!confirm('هل تريد مسح هذا المقطع؟')) return;
+                                      const newArray = formData.lyrics.filter((_, i) => i !== idx);
+                                      setFormData({ ...formData, lyrics: newArray });
+                                    }}
+                                    className="text-gray-500 hover:text-red-400 p-1.5 rounded-full hover:bg-red-500/10"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const textarea = document.getElementById(`textarea-${idx}`);
+                                      if (!textarea) return;
+                                      const start = textarea.selectionStart;
+                                      const end = textarea.selectionEnd;
+                                      const currentText = formData.lyrics[idx].text;
+                                      const before = currentText.substring(0, start);
+                                      const after = currentText.substring(end);
+                                      let marker = "---";
+                                      if (before.length > 0 && !before.endsWith('\n')) marker = "\n" + marker;
+                                      if (after.length > 0 && !after.startsWith('\n')) marker = marker + "\n";
+                                      const newText = before + marker + after;
+                                      const newArray = [...formData.lyrics];
+                                      newArray[idx].text = newText;
+                                      setFormData({ ...formData, lyrics: newArray });
+                                      setTimeout(() => {
+                                        textarea.focus();
+                                        textarea.selectionStart = textarea.selectionEnd = start + marker.length;
+                                      }, 0);
+                                    }}
+                                    className="text-[10px] font-bold px-2 py-1 rounded bg-amber-500/20 text-amber-200 border border-amber-500/30 hover:bg-amber-500/30 transition flex items-center gap-1"
+                                  >
+                                    + فصل شريحة
+                                  </button>
+                                </div>
+                                <div className="relative w-full">
+                                  <textarea
+                                    id={`textarea-${idx}`}
+                                    dir="rtl"
+                                    className="w-full p-3 rounded-lg bg-black/40 border border-black/50 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[250px] resize-none text-sm"
+                                    value={stanza.text}
+                                    onChange={(e) => {
+                                      const newArray = [...formData.lyrics];
+                                      const text = e.target.value;
+                                      const lineCount = text.split('\n').filter((l) => l.trim()).length;
+                                      newArray[idx] = {
+                                        ...newArray[idx],
+                                        text,
+                                        slideBreaks: sanitizeSlideBreaks(newArray[idx].slideBreaks, lineCount),
+                                      };
+                                      setFormData({ ...formData, lyrics: newArray });
+                                    }}
+                                  />
+                                  <div
+                                    onTouchStart={handleResizeStart}
+                                    onMouseDown={handleResizeStart}
+                                    className="absolute bottom-2 left-2 w-10 h-10 flex items-end justify-start p-1 cursor-nwse-resize select-none active:scale-95 transition-transform"
+                                    style={{ touchAction: 'none' }}
+                                  >
+                                    <span className="text-sky-400 text-lg font-bold">◢</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex gap-3 mt-4">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedLyricsHymn({
+                                  title: formData.title || 'Hymn Preview',
+                                  lyrics: prepareLyricsForSave(formData.lyrics)
+                                });
+                                setShowLyricsModal(true);
+                              }}
+                              disabled={!formData.title || !formData.lyrics?.length || formData.lyrics.some(l => !l.text.trim())}
+                              className={`flex-1 py-3.5 rounded-xl font-bold transition-all border border-sky-500/30 bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 flex items-center justify-center gap-2 ${(!formData.title || !formData.lyrics?.length || formData.lyrics.some(l => !l.text.trim())) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              <Eye size={18} />
+                              {language === 'ar' ? 'معاينة الكلمات' : (language === 'de' ? 'Vorschau' : 'Preview')}
+                            </button>
+                            <button
+                              onClick={() => edit_Hymn(editingHymnId)}
+                              disabled={isSubmitting || !formData.title || !formData.lyrics?.length || formData.lyrics.some(l => !l.text.trim())}
+                              className={`flex-1 py-3.5 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${(isSubmitting || !formData.title || !formData.lyrics?.length || formData.lyrics.some(l => !l.text.trim())) ? 'bg-gray-600 cursor-not-allowed' : 'bg-linear-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500'}`}
+                            >
+                              <Edit2 size={18} />
+                              {isSubmitting ? t("updating") : t("updateSong")}
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </motion.div>
                 </div>
