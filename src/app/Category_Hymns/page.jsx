@@ -51,6 +51,120 @@ function writeLocalBibleNote(verseId, note) {
   localStorage.setItem(LOCAL_BIBLE_NOTES_KEY, JSON.stringify(current));
 }
 
+const HIGHLIGHT_COLORS = [
+  { id: 'cyan', hex: '#7ae7ff' },
+  { id: 'pink', hex: '#ffbde6' },
+  { id: 'red', hex: '#f87171' },
+  { id: 'lavender', hex: '#e2e0ff' },
+  { id: 'yellow', hex: '#ffff00' },
+  { id: 'green', hex: '#00ff66' },
+  { id: 'blue', hex: '#00bfff' },
+  { id: 'orange', hex: '#ffaa44' },
+];
+
+const LOCAL_BIBLE_HIGHLIGHTS_KEY = 'taspe7_local_bible_highlights';
+
+function readLocalBibleHighlights() {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(LOCAL_BIBLE_HIGHLIGHTS_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalBibleHighlight(verseId, colorId) {
+  if (typeof window === 'undefined' || !verseId) return;
+  const current = readLocalBibleHighlights();
+  if (colorId) {
+    current[String(verseId)] = colorId;
+  } else {
+    delete current[String(verseId)];
+  }
+  localStorage.setItem(LOCAL_BIBLE_HIGHLIGHTS_KEY, JSON.stringify(current));
+}
+
+function getHighlightStyles(colorId, colorsList) {
+  if (!colorId || !colorsList) return null;
+  const color = colorsList.find(c => c.id === colorId);
+  if (!color) return null;
+  const hex = color.hex.startsWith('#') ? color.hex : `#${color.hex}`;
+  return {
+    backgroundColor: `${hex}1a`,
+    borderRightColor: hex,
+    borderRightWidth: '4px',
+    borderRightStyle: 'solid'
+  };
+}
+
+const VerseItem = React.memo(({
+  verse,
+  isSelected,
+  fontSize,
+  spacing,
+  highlightColor,
+  highlightColorsList,
+  hasNote,
+  onClick,
+  onNoteClick
+}) => {
+  const highlightStyle = getHighlightStyles(highlightColor, highlightColorsList);
+  return (
+    <div
+      onClick={() => onClick(verse._id)}
+      style={{
+        marginBottom: `${spacing}px`,
+        ...highlightStyle
+      }}
+      className={`group relative cursor-pointer p-4 rounded-xl transition-all duration-200 ${
+        !highlightStyle && isSelected
+          ? 'bg-white/5 border border-white/10'
+          : !highlightStyle
+            ? 'hover:bg-white/5 border border-white/0 hover:border-white/10'
+            : ''
+      }`}
+    >
+      <div className="flex items-start gap-4 sm:gap-8">
+        <div className="shrink-0 flex flex-col items-center gap-1 min-w-[25px] sm:min-w-[30px] mt-1">
+          <span className={`text-xs sm:text-sm font-black transition-colors text-center ${isSelected ? 'text-sky-500/70' : 'text-white/30 group-hover:text-sky-500/70'}`}>
+            {verse.verseNumber}
+          </span>
+          {hasNote && (
+            <div className="w-1.5 h-1.5 rounded-full bg-[#6366f1] animate-pulse" title="Has note" />
+          )}
+        </div>
+        <div className="flex-1 flex flex-col gap-2 min-w-0">
+          <p
+            className={`leading-relaxed sm:leading-normal font-arabic transition-all break-words ${isSelected || highlightStyle ? 'text-white' : 'text-white/80 group-hover:text-white'}`}
+            style={{ fontSize: `${fontSize}px` }}
+          >
+            {verse.text}
+          </p>
+
+          {/* Inline Note Preview */}
+          {hasNote && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onNoteClick(verse, hasNote);
+              }}
+              className="flex items-start gap-2 mt-1 text-left w-full group/note"
+            >
+              <div className="w-0.5 bg-[#6366f1]/50 self-stretch rounded-full shrink-0 group-hover/note:bg-[#6366f1] transition-colors" />
+              <p className="text-[11px] text-indigo-300/70 group-hover/note:text-indigo-300 transition-colors line-clamp-2 leading-relaxed" dir="rtl">
+                {hasNote}
+              </p>
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+VerseItem.displayName = 'VerseItem';
+
 function getUsersEndpointCandidates(path) {
   const normalizedPath = String(path || '').replace(/^\/+/, '');
   const withApi = API_ROOT;
@@ -266,7 +380,18 @@ export default function Category_Humns() {
   const [bibleModalChapter, setBibleModalChapter] = useState(null);
   const [bibleModalVerses, setBibleModalVerses] = useState([]);
   const [bibleSelectedVerseIds, setBibleSelectedVerseIds] = useState(new Set());
-  const [bibleVerseFontSize, setBibleVerseFontSize] = useState(24);
+  const [bibleVerseFontSize, setBibleVerseFontSize] = useState(() => {
+    if (typeof window === 'undefined') return 24;
+    const saved = localStorage.getItem('taspe7_bible_verse_font_size');
+    return saved ? parseInt(saved, 10) : 24;
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('taspe7_bible_verse_font_size', bibleVerseFontSize.toString());
+    }
+  }, [bibleVerseFontSize]);
+
   const [bibleAddedSuccess, setBibleAddedSuccess] = useState(false);
 
   const [bibleModalBrowseLoading, setBibleModalBrowseLoading] = useState(false);
@@ -275,6 +400,92 @@ export default function Category_Humns() {
   const bibleBookPickerRef = useRef(null);
   const bibleChapterPickerRef = useRef(null);
   const [isSavingBible, setIsSavingBible] = useState(false);
+
+  // --- New Spacing, Highlights, and Overlay States ---
+  const [bibleVerseSpacing, setBibleVerseSpacing] = useState(() => {
+    if (typeof window === 'undefined') return 16;
+    const saved = localStorage.getItem('taspe7_bible_verse_spacing');
+    return saved ? parseInt(saved, 10) : 16;
+  });
+
+  const handleSetBibleVerseSpacing = (val) => {
+    setBibleVerseSpacing(val);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('taspe7_bible_verse_spacing', val.toString());
+    }
+  };
+
+  const [bibleHighlights, setBibleHighlights] = useState({});
+  const [imageCardConfig, setImageCardConfig] = useState(null);
+  const [prayModeActive, setPrayModeActive] = useState(false);
+
+  const [highlightColorsList, setHighlightColorsList] = useState(() => {
+    if (typeof window === 'undefined') return HIGHLIGHT_COLORS;
+    try {
+      const saved = localStorage.getItem('taspe7_custom_highlights_list');
+      return saved ? JSON.parse(saved) : HIGHLIGHT_COLORS;
+    } catch {
+      return HIGHLIGHT_COLORS;
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('taspe7_custom_highlights_list', JSON.stringify(highlightColorsList));
+    }
+  }, [highlightColorsList]);
+
+  const [showColorCustomizer, setShowColorCustomizer] = useState(false);
+  const [customColorHex, setCustomColorHex] = useState('#7ae7ff');
+
+  const colorInputRef = useRef(null);
+
+  const handleTriggerColorPicker = () => {
+    colorInputRef.current?.click();
+  };
+
+  const handleColorPickerChange = (e) => {
+    const newHex = e.target.value;
+    if (newHex) {
+      setCustomColorHex(newHex);
+    }
+  };
+
+  useEffect(() => {
+    if (showBibleModal) {
+      setBibleHighlights(readLocalBibleHighlights());
+    }
+  }, [showBibleModal]);
+
+  const handleApplyHighlight = (colorId) => {
+    const newHighlights = { ...bibleHighlights };
+    bibleSelectedVerseIds.forEach(id => {
+      if (colorId) {
+        newHighlights[id] = colorId;
+        writeLocalBibleHighlight(id, colorId);
+      } else {
+        delete newHighlights[id];
+        writeLocalBibleHighlight(id, null);
+      }
+    });
+    setBibleHighlights(newHighlights);
+  };
+
+  const handleVerseClick = React.useCallback((verseId) => {
+    setBibleSelectedVerseIds(prev => {
+      const next = new Set(prev);
+      if (next.has(verseId)) {
+        next.delete(verseId);
+      } else {
+        next.add(verseId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleVerseNoteClick = React.useCallback((verse, existingNote) => {
+    setViewNoteConfig({ verse, note: existingNote });
+  }, []);
 
   // --- Translation Selector State ---
   const getInitialTranslation = () => {
@@ -302,17 +513,22 @@ export default function Category_Humns() {
   const [downloadedTranslations, setDownloadedTranslations] = useState(new Set(['AVD']));
   const [isDownloadingTranslation, setIsDownloadingTranslation] = useState(null);
 
-  // Check which translations are offline when modal opens
+  // Check which translations are offline when modal opens or available translations change
   useEffect(() => {
     if (!showBibleModal) return;
     const checkOffline = async () => {
       const active = new Set(['AVD']); // AVD is pre-seeded
-      const hasKeh = await isTranslationDownloaded('KEH');
-      if (hasKeh) active.add('KEH');
+      for (const tr of availableTranslations) {
+        if (tr === 'AVD') continue;
+        const downloaded = await isTranslationDownloaded(tr);
+        if (downloaded) {
+          active.add(tr);
+        }
+      }
       setDownloadedTranslations(active);
     };
     checkOffline();
-  }, [showBibleModal]);
+  }, [showBibleModal, availableTranslations]);
 
   const toggleDownloadTranslation = async (tr) => {
     if (tr === 'AVD') return; // AVD is packaged and cannot be deleted
@@ -739,6 +955,49 @@ export default function Category_Humns() {
     setCompareVerseNums([]);
     setCompareMobileTab(0);
     setCompareDesktopPage(0);
+  };
+
+  const getSelectedVersesRef = () => {
+    if (!bibleModalBook?.bookName || bibleModalChapter == null || bibleSelectedVerseIds.size === 0) return '';
+    const selectedVersesData = bibleModalVerses.filter(v => bibleSelectedVerseIds.has(v._id));
+    if (selectedVersesData.length === 0) return '';
+    const nums = selectedVersesData.map(v => v.verseNumber).sort((a, b) => a - b);
+    if (nums.length === 1) {
+      return `${bibleModalBook.bookName} ${bibleModalChapter}:${nums[0]}`;
+    } else {
+      const isConsecutive = nums.every((num, i) => i === 0 || num === nums[i - 1] + 1);
+      if (isConsecutive) {
+        return `${bibleModalBook.bookName} ${bibleModalChapter}:${nums[0]}-${nums[nums.length - 1]}`;
+      } else {
+        return `${bibleModalBook.bookName} ${bibleModalChapter}:${nums.join('، ')}`;
+      }
+    }
+  };
+
+  const handleShare = () => {
+    const selectedVersesData = bibleModalVerses.filter(v => bibleSelectedVerseIds.has(v._id));
+    const shareText = selectedVersesData.map(v => `[${v.verseNumber}] ${v.text}`).join('\n') + `\n(${getSelectedVersesRef()})`;
+    if (navigator.share) {
+      navigator.share({
+        title: getSelectedVersesRef(),
+        text: shareText
+      }).catch(() => {
+        navigator.clipboard.writeText(shareText);
+        showToast(language === 'ar' ? 'تم نسخ النص المختار!' : 'Selected text copied!');
+      });
+    } else {
+      navigator.clipboard.writeText(shareText);
+      showToast(language === 'ar' ? 'تم نسخ النص المختار!' : 'Selected text copied!');
+    }
+  };
+
+  const handleOpenImageCard = () => {
+    const selectedVersesData = bibleModalVerses.filter(v => bibleSelectedVerseIds.has(v._id));
+    const combinedText = selectedVersesData.map(v => v.text).join(' ');
+    setImageCardConfig({
+      refText: getSelectedVersesRef(),
+      text: combinedText
+    });
   };
 
   // Save Bible verses to workspace
@@ -2904,181 +3163,113 @@ export default function Category_Humns() {
                           </div>
 
                           {/* The Reading Experience - Optimized for performance */}
-                          <div className="space-y-8 pb-20">
-                            {/* Verse Selection Toolbar */}
-                            {bibleModalVerses.length > 1 && (
-                              <div className="top-0 z-40 flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 bg-white/5 rounded-xl border border-white/10 backdrop-blur-md mb-4">
-                                <div className="flex items-center gap-2 flex-wrap flex-1" dir="ltr">
-                                  <span className="text-xs font-bold text-gray-400">Select verses:</span>
-                                  <button
-                                    onClick={() => setBibleSelectedVerseIds(new Set(bibleModalVerses.map(v => v._id)))}
-                                    className="px-3 py-1 text-xs font-bold rounded-lg bg-sky-500/20 text-sky-300 border border-sky-500/30 hover:bg-sky-500/30 transition-all"
-                                  >
-                                    All
-                                  </button>
-                                  <button
-                                    onClick={() => setBibleSelectedVerseIds(new Set())}
-                                    className="px-3 py-1 text-xs font-bold rounded-lg bg-white/10 text-gray-300 border border-white/20 hover:bg-white/20 transition-all"
-                                  >
-                                    Clear
-                                  </button>
-                                  {bibleSelectedVerseIds.size > 0 && (
-                                    <span className="text-xs text-sky-400 font-semibold">
-                                      {bibleSelectedVerseIds.size} selected
-                                    </span>
-                                  )}
-                                </div>
+                          <div className="space-y-6 pb-20">
+                            {/* Global Controls Panel (Block Positioned) */}
+                            {bibleModalVerses.length > 0 && (
+                              <div className="relative flex flex-col gap-3.5 p-4 bg-slate-950/50 border border-white/10 rounded-3xl shadow-xl mb-6" dir="rtl">
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                  {/* Typography & Spacing controls */}
+                                  <div className="flex items-center gap-3.5 flex-wrap text-white text-xs">
+                                    {/* Font Size Control */}
+                                    <div className="flex items-center gap-2 bg-white/5 border border-white/[0.07] rounded-2xl px-3 py-2">
+                                      <span className="text-white/40 font-bold">حجم الخط:</span>
+                                      <button
+                                        onClick={() => setBibleVerseFontSize(prev => Math.max(16, prev - 2))}
+                                        className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-90"
+                                        title="Decrease font size"
+                                      >
+                                        -A
+                                      </button>
+                                      <span className="font-bold min-w-[20px] text-center">{bibleVerseFontSize}</span>
+                                      <button
+                                        onClick={() => setBibleVerseFontSize(prev => Math.min(44, prev + 2))}
+                                        className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-90"
+                                        title="Increase font size"
+                                      >
+                                        +A
+                                      </button>
+                                    </div>
 
-                                <div className="flex items-center gap-2 flex-wrap" dir="ltr">
-                                  {/* ── Compare FAB ── */}
-                                  {bibleSelectedVerseIds.size > 0 && availableTranslations.length > 1 && (
-                                    <button
-                                      onClick={() => {
-                                        const nums = bibleModalVerses
-                                          .filter(v => bibleSelectedVerseIds.has(v._id))
-                                          .map(v => v.verseNumber);
-                                        openCompare(nums);
-                                      }}
-                                      className="px-4 py-2 text-xs font-black rounded-lg bg-gradient-to-r from-sky-600 to-indigo-600 text-white hover:from-sky-500 hover:to-indigo-500 shadow-[0_0_16px_rgba(14,165,233,0.4)] transition-all active:scale-95 whitespace-nowrap flex items-center gap-1.5"
-                                    >
-                                      <span>⚖️</span> Compare {bibleSelectedVerseIds.size > 1 ? `${bibleSelectedVerseIds.size} Verses` : 'Verse'}
-                                    </button>
-                                  )}
-
-                                  <div className="flex items-center gap-1 rounded-lg border border-white/15 bg-white/5 p-1">
-                                    <button
-                                      onClick={() => setBibleVerseFontSize(prev => Math.max(16, prev - 2))}
-                                      className="px-2 py-1 text-xs font-bold rounded-md text-gray-200 hover:bg-white/10 transition-all"
-                                      title="Decrease font size"
-                                    >
-                                      -A
-                                    </button>
-                                    <button
-                                      onClick={() => setBibleVerseFontSize(prev => Math.min(44, prev + 2))}
-                                      className="px-2 py-1 text-xs font-bold rounded-md text-gray-200 hover:bg-white/10 transition-all"
-                                      title="Increase font size"
-                                    >
-                                      +A
-                                    </button>
+                                    {/* Spacing Control */}
+                                    <div className="flex items-center gap-2 bg-white/5 border border-white/[0.07] rounded-2xl px-3 py-2">
+                                      <span className="text-white/40 font-bold">المسافة:</span>
+                                      <button
+                                        onClick={() => handleSetBibleVerseSpacing(Math.max(8, bibleVerseSpacing - 4))}
+                                        className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-90"
+                                        title="Decrease spacing"
+                                      >
+                                        -
+                                      </button>
+                                      <span className="font-bold min-w-[24px] text-center">{bibleVerseSpacing}px</span>
+                                      <button
+                                        onClick={() => handleSetBibleVerseSpacing(Math.min(80, bibleVerseSpacing + 4))}
+                                        className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-90"
+                                        title="Increase spacing"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
                                   </div>
 
-                                  <button
-                                    onClick={saveBibleToWorkspace}
-                                    disabled={isSavingBible || bibleAddedSuccess || bibleSelectedVerseIds.size === 0}
-                                    className={`px-4 py-2 text-xs font-bold rounded-lg transition-all shadow-lg active:scale-95 whitespace-nowrap flex items-center gap-2
-                                      ${bibleAddedSuccess ? 'bg-green-500 text-white' : 'bg-sky-500 text-white hover:bg-sky-400'}
-                                      disabled:opacity-50`}
-                                  >
-                                    {isSavingBible ? (
-                                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {t('saving') || 'Saving...'}</>
-                                    ) : bibleAddedSuccess ? (
-                                      <><Check className="w-3.5 h-3.5" /> {language === 'ar' ? 'تمت الإضافة بنجاح' : 'Added successfully'}</>
-                                    ) : (
-                                      t('saveToWorkspace') || 'Save to Workspace'
+                                  {/* Selection quick actions */}
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <button
+                                      onClick={() => setBibleSelectedVerseIds(new Set(bibleModalVerses.map(v => v._id)))}
+                                      className="px-3.5 py-2 text-xs font-bold rounded-2xl bg-white/5 hover:bg-white/10 border border-white/[0.07] text-slate-200 transition-all active:scale-95"
+                                    >
+                                      تحديد الكل
+                                    </button>
+                                    <button
+                                      onClick={() => setBibleSelectedVerseIds(new Set())}
+                                      className="px-3.5 py-2 text-xs font-bold rounded-2xl bg-white/5 hover:bg-white/10 border border-white/[0.07] text-slate-300 transition-all active:scale-95"
+                                    >
+                                      إلغاء التحديد
+                                    </button>
+
+                                    {/* Save Selected to Workspace */}
+                                    {bibleSelectedVerseIds.size > 0 && (
+                                      <button
+                                        onClick={saveBibleToWorkspace}
+                                        disabled={isSavingBible || bibleAddedSuccess}
+                                        className={`px-4 py-2 text-xs font-black rounded-2xl transition-all shadow-md active:scale-95 whitespace-nowrap flex items-center gap-1.5
+                                          ${bibleAddedSuccess ? 'bg-green-500 text-white' : 'bg-sky-500 hover:bg-sky-400 text-white'}
+                                          disabled:opacity-50`}
+                                      >
+                                        {isSavingBible ? (
+                                          <><Loader2 className="w-3.5 h-3.5 animate-spin" /> ...</>
+                                        ) : bibleAddedSuccess ? (
+                                          <><Check className="w-3.5 h-3.5" /> تم الحفظ</>
+                                        ) : (
+                                          <>
+                                            <FolderPlus className="w-3.5 h-3.5" />
+                                            حفظ للمساحة ({bibleSelectedVerseIds.size})
+                                          </>
+                                        )}
+                                      </button>
                                     )}
-                                  </button>
+                                  </div>
                                 </div>
                               </div>
                             )}
 
                             {/* Verses List */}
-                            {bibleModalVerses.map((verse, vIdx) => {
+                            {bibleModalVerses.map((verse) => {
                               const isSelectedIndividual = bibleSelectedVerseIds.has(verse._id);
                               const existingNote = verseNotes[verse._id];
+                              const highlightColor = bibleHighlights[verse._id];
                               return (
-                                <div
+                                <VerseItem
                                   key={verse._id}
-                                  onClick={() => {
-                                    const newSelection = new Set(bibleSelectedVerseIds);
-                                    if (newSelection.has(verse._id)) {
-                                      newSelection.delete(verse._id);
-                                    } else {
-                                      newSelection.add(verse._id);
-                                    }
-                                    setBibleSelectedVerseIds(newSelection);
-                                  }}
-                                  className={`group relative cursor-pointer p-4 rounded-xl transition-all duration-200 ${existingNote
-                                    ? 'bg-indigo-500/5 border border-indigo-500/20'
-                                    : isSelectedIndividual
-                                      ? 'bg-white/5 border border-white/10'
-                                      : 'hover:bg-white/5 border border-white/0 hover:border-white/10'
-                                    }`}
-                                >
-                                  <div className="flex items-start gap-4 sm:gap-8">
-                                    <div className="shrink-0 flex flex-col items-center gap-1 min-w-[25px] sm:min-w-[30px] mt-1">
-                                      <span className={`text-xs sm:text-sm font-black transition-colors text-center ${isSelectedIndividual ? 'text-sky-500/70' : 'text-white/30 group-hover:text-sky-500/70'}`}>
-                                        {verse.verseNumber}
-                                      </span>
-                                      {existingNote && (
-                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" title="Has note" />
-                                      )}
-                                    </div>
-                                    <div className="flex-1 flex flex-col gap-2 min-w-0">
-                                      <p
-                                        className={`leading-relaxed sm:leading-normal font-arabic transition-all break-words ${isSelectedIndividual ? 'text-white' : 'text-white/80 group-hover:text-white'}`}
-                                        style={{ fontSize: `${bibleVerseFontSize}px` }}
-                                      >
-                                        {verse.text}
-                                      </p>
-
-                                      {/* Inline Note Preview */}
-                                      {existingNote && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setViewNoteConfig({ verse, note: existingNote });
-                                          }}
-                                          className="flex items-start gap-2 mt-1 text-left w-full group/note"
-                                        >
-                                          <div className="w-0.5 bg-indigo-400/50 self-stretch rounded-full shrink-0 group-hover/note:bg-indigo-400 transition-colors" />
-                                          <p className="text-[11px] text-indigo-300/70 group-hover/note:text-indigo-300 transition-colors line-clamp-2 leading-relaxed" dir="rtl">
-                                            {existingNote}
-                                          </p>
-                                        </button>
-                                      )}
-
-                                      {isSelectedIndividual && (
-                                        <div className="flex gap-2 mt-2 flex-wrap">
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              openBiblePresentation({ bookName: bibleModalBook.bookName, chapter: bibleModalChapter, verses: bibleModalVerses, startIndex: vIdx });
-                                            }}
-                                            className="px-3 py-1.5 text-xs font-bold rounded-lg bg-sky-500/30 text-sky-200 border border-sky-500/50 hover:bg-sky-500/40 transition-all active:scale-95"
-                                          >
-                                            <Monitor className="w-3 h-3 inline mr-1" /> Present
-                                          </button>
-                                          {/* ── Per-verse Compare Button ── */}
-                                          {availableTranslations.length > 1 && (
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                openCompare([verse.verseNumber]);
-                                              }}
-                                              className="px-3 py-1.5 text-xs font-black rounded-lg bg-gradient-to-r from-sky-600/80 to-indigo-600/80 text-white border border-sky-500/50 hover:from-sky-500 hover:to-indigo-500 shadow-[0_0_10px_rgba(14,165,233,0.3)] transition-all active:scale-95"
-                                            >
-                                              ⚖️ Compare
-                                            </button>
-                                          )}
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setNoteText(existingNote || '');
-                                              setNoteModalConfig({ type: 'bible', data: verse, existingNote });
-                                            }}
-                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all active:scale-95 ${existingNote
-                                              ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-400/40 hover:bg-indigo-500/30'
-                                              : 'bg-indigo-500/30 text-indigo-200 border border-indigo-500/50 hover:bg-indigo-500/40'
-                                              }`}
-                                          >
-                                            <FileText className="w-3 h-3 inline mr-1" />
-                                            {existingNote ? 'Edit Note' : 'Add Note'}
-                                          </button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
+                                  verse={verse}
+                                  isSelected={isSelectedIndividual}
+                                  fontSize={bibleVerseFontSize}
+                                  spacing={bibleVerseSpacing}
+                                  highlightColor={highlightColor}
+                                  highlightColorsList={highlightColorsList}
+                                  hasNote={existingNote}
+                                  onClick={handleVerseClick}
+                                  onNoteClick={handleVerseNoteClick}
+                                />
                               );
                             })}
                           </div>
@@ -3091,6 +3282,313 @@ export default function Category_Humns() {
                       )}
                     </div>
                   </div>
+
+                  {/* ── SELECTION SHEET (Bottom Drawer Style) ── */}
+                  <AnimatePresence>
+                    {bibleSelectedVerseIds.size > 0 && (
+                      <motion.div
+                        initial={{ y: '100%' }}
+                        animate={{ y: 0 }}
+                        exit={{ y: '100%' }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+                        className="absolute bottom-0 left-0 right-0 z-50 bg-[#0d0e15]/95 border-t border-white/10 backdrop-blur-2xl px-6 py-5 rounded-t-[2.5rem] shadow-[0_-15px_35px_rgba(0,0,0,0.6)] flex flex-col gap-4 text-white"
+                        dir="rtl"
+                      >
+                        {/* Pull bar */}
+                        <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-1 shrink-0" />
+                        
+                        {/* Title & Ref */}
+                        <div className="flex justify-between items-center shrink-0">
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">تعديل الآية المحددة</span>
+                          <span className="text-sm font-black text-sky-400" dir="ltr">
+                            {getSelectedVersesRef()}
+                          </span>
+                        </div>
+
+                        {/* Capsule Action Buttons */}
+                        <div className="flex gap-2 overflow-x-auto py-1 hide-scrollbar shrink-0" dir="ltr">
+                          <button
+                            onClick={handleShare}
+                            className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95"
+                          >
+                            <Share2 className="w-3.5 h-3.5 text-white/70" /> Share
+                          </button>
+                          <button
+                            onClick={handleOpenImageCard}
+                            className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Image
+                          </button>
+                          {availableTranslations.length > 1 && (
+                            <button
+                              onClick={() => {
+                                const nums = bibleModalVerses
+                                  .filter(v => bibleSelectedVerseIds.has(v._id))
+                                  .map(v => v.verseNumber);
+                                openCompare(nums);
+                              }}
+                              className="flex-1 min-w-[85px] py-2.5 px-3 rounded-full bg-gradient-to-r from-sky-600 to-indigo-600 border border-sky-500/30 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 shadow-[0_0_12px_rgba(14,165,233,0.3)]"
+                            >
+                              ⚖️ Compare
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              const firstVerse = bibleModalVerses.find(v => bibleSelectedVerseIds.has(v._id));
+                              if (!firstVerse) return;
+                              setNoteText(verseNotes[firstVerse._id] || '');
+                              setNoteModalConfig({ type: 'bible', data: firstVerse, existingNote: verseNotes[firstVerse._id] });
+                            }}
+                            className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-indigo-400" /> Note
+                          </button>
+                          <button
+                            onClick={() => setPrayModeActive(true)}
+                            className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95"
+                          >
+                            <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400/20" /> Pray
+                          </button>
+                        </div>
+
+                        {/* Highlights Circle Color Picker */}
+                        <div className="flex flex-col gap-2.5 shrink-0 mt-1">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-black text-white/50 whitespace-nowrap">تمييز:</span>
+                            <div className="flex gap-2.5 items-center overflow-x-auto py-1 hide-scrollbar">
+                              {highlightColorsList.map(c => {
+                                const isColorActive = Array.from(bibleSelectedVerseIds).every(id => bibleHighlights[id] === c.id);
+                                const isCustomColor = c.id.startsWith('custom-');
+                                return (
+                                  <div key={c.id} className="relative group/color shrink-0">
+                                    <button
+                                      onClick={() => handleApplyHighlight(c.id)}
+                                      className={`w-7 h-7 rounded-full transition-all active:scale-90 flex items-center justify-center border-2 ${
+                                        isColorActive ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'
+                                      }`}
+                                      style={{ backgroundColor: c.hex }}
+                                      title={`Highlight ${c.id}`}
+                                    >
+                                      {isColorActive && <Check className="w-4 h-4 text-slate-900 stroke-[3]" />}
+                                    </button>
+                                    
+                                    {isCustomColor && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setHighlightColorsList(prev => prev.filter(color => color.id !== c.id));
+                                          const nextHighlights = { ...bibleHighlights };
+                                          let changed = false;
+                                          Object.keys(nextHighlights).forEach(vid => {
+                                            if (nextHighlights[vid] === c.id) {
+                                              delete nextHighlights[vid];
+                                              writeLocalBibleHighlight(vid, null);
+                                              changed = true;
+                                            }
+                                          });
+                                          if (changed) setBibleHighlights(nextHighlights);
+                                        }}
+                                        className="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center text-[8px] font-bold shadow-md opacity-100 transition-opacity"
+                                        title="Delete custom color"
+                                      >
+                                        ✕
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                              {/* Plus button to open/toggle customizer */}
+                              <button
+                                onClick={() => setShowColorCustomizer(prev => !prev)}
+                                className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90 border border-white/20 ${
+                                  showColorCustomizer ? 'bg-sky-500/20 text-sky-400 border-sky-500/50' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
+                                }`}
+                                title="Add Custom Color"
+                              >
+                                <PlusCircle className="w-4 h-4" />
+                              </button>
+                              
+                              <button
+                                onClick={() => handleApplyHighlight(null)}
+                                className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center transition-all active:scale-90 text-white/60 hover:text-white"
+                                title="Clear Highlight"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Custom Color Editor Widget */}
+                          {showColorCustomizer && (
+                            <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-2.5 mt-1.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                              <span className="text-[11px] font-bold text-white/40">اختر لوناً:</span>
+                              
+                              {/* Color preview circle */}
+                              <div
+                                onClick={handleTriggerColorPicker}
+                                className="w-7 h-7 rounded-full border border-white/20 shadow-md shrink-0 cursor-pointer hover:scale-105 transition-transform animate-pulse"
+                                style={{ backgroundColor: customColorHex }}
+                                title="اضغط لتغيير اللون"
+                              />
+                              
+                              {/* Hex value */}
+                              <span className="text-[10px] font-mono text-white/70 bg-white/5 px-2 py-1 rounded-lg shrink-0">
+                                {customColorHex}
+                              </span>
+
+                              {/* Trigger Picker button */}
+                              <button
+                                onClick={handleTriggerColorPicker}
+                                className="px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-[10px] font-black transition-all active:scale-95 text-white/90"
+                              >
+                                تغيير اللون
+                              </button>
+
+                              <input
+                                type="color"
+                                ref={colorInputRef}
+                                value={customColorHex}
+                                onChange={handleColorPickerChange}
+                                className="hidden"
+                              />
+
+                              {/* Confirm/Add & Close buttons */}
+                              <div className="flex gap-1.5 ml-auto" dir="ltr">
+                                <button
+                                  onClick={() => setShowColorCustomizer(false)}
+                                  className="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 text-[10px] font-black transition-all active:scale-95"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const newId = `custom-${Date.now()}`;
+                                    const newColor = { id: newId, hex: customColorHex };
+                                    setHighlightColorsList(prev => {
+                                      if (prev.some(c => c.hex.toLowerCase() === customColorHex.toLowerCase())) {
+                                        return prev;
+                                      }
+                                      return [...prev, newColor];
+                                    });
+                                    handleApplyHighlight(newId);
+                                    setShowColorCustomizer(false);
+                                  }}
+                                  className="px-3 py-1 rounded-xl bg-green-500 hover:bg-green-400 text-slate-950 text-[10px] font-black transition-all active:scale-95 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
+                                >
+                                  Add & Apply
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* ── IMAGE CARD MODAL OVERLAY ── */}
+                  {imageCardConfig && (
+                    <Portal>
+                      <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+                        <div className="relative w-full max-w-lg bg-gradient-to-br from-slate-900 to-indigo-950 border border-white/10 rounded-[2.5rem] p-8 shadow-2xl flex flex-col gap-6 text-center text-white overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                          {/* Decorative shapes */}
+                          <div className="absolute -top-12 -left-12 w-48 h-48 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+                          <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+                          
+                          <div className="shrink-0 flex justify-between items-center border-b border-white/5 pb-4">
+                            <span className="text-xs font-bold text-sky-400">{imageCardConfig.refText}</span>
+                            <button
+                              onClick={() => setImageCardConfig(null)}
+                              className="p-1 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-all"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+
+                          <div className="flex-1 flex flex-col justify-center items-center py-10 px-4">
+                            <span className="text-4xl text-sky-500/20 font-serif leading-none mb-2 select-none">“</span>
+                            <p className="text-2xl font-arabic leading-relaxed font-semibold text-slate-100" dir="rtl">
+                              {imageCardConfig.text}
+                            </p>
+                            <span className="text-4xl text-sky-500/20 font-serif leading-none mt-2 self-end select-none">”</span>
+                            <p className="text-sm font-bold text-slate-400 mt-6 tracking-wide">
+                              {imageCardConfig.refText}
+                            </p>
+                          </div>
+
+                          <div className="shrink-0 flex gap-3">
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(`“${imageCardConfig.text}”\n— ${imageCardConfig.refText}`);
+                                showToast(language === 'ar' ? 'تم نسخ الكارت!' : 'Card text copied!');
+                              }}
+                              className="flex-1 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm font-bold transition-all active:scale-95"
+                            >
+                              Copy Text
+                            </button>
+                            <button
+                              onClick={() => {
+                                setImageCardConfig(null);
+                                showToast(language === 'ar' ? 'يمكنك أخذ لقطة شاشة لحفظ الصورة الجميلة!' : 'Take a screenshot to save this beautiful card!');
+                              }}
+                              className="flex-1 py-3 rounded-2xl bg-sky-500 hover:bg-sky-400 text-white text-sm font-bold transition-all active:scale-95 shadow-[0_0_15px_rgba(14,165,233,0.4)]"
+                            >
+                              Close
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </Portal>
+                  )}
+
+                  {/* ── PRAY MODE FULLSCREEN OVERLAY ── */}
+                  {prayModeActive && (
+                    <Portal>
+                      <div className="fixed inset-0 z-[300] bg-[#05050c] flex flex-col justify-between p-6 sm:p-12 text-white">
+                        {/* Soft pulsing ambient lights in background */}
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(99,102,241,0.06),transparent_50%)] pointer-events-none" />
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_70%,rgba(14,165,233,0.04),transparent_50%)] pointer-events-none animate-pulse duration-[6s]" />
+
+                        <div className="shrink-0 flex justify-between items-center border-b border-white/5 pb-4 z-10">
+                          <div className="flex items-center gap-2">
+                            <Heart className="w-5 h-5 text-rose-400 fill-rose-400/20 animate-pulse" />
+                            <span className="text-xs font-bold text-white/50 tracking-wider">وقت الصلاة والتأمل • Prayer & Meditation</span>
+                          </div>
+                          <button
+                            onClick={() => setPrayModeActive(false)}
+                            className="p-2 rounded-full hover:bg-white/5 text-white/40 hover:text-white transition-all"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <div className="flex-1 flex flex-col justify-center items-center max-w-4xl mx-auto py-10 px-4 text-center z-10 overflow-y-auto custom-scrollbar-thin">
+                          <div className="space-y-8 select-none" dir="rtl">
+                            {bibleModalVerses
+                              .filter(v => bibleSelectedVerseIds.has(v._id))
+                              .map(v => (
+                                <p key={v._id} className="text-3xl sm:text-5xl font-arabic leading-relaxed font-medium text-slate-100/90 hover:text-white transition-all duration-300">
+                                  {v.text}
+                                  <span className="text-sky-500/40 text-xl sm:text-2xl mr-3 select-none font-bold">({v.verseNumber})</span>
+                                </p>
+                              ))}
+                          </div>
+                          <p className="text-sm font-bold text-sky-400 mt-12 tracking-wide uppercase">
+                            — {getSelectedVersesRef()} —
+                          </p>
+                        </div>
+
+                        <div className="shrink-0 flex flex-col items-center gap-4 z-10">
+                          <p className="text-xs text-white/30 text-center">تأمل بعمق في الآية ودعها تملأ قلبك بالسلام</p>
+                          <button
+                            onClick={() => setPrayModeActive(false)}
+                            className="py-3 px-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm font-bold transition-all active:scale-95"
+                          >
+                            رجوع • Back
+                          </button>
+                        </div>
+                      </div>
+                    </Portal>
+                  )}
 
                   {/* Smart Progress Indicator */}
                   <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-sky-500/50 to-transparent" />
