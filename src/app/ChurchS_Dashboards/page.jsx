@@ -115,7 +115,31 @@ function PendingCard({ request, onApprove, onRejectOpen, onViewLyrics, processin
           </div>
         )}
 
-        {/* Payload preview toggle */}
+        {/* Music info chips — visible at a glance when payload has scale/chords/BPM/timeSignature */}
+        {(request.payload?.scale || request.payload?.relatedChords || request.payload?.BPM || (request.payload?.timeSignature && request.payload.timeSignature !== 'None')) && (
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {request.payload?.scale && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
+                <span className="text-indigo-500">Scale</span> {request.payload.scale}
+              </span>
+            )}
+            {request.payload?.BPM && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-300">
+                <span className="text-yellow-500">BPM</span> {request.payload.BPM}
+              </span>
+            )}
+            {request.payload?.timeSignature && request.payload.timeSignature !== 'None' && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300">
+                <span className="text-amber-500">Time</span> {request.payload.timeSignature}
+              </span>
+            )}
+            {request.payload?.relatedChords && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-300">
+                <span className="text-green-500">Chords</span> {request.payload.relatedChords}
+              </span>
+            )}
+          </div>
+        )}
         {hasPayload && request.actionType !== 'delete' && (
           <div className="flex items-center justify-between mb-3">
             <button
@@ -149,6 +173,8 @@ function PendingCard({ request, onApprove, onRejectOpen, onViewLyrics, processin
                 {request.payload.title && <div><span className="text-sky-400">title:</span> {request.payload.title}</div>}
                 {request.payload.scale && <div><span className="text-sky-400">scale:</span> {request.payload.scale}</div>}
                 {request.payload.BPM && <div><span className="text-sky-400">BPM:</span>   {request.payload.BPM}</div>}
+                {request.payload.timeSignature && request.payload.timeSignature !== 'None' && <div><span className="text-sky-400">timeSig:</span> {request.payload.timeSignature}</div>}
+                {request.payload.relatedChords && <div><span className="text-sky-400">chords:</span> {request.payload.relatedChords}</div>}
                 {request.payload.party && <div><span className="text-sky-400">party:</span> {Array.isArray(request.payload.party) ? request.payload.party.join(', ') : request.payload.party}</div>}
                 {request.payload.lyrics && (
                   <div>
