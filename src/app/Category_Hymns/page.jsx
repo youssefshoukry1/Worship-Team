@@ -3121,20 +3121,22 @@ export default function Category_Humns() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15, ease: 'easeOut' }}
                       className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-6"
                     >
                       {/* Backdrop */}
                       <div
-                        className="absolute inset-0 bg-[#03030f]/90 backdrop-blur-2xl"
+                        className="absolute inset-0 bg-[#03030f]/90 sm:backdrop-blur-xl"
                         onClick={() => setCompareModal(false)}
                       />
 
                       <motion.div
-                        initial={{ y: 60, opacity: 0, scale: 0.97 }}
-                        animate={{ y: 0, opacity: 1, scale: 1 }}
-                        exit={{ y: 60, opacity: 0, scale: 0.97 }}
-                        transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-                        className="relative w-full sm:max-w-5xl h-[92vh] sm:h-[82vh] rounded-t-[2.5rem] sm:rounded-[2.5rem] bg-[#09091a] border border-white/10 shadow-[0_0_80px_-10px_rgba(14,165,233,0.4)] flex flex-col overflow-hidden"
+                        initial={{ y: 56, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 40, opacity: 0 }}
+                        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                        style={{ willChange: 'transform, opacity' }}
+                        className="relative w-full sm:max-w-5xl h-[92vh] sm:h-[82vh] rounded-t-[2.5rem] sm:rounded-[2.5rem] bg-[#09091a] border border-white/10 sm:shadow-[0_0_80px_-10px_rgba(14,165,233,0.4)] flex flex-col overflow-hidden"
                       >
                         {/* ── Compare Modal Header ── */}
                         <div className="shrink-0 px-4 sm:px-5 py-3 sm:py-4 border-b border-white/[0.07] bg-gradient-to-r from-sky-900/30 to-indigo-900/20">
