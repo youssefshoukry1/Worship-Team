@@ -1913,6 +1913,7 @@ export default function Category_Humns() {
       const segments = parseSegments(line);
       const anyHasChords = line.includes('[');
 
+      if (line.trim() === '---') return null;
       if (!line.trim()) return <div key={i} className="h-4" />;
 
       return (
