@@ -282,6 +282,7 @@ export default function normal_UserProfile() {
                 setProfile({
                     user: data.user,
                     bibleNotes: data.user?.bibleNotes?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
+                    bibleHighlights: data.user?.bibleHighlights?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
                     prayTime: data.user?.prayTime?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
                 });
 
@@ -570,6 +571,7 @@ export default function normal_UserProfile() {
     const tabs = [
         { id: 'overview', label: 'Overview', icon: User },
         { id: 'bible', label: 'Bible Notes', icon: Book },
+        { id: 'highlights', label: 'Highlights', icon: Sparkles },
         { id: 'pray-time', label: 'Pray Time', icon: Heart },
     ];
 
@@ -637,6 +639,14 @@ export default function normal_UserProfile() {
                                 bgClass="bg-gradient-to-br from-blue-500/10 to-transparent border-blue-400/20"
                             />
                             <SummaryCard
+                                icon={Sparkles}
+                                title="Insights"
+                                primaryLabel="Bible Highlights"
+                                primaryValue={profile?.bibleHighlights?.length || 0}
+                                accentClass="text-sky-400"
+                                bgClass="bg-gradient-to-br from-sky-500/10 to-transparent border-sky-400/20"
+                            />
+                            <SummaryCard
                                 icon={Heart}
                                 title="Pray Time"
                                 primaryLabel="Prayer Notes"
@@ -700,6 +710,53 @@ export default function normal_UserProfile() {
                                         </div>
                                     </div>
                                 )}
+                            />
+                        </div>
+                    )}
+
+                    {/* HIGHLIGHTS TAB */}
+                    {activeTab === 'highlights' && (
+                        <div className="grid gap-5 sm:gap-6">
+                            <ListPanel
+                                title="My Bible Highlights"
+                                icon={Sparkles}
+                                accentClass="text-sky-400"
+                                iconBgClass="bg-sky-500/10 text-sky-400 border-sky-500/20"
+                                items={profile?.bibleHighlights || []}
+                                emptyText="No bible highlights saved yet"
+                                renderItem={(highlight) => {
+                                    const getHighlightHex = (colorId) => {
+                                        if (!colorId) return '#38bdf8';
+                                        if (colorId.startsWith('custom-')) return '#' + colorId.replace('custom-', '');
+                                        const standard = {
+                                            cyan: '#7ae7ff', pink: '#ffbde6', red: '#f87171', lavender: '#e2e0ff',
+                                            yellow: '#ffff00', green: '#00ff66', blue: '#00bfff', orange: '#ffaa44'
+                                        };
+                                        return standard[colorId] || '#38bdf8';
+                                    };
+                                    const hex = getHighlightHex(highlight.color);
+                                    return (
+                                        <div key={highlight._id || highlight.verseId} className="rounded-2xl border border-white/5 bg-black/20 p-4 sm:p-5 hover:bg-white/5 transition-all duration-300 relative overflow-hidden group">
+                                            <div className="absolute top-0 bottom-0 right-0 w-1.5 opacity-80" style={{ backgroundColor: hex }}></div>
+                                            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4 relative z-10 pr-2">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                        <h4 className="text-base font-bold text-white tracking-tight">{highlight.bookName}</h4>
+                                                        <span className="bg-sky-500/20 text-sky-300 text-[10px] font-black px-2 py-0.5 rounded-md border border-sky-500/20">
+                                                            {highlight.chapter}:{highlight.verseNumber}
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-500 font-bold ml-auto sm:ml-0">
+                                                            {formatDate(highlight.date)}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs sm:text-sm text-slate-200 leading-relaxed p-3 rounded-xl border border-white/5 bg-white/5 shadow-inner mt-2" style={{ backgroundColor: `${hex}15`, borderColor: `${hex}30` }} dir="rtl">
+                                                        {highlight.text}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                }}
                             />
                         </div>
                     )}

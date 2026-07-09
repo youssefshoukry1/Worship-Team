@@ -457,8 +457,10 @@ export default function Category_Humns() {
     }
   }, [showBibleModal]);
 
-  const handleApplyHighlight = (colorId) => {
+  const handleApplyHighlight = async (colorId) => {
     const newHighlights = { ...bibleHighlights };
+    
+    // Optimistic UI update
     bibleSelectedVerseIds.forEach(id => {
       if (colorId) {
         newHighlights[id] = colorId;
@@ -469,6 +471,43 @@ export default function Category_Humns() {
       }
     });
     setBibleHighlights(newHighlights);
+    
+    // Store array before clearing state
+    const verseIdsToProcess = Array.from(bibleSelectedVerseIds);
+    setBibleSelectedVerseIds(new Set()); // Auto close context menu by deselecting
+
+    if (!user_id) return;
+    const token = localStorage.getItem("user_Taspe7_Token");
+    if (!token) return;
+
+    try {
+      const promises = verseIdsToProcess.map(async (id) => {
+        const verse = bibleModalVerses.find(v => v._id === id);
+        if (!verse) return;
+        
+        if (colorId) {
+          await axios.post(`${API_ROOT.replace(/\/api$/, '')}/api/users/bible-highlight`, {
+            userid: user_id,
+            verseId: id,
+            bookName: verse.bookName || bibleModalBook?.name || '',
+            chapter: verse.chapter || bibleModalChapter?.number || 1,
+            verseNumber: verse.verseNumber,
+            color: colorId,
+            text: verse.text
+          }, {
+            headers: { 'auth-token': token }
+          });
+        } else {
+          await axios.delete(`${API_ROOT.replace(/\/api$/, '')}/api/users/bible-highlight/${user_id}`, {
+            headers: { 'auth-token': token },
+            data: { verseId: id }
+          });
+        }
+      });
+      await Promise.all(promises);
+    } catch (err) {
+      console.error('Failed to sync bible highlights:', err);
+    }
   };
 
   const handleVerseClick = React.useCallback((verseId) => {
@@ -3314,12 +3353,6 @@ export default function Category_Humns() {
                           >
                             <Share2 className="w-3.5 h-3.5 text-white/70" /> Share
                           </button>
-                          <button
-                            onClick={handleOpenImageCard}
-                            className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95"
-                          >
-                            <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Image
-                          </button>
                           {availableTranslations.length > 1 && (
                             <button
                               onClick={() => {
@@ -3328,9 +3361,10 @@ export default function Category_Humns() {
                                   .map(v => v.verseNumber);
                                 openCompare(nums);
                               }}
-                              className="flex-1 min-w-[85px] py-2.5 px-3 rounded-full bg-gradient-to-r from-sky-600 to-indigo-600 border border-sky-500/30 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 shadow-[0_0_12px_rgba(14,165,233,0.3)]"
+                              className="flex-1 min-w-[90px] py-2.5 px-4 rounded-full bg-[#0a0f1d]/80 hover:bg-[#0f172a] border border-sky-500/40 text-sky-300 text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-[inset_0_0_20px_rgba(14,165,233,0.1),0_0_15px_rgba(14,165,233,0.2)] backdrop-blur-md relative overflow-hidden group/compare"
                             >
-                              ⚖️ Compare
+                              <div className="absolute inset-0 bg-gradient-to-r from-sky-500/0 via-sky-400/10 to-sky-500/0 -translate-x-full group-hover/compare:translate-x-full transition-transform duration-1000"></div>
+                              <BookOpen className="w-3.5 h-3.5 text-sky-400" /> Compare
                             </button>
                           )}
                           <button
@@ -3421,63 +3455,82 @@ export default function Category_Humns() {
 
                           {/* Custom Color Editor Widget */}
                           {showColorCustomizer && (
-                            <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-2.5 mt-1.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                              <span className="text-[11px] font-bold text-white/40">اختر لوناً:</span>
+                            <div className="flex flex-col gap-3 bg-[#0c1222]/90 backdrop-blur-md border border-white/10 rounded-2xl p-3 mt-1.5 animate-in fade-in slide-in-from-bottom-2 duration-200 shadow-xl shadow-black/40">
+                              <span className="text-[11px] font-bold text-white/50 mb-1">Choose a vibrant preset:</span>
                               
-                              {/* Color preview circle */}
-                              <div
-                                onClick={handleTriggerColorPicker}
-                                className="w-7 h-7 rounded-full border border-white/20 shadow-md shrink-0 cursor-pointer hover:scale-105 transition-transform animate-pulse"
-                                style={{ backgroundColor: customColorHex }}
-                                title="اضغط لتغيير اللون"
-                              />
-                              
-                              {/* Hex value */}
-                              <span className="text-[10px] font-mono text-white/70 bg-white/5 px-2 py-1 rounded-lg shrink-0">
-                                {customColorHex}
-                              </span>
+                              <div className="grid grid-cols-6 gap-2">
+                                {['#f43f5e', '#ec4899', '#d946ef', '#a855f7', '#8b5cf6', '#6366f1', '#3b82f6', '#0ea5e9', '#06b6d4', '#14b8a6', '#10b981', '#84cc16'].map(presetHex => (
+                                  <button
+                                    key={presetHex}
+                                    onClick={() => {
+                                      const newId = `custom-${presetHex.replace('#', '')}`;
+                                      setHighlightColorsList(prev => {
+                                        if (prev.some(c => c.hex.toLowerCase() === presetHex.toLowerCase())) return prev;
+                                        return [...prev, { id: newId, hex: presetHex }];
+                                      });
+                                      handleApplyHighlight(newId);
+                                      setShowColorCustomizer(false);
+                                    }}
+                                    className="w-8 h-8 rounded-full border-2 border-white/10 hover:border-white hover:scale-110 transition-all shadow-md"
+                                    style={{ backgroundColor: presetHex }}
+                                    title={`Preset ${presetHex}`}
+                                  />
+                                ))}
+                              </div>
 
-                              {/* Trigger Picker button */}
-                              <button
-                                onClick={handleTriggerColorPicker}
-                                className="px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-[10px] font-black transition-all active:scale-95 text-white/90"
-                              >
-                                تغيير اللون
-                              </button>
+                              <div className="h-px bg-white/5 w-full my-1"></div>
 
-                              <input
-                                type="color"
-                                ref={colorInputRef}
-                                value={customColorHex}
-                                onChange={handleColorPickerChange}
-                                className="hidden"
-                              />
-
-                              {/* Confirm/Add & Close buttons */}
-                              <div className="flex gap-1.5 ml-auto" dir="ltr">
-                                <button
-                                  onClick={() => setShowColorCustomizer(false)}
-                                  className="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 text-[10px] font-black transition-all active:scale-95"
+                              <div className="flex items-center gap-2 relative">
+                                <span className="text-[10px] text-white/40 shrink-0">Custom:</span>
+                                
+                                {/* Visual Color Picker Wrapper */}
+                                <label className="relative group/picker shrink-0 cursor-pointer w-6 h-6 rounded-md border border-white/20 shadow-inner overflow-hidden flex items-center justify-center hover:scale-110 transition-transform"
+                                       style={{ 
+                                         background: `linear-gradient(135deg, ${customColorHex}, ${customColorHex}80, #000)`,
+                                         backgroundColor: customColorHex
+                                       }}
+                                       title="Open Color Picker"
                                 >
-                                  Cancel
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    const newId = `custom-${Date.now()}`;
-                                    const newColor = { id: newId, hex: customColorHex };
-                                    setHighlightColorsList(prev => {
-                                      if (prev.some(c => c.hex.toLowerCase() === customColorHex.toLowerCase())) {
-                                        return prev;
-                                      }
-                                      return [...prev, newColor];
-                                    });
-                                    handleApplyHighlight(newId);
-                                    setShowColorCustomizer(false);
-                                  }}
-                                  className="px-3 py-1 rounded-xl bg-green-500 hover:bg-green-400 text-slate-950 text-[10px] font-black transition-all active:scale-95 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
-                                >
-                                  Add & Apply
-                                </button>
+                                  <Sparkles className="w-3 h-3 text-white/50 mix-blend-overlay pointer-events-none" />
+                                  <input
+                                    type="color"
+                                    value={customColorHex}
+                                    onChange={(e) => setCustomColorHex(e.target.value)}
+                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                  />
+                                </label>
+
+                                <input
+                                  type="text"
+                                  value={customColorHex}
+                                  onChange={(e) => setCustomColorHex(e.target.value)}
+                                  className="bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white/80 font-mono w-[4.5rem] focus:outline-none focus:border-sky-500/50 transition-colors"
+                                  placeholder="#000000"
+                                />
+                                
+                                <div className="flex gap-1.5 ml-auto" dir="ltr">
+                                  <button
+                                    onClick={() => setShowColorCustomizer(false)}
+                                    className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 text-[10px] font-black transition-all active:scale-95"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      const newId = `custom-${Date.now()}`;
+                                      const newColor = { id: newId, hex: customColorHex };
+                                      setHighlightColorsList(prev => {
+                                        if (prev.some(c => c.hex.toLowerCase() === customColorHex.toLowerCase())) return prev;
+                                        return [...prev, newColor];
+                                      });
+                                      handleApplyHighlight(newId);
+                                      setShowColorCustomizer(false);
+                                    }}
+                                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400 text-white text-[10px] font-black transition-all active:scale-95 shadow-[0_0_12px_rgba(56,189,248,0.3)]"
+                                  >
+                                    Add
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           )}
@@ -3486,60 +3539,7 @@ export default function Category_Humns() {
                     )}
                   </AnimatePresence>
 
-                  {/* ── IMAGE CARD MODAL OVERLAY ── */}
-                  {imageCardConfig && (
-                    <Portal>
-                      <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-                        <div className="relative w-full max-w-lg bg-gradient-to-br from-slate-900 to-indigo-950 border border-white/10 rounded-[2.5rem] p-8 shadow-2xl flex flex-col gap-6 text-center text-white overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                          {/* Decorative shapes */}
-                          <div className="absolute -top-12 -left-12 w-48 h-48 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
-                          <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-                          
-                          <div className="shrink-0 flex justify-between items-center border-b border-white/5 pb-4">
-                            <span className="text-xs font-bold text-sky-400">{imageCardConfig.refText}</span>
-                            <button
-                              onClick={() => setImageCardConfig(null)}
-                              className="p-1 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-all"
-                            >
-                              <X className="w-5 h-5" />
-                            </button>
-                          </div>
 
-                          <div className="flex-1 flex flex-col justify-center items-center py-10 px-4">
-                            <span className="text-4xl text-sky-500/20 font-serif leading-none mb-2 select-none">“</span>
-                            <p className="text-2xl font-arabic leading-relaxed font-semibold text-slate-100" dir="rtl">
-                              {imageCardConfig.text}
-                            </p>
-                            <span className="text-4xl text-sky-500/20 font-serif leading-none mt-2 self-end select-none">”</span>
-                            <p className="text-sm font-bold text-slate-400 mt-6 tracking-wide">
-                              {imageCardConfig.refText}
-                            </p>
-                          </div>
-
-                          <div className="shrink-0 flex gap-3">
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(`“${imageCardConfig.text}”\n— ${imageCardConfig.refText}`);
-                                showToast(language === 'ar' ? 'تم نسخ الكارت!' : 'Card text copied!');
-                              }}
-                              className="flex-1 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm font-bold transition-all active:scale-95"
-                            >
-                              Copy Text
-                            </button>
-                            <button
-                              onClick={() => {
-                                setImageCardConfig(null);
-                                showToast(language === 'ar' ? 'يمكنك أخذ لقطة شاشة لحفظ الصورة الجميلة!' : 'Take a screenshot to save this beautiful card!');
-                              }}
-                              className="flex-1 py-3 rounded-2xl bg-sky-500 hover:bg-sky-400 text-white text-sm font-bold transition-all active:scale-95 shadow-[0_0_15px_rgba(14,165,233,0.4)]"
-                            >
-                              Close
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </Portal>
-                  )}
 
                   {/* ── PRAY MODE FULLSCREEN OVERLAY ── */}
                   {prayModeActive && (
