@@ -380,6 +380,9 @@ export default function Category_Humns() {
   const [bibleModalChapter, setBibleModalChapter] = useState(null);
   const [bibleModalVerses, setBibleModalVerses] = useState([]);
   const [bibleSelectedVerseIds, setBibleSelectedVerseIds] = useState(new Set());
+  // AI analysis state
+  const [aiAnalysis, setAiAnalysis] = useState({ loading: false, type: null, text: '', error: null });
+  const [showAiOptions, setShowAiOptions] = useState(false);
   const [bibleVerseFontSize, setBibleVerseFontSize] = useState(() => {
     if (typeof window === 'undefined') return 24;
     const saved = localStorage.getItem('taspe7_bible_verse_font_size');
@@ -1037,6 +1040,25 @@ export default function Category_Humns() {
       refText: getSelectedVersesRef(),
       text: combinedText
     });
+  };
+
+  const handleAiAnalysis = async (analysisType) => {
+    setShowAiOptions(false);
+    const selectedVersesData = bibleModalVerses.filter(v => bibleSelectedVerseIds.has(v._id));
+    if (!selectedVersesData.length) return;
+    const textContent = selectedVersesData.map(v => `[${v.verseNumber}] ${v.text}`).join(' ');
+    const verseId = Array.from(bibleSelectedVerseIds).sort().join('-');
+    setAiAnalysis({ loading: true, type: analysisType, text: '', error: null });
+    try {
+      const { data } = await axios.post(`${API_ROOT}/ai/analyze-verse`, {
+        verseId,
+        textContent,
+        analysisType
+      });
+      setAiAnalysis({ loading: false, type: analysisType, text: data.explanation || '', error: null });
+    } catch {
+      setAiAnalysis({ loading: false, type: analysisType, text: '', error: 'حدث خطأ، حاول مجدداً.' });
+    }
   };
 
   // Save Bible verses to workspace
@@ -3384,7 +3406,77 @@ export default function Category_Humns() {
                           >
                             <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400/20" /> Pray
                           </button>
+                          {/* AI Analyze Button */}
+                          <button
+                            onClick={() => { setShowAiOptions(p => !p); setAiAnalysis({ loading: false, type: null, text: '', error: null }); }}
+                            className={`flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 relative overflow-hidden ${
+                              showAiOptions
+                                ? 'bg-violet-500/20 border-violet-400/50 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.3)]'
+                                : 'bg-white/5 hover:bg-violet-500/10 border-white/10 hover:border-violet-400/30 text-white hover:text-violet-300'
+                            }`}
+                          >
+                            <Sparkles className="w-3.5 h-3.5" /> AI
+                          </button>
                         </div>
+
+                        {/* AI Options Row */}
+                        {showAiOptions && (
+                          <div className="flex gap-2 shrink-0 animate-in fade-in slide-in-from-bottom-1 duration-200" dir="rtl">
+                            {[
+                              { type: 'explain', label: 'تفسير', emoji: '📖', color: 'from-violet-600 to-indigo-600', glow: 'rgba(139,92,246,0.35)' },
+                              { type: 'cross_reference', label: 'مراجع', emoji: '🔗', color: 'from-sky-600 to-cyan-600', glow: 'rgba(14,165,233,0.35)' },
+                              { type: 'practical', label: 'تطبيق', emoji: '✨', color: 'from-amber-500 to-orange-500', glow: 'rgba(245,158,11,0.35)' },
+                            ].map(({ type, label, emoji, color, glow }) => (
+                              <button
+                                key={type}
+                                onClick={() => handleAiAnalysis(type)}
+                                disabled={aiAnalysis.loading}
+                                className={`flex-1 py-2.5 px-3 rounded-2xl bg-gradient-to-br ${color} text-white text-[11px] font-black tracking-wide transition-all flex flex-col items-center justify-center gap-0.5 active:scale-95 disabled:opacity-50 shadow-lg`}
+                                style={{ boxShadow: `0 4px 16px ${glow}` }}
+                              >
+                                <span className="text-base leading-none">{emoji}</span>
+                                <span>{label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* AI Response Panel */}
+                        {(aiAnalysis.loading || aiAnalysis.text || aiAnalysis.error) && (
+                          <div className="shrink-0 rounded-2xl overflow-hidden border border-violet-500/20 bg-[#0c0f1e]/80 backdrop-blur-md shadow-[0_4px_24px_rgba(139,92,246,0.12)]">
+                            {/* Panel header */}
+                            <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 bg-gradient-to-r from-violet-600/10 to-indigo-600/5">
+                              <div className="flex items-center gap-2">
+                                <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                                <span className="text-[11px] font-black text-violet-300 tracking-wider uppercase">
+                                  {aiAnalysis.type === 'explain' ? 'تفسير روحي' : aiAnalysis.type === 'cross_reference' ? 'مراجع كتابية' : 'تطبيق عملي'}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => setAiAnalysis({ loading: false, type: null, text: '', error: null })}
+                                className="p-1 rounded-full hover:bg-white/10 text-white/30 hover:text-white transition-all"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            {/* Content */}
+                            <div className="px-4 py-3 max-h-52 overflow-y-auto custom-scrollbar-thin" dir="rtl">
+                              {aiAnalysis.loading ? (
+                                <div className="flex flex-col items-center justify-center gap-3 py-6">
+                                  <div className="relative w-8 h-8">
+                                    <div className="absolute inset-0 rounded-full border-2 border-violet-500/30 border-t-violet-400 animate-spin" />
+                                    <Sparkles className="absolute inset-0 m-auto w-3.5 h-3.5 text-violet-400 animate-pulse" />
+                                  </div>
+                                  <span className="text-[11px] text-violet-300/60 font-bold">جارٍ التحليل الذكي...</span>
+                                </div>
+                              ) : aiAnalysis.error ? (
+                                <p className="text-xs text-red-400 text-center py-3">{aiAnalysis.error}</p>
+                              ) : (
+                                <p className="text-[13px] leading-loose text-slate-200/90 font-arabic whitespace-pre-line">{aiAnalysis.text}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Highlights Circle Color Picker */}
                         <div className="flex flex-col gap-2.5 shrink-0 mt-1">
