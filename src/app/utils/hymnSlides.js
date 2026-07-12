@@ -185,8 +185,11 @@ export function buildStanzaSlides(stanza, options = {}) {
   const lines = getLyricLines(stanza.text);
   if (!lines.length) return [];
 
+  const useAuto = !!options.isAutoSlide;
   const normalized = normalizeStanzaForEdit(stanza);
-  const blocks = manualGroupLinesIntoSlides(lines, normalized.slideBreaks);
+  const blocks = useAuto
+    ? autoGroupLinesIntoSlides(lines, options)
+    : manualGroupLinesIntoSlides(lines, normalized.slideBreaks);
 
   return blocks.map((block) => applyChordDisplay(block.trim(), showChords));
 }
@@ -209,9 +212,13 @@ export function buildHymnPresentationSlides(lyrics, options = {}) {
 
   if (!Array.isArray(lyrics)) return [];
 
+  const isAutoSlideHymn = !options.forceManual && (
+    lyrics.length === 1 || lyrics.every((stanza) => stanza.slideMode !== 'manual')
+  );
+
   const slides = [];
   lyrics.forEach((stanza) => {
-    buildStanzaSlides(stanza, options).forEach((text) => {
+    buildStanzaSlides(stanza, { ...options, isAutoSlide: isAutoSlideHymn }).forEach((text) => {
       slides.push({
         title: stanza.title,
         type: stanza.type,

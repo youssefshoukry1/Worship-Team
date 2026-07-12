@@ -89,6 +89,7 @@ export default function Website_Admin_Profile() {
       showChords: lyricsShowChords,
       viewportHeight: presentationViewport.height,
       viewportWidth: presentationViewport.width,
+      forceManual: true,
     });
   }, [selectedLyricsHymn?.lyrics, lyricsShowChords, presentationViewport.height, presentationViewport.width]);
 

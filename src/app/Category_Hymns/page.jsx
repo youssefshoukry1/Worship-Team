@@ -119,10 +119,10 @@ const VerseItem = React.memo(({
         ...highlightStyle
       }}
       className={`group relative cursor-pointer p-4 rounded-xl transition-all duration-200 ${!highlightStyle && isSelected
-          ? 'bg-white/5 border border-white/10'
-          : !highlightStyle
-            ? 'hover:bg-white/5 border border-white/0 hover:border-white/10'
-            : ''
+        ? 'bg-white/5 border border-white/10'
+        : !highlightStyle
+          ? 'hover:bg-white/5 border border-white/0 hover:border-white/10'
+          : ''
         }`}
     >
       <div className="flex items-start gap-4 sm:gap-8">
@@ -3426,8 +3426,8 @@ export default function Category_Humns() {
                           <button
                             onClick={() => { setShowAiOptions(p => !p); setAiAnalysis({ loading: false, type: null, text: '', error: null }); }}
                             className={`flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 relative overflow-hidden ${showAiOptions
-                                ? 'bg-violet-500/20 border-violet-400/50 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.3)]'
-                                : 'bg-white/5 hover:bg-violet-500/10 border-white/10 hover:border-violet-400/30 text-white hover:text-violet-300'
+                              ? 'bg-violet-500/20 border-violet-400/50 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.3)]'
+                              : 'bg-white/5 hover:bg-violet-500/10 border-white/10 hover:border-violet-400/30 text-white hover:text-violet-300'
                               }`}
                           >
                             <Sparkles className="w-3.5 h-3.5" /> AI
@@ -3788,8 +3788,8 @@ export default function Category_Humns() {
                                     await fetchCompareData(compareVerseNums, next);
                                   }}
                                   className={`px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-black tracking-wide border transition-all active:scale-95 ${isSelected
-                                      ? `${th.badge} border-transparent`
-                                      : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10'
+                                    ? `${th.badge} border-transparent`
+                                    : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10'
                                     }`}
                                 >
                                   {tr}
@@ -4539,7 +4539,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       </div>
 
       {/* Key/Scale - Under Title on Mobile (Left Aligned), Center on Desktop */}
-      <div className={`col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0 lg:top-2 transition-opacity ${vocalsMode ? 'opacity-0 pointer-events-none' : ''}`}>
+      <div className={`col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0 lg:top-2 transition-opacity ${vocalsMode && !['MUSIC_ADMIN', 'PROGRAMER'].includes(UserRole) ? 'opacity-0 pointer-events-none' : ''}`}>
         <KeyDisplay
           scale={currentScale}
           relatedChords={currentChords}

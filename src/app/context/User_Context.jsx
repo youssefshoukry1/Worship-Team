@@ -40,7 +40,7 @@ export default function UserContextProvider({ children }) {
     return localStorage.getItem("user_Taspe7_Status")?.trim() || null;
   });
 
-  const [vocalsMode, setVocalsMode] = useState(false);
+  const [vocalsMode, setVocalsMode] = useState(true);
 
   // ✅ Remove ALL the old useEffects — no longer needed
 
