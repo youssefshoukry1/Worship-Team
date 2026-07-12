@@ -118,13 +118,12 @@ const VerseItem = React.memo(({
         marginBottom: `${spacing}px`,
         ...highlightStyle
       }}
-      className={`group relative cursor-pointer p-4 rounded-xl transition-all duration-200 ${
-        !highlightStyle && isSelected
+      className={`group relative cursor-pointer p-4 rounded-xl transition-all duration-200 ${!highlightStyle && isSelected
           ? 'bg-white/5 border border-white/10'
           : !highlightStyle
             ? 'hover:bg-white/5 border border-white/0 hover:border-white/10'
             : ''
-      }`}
+        }`}
     >
       <div className="flex items-start gap-4 sm:gap-8">
         <div className="shrink-0 flex flex-col items-center gap-1 min-w-[25px] sm:min-w-[30px] mt-1">
@@ -462,7 +461,7 @@ export default function Category_Humns() {
 
   const handleApplyHighlight = async (colorId) => {
     const newHighlights = { ...bibleHighlights };
-    
+
     // Optimistic UI update
     bibleSelectedVerseIds.forEach(id => {
       if (colorId) {
@@ -474,7 +473,7 @@ export default function Category_Humns() {
       }
     });
     setBibleHighlights(newHighlights);
-    
+
     // Store array before clearing state
     const verseIdsToProcess = Array.from(bibleSelectedVerseIds);
     setBibleSelectedVerseIds(new Set()); // Auto close context menu by deselecting
@@ -487,7 +486,7 @@ export default function Category_Humns() {
       const promises = verseIdsToProcess.map(async (id) => {
         const verse = bibleModalVerses.find(v => v._id === id);
         if (!verse) return;
-        
+
         if (colorId) {
           await axios.post(`${API_ROOT.replace(/\/api$/, '')}/api/users/bible-highlight`, {
             userid: user_id,
@@ -736,8 +735,8 @@ export default function Category_Humns() {
       }
     })();
     return () => { cancelled = true; };
-  // NOTE: NOT depending on bibleTranslation here — books are the same across translations
-  // and we don't want the book list to reset every time the user switches translation.
+    // NOTE: NOT depending on bibleTranslation here — books are the same across translations
+    // and we don't want the book list to reset every time the user switches translation.
   }, [showBibleModal]);
 
   // ─── Load chapters when book or translation changes ───
@@ -2161,52 +2160,52 @@ export default function Category_Humns() {
     <div className="relative z-10 max-w-7xl mx-auto">
 
 
-{/* Search Section - Centered under Title */}
-<div className="mb-8 flex items-center justify-center gap-3 relative z-20 h-12">
-  {/* Search Toggle (Icon Only) */}
-  <button
-    onClick={() => {
-      setShowSearchBar(!showSearchBar);
-      if (showSearchBar) {
-        setSearch('');
-      }
-    }}
-    className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 border backdrop-blur-xl relative overflow-hidden group shadow-lg z-30
+      {/* Search Section - Centered under Title */}
+      <div className="mb-8 flex items-center justify-center gap-3 relative z-20 h-12">
+        {/* Search Toggle (Icon Only) */}
+        <button
+          onClick={() => {
+            setShowSearchBar(!showSearchBar);
+            if (showSearchBar) {
+              setSearch('');
+            }
+          }}
+          className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 border backdrop-blur-xl relative overflow-hidden group shadow-lg z-30
            ${showSearchBar
-        ? 'bg-red-500/10 border-red-500/20 text-red-400 rotate-90 scale-90'
-        : 'bg-white/5 border-white/20 text-sky-200 hover:bg-white/10 hover:text-white hover:border-sky-400/30 hover:shadow-[0_0_15px_rgba(56,189,248,0.3)]'
-      }`}
-    title={showSearchBar ? "Close Search" : "Search Hymns"}
-  >
-    {showSearchBar ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
-  </button>
+              ? 'bg-red-500/10 border-red-500/20 text-red-400 rotate-90 scale-90'
+              : 'bg-white/5 border-white/20 text-sky-200 hover:bg-white/10 hover:text-white hover:border-sky-400/30 hover:shadow-[0_0_15px_rgba(56,189,248,0.3)]'
+            }`}
+          title={showSearchBar ? "Close Search" : "Search Hymns"}
+        >
+          {showSearchBar ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+        </button>
 
-  {/* Simple, dependency-free fade animation (no framer-motion, no lag) */}
-{showSearchBar && (
-  <div className="relative h-10 w-[250px] flex items-center flex-shrink-0 search-fade-in">
-    <div className="absolute inset-0 bg-white/5 border border-white/10 rounded-full backdrop-blur-md shadow-inner" />
+        {/* Simple, dependency-free fade animation (no framer-motion, no lag) */}
+        {showSearchBar && (
+          <div className="relative h-10 w-[250px] flex items-center flex-shrink-0 search-fade-in">
+            <div className="absolute inset-0 bg-white/5 border border-white/10 rounded-full backdrop-blur-md shadow-inner" />
 
-    <input
-      autoFocus
-      type="text"
-      value={search}
-      onChange={(e) => setSearch(e.target.value)}
-      placeholder={t("searchPlaceholder")}
-      className="w-full h-full pl-4 pr-8 py-2 bg-transparent text-sm text-white placeholder-gray-400/70 
+            <input
+              autoFocus
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("searchPlaceholder")}
+              className="w-full h-full pl-4 pr-8 py-2 bg-transparent text-sm text-white placeholder-gray-400/70 
                  outline-none relative z-10 font-light tracking-wide"
-    />
-    {search && (
-      <button
-        onClick={() => setSearch('')}
-        className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-white/20 text-gray-400 hover:text-white transition-all z-20"
-      >
-        <X className="w-3 h-3" />
-      </button>
-    )}
-  </div>
-)}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-white/20 text-gray-400 hover:text-white transition-all z-20"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        )}
 
-</div>
+      </div>
       {/* Categories Tabs */}
       {
         showSearchBar ?
@@ -3144,215 +3143,206 @@ export default function Category_Humns() {
 
                   {/* --- MAIN SCROLL AREA - FIXED HEIGHT --- */}
                   {/* Added 'overscroll-contain' to stop the website from scrolling when this reaches the end */}
-                  {!isSearchingBible && !bibleSearchQuery.trim() && bibleModalVerses.length > 0 ? (
-                    <Virtuoso
-                      className="flex-1 min-h-0 overscroll-contain custom-scrollbar-thin"
-                      style={{ height: '100%' }}
-                      dir="rtl"
-                      data-lenis-prevent-wheel
-                      data={bibleModalVerses}
-                      components={{
-                        Header: () => (
-                          <div className="pt-4 sm:pt-12 px-4 sm:px-12 max-w-3xl mx-auto space-y-10 mb-6">
-                            {/* Modern Chapter Indicator */}
-                            <div className="flex items-end justify-between border-b border-white/5 pb-6">
-                              <div>
-                                <h1 className="text-3xl sm:text-5xl font-black text-white leading-none">
-                                  {bibleModalBook?.bookName}
-                                </h1>
-                                <div className="mt-2 flex items-center gap-2">
-                                  <span className="h-[2px] w-8 bg-sky-500" />
-                                  <span className="text-xs font-bold text-sky-400 uppercase tracking-tighter">أصحاح {bibleModalChapter}</span>
-                                </div>
+                  <div
+                    className="flex-1 overflow-y-auto min-h-0 overscroll-contain custom-scrollbar-thin"
+                    dir="rtl"
+                    data-lenis-prevent-wheel
+                  >
+                    <div className="p-4 sm:p-12 max-w-3xl mx-auto">
+                      {isSearchingBible ? (
+                        <div className="flex flex-col items-center justify-center py-20 opacity-40 animate-pulse">
+                          <div className="w-12 h-12 border-2 border-sky-500/30 border-t-sky-500 rounded-full animate-spin mb-4" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-white">Neural Search...</span>
+                        </div>
+                      ) : bibleSearchQuery.trim() ? (
+                        <div className="space-y-6 pb-20">
+                          {bibleSearchResults.length > 0 ? (
+                            <>
+                              <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-6">
+                                <div className="w-1 h-6 bg-sky-500 rounded-full" />
+                                <h2 className="text-xl font-bold text-white">نتائج البحث ({bibleSearchResults.length})</h2>
                               </div>
-                              <button
-                                onClick={() => openBiblePresentation({ bookName: bibleModalBook?.bookName, chapter: bibleModalChapter, verses: bibleModalVerses, startIndex: 0 })}
-                                className="p-3 bg-white/5 hover:bg-sky-500 text-white rounded-2xl transition-all active:scale-90 group"
-                              >
-                                <Monitor className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                              </button>
-                            </div>
+                              <div className="grid gap-4">
+                                {bibleSearchResults.map((hit, idx) => (
+                                  <div
+                                    key={idx}
+                                    onClick={() => goToChapterFromSearch(hit)}
 
-                            {/* Global Controls Panel (Block Positioned) */}
-                            <div className="relative flex flex-col gap-3.5 p-4 bg-slate-950/50 border border-white/10 rounded-3xl shadow-xl" dir="rtl">
-                              <div className="flex flex-wrap items-center justify-between gap-3">
-                                {/* Typography & Spacing controls */}
-                                <div className="flex items-center gap-3.5 flex-wrap text-white text-xs">
-                                  {/* Font Size Control */}
-                                  <div className="flex items-center gap-2 bg-white/5 border border-white/[0.07] rounded-2xl px-3 py-2">
-                                    <span className="text-white/40 font-bold">حجم الخط:</span>
-                                    <button
-                                      onClick={() => setBibleVerseFontSize(prev => Math.max(16, prev - 2))}
-                                      className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-90"
-                                      title="Decrease font size"
-                                    >
-                                      -A
-                                    </button>
-                                    <span className="font-bold min-w-[20px] text-center">{bibleVerseFontSize}</span>
-                                    <button
-                                      onClick={() => setBibleVerseFontSize(prev => Math.min(44, prev + 2))}
-                                      className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-90"
-                                      title="Increase font size"
-                                    >
-                                      +A
-                                    </button>
-                                  </div>
-
-                                  {/* Spacing Control */}
-                                  <div className="flex items-center gap-2 bg-white/5 border border-white/[0.07] rounded-2xl px-3 py-2">
-                                    <span className="text-white/40 font-bold">المسافة:</span>
-                                    <button
-                                      onClick={() => handleSetBibleVerseSpacing(Math.max(8, bibleVerseSpacing - 4))}
-                                      className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-90"
-                                      title="Decrease spacing"
-                                    >
-                                      -
-                                    </button>
-                                    <span className="font-bold min-w-[24px] text-center">{bibleVerseSpacing}px</span>
-                                    <button
-                                      onClick={() => handleSetBibleVerseSpacing(Math.min(80, bibleVerseSpacing + 4))}
-                                      className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-90"
-                                      title="Increase spacing"
-                                    >
-                                      +
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* Selection quick actions */}
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <button
-                                    onClick={() => setBibleSelectedVerseIds(new Set(bibleModalVerses.map(v => v._id)))}
-                                    className="px-3.5 py-2 text-xs font-bold rounded-2xl bg-white/5 hover:bg-white/10 border border-white/[0.07] text-slate-200 transition-all active:scale-95"
+                                    className="group p-4 rounded-2xl bg-white/[0.03] border border-white/0 hover:border-sky-500/30 hover:bg-sky-500/5 transition-all cursor-pointer"
                                   >
-                                    تحديد الكل
-                                  </button>
-                                  <button
-                                    onClick={() => setBibleSelectedVerseIds(new Set())}
-                                    className="px-3.5 py-2 text-xs font-bold rounded-2xl bg-white/5 hover:bg-white/10 border border-white/[0.07] text-slate-300 transition-all active:scale-95"
-                                  >
-                                    إلغاء التحديد
-                                  </button>
-
-                                  {/* Save Selected to Workspace */}
-                                  {bibleSelectedVerseIds.size > 0 && (
-                                    <button
-                                      onClick={saveBibleToWorkspace}
-                                      disabled={isSavingBible || bibleAddedSuccess}
-                                      className={`px-4 py-2 text-xs font-black rounded-2xl transition-all shadow-md active:scale-95 whitespace-nowrap flex items-center gap-1.5
-                                        ${bibleAddedSuccess ? 'bg-green-500 text-white' : 'bg-sky-500 hover:bg-sky-400 text-white'}
-                                        disabled:opacity-50`}
-                                    >
-                                      {isSavingBible ? (
-                                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> ...</>
-                                      ) : bibleAddedSuccess ? (
-                                        <><Check className="w-3.5 h-3.5" /> تم الحفظ</>
-                                      ) : (
-                                        <>
-                                          <FolderPlus className="w-3.5 h-3.5" />
-                                          حفظ للمساحة ({bibleSelectedVerseIds.size})
-                                        </>
-                                      )}
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ),
-                        Footer: () => (
-                          <div className="h-20" />
-                        )
-                      }}
-                      itemContent={(index, verse) => {
-                        const isSelectedIndividual = bibleSelectedVerseIds.has(verse._id);
-                        const existingNote = verseNotes[verse._id];
-                        const highlightColor = bibleHighlights[verse._id];
-                        return (
-                          <div className="px-4 sm:px-12 max-w-3xl mx-auto">
-                            <VerseItem
-                              verse={verse}
-                              isSelected={isSelectedIndividual}
-                              fontSize={bibleVerseFontSize}
-                              spacing={bibleVerseSpacing}
-                              highlightColor={highlightColor}
-                              highlightColorsList={highlightColorsList}
-                              hasNote={existingNote}
-                              onClick={handleVerseClick}
-                              onNoteClick={handleVerseNoteClick}
-                            />
-                          </div>
-                        );
-                      }}
-                    />
-                  ) : (
-                    <div
-                      className="flex-1 overflow-y-auto min-h-0 overscroll-contain custom-scrollbar-thin"
-                      dir="rtl"
-                      data-lenis-prevent-wheel
-                    >
-                      <div className="p-4 sm:p-12 max-w-3xl mx-auto">
-                        {isSearchingBible ? (
-                          <div className="flex flex-col items-center justify-center py-20 opacity-40 animate-pulse">
-                            <div className="w-12 h-12 border-2 border-sky-500/30 border-t-sky-500 rounded-full animate-spin mb-4" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white">Neural Search...</span>
-                          </div>
-                        ) : bibleSearchQuery.trim() ? (
-                          <div className="space-y-6 pb-20">
-                            {bibleSearchResults.length > 0 ? (
-                              <>
-                                <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-6">
-                                  <div className="w-1 h-6 bg-sky-500 rounded-full" />
-                                  <h2 className="text-xl font-bold text-white">نتائج البحث ({bibleSearchResults.length})</h2>
-                                </div>
-                                <div className="grid gap-4">
-                                  {bibleSearchResults.map((hit, idx) => (
-                                    <div
-                                      key={idx}
-                                      onClick={() => goToChapterFromSearch(hit)}
-                                      className="group p-4 rounded-2xl bg-white/[0.03] border border-white/0 hover:border-sky-500/30 hover:bg-sky-500/5 transition-all cursor-pointer"
-                                    >
-                                      <div className="flex justify-between items-start gap-4 mb-2">
-                                        <span className="text-sky-400 font-bold text-sm">
-                                          {hit.bookName} {hit.chapter}:{hit.verseNumber}
-                                        </span>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            presentBibleFromSearchHit(hit);
-                                          }}
-                                          className="p-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 transition-all active:scale-90"
-                                          title="Data Show"
-                                        >
-                                          <Monitor className="w-4 h-4" />
-                                        </button>
-                                      </div>
-                                      <p
-                                        className="text-white/80 group-hover:text-white text-base leading-relaxed font-arabic transition-all [&_b]:text-sky-400 [&_b]:font-black"
-                                        dangerouslySetInnerHTML={{ __html: hit.text }}
-                                      />
+                                    <div className="flex justify-between items-start gap-4 mb-2">
+                                      <span className="text-sky-400 font-bold text-sm">
+                                        {hit.bookName} {hit.chapter}:{hit.verseNumber}
+                                      </span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          presentBibleFromSearchHit(hit);
+                                        }}
+                                        className="p-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 transition-all active:scale-90"
+                                        title="Data Show"
+                                      >
+                                        <Monitor className="w-4 h-4" />
+                                      </button>
                                     </div>
-                                  ))}
+                                    <p
+                                      className="text-white/80 group-hover:text-white text-base leading-relaxed font-arabic transition-all [&_b]:text-sky-400 [&_b]:font-black"
+                                      dangerouslySetInnerHTML={{ __html: hit.text }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="py-20 text-center opacity-30">
+                              <Search className="w-12 h-12 mx-auto mb-4" />
+                              <p className="text-sm font-bold uppercase tracking-widest">
+                                {language === 'arabic' ? 'لم يتم العثور على نتائج' : 'No results found'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ) : bibleModalVerses.length > 0 ? (
+                        <div className="space-y-10">
+                          {/* Modern Chapter Indicator */}
+                          <div className="flex items-end justify-between border-b border-white/5 pb-6">
+                            <div>
+                              <h1 className="text-3xl sm:text-5xl font-black text-white leading-none">
+                                {bibleModalBook.bookName}
+                              </h1>
+                              <div className="mt-2 flex items-center gap-2">
+                                <span className="h-[2px] w-8 bg-sky-500" />
+                                <span className="text-xs font-bold text-sky-400 uppercase tracking-tighter">أصحاح {bibleModalChapter}</span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => openBiblePresentation({ bookName: bibleModalBook.bookName, chapter: bibleModalChapter, verses: bibleModalVerses, startIndex: 0 })}
+                              className="p-3 bg-white/5 hover:bg-sky-500 text-white rounded-2xl transition-all active:scale-90 group"
+                            >
+                              <Monitor className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                            </button>
+                          </div>
+
+                          {/* The Reading Experience - Optimized for performance */}
+                          <div className="space-y-6 pb-20">
+                            {/* Global Controls Panel (Block Positioned) */}
+                            {bibleModalVerses.length > 0 && (
+                              <div className="relative flex flex-col gap-3.5 p-4 bg-slate-950/50 border border-white/10 rounded-3xl shadow-xl mb-6" dir="rtl">
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                  {/* Typography & Spacing controls */}
+                                  <div className="flex items-center gap-3.5 flex-wrap text-white text-xs">
+                                    {/* Font Size Control */}
+                                    <div className="flex items-center gap-2 bg-white/5 border border-white/[0.07] rounded-2xl px-3 py-2">
+                                      <span className="text-white/40 font-bold">حجم الخط:</span>
+                                      <button
+                                        onClick={() => setBibleVerseFontSize(prev => Math.max(16, prev - 2))}
+                                        className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-90"
+                                        title="Decrease font size"
+                                      >
+                                        -A
+                                      </button>
+                                      <span className="font-bold min-w-[20px] text-center">{bibleVerseFontSize}</span>
+                                      <button
+                                        onClick={() => setBibleVerseFontSize(prev => Math.min(44, prev + 2))}
+                                        className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-90"
+                                        title="Increase font size"
+                                      >
+                                        +A
+                                      </button>
+                                    </div>
+
+                                    {/* Spacing Control */}
+                                    <div className="flex items-center gap-2 bg-white/5 border border-white/[0.07] rounded-2xl px-3 py-2">
+                                      <span className="text-white/40 font-bold">المسافة:</span>
+                                      <button
+                                        onClick={() => handleSetBibleVerseSpacing(Math.max(8, bibleVerseSpacing - 4))}
+                                        className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-90"
+                                        title="Decrease spacing"
+                                      >
+                                        -
+                                      </button>
+                                      <span className="font-bold min-w-[24px] text-center">{bibleVerseSpacing}px</span>
+                                      <button
+                                        onClick={() => handleSetBibleVerseSpacing(Math.min(80, bibleVerseSpacing + 4))}
+                                        className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-90"
+                                        title="Increase spacing"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Selection quick actions */}
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <button
+                                      onClick={() => setBibleSelectedVerseIds(new Set(bibleModalVerses.map(v => v._id)))}
+                                      className="px-3.5 py-2 text-xs font-bold rounded-2xl bg-white/5 hover:bg-white/10 border border-white/[0.07] text-slate-200 transition-all active:scale-95"
+                                    >
+                                      تحديد الكل
+                                    </button>
+                                    <button
+                                      onClick={() => setBibleSelectedVerseIds(new Set())}
+                                      className="px-3.5 py-2 text-xs font-bold rounded-2xl bg-white/5 hover:bg-white/10 border border-white/[0.07] text-slate-300 transition-all active:scale-95"
+                                    >
+                                      إلغاء التحديد
+                                    </button>
+
+                                    {/* Save Selected to Workspace */}
+                                    {bibleSelectedVerseIds.size > 0 && (
+                                      <button
+                                        onClick={saveBibleToWorkspace}
+                                        disabled={isSavingBible || bibleAddedSuccess}
+                                        className={`px-4 py-2 text-xs font-black rounded-2xl transition-all shadow-md active:scale-95 whitespace-nowrap flex items-center gap-1.5
+                                          ${bibleAddedSuccess ? 'bg-green-500 text-white' : 'bg-sky-500 hover:bg-sky-400 text-white'}
+                                          disabled:opacity-50`}
+                                      >
+                                        {isSavingBible ? (
+                                          <><Loader2 className="w-3.5 h-3.5 animate-spin" /> ...</>
+                                        ) : bibleAddedSuccess ? (
+                                          <><Check className="w-3.5 h-3.5" /> تم الحفظ</>
+                                        ) : (
+                                          <>
+                                            <FolderPlus className="w-3.5 h-3.5" />
+                                            حفظ للمساحة ({bibleSelectedVerseIds.size})
+                                          </>
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
-                              </>
-                            ) : (
-                              <div className="py-20 text-center opacity-30">
-                                <Search className="w-12 h-12 mx-auto mb-4" />
-                                <p className="text-sm font-bold uppercase tracking-widest">
-                                  {language === 'arabic' ? 'لم يتم العثور على نتائج' : 'No results found'}
-                                </p>
                               </div>
                             )}
+
+                            {/* Verses List */}
+                            {bibleModalVerses.map((verse) => {
+                              const isSelectedIndividual = bibleSelectedVerseIds.has(verse._id);
+                              const existingNote = verseNotes[verse._id];
+                              const highlightColor = bibleHighlights[verse._id];
+                              return (
+                                <VerseItem
+                                  key={verse._id}
+                                  verse={verse}
+                                  isSelected={isSelectedIndividual}
+                                  fontSize={bibleVerseFontSize}
+                                  spacing={bibleVerseSpacing}
+                                  highlightColor={highlightColor}
+                                  highlightColorsList={highlightColorsList}
+                                  hasNote={existingNote}
+                                  onClick={handleVerseClick}
+                                  onNoteClick={handleVerseNoteClick}
+                                />
+                              );
+                            })}
                           </div>
-                        ) : (
-                          <div className="h-full flex flex-col items-center justify-center opacity-10 py-40">
-                            <BookOpen className="w-20 h-20 mb-4" />
-                            <span className="text-sm font-bold uppercase tracking-[0.4em]">Select Wisdom</span>
-                          </div>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <div className="h-full flex flex-col items-center justify-center opacity-10 py-40">
+                          <BookOpen className="w-20 h-20 mb-4" />
+                          <span className="text-sm font-bold uppercase tracking-[0.4em]">Select Wisdom</span>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
 
                   {/* ── SELECTION SHEET (Bottom Drawer Style) ── */}
                   <AnimatePresence>
@@ -3367,7 +3357,7 @@ export default function Category_Humns() {
                       >
                         {/* Pull bar */}
                         <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-1 shrink-0" />
-                        
+
                         {/* Title & Ref */}
                         <div className="flex justify-between items-center shrink-0">
                           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">تعديل الآية المحددة</span>
@@ -3418,11 +3408,10 @@ export default function Category_Humns() {
                           {/* AI Analyze Button */}
                           <button
                             onClick={() => { setShowAiOptions(p => !p); setAiAnalysis({ loading: false, type: null, text: '', error: null }); }}
-                            className={`flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 relative overflow-hidden ${
-                              showAiOptions
+                            className={`flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 relative overflow-hidden ${showAiOptions
                                 ? 'bg-violet-500/20 border-violet-400/50 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.3)]'
                                 : 'bg-white/5 hover:bg-violet-500/10 border-white/10 hover:border-violet-400/30 text-white hover:text-violet-300'
-                            }`}
+                              }`}
                           >
                             <Sparkles className="w-3.5 h-3.5" /> AI
                           </button>
@@ -3499,15 +3488,14 @@ export default function Category_Humns() {
                                   <div key={c.id} className="relative group/color shrink-0">
                                     <button
                                       onClick={() => handleApplyHighlight(c.id)}
-                                      className={`w-7 h-7 rounded-full transition-all active:scale-90 flex items-center justify-center border-2 ${
-                                        isColorActive ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'
-                                      }`}
+                                      className={`w-7 h-7 rounded-full transition-all active:scale-90 flex items-center justify-center border-2 ${isColorActive ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'
+                                        }`}
                                       style={{ backgroundColor: c.hex }}
                                       title={`Highlight ${c.id}`}
                                     >
                                       {isColorActive && <Check className="w-4 h-4 text-slate-900 stroke-[3]" />}
                                     </button>
-                                    
+
                                     {isCustomColor && (
                                       <button
                                         onClick={(e) => {
@@ -3536,14 +3524,13 @@ export default function Category_Humns() {
                               {/* Plus button to open/toggle customizer */}
                               <button
                                 onClick={() => setShowColorCustomizer(prev => !prev)}
-                                className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90 border border-white/20 ${
-                                  showColorCustomizer ? 'bg-sky-500/20 text-sky-400 border-sky-500/50' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
-                                }`}
+                                className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90 border border-white/20 ${showColorCustomizer ? 'bg-sky-500/20 text-sky-400 border-sky-500/50' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
+                                  }`}
                                 title="Add Custom Color"
                               >
                                 <PlusCircle className="w-4 h-4" />
                               </button>
-                              
+
                               <button
                                 onClick={() => handleApplyHighlight(null)}
                                 className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center transition-all active:scale-90 text-white/60 hover:text-white"
@@ -3558,7 +3545,7 @@ export default function Category_Humns() {
                           {showColorCustomizer && (
                             <div className="flex flex-col gap-3 bg-[#0c1222]/90 backdrop-blur-md border border-white/10 rounded-2xl p-3 mt-1.5 animate-in fade-in slide-in-from-bottom-2 duration-200 shadow-xl shadow-black/40">
                               <span className="text-[11px] font-bold text-white/50 mb-1">Choose a vibrant preset:</span>
-                              
+
                               <div className="grid grid-cols-6 gap-2">
                                 {['#f43f5e', '#ec4899', '#d946ef', '#a855f7', '#8b5cf6', '#6366f1', '#3b82f6', '#0ea5e9', '#06b6d4', '#14b8a6', '#10b981', '#84cc16'].map(presetHex => (
                                   <button
@@ -3583,14 +3570,14 @@ export default function Category_Humns() {
 
                               <div className="flex items-center gap-2 relative">
                                 <span className="text-[10px] text-white/40 shrink-0">Custom:</span>
-                                
+
                                 {/* Visual Color Picker Wrapper */}
                                 <label className="relative group/picker shrink-0 cursor-pointer w-6 h-6 rounded-md border border-white/20 shadow-inner overflow-hidden flex items-center justify-center hover:scale-110 transition-transform"
-                                       style={{ 
-                                         background: `linear-gradient(135deg, ${customColorHex}, ${customColorHex}80, #000)`,
-                                         backgroundColor: customColorHex
-                                       }}
-                                       title="Open Color Picker"
+                                  style={{
+                                    background: `linear-gradient(135deg, ${customColorHex}, ${customColorHex}80, #000)`,
+                                    backgroundColor: customColorHex
+                                  }}
+                                  title="Open Color Picker"
                                 >
                                   <Sparkles className="w-3 h-3 text-white/50 mix-blend-overlay pointer-events-none" />
                                   <input
@@ -3608,7 +3595,7 @@ export default function Category_Humns() {
                                   className="bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white/80 font-mono w-[4.5rem] focus:outline-none focus:border-sky-500/50 transition-colors"
                                   placeholder="#000000"
                                 />
-                                
+
                                 <div className="flex gap-1.5 ml-auto" dir="ltr">
                                   <button
                                     onClick={() => setShowColorCustomizer(false)}
@@ -3784,11 +3771,10 @@ export default function Category_Humns() {
                                     setCompareDesktopPage(0);
                                     await fetchCompareData(compareVerseNums, next);
                                   }}
-                                  className={`px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-black tracking-wide border transition-all active:scale-95 ${
-                                    isSelected
+                                  className={`px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-black tracking-wide border transition-all active:scale-95 ${isSelected
                                       ? `${th.badge} border-transparent`
                                       : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10'
-                                  }`}
+                                    }`}
                                 >
                                   {tr}
                                 </button>
@@ -3806,9 +3792,8 @@ export default function Category_Humns() {
                                 <button
                                   key={tr}
                                   onClick={() => setCompareMobileTab(idx)}
-                                  className={`flex-1 min-w-[80px] px-3 py-3 text-xs font-black tracking-wide transition-all whitespace-nowrap ${
-                                    idx === mtSafe ? th.tab : th.tabInactive
-                                  }`}
+                                  className={`flex-1 min-w-[80px] px-3 py-3 text-xs font-black tracking-wide transition-all whitespace-nowrap ${idx === mtSafe ? th.tab : th.tabInactive
+                                    }`}
                                 >
                                   {tr}
                                 </button>
