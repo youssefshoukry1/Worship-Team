@@ -9,7 +9,7 @@ import Portal from '../Portal/Portal';
 import Metronome from '../Metronome/page';
 import { UserContext } from '../context/User_Context';
 // Add BookOpen to this line
-import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2, Mic, MicOff, BookOpen, ChevronDown, Loader2, Copy, Share2, ClipboardCheck } from 'lucide-react';
+import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2, Mic, MicOff, BookOpen, ChevronDown, Loader2, Copy, Share2, ClipboardCheck, Link2, Lightbulb } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
 import { showToast } from '../components/ToastContainer';
@@ -3348,6 +3348,14 @@ export default function Category_Humns() {
                   <AnimatePresence>
                     {bibleSelectedVerseIds.size > 0 && (
                       <motion.div
+                        drag="y"
+                        dragConstraints={{ top: 0, bottom: 0 }}
+                        dragElastic={{ top: 0, bottom: 0.6 }}
+                        onDragEnd={(event, info) => {
+                          if (info.offset.y > 100 || info.velocity.y > 300) {
+                            setBibleSelectedVerseIds(new Set());
+                          }
+                        }}
                         initial={{ y: '100%' }}
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
@@ -3356,14 +3364,23 @@ export default function Category_Humns() {
                         dir="rtl"
                       >
                         {/* Pull bar */}
-                        <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-1 shrink-0" />
+                        <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-1 shrink-0 cursor-grab active:cursor-grabbing" />
 
                         {/* Title & Ref */}
                         <div className="flex justify-between items-center shrink-0">
                           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">تعديل الآية المحددة</span>
-                          <span className="text-sm font-black text-sky-400" dir="ltr">
-                            {getSelectedVersesRef()}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-black text-sky-400" dir="ltr">
+                              {getSelectedVersesRef()}
+                            </span>
+                            <button
+                              onClick={() => setBibleSelectedVerseIds(new Set())}
+                              className="p-1 rounded-full bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all active:scale-95 flex items-center justify-center"
+                              title="إغلاق"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
 
                         {/* Capsule Action Buttons */}
@@ -3421,19 +3438,18 @@ export default function Category_Humns() {
                         {showAiOptions && (
                           <div className="flex gap-2 shrink-0 animate-in fade-in slide-in-from-bottom-1 duration-200" dir="rtl">
                             {[
-                              { type: 'explain', label: 'تفسير', emoji: '📖', color: 'from-violet-600 to-indigo-600', glow: 'rgba(139,92,246,0.35)' },
-                              { type: 'cross_reference', label: 'مراجع', emoji: '🔗', color: 'from-sky-600 to-cyan-600', glow: 'rgba(14,165,233,0.35)' },
-                              { type: 'practical', label: 'تطبيق', emoji: '✨', color: 'from-amber-500 to-orange-500', glow: 'rgba(245,158,11,0.35)' },
-                            ].map(({ type, label, emoji, color, glow }) => (
+                              { type: 'explain', label: 'تفسير', icon: BookOpen, color: 'text-violet-400', border: 'border-violet-500/20 hover:border-violet-400/50 hover:bg-violet-500/5', glow: 'shadow-[0_0_15px_rgba(139,92,246,0.15)] hover:shadow-[0_0_22px_rgba(139,92,246,0.25)]' },
+                              { type: 'cross_reference', label: 'مراجع', icon: Link2, color: 'text-sky-400', border: 'border-sky-500/20 hover:border-sky-400/50 hover:bg-sky-500/5', glow: 'shadow-[0_0_15px_rgba(14,165,233,0.15)] hover:shadow-[0_0_22px_rgba(14,165,233,0.25)]' },
+                              { type: 'practical', label: 'تطبيق', icon: Lightbulb, color: 'text-amber-400', border: 'border-amber-500/20 hover:border-amber-400/50 hover:bg-amber-500/5', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:shadow-[0_0_22px_rgba(245,158,11,0.25)]' },
+                            ].map(({ type, label, icon: IconComponent, color, border, glow }) => (
                               <button
                                 key={type}
                                 onClick={() => handleAiAnalysis(type)}
                                 disabled={aiAnalysis.loading}
-                                className={`flex-1 py-2.5 px-3 rounded-2xl bg-gradient-to-br ${color} text-white text-[11px] font-black tracking-wide transition-all flex flex-col items-center justify-center gap-0.5 active:scale-95 disabled:opacity-50 shadow-lg`}
-                                style={{ boxShadow: `0 4px 16px ${glow}` }}
+                                className={`flex-1 py-3 px-4 rounded-2xl bg-[#111322]/50 border ${border} ${glow} transition-all duration-300 flex flex-col items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 group`}
                               >
-                                <span className="text-base leading-none">{emoji}</span>
-                                <span>{label}</span>
+                                <IconComponent className={`w-5 h-5 ${color} group-hover:scale-110 group-active:scale-95 transition-transform duration-300`} />
+                                <span className="text-[11px] font-black text-slate-300 group-hover:text-white transition-colors duration-300">{label}</span>
                               </button>
                             ))}
                           </div>
