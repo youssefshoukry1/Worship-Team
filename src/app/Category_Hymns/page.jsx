@@ -497,11 +497,11 @@ export default function Category_Humns() {
             color: colorId,
             text: verse.text
           }, {
-            headers: { 'auth-token': token }
+            headers: { Authorization: `Bearer ${token}` }
           });
         } else {
           await axios.delete(`${API_ROOT.replace(/\/api$/, '')}/api/users/bible-highlight/${user_id}`, {
-            headers: { 'auth-token': token },
+            headers: { Authorization: `Bearer ${token}` },
             data: { verseId: id }
           });
         }

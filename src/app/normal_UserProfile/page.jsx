@@ -328,6 +328,33 @@ export default function normal_UserProfile() {
         }
     };
 
+    const handleDeleteBibleHighlight = async (verseId) => {
+        if (!window.confirm('Are you sure you want to delete this highlight?')) return;
+        try {
+            const response = await fetch(`${API_URL}/users/bible-highlight/${user_id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${isLogin}`
+                },
+                body: JSON.stringify({ verseId })
+            });
+
+            if (response.ok) {
+                setProfile(prev => ({
+                    ...prev,
+                    bibleHighlights: prev.bibleHighlights.filter(h => h.verseId !== verseId)
+                }));
+            } else {
+                const data = await response.json();
+                alert(data.message || 'Failed to delete highlight');
+            }
+        } catch (error) {
+            console.error('Delete highlight error:', error);
+            alert('Error deleting highlight');
+        }
+    };
+
     const handleSaveNote = async () => {
         if (!noteText.trim() || !noteModalConfig) return;
         setIsSubmittingNote(true);
@@ -600,24 +627,23 @@ export default function normal_UserProfile() {
 
                         <div className="flex flex-wrap gap-2 sm:gap-3">
                             <Badge icon={User} label="Role" value={titleCase(profile?.user?.role)} classes="bg-sky-500/5 text-sky-200 border-sky-500/10" />
-                            <Badge icon={Target} label="Status" value={titleCase(profile?.user?.status)} classes="bg-emerald-500/5 text-emerald-200 border-emerald-500/10" />
                         </div>
                     </div>
                 </div>
 
                 {/* --- SMART TABS NAVIGATION --- */}
-                <div className="sticky top-4 z-40 mb-6 sm:mb-8 flex gap-3 items-center">
-                    <div className="flex gap-1.5 p-1.5 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl shadow-black/50 custom-scrollbar-hide flex-1 sm:flex-none">
+                <div className="sticky top-4 z-40 mb-6 sm:mb-8">
+                    <div className="flex gap-1.5 p-1.5 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl shadow-black/50 custom-scrollbar-hide overflow-x-auto">
                         {tabs.map(tab => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap min-w-[120px] ${activeTab === tab.id
+                                className={`flex-shrink-0 flex items-center justify-center gap-1.5 px-3 sm:px-6 py-2.5 sm:py-3 rounded-xl text-[11px] sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab.id
                                         ? 'bg-white/10 text-white shadow-lg shadow-black/20 border border-white/5 ring-1 ring-white/10'
                                         : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'
                                     }`}
                             >
-                                <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-sky-400' : 'opacity-60'}`} />
+                                <tab.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${activeTab === tab.id ? 'text-sky-400' : 'opacity-60'}`} />
                                 {tab.label}
                             </button>
                         ))}
@@ -738,7 +764,7 @@ export default function normal_UserProfile() {
                                     return (
                                         <div key={highlight._id || highlight.verseId} className="rounded-2xl border border-white/5 bg-black/20 p-4 sm:p-5 hover:bg-white/5 transition-all duration-300 relative overflow-hidden group">
                                             <div className="absolute top-0 bottom-0 right-0 w-1.5 opacity-80" style={{ backgroundColor: hex }}></div>
-                                            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4 relative z-10 pr-2">
+                                            <div className="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-4 relative z-10 pr-2">
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                                                         <h4 className="text-base font-bold text-white tracking-tight">{highlight.bookName}</h4>
@@ -753,6 +779,13 @@ export default function normal_UserProfile() {
                                                         {highlight.text}
                                                     </p>
                                                 </div>
+                                                <button
+                                                    onClick={() => handleDeleteBibleHighlight(highlight.verseId)}
+                                                    className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 shrink-0 self-start"
+                                                    title="Delete Highlight"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
                                             </div>
                                         </div>
                                     );

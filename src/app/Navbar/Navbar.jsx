@@ -259,7 +259,7 @@ export default function Navbar() {
                                             ? !vocalsMode
                                                 ? "text-sky-400 font-bold bg-white/5"
                                                 : "text-gray-300 hover:bg-white/5"
-                                            : "text-gray-400 cursor-not-allowed opacity-70 blur-sm"
+                                            : "text-gray-400 cursor-not-allowed opacity-50 "
                                         }`}
                                     title={canUseMusicMode ? "Musician Mode" : "Musician mode coming soon"}
                                 >
