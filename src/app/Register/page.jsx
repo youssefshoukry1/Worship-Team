@@ -100,24 +100,23 @@ export default function Register() {
         Name: Yup.string()
             .required("Name is required")
             .min(3, "Minimum 3 characters")
-            .max(20, "Maximum 20 characters"),
+            .max(30, "Maximum 30 characters"), // زودتها لـ 30 عشان الأسماء المركبة
+
         email: Yup.string()
             .required("Email is required")
             .email("Enter a valid email"),
+
         password: Yup.string()
             .required("Password is required")
-            .matches(
-                /^[A-Z][a-z0-9]{5,7}$/,
-                "6–8 chars, starts with capital letter, letters & numbers only"
-            ),
+            .min(6, "Password must be at least 6 characters"),
         accountType: Yup.string(),
+
         ChurchName: Yup.string().when("accountType", {
             is: "church",
             then: (schema) => schema.required("Church Name is required"),
             otherwise: (schema) => schema.notRequired(),
         }),
     });
-
     let formik = useFormik({
         initialValues: {
             Name: "",
@@ -135,8 +134,8 @@ export default function Register() {
         emailStatus === EMAIL_STATUS.VALID
             ? "input-email-valid"
             : emailStatus === EMAIL_STATUS.INVALID
-            ? "input-email-invalid"
-            : "";
+                ? "input-email-invalid"
+                : "";
 
     return (
         <div className="reg-root">

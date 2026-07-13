@@ -35,10 +35,8 @@ export default function ResetPassword() {
     const validationSchema = Yup.object({
         password: Yup.string()
             .required("Password is required")
-            .matches(
-                /^[A-Z][a-z0-9]{5,7}$/,
-                "6–8 chars, starts with capital letter, letters & numbers only"
-            ),
+            .min(6, "Password must be at least 6 characters"),
+
         confirmPassword: Yup.string()
             .required("Please confirm your password")
             .oneOf([Yup.ref("password")], "Passwords do not match"),
@@ -79,7 +77,7 @@ export default function ResetPassword() {
 
             {/* 💳 الكارت الزجاجي المعزول بلون نص واضح جداً */}
             <div className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl relative z-10 text-slate-100">
-                
+
                 {/* Brand */}
                 <div className="flex items-center justify-center gap-2 mb-8">
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold">✝</div>
@@ -212,11 +210,10 @@ export default function ResetPassword() {
                             <button
                                 type="submit"
                                 disabled={isLoading || !formik.isValid || !formik.dirty}
-                                className={`w-full py-3 px-4 rounded-lg font-bold text-sm text-white transition-all ${
-                                    isLoading || !formik.isValid || !formik.dirty 
-                                    ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5" 
-                                    : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-blue-500/20 active:scale-[0.98]"
-                                }`}
+                                className={`w-full py-3 px-4 rounded-lg font-bold text-sm text-white transition-all ${isLoading || !formik.isValid || !formik.dirty
+                                        ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5"
+                                        : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                                    }`}
                             >
                                 {isLoading ? (
                                     <span className="flex items-center justify-center gap-2">
