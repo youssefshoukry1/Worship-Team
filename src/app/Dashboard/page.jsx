@@ -240,6 +240,9 @@ export default function Dashboard() {
           const errData = await response.json();
           if (errData && errData.message) {
             errMsg = errData.message;
+            if (errData.error) {
+              errMsg += `: ${errData.error}`;
+            }
           } else if (typeof errData === 'string') {
             errMsg = errData;
           }
