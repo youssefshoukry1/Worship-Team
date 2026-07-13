@@ -58,13 +58,13 @@ export async function initLocalHymns() {
         }
       });
 
-      // 3. Setup periodic background polling (every 2 minutes)
+      // 3. Setup periodic background polling (Changed to 15 minutes to save performance)
       setInterval(() => {
         if (navigator.onLine && document.visibilityState === 'visible') {
           console.log("[HymnsSync] Periodic background sync check...");
           syncRemoteHymns();
         }
-      }, 2 * 60 * 1000);
+      }, 15 * 60 * 1000);
 
       window._hymnSyncAttached = true;
     }
@@ -180,7 +180,22 @@ export async function getLocalHymns({ activeTab, search, pageParam = 0, limit = 
 }
 
 /**
- * Background sync remote additions using incremental checks (extremely lightweight)
+ * Helper function for fast and accurate comparison.
+ * Avoids JSON.stringify on the whole object which causes false positives and UI thrashing.
+ */
+function hasHymnChanged(existing, incoming) {
+  if (existing.updatedAt && incoming.updatedAt) {
+    return existing.updatedAt !== incoming.updatedAt;
+  }
+  if (existing.usageCount !== incoming.usageCount) return true;
+  if (existing.title !== incoming.title) return true;
+  if (existing.lyrics?.length !== incoming.lyrics?.length) return true;
+  
+  return false;
+}
+
+/**
+ * Background sync remote additions using incremental checks (Optimized)
  */
 export async function syncRemoteHymns(queryClient) {
   if (typeof window === 'undefined') return;
@@ -188,18 +203,18 @@ export async function syncRemoteHymns(queryClient) {
 
   // Prevent sync when offline
   if (!navigator.onLine) {
-    console.log("[HymnsSync] Sync skipped: Device is offline.");
     return;
   }
 
   try {
-    console.log("[HymnsSync] Starting automatic background sync with remote server...");
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (isDev) console.log("[HymnsSync] Starting automatic background sync with remote server...");
 
     // Pass 1, 2 & 3: Update modified content, add new ones, and refresh popularity stats
     const endpoints = [
-      "https://worship-team-api.onrender.com/api/hymns?sort=-updatedAt&limit=200", // Fix: Catch recently edited/patched hymns
-      "https://worship-team-api.onrender.com/api/hymns?sort=-createdAt&limit=200", // Catch recently added hymns
-      "https://worship-team-api.onrender.com/api/hymns?sort=-usageCount&limit=200"  // Catch popular/stats updates
+      "https://worship-team-api.onrender.com/api/hymns?sort=-updatedAt&limit=200", 
+      "https://worship-team-api.onrender.com/api/hymns?sort=-createdAt&limit=200", 
+      "https://worship-team-api.onrender.com/api/hymns?sort=-usageCount&limit=200"
     ];
 
     // Use in-memory cache as starting point if available
@@ -220,12 +235,12 @@ export async function syncRemoteHymns(queryClient) {
         if (!existing) {
           localMap.set(flatId, flatHymn);
           hasChanges = true;
-          console.log(`[HymnsSync] Auto-added new hymn from remote: "${flatHymn.title}"`);
-        } else if (JSON.stringify(existing) !== JSON.stringify(flatHymn)) {
-          // Update stats (usageCount, totalViews, etc.) or content
+          if (isDev) console.log(`[HymnsSync] Auto-added new hymn from remote: "${flatHymn.title}"`);
+        } else if (hasHymnChanged(existing, flatHymn)) {
+          // Using our optimized helper function instead of JSON.stringify
           localMap.set(flatId, flatHymn);
           hasChanges = true;
-          console.log(`[HymnsSync] Auto-updated stats/content for: "${flatHymn.title}"`);
+          if (isDev) console.log(`[HymnsSync] Auto-updated stats/content for: "${flatHymn.title}"`);
         }
       }
     }
@@ -241,12 +256,14 @@ export async function syncRemoteHymns(queryClient) {
             if (!remoteIdSet.has(localId)) {
               localMap.delete(localId);
               hasChanges = true;
-              console.log(`[HymnsSync] Pruned deleted hymn from local cache: ${localId}`);
+              if (isDev) console.log(`[HymnsSync] Pruned deleted hymn from local cache: ${localId}`);
             }
           }
         }
       }
-    } catch (e) { console.warn("[HymnsSync] Deletion reconciliation skipped:", e.message); }
+    } catch (e) { 
+      if (isDev) console.warn("[HymnsSync] Deletion reconciliation skipped:", e.message); 
+    }
 
     if (hasChanges) {
       // Keep sorted by newest first
@@ -257,15 +274,15 @@ export async function syncRemoteHymns(queryClient) {
       await localforage.setItem(HYMNS_CACHE_KEY, updatedList);
       // Also update the in-memory cache so subsequent reads are instant
       memoryHymnsCache = updatedList;
-      console.log("[HymnsSync] Local cache updated and saved successfully.");
+      if (isDev) console.log("[HymnsSync] Local cache updated and saved successfully.");
 
       const qc = queryClient || globalQueryClient;
       if (qc) {
-        qc.invalidateQueries({ queryKey: ["humns"] });
-        console.log("[HymnsSync] UI notified of cache changes.");
+        qc.invalidateQueries({ queryKey: ["humns"] }); 
+        if (isDev) console.log("[HymnsSync] UI notified of cache changes.");
       }
     } else {
-      console.log("[HymnsSync] Local database is already up to date with remote server.");
+      if (isDev) console.log("[HymnsSync] Local database is already up to date with remote server.");
     }
   } catch (error) {
     console.warn("[HymnsSync] Background sync encountered an error (server might be starting up):", error.message);

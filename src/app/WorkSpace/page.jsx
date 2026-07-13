@@ -1217,7 +1217,16 @@ export default function WorkSpace() {
                 a.remove();
                 showDockToast('✓ PDF downloaded');
             } else {
-                alert('Failed to generate PDF');
+                let errMsg = 'Failed to generate PDF';
+                try {
+                    const errData = await response.json();
+                    if (errData && errData.message) {
+                        errMsg = errData.message;
+                    } else if (typeof errData === 'string') {
+                        errMsg = errData;
+                    }
+                } catch (_) {}
+                alert(errMsg);
             }
         } catch (error) {
             console.error('Download error:', error);
