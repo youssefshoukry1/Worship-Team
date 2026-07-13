@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState, useContext } from "react";
 import axios from "axios";
 import { motion, AnimatePresence, easeOut } from "framer-motion";
+import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { Menu, X, Globe, ChevronDown, Mic, Music, User, LogOut, LogIn, UserPlus, ShieldAlert } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
@@ -36,15 +37,15 @@ export default function Navbar() {
     const pendingSection = useRef(null);
     const [menuOpen, setMenuOpen] = useState(false);
 
-    const handleNavClick = (path, sectionId) => {
+    const handleNavClick = (e, path, sectionId) => {
         if (pathname === path) {
+            e.preventDefault();
             const section = document.getElementById(sectionId);
             if (section) {
                 section.scrollIntoView({ behavior: "smooth" });
             }
         } else {
             pendingSection.current = sectionId;
-            router.push(path);
         }
         setMenuOpen(false);
     };
@@ -52,14 +53,15 @@ export default function Navbar() {
     useEffect(() => {
         if (pendingSection.current) {
             const sectionId = pendingSection.current;
-            const timer = setTimeout(() => {
+
+            // requestAnimationFrame بتضمن إن الصفحة اترسمت في المتصفح بدون أي تأخير ملحوظ
+            requestAnimationFrame(() => {
                 const section = document.getElementById(sectionId);
                 if (section) {
                     section.scrollIntoView({ behavior: "smooth" });
                 }
                 pendingSection.current = null;
-            }, 500);
-            return () => clearTimeout(timer);
+            });
         }
     }, [pathname]);
 
@@ -117,12 +119,12 @@ export default function Navbar() {
     return (
         <nav className="sticky w-full flex justify-between items-center py-3 px-6 top-0 z-50 bg-blue-950/20 backdrop-blur-xl border-b border-sky-500/10 transition-all duration-300">
             {/* Logo */}
-            <div
+            <Link
+                href="/"
                 className="relative font-bold text-2xl tracking-tight bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent drop-shadow-sm cursor-pointer"
-                onClick={() => router.push("/")}
             >
                 {t("praiseTeam")}
-            </div>
+            </Link>
 
             {/* Desktop Menu */}
             <motion.ul
@@ -133,9 +135,10 @@ export default function Navbar() {
             >
                 {navItems.map(({ name, path, id }) => (
                     <motion.li key={name} variants={itemVariants} className="list-none">
-                        <button
-                            onClick={() => handleNavClick(path, id)}
-                            className={`text-sm lg:text-base font-medium cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg hover:bg-white/5
+                        <Link
+                            href={path}
+                            onClick={(e) => handleNavClick(e, path, id)}
+                            className={`text-sm lg:text-base font-medium cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg hover:bg-white/5 block
                             ${pathname === path
                                     ? "text-sky-400 bg-white/5"
                                     : "text-gray-300 hover:text-sky-300"
@@ -143,23 +146,23 @@ export default function Navbar() {
                         >
                             {/* @ts-ignore */}
                             {t(name)}
-                        </button>
+                        </Link>
                     </motion.li>
                 ))}
 
                 {/* Training Link (Approved Users) */}
                 {isLogin && UserStatus === "approved" && (
                     <motion.li variants={itemVariants} className="list-none">
-                        <button
-                            onClick={() => router.push("/Trainings")}
-                            className={`text-sm lg:text-base font-bold cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg border border-sky-500/30
+                        <Link
+                            href="/Trainings"
+                            className={`text-sm lg:text-base font-bold cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg border border-sky-500/30 block
                             ${pathname === "/Trainings"
                                     ? "text-sky-400 bg-sky-500/20 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
                                     : "text-sky-300 hover:text-white hover:bg-sky-500/20 hover:shadow-[0_0_10px_rgba(14,165,233,0.2)]"
                                 }`}
                         >
                             {t("training")}
-                        </button>
+                        </Link>
                     </motion.li>
                 )}
 
@@ -167,9 +170,9 @@ export default function Navbar() {
                 {isLogin && UserRole &&
                     ["ADMIN", "MANEGER", "PROGRAMER"].includes(UserRole) && (
                         <motion.li variants={itemVariants} className="list-none">
-                            <button
-                                onClick={() => router.push("/Dashboard")}
-                                className={`text-sm lg:text-base font-bold cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg border border-sky-500/30
+                            <Link
+                                href="/Dashboard"
+                                className={`text-sm lg:text-base font-bold cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg border border-sky-500/30 block
                                 ${pathname === "/Dashboard"
                                         ? "text-sky-400 bg-sky-500/20 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
                                         : "text-sky-300 hover:text-white hover:bg-sky-500/20 hover:shadow-[0_0_10px_rgba(14,165,233,0.2)]"
@@ -177,7 +180,7 @@ export default function Navbar() {
                             >
                                 {/* @ts-ignore */}
                                 {t("dashboard")}
-                            </button>
+                            </Link>
                         </motion.li>
                     )}
 
@@ -185,8 +188,8 @@ export default function Navbar() {
                 {isLogin && UserRole &&
                     ["WEBSITE_ADMIN", "PROGRAMER", "MUSIC_ADMIN"].includes(UserRole) && (
                         <motion.li variants={itemVariants} className="list-none ml-2">
-                            <button
-                                onClick={() => router.push("/Website_Admin_Profile")}
+                            <Link
+                                href="/Website_Admin_Profile"
                                 className={`flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full transition-all duration-300 border border-white/10
                                 ${pathname === "/Website_Admin_Profile"
                                         ? "bg-rose-500/20 text-rose-400 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.3)]"
@@ -195,15 +198,15 @@ export default function Navbar() {
                                 title={"Admin Tasks"}
                             >
                                 <ShieldAlert size={18} />
-                            </button>
+                            </Link>
                         </motion.li>
                     )}
 
                 {/* User Profile Link (All Logged-in Users) */}
                 {isLogin && (
                     <motion.li variants={itemVariants} className="list-none ml-2">
-                        <button
-                            onClick={() => router.push(churchId && churchId !== 'undefined' && churchId !== 'null' ? "/Church_UserProfile" : "/normal_UserProfile")}
+                        <Link
+                            href={churchId && churchId !== 'undefined' && churchId !== 'null' ? "/Church_UserProfile" : "/normal_UserProfile"}
                             className={`flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full transition-all duration-300 border border-white/10
                             ${pathname === "/Church_UserProfile" || pathname === "/normal_UserProfile"
                                     ? "bg-sky-500/20 text-sky-400 border-sky-500/30 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
@@ -212,7 +215,7 @@ export default function Navbar() {
                             title={churchId && churchId !== 'undefined' && churchId !== 'null' ? t("church_profile") : t("userProfile")}
                         >
                             <User size={18} />
-                        </button>
+                        </Link>
                     </motion.li>
                 )}
 
@@ -291,26 +294,22 @@ export default function Navbar() {
                                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                                         className="absolute right-0 mt-2 w-48 bg-[#0f172a] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-1 z-50"
                                     >
-                                        <button
-                                            onClick={() => {
-                                                router.push("/login");
-                                                setAuthMenuOpen(false);
-                                            }}
+                                        <Link
+                                            href="/login"
+                                            onClick={() => setAuthMenuOpen(false)}
                                             className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-sky-400 transition flex items-center gap-3"
                                         >
                                             <LogIn size={16} />
                                             <span>{t("login")}</span>
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                router.push("/Register");
-                                                setAuthMenuOpen(false);
-                                            }}
+                                        </Link>
+                                        <Link
+                                            href="/Register"
+                                            onClick={() => setAuthMenuOpen(false)}
                                             className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-sky-400 transition flex items-center gap-3"
                                         >
                                             <UserPlus size={16} />
                                             <span>{t("register")}</span>
-                                        </button>
+                                        </Link>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
@@ -327,208 +326,201 @@ export default function Navbar() {
                     )}
                 </div>
 
-            {/* Language Switcher Desktop */}
-            <div className="relative ml-2">
+                {/* Language Switcher Desktop */}
+                <div className="relative ml-2">
+                    <button
+                        onClick={() => setLangMenuOpen(!langMenuOpen)}
+                        className="flex items-center gap-1 text-gray-300 hover:text-sky-400 transition"
+                    >
+                        <Globe size={20} />
+                        <span className="uppercase text-sm font-medium">{language}</span>
+                        <ChevronDown size={14} />
+                    </button>
+
+                    <AnimatePresence>
+                        {langMenuOpen && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                                className="absolute right-0 mt-2 w-32 bg-[#0f172a] border border-white/10 rounded-lg shadow-xl overflow-hidden py-1"
+                            >
+                                {["en", "ar", "de"].map((lang) => (
+                                    <button
+                                        key={lang}
+                                        onClick={() => {
+                                            setLanguage(lang);
+                                            setLangMenuOpen(false);
+                                        }}
+                                        className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition
+                                        ${language === lang ? "text-sky-400 font-bold" : "text-gray-300"}
+                                        `}
+                                    >
+                                        {lang === "en" ? "English" : lang === "ar" ? "العربية" : "Deutsch"}
+                                    </button>
+                                ))}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            </motion.ul>
+
+            {/* Mobile Hamburger */}
+            <div className="relative md:hidden">
                 <button
-                    onClick={() => setLangMenuOpen(!langMenuOpen)}
-                    className="flex items-center gap-1 text-gray-300 hover:text-sky-400 transition"
+                    onClick={() => setMenuOpen((prev) => !prev)}
+                    className="text-white hover:text-sky-400 p-2 transition"
                 >
-                    <Globe size={20} />
-                    <span className="uppercase text-sm font-medium">{language}</span>
-                    <ChevronDown size={14} />
+                    {menuOpen ? <X size={28} /> : <Menu size={28} />}
                 </button>
 
                 <AnimatePresence>
-                    {langMenuOpen && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 10 }}
-                            className="absolute right-0 mt-2 w-32 bg-[#0f172a] border border-white/10 rounded-lg shadow-xl overflow-hidden py-1"
+                    {menuOpen && (
+                        <motion.ul
+                            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                            transition={{ duration: 0.2, ease: easeOut }}
+                            className="absolute right-0 mt-4 w-56 bg-[#0f172a]/95 backdrop-blur-2xl text-white flex flex-col p-2 gap-1 rounded-2xl z-50 border border-white/10 shadow-2xl origin-top-right"
                         >
-                            {["en", "ar", "de"].map((lang) => (
-                                <button
-                                    key={lang}
-                                    onClick={() => {
-                                        setLanguage(lang);
-                                        setLangMenuOpen(false);
-                                    }}
-                                    className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition
-                                        ${language === lang ? "text-sky-400 font-bold" : "text-gray-300"}
-                                        `}
-                                >
-                                    {lang === "en" ? "English" : lang === "ar" ? "العربية" : "Deutsch"}
-                                </button>
-                            ))}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-        </motion.ul>
-
-            {/* Mobile Hamburger */ }
-    <div className="relative md:hidden">
-        <button
-            onClick={() => setMenuOpen((prev) => !prev)}
-            className="text-white hover:text-sky-400 p-2 transition"
-        >
-            {menuOpen ? <X size={28} /> : <Menu size={28} />}
-        </button>
-
-        <AnimatePresence>
-            {menuOpen && (
-                <motion.ul
-                    initial={{ opacity: 0, y: -20, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                    transition={{ duration: 0.2, ease: easeOut }}
-                    className="absolute right-0 mt-4 w-56 bg-[#0f172a]/95 backdrop-blur-2xl text-white flex flex-col p-2 gap-1 rounded-2xl z-50 border border-white/10 shadow-2xl origin-top-right"
-                >
-                    {/* Mobile nav items */}
-                    {navItems.map(({ name, path, id }) => (
-                        <li key={name}>
-                            <button
-                                onClick={() => handleNavClick(path, id)}
-                                className={`block w-full text-left px-4 py-3 rounded-xl transition-all font-medium text-sm
+                            {/* Mobile nav items */}
+                            {navItems.map(({ name, path, id }) => (
+                                <li key={name}>
+                                    <Link
+                                        href={path}
+                                        onClick={(e) => handleNavClick(e, path, id)}
+                                        className={`block w-full text-left px-4 py-3 rounded-xl transition-all font-medium text-sm
                                         ${pathname === path
-                                        ? "bg-sky-500/20 text-sky-400"
-                                        : "text-gray-300 hover:bg-white/5 hover:text-white"
-                                    }`}
-                            >
-                                {t(name)}
-                            </button>
-                        </li>
-                    ))}
-
-                    {/* Mobile Training Button */}
-                    {isLogin && UserStatus === "approved" && (
-                        <li>
-                            <button
-                                onClick={() => {
-                                    router.push("/Trainings");
-                                    setMenuOpen(false);
-                                }}
-                                className={`block w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-sky-500/30
-                                        ${pathname === "/Trainings"
-                                        ? "bg-sky-500/20 text-sky-400"
-                                        : "text-sky-300 hover:bg-sky-500/20 hover:text-white"
-                                    }`}
-                            >
-                                {t("training")}
-                            </button>
-                        </li>
-                    )}
-
-                    {/* Mobile Dashboard Button */}
-                    {isLogin && UserRole && ["ADMIN", "MANEGER", "PROGRAMER"].includes(UserRole) && (
-                        <li>
-                            <button
-                                onClick={() => {
-                                    router.push("/Dashboard");
-                                    setMenuOpen(false);
-                                }}
-                                className={`block w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-sky-500/30
-                                        ${pathname === "/Dashboard"
-                                        ? "bg-sky-500/20 text-sky-400"
-                                        : "text-sky-300 hover:bg-sky-500/20 hover:text-white"
-                                    }`}
-                            >
-                                {t("dashboard")}
-                            </button>
-                        </li>
-                    )}
-
-                    {/* Mobile Admin Tasks Button */}
-                    {isLogin && UserRole && ["WEBSITE_ADMIN", "PROGRAMER", "MUSIC_ADMIN"].includes(UserRole) && (
-                        <li>
-                            <button
-                                onClick={() => {
-                                    router.push("/Website_Admin_Profile");
-                                    setMenuOpen(false);
-                                }}
-                                className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-transparent
-                                        ${pathname === "/Website_Admin_Profile"
-                                        ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
-                                        : "text-gray-300 hover:bg-white/5 hover:text-white"
-                                    }`}
-                            >
-                                <ShieldAlert size={18} />
-                                Admin Tasks
-                            </button>
-                        </li>
-                    )}
-
-                    {/* Mobile User Profile Button */}
-                    {isLogin && (
-                        <li>
-                            <button
-                                onClick={() => {
-                                    router.push(churchId && churchId !== 'undefined' && churchId !== 'null' ? "/Church_UserProfile" : "/normal_UserProfile");
-                                    setMenuOpen(false);
-                                }}
-                                className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-transparent
-                                        ${pathname === "/Church_UserProfile" || pathname === "/normal_UserProfile"
-                                        ? "bg-sky-500/20 text-sky-400 border-sky-500/30"
-                                        : "text-gray-300 hover:bg-white/5 hover:text-white"
-                                    }`}
-                            >
-                                <User size={18} />
-                                {churchId && churchId !== 'undefined' && churchId !== 'null' ? t("church_profile") : t("userProfile")}
-                            </button>
-                        </li>
-                    )}
-
-                    {/* Mobile Mode Switcher */}
-                    <li className="w-full">
-                        <div className="relative w-full">
-                            <button
-                                onClick={() => setModeMenuOpen(!modeMenuOpen)}
-                                className="flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all font-medium text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-                            >
-                                <span className="flex items-center gap-2">
-                                    {vocalsMode ? <Mic size={20} /> : <Music size={20} />}
-                                    <span>{vocalsMode ? "Vocal Mode" : "Musician Mode"}</span>
-                                </span>
-                                <ChevronDown size={14} className={'transition-transform ' + (modeMenuOpen ? 'rotate-180' : '')} />
-                            </button>
-
-                            <AnimatePresence>
-                                {modeMenuOpen && (
-                                    <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: "auto" }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="mt-1 bg-[#0f172a] border border-white/10 rounded-lg shadow-inner overflow-hidden py-1"
+                                                ? "bg-sky-500/20 text-sky-400"
+                                                : "text-gray-300 hover:bg-white/5 hover:text-white"
+                                            }`}
                                     >
-                                        <button
-                                            onClick={() => {
-                                                setVocalsMode(true);
-                                                setModeMenuOpen(false);
-                                                setMenuOpen(false);
-                                            }}
-                                            className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
+                                        {t(name)}
+                                    </Link>
+                                </li>
+                            ))}
+
+                            {/* Mobile Training Button */}
+                            {isLogin && UserStatus === "approved" && (
+                                <li>
+                                    <Link
+                                        href="/Trainings"
+                                        onClick={() => setMenuOpen(false)}
+                                        className={`block w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-sky-500/30
+                                        ${pathname === "/Trainings"
+                                                ? "bg-sky-500/20 text-sky-400"
+                                                : "text-sky-300 hover:bg-sky-500/20 hover:text-white"
+                                            }`}
+                                    >
+                                        {t("training")}
+                                    </Link>
+                                </li>
+                            )}
+
+                            {/* Mobile Dashboard Button */}
+                            {isLogin && UserRole && ["ADMIN", "MANEGER", "PROGRAMER"].includes(UserRole) && (
+                                <li>
+                                    <Link
+                                        href="/Dashboard"
+                                        onClick={() => setMenuOpen(false)}
+                                        className={`block w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-sky-500/30
+                                        ${pathname === "/Dashboard"
+                                                ? "bg-sky-500/20 text-sky-400"
+                                                : "text-sky-300 hover:bg-sky-500/20 hover:text-white"
+                                            }`}
+                                    >
+                                        {t("dashboard")}
+                                    </Link>
+                                </li>
+                            )}
+
+                            {/* Mobile Admin Tasks Button */}
+                            {isLogin && UserRole && ["WEBSITE_ADMIN", "PROGRAMER", "MUSIC_ADMIN"].includes(UserRole) && (
+                                <li>
+                                    <Link
+                                        href="/Website_Admin_Profile"
+                                        onClick={() => setMenuOpen(false)}
+                                        className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-transparent
+                                        ${pathname === "/Website_Admin_Profile"
+                                                ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
+                                                : "text-gray-300 hover:bg-white/5 hover:text-white"
+                                            }`}
+                                    >
+                                        <ShieldAlert size={18} />
+                                        Admin Tasks
+                                    </Link>
+                                </li>
+                            )}
+
+                            {/* Mobile User Profile Button */}
+                            {isLogin && (
+                                <li>
+                                    <Link
+                                        href={churchId && churchId !== 'undefined' && churchId !== 'null' ? "/Church_UserProfile" : "/normal_UserProfile"}
+                                        onClick={() => setMenuOpen(false)}
+                                        className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-transparent
+                                        ${pathname === "/Church_UserProfile" || pathname === "/normal_UserProfile"
+                                                ? "bg-sky-500/20 text-sky-400 border-sky-500/30"
+                                                : "text-gray-300 hover:bg-white/5 hover:text-white"
+                                            }`}
+                                    >
+                                        <User size={18} />
+                                        {churchId && churchId !== 'undefined' && churchId !== 'null' ? t("church_profile") : t("userProfile")}
+                                    </Link>
+                                </li>
+                            )}
+
+                            {/* Mobile Mode Switcher */}
+                            <li className="w-full">
+                                <div className="relative w-full">
+                                    <button
+                                        onClick={() => setModeMenuOpen(!modeMenuOpen)}
+                                        className="flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all font-medium text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            {vocalsMode ? <Mic size={20} /> : <Music size={20} />}
+                                            <span>{vocalsMode ? "Vocal Mode" : "Musician Mode"}</span>
+                                        </span>
+                                        <ChevronDown size={14} className={'transition-transform ' + (modeMenuOpen ? 'rotate-180' : '')} />
+                                    </button>
+
+                                    <AnimatePresence>
+                                        {modeMenuOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: "auto" }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="mt-1 bg-[#0f172a] border border-white/10 rounded-lg shadow-inner overflow-hidden py-1"
+                                            >
+                                                <button
+                                                    onClick={() => {
+                                                        setVocalsMode(true);
+                                                        setModeMenuOpen(false);
+                                                        setMenuOpen(false);
+                                                    }}
+                                                    className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
                                                     ${vocalsMode ? "text-sky-400 font-bold bg-white/5" : "text-gray-300"}
                                                     `}
-                                        >
-                                            <Mic size={16} />
-                                            <span>Vocal Mode</span>
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                if (canUseMusicMode) {
-                                                    setVocalsMode(false);
-                                                }
-                                                setModeMenuOpen(false);
-                                                setMenuOpen(false);
-                                            }}
-                                            className={`w-full text-left px-4 py-3 text-sm transition flex items-center gap-2
+                                                >
+                                                    <Mic size={16} />
+                                                    <span>Vocal Mode</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (canUseMusicMode) {
+                                                            setVocalsMode(false);
+                                                        }
+                                                        setModeMenuOpen(false);
+                                                        setMenuOpen(false);
+                                                    }}
+                                                    className={`w-full text-left px-4 py-3 text-sm transition flex items-center gap-2
                                                     ${canUseMusicMode
-                                                    ? !vocalsMode
-                                                        ? "text-sky-400 font-bold bg-white/5"
-                                                        : "text-gray-300 hover:bg-white/5"
-                                                    : "text-gray-400 cursor-not-allowed opacity-70 blur-sm"
-                                                }`}
+                                                            ? !vocalsMode
+                                                                ? "text-sky-400 font-bold bg-white/5"
+                                                                : "text-gray-300 hover:bg-white/5"
+                                                            : "text-gray-400 cursor-not-allowed opacity-70 blur-sm"
+                                                        }`}
                                                     title={canUseMusicMode ? "Musician Mode" : "Musician mode coming soon"}
                                                 >
                                                     <Music size={16} />
@@ -589,26 +581,22 @@ export default function Navbar() {
                             <li className="w-full mt-2 pt-2 border-t border-white/10">
                                 {!isLogin ? (
                                     <div className="flex flex-col gap-2 p-2">
-                                        <button
-                                            onClick={() => {
-                                                router.push("/login");
-                                                setMenuOpen(false);
-                                            }}
+                                        <Link
+                                            href="/login"
+                                            onClick={() => setMenuOpen(false)}
                                             className="flex items-center justify-center gap-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 px-4 py-2 rounded-xl border border-sky-500/20 transition-all duration-300"
                                         >
                                             <LogIn size={18} />
                                             <span className="text-sm font-bold">{t("login")}</span>
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                router.push("/Register");
-                                                setMenuOpen(false);
-                                            }}
+                                        </Link>
+                                        <Link
+                                            href="/Register"
+                                            onClick={() => setMenuOpen(false)}
                                             className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-gray-300 px-4 py-2 rounded-xl border border-transparent transition-all duration-300"
                                         >
                                             <UserPlus size={18} />
                                             <span className="text-sm font-bold">{t("register")}</span>
-                                        </button>
+                                        </Link>
                                     </div>
                                 ) : (
                                     <div className="p-2">
