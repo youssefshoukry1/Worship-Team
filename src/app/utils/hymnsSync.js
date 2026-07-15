@@ -28,14 +28,15 @@ function normalizeText(text) {
     .replace(/[أإآ]/g, 'ا')
     .replace(/ة/g, 'ه')
     .replace(/ى/g, 'ي')
-    .replace(/[\u064B-\u0652]/g, '') 
-    .replace(/[^\w\s\u0600-\u06FF]/g, ' ') 
-    .replace(/\s+/g, ' ') 
+    .replace(/[\u064B-\u0652]/g, '')
+    .replace(/[^\w\s\u0600-\u06FF]/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
 /**
- * Hydrates IndexedDB. Uses hymns.json for instant UI, but immediately syncs with MongoDB.
+ * Hydrates IndexedDB directly from MongoDB if empty.
+ * Integrates Batching to sync all hymns seamlessly on startup if cache is cleared.
  */
 export async function initLocalHymns() {
   if (typeof window === 'undefined') return [];
@@ -43,9 +44,7 @@ export async function initLocalHymns() {
   try {
     // 1. Setup automatic sync triggers
     if (typeof window !== 'undefined' && !window._hymnSyncAttached) {
-      window.addEventListener('online', () => {
-        syncRemoteHymns();
-      });
+      window.addEventListener('online', () => syncRemoteHymns());
 
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && navigator.onLine) {
@@ -65,7 +64,6 @@ export async function initLocalHymns() {
 
     // 2. Return from memory if already loaded
     if (memoryHymnsCache && memoryHymnsCache.length > 0) {
-      // Trigger a silent background sync just in case
       setTimeout(() => syncRemoteHymns(), 1000);
       return memoryHymnsCache;
     }
@@ -74,28 +72,15 @@ export async function initLocalHymns() {
     const existing = await localforage.getItem(HYMNS_CACHE_KEY);
     if (existing && existing.length > 0) {
       memoryHymnsCache = existing;
-      // Trigger a silent background sync
       setTimeout(() => syncRemoteHymns(), 1000);
       return existing;
     }
 
-    // 4. Fallback to static JSON if DB is completely empty (e.g., cleared cache)
-    const response = await fetch('/hymns.json');
-    if (!response.ok) throw new Error("Local fallback not found");
-    const rawHymns = await response.json();
-    
-    const normalized = rawHymns.map(h => ({
-      ...h,
-      _id: h._id?.$oid || h._id
-    }));
+    // 4. DB is completely empty! Trigger full sync to download EVERYTHING on first load
+    console.log("[HymnsSync] Local cache empty. Triggering full batch sync...");
+    await syncRemoteHymns();
 
-    await localforage.setItem(HYMNS_CACHE_KEY, normalized);
-    memoryHymnsCache = normalized;
-
-    // 🔥 THE MAGIC FIX: Instantly sync from MongoDB to overwrite this static JSON
-    setTimeout(() => syncRemoteHymns(), 500);
-
-    return normalized;
+    return memoryHymnsCache || [];
   } catch (error) {
     console.error("[HymnsSync] Failed to initialize:", error);
     return [];
@@ -167,7 +152,7 @@ function hasHymnChanged(existing, incoming) {
   if (existing.updatedAt || incoming.updatedAt) {
     return String(existing.updatedAt) !== String(incoming.updatedAt);
   }
-  
+
   const arr1 = Array.isArray(existing.party) ? existing.party : [existing.party];
   const arr2 = Array.isArray(incoming.party) ? incoming.party : [incoming.party];
   if (arr1.length !== arr2.length) return true;
@@ -179,28 +164,54 @@ function hasHymnChanged(existing, incoming) {
 }
 
 /**
- * Bullet-fast Background Sync directly from MongoDB
+ * Bullet-fast Background Sync directly from MongoDB (With Batching to bypass Server Limits)
  */
 export async function syncRemoteHymns(queryClient) {
   if (typeof window === 'undefined' || !navigator.onLine) return;
   if (queryClient) globalQueryClient = queryClient;
 
-  // Prevent multiple syncs running at the exact same time (protects weak phones)
+  // Prevent multiple syncs running at the exact same time
   if (window._isSyncing) return;
   window._isSyncing = true;
 
   try {
     const isDev = process.env.NODE_ENV !== 'production';
-    
-    // 🔥 Fetch up to 4000 hymns in ONE fast request. Covers entire DB.
-    const url = "https://worship-team-api.onrender.com/api/hymns?sort=-updatedAt&limit=4000";
-    const response = await axios.get(url);
-    const remoteHymns = response.data;
-    
-    if (!Array.isArray(remoteHymns)) {
+    if (isDev) console.log("[HymnsSync] Starting batch sync...");
+
+    let allRemoteHymns = [];
+    let page = 1;
+    const batchSize = 3000; // Download in chunks of 3000 to safely bypass the 4000 server limit
+    let hasMore = true;
+
+    // Loop dynamically until we fetch EVERY single hymn in your database
+    while (hasMore) {
+      const skip = (page - 1) * batchSize;
+      const url = `https://worship-team-api.onrender.com/api/hymns?sort=-updatedAt&limit=${batchSize}&skip=${skip}`;
+
+      if (isDev) console.log(`[HymnsSync] Fetching batch ${page} (skipping ${skip})...`);
+      const response = await axios.get(url);
+      const remoteBatch = response.data;
+
+      if (Array.isArray(remoteBatch) && remoteBatch.length > 0) {
+        allRemoteHymns = [...allRemoteHymns, ...remoteBatch];
+
+        // If the server returned fewer items than our batch size, it means we hit the end of the collection
+        if (remoteBatch.length < batchSize) {
+          hasMore = false;
+        } else {
+          page++;
+        }
+      } else {
+        hasMore = false;
+      }
+    }
+
+    if (allRemoteHymns.length === 0) {
       window._isSyncing = false;
       return;
     }
+
+    if (isDev) console.log(`[HymnsSync] Total retrieved from MongoDB: ${allRemoteHymns.length} hymns.`);
 
     let localHymns = memoryHymnsCache || await localforage.getItem(HYMNS_CACHE_KEY) || [];
     const localMap = new Map(localHymns.map(h => [String(h._id), h]));
@@ -208,7 +219,7 @@ export async function syncRemoteHymns(queryClient) {
     const remoteIdSet = new Set();
 
     // Reconcile additions and updates
-    for (const remoteHymn of remoteHymns) {
+    for (const remoteHymn of allRemoteHymns) {
       const flatId = String(remoteHymn._id?.$oid || remoteHymn._id);
       remoteIdSet.add(flatId);
       const flatHymn = { ...remoteHymn, _id: flatId };
@@ -220,17 +231,17 @@ export async function syncRemoteHymns(queryClient) {
       }
     }
 
-    // Reconcile deletions natively (if it's not in the 4000 fetched, it was deleted)
+    // Reconcile deletions
     for (const localId of localMap.keys()) {
       if (!remoteIdSet.has(localId)) {
         localMap.delete(localId);
         hasChanges = true;
-        if (isDev) console.log(`[HymnsSync] Pruned: ${localId}`);
+        if (isDev) console.log(`[HymnsSync] Pruned deleted hymn: ${localId}`);
       }
     }
 
     // Save and update UI if anything actually changed
-    if (hasChanges) {
+    if (hasChanges || localHymns.length !== localMap.size) {
       const updatedList = Array.from(localMap.values()).sort((a, b) =>
         String(b._id).localeCompare(String(a._id))
       );
@@ -242,12 +253,11 @@ export async function syncRemoteHymns(queryClient) {
       if (qc) {
         qc.invalidateQueries({ queryKey: ["humns"] });
       }
-      if (isDev) console.log("[HymnsSync] Synced successfully and updated UI!");
+      if (isDev) console.log(`[HymnsSync] Synced successfully! Total Local DB Size: ${updatedList.length}`);
     }
   } catch (error) {
     console.warn("[HymnsSync] Sync error:", error.message);
   } finally {
-    // Release the lock so future syncs can run
     window._isSyncing = false;
   }
 }
