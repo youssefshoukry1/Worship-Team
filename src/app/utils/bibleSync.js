@@ -17,39 +17,45 @@ const memoryBiblesCaches = {}; // { AVD: [...], KEH: [...] }
 const memoryIndexCaches = {};  // { AVD: index, KEH: index }
 
 /**
- * Hydrates IndexedDB with standard packaged AVD (Van Dyke) if empty.
+ * Hydrates IndexedDB with standard AVD directly from MongoDB if empty.
  * Runs on app startup.
  */
-export async function initLocalBible() {
+export async function initLocalBible(apiBase = "https://worship-team-api.onrender.com/api/bibles") {
   if (typeof window === 'undefined') return [];
 
   const cacheKey = getCacheKey('AVD');
   try {
+    // 1. Instant load from memory if available
+    if (memoryBiblesCaches['AVD'] && memoryBiblesCaches['AVD'].length > 0) {
+      return memoryBiblesCaches['AVD'];
+    }
+
+    // 2. Fast load from local device storage (IndexedDB)
     const existing = await localforage.getItem(cacheKey);
     if (existing && existing.length > 0) {
-      console.log(`[BibleSync] AVD cache hydrated with ${existing.length} verses.`);
+      console.log(`[BibleSync] AVD cache hydrated instantly with ${existing.length} verses from local device.`);
       memoryBiblesCaches['AVD'] = existing;
       return existing;
     }
 
-    console.log("[BibleSync] AVD local database is empty. Hydrating from public/Taspe7.bibles.json...");
-    const response = await fetch('/Taspe7.bibles.json');
-    if (!response.ok) throw new Error("Local Taspe7.bibles.json fallback file not found in public folder");
+    // 3. Database Fetch: If completely empty, fetch DIRECTLY from API (No local JSON fallback)
+    console.log("[BibleSync] Local AVD cache is empty. Downloading directly from MongoDB...");
 
-    const raw = await response.json();
+    // Prevent double-fetching if the user clicks around quickly (Sync Lock)
+    if (window._isBibleDownloading) {
+      console.log("[BibleSync] Download already in progress. Waiting...");
+      return [];
+    }
 
-    // Flatten Mongo ObjectIDs if necessary & ensure translation is 'AVD'
-    const normalized = raw.map(v => ({
-      ...v,
-      _id: v._id?.$oid || v._id,
-      translation: 'AVD'
-    }));
+    window._isBibleDownloading = true;
 
-    await localforage.setItem(cacheKey, normalized);
-    console.log(`[BibleSync] AVD local cache successfully hydrated with ${normalized.length} verses.`);
-    memoryBiblesCaches['AVD'] = normalized;
-    return normalized;
+    // Use our dedicated download function to fetch and cache
+    await downloadTranslationToLocal('AVD', apiBase);
+
+    window._isBibleDownloading = false;
+    return memoryBiblesCaches['AVD'] || [];
   } catch (error) {
+    window._isBibleDownloading = false;
     console.error("[BibleSync] Failed to initialize local Bible database:", error);
     return [];
   }
@@ -78,26 +84,33 @@ export async function downloadTranslationToLocal(translation, apiBase) {
     const cleanTranslation = String(translation).toUpperCase();
     const cacheKey = getCacheKey(cleanTranslation);
 
-    console.log(`[BibleSync] Downloading full translation ${cleanTranslation}...`);
+    console.log(`[BibleSync] Downloading full translation ${cleanTranslation} from server...`);
     const { data } = await axios.get(`${apiBase}/download?translation=${cleanTranslation}`);
+
     if (!Array.isArray(data) || data.length === 0) {
       throw new Error(`Invalid response or empty data for translation ${cleanTranslation}`);
     }
 
-    await localforage.setItem(cacheKey, data);
-    console.log(`[BibleSync] Cached translation ${cleanTranslation} with ${data.length} verses.`);
-    
+    // Standardize IDs just in case they come as objects from Mongo
+    const normalizedData = data.map(v => ({
+      ...v,
+      _id: v._id?.$oid || v._id,
+      translation: cleanTranslation
+    }));
+
+    await localforage.setItem(cacheKey, normalizedData);
+    console.log(`[BibleSync] Cached translation ${cleanTranslation} with ${normalizedData.length} verses.`);
+
     // Update memory cache
-    memoryBiblesCaches[cleanTranslation] = data;
-    delete memoryIndexCaches[cleanTranslation]; // Reset index to force build
-    
+    memoryBiblesCaches[cleanTranslation] = normalizedData;
+    delete memoryIndexCaches[cleanTranslation]; // Reset index to force rebuild
+
     return true;
   } catch (error) {
-    // Provide a clearer message when the translation doesn't exist in the DB
     if (error?.response?.status === 404) {
       const serverMsg = error?.response?.data?.message || '';
       console.error(`[BibleSync] Translation '${translation}' is not available on the server (404). ${serverMsg}`);
-      const notFoundError = new Error(`Translation '${translation}' is not available for download. It may not be seeded in the database yet.`);
+      const notFoundError = new Error(`Translation '${translation}' is not available for download.`);
       notFoundError.isNotFound = true;
       throw notFoundError;
     }
@@ -115,10 +128,10 @@ export async function deleteTranslationFromLocal(translation) {
     const cleanTranslation = String(translation).toUpperCase();
     const cacheKey = getCacheKey(cleanTranslation);
     await localforage.removeItem(cacheKey);
-    
+
     delete memoryBiblesCaches[cleanTranslation];
     delete memoryIndexCaches[cleanTranslation];
-    
+
     console.log(`[BibleSync] Removed translation ${cleanTranslation} from local database.`);
     return true;
   } catch (error) {
@@ -176,7 +189,7 @@ export async function getLocalBibleIndex(translation = 'AVD') {
     chaptersMap,
     versesMap
   };
-  
+
   memoryIndexCaches[cleanTranslation] = index;
   return index;
 }
@@ -197,13 +210,13 @@ const normalizeArabic = (text) => {
 export async function searchLocalBible(query, translation = 'AVD') {
   if (typeof window === 'undefined' || !query) return [];
   const cleanTranslation = String(translation).toUpperCase();
-  
+
   const cacheKey = getCacheKey(cleanTranslation);
   const bibles = memoryBiblesCaches[cleanTranslation] || await localforage.getItem(cacheKey) || [];
   if (bibles.length === 0) return [];
 
   if (!memoryBiblesCaches[cleanTranslation]) memoryBiblesCaches[cleanTranslation] = bibles;
-  
+
   const normalizedQuery = normalizeArabic(query.trim());
   const queryWords = normalizedQuery.split(/\s+/).filter(Boolean);
 
@@ -211,10 +224,10 @@ export async function searchLocalBible(query, translation = 'AVD') {
 
   // Lazily compute a normalized search string for each verse for performance
   if (bibles.length > 0 && !bibles[0]._searchCache) {
-      for (let i = 0; i < bibles.length; i++) {
-          const v = bibles[i];
-          bibles[i]._searchCache = normalizeArabic((v.cleanText || '') + ' ' + (v.text || ''));
-      }
+    for (let i = 0; i < bibles.length; i++) {
+      const v = bibles[i];
+      bibles[i]._searchCache = normalizeArabic((v.cleanText || '') + ' ' + (v.text || ''));
+    }
   }
 
   // 1. Exact Phrase Match
@@ -222,21 +235,21 @@ export async function searchLocalBible(query, translation = 'AVD') {
 
   // 2. AND Logic Match
   if (results.length === 0) {
-      results = bibles.filter(v => queryWords.every(word => v._searchCache.includes(word)));
+    results = bibles.filter(v => queryWords.every(word => v._searchCache.includes(word)));
   }
 
   // 3. OR Logic Match
   if (results.length === 0) {
-      const scoredResults = bibles.map(v => {
-          let score = 0;
-          for (let i = 0; i < queryWords.length; i++) {
-              if (v._searchCache.includes(queryWords[i])) score++;
-          }
-          return { verse: v, score };
-      }).filter(item => item.score > 0);
+    const scoredResults = bibles.map(v => {
+      let score = 0;
+      for (let i = 0; i < queryWords.length; i++) {
+        if (v._searchCache.includes(queryWords[i])) score++;
+      }
+      return { verse: v, score };
+    }).filter(item => item.score > 0);
 
-      scoredResults.sort((a, b) => b.score - a.score);
-      results = scoredResults.map(item => item.verse);
+    scoredResults.sort((a, b) => b.score - a.score);
+    results = scoredResults.map(item => item.verse);
   }
 
   return results.slice(0, 50);
