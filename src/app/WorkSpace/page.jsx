@@ -809,7 +809,7 @@ export default function WorkSpace() {
     // Categories Configuration for Icon Lookup
     const categories = [
         { id: 'all', label: 'All Hymns', icon: Music },
-        { id: 'christmass', label: 'Christmas', icon: Gift },
+        { id: 'christmas', label: 'Christmas', icon: Gift },
         { id: 'easter', label: 'Easter', icon: Star },
         { id: 'newyear', label: 'New Year', icon: Sparkles },
         { id: 'motherday', label: 'Mother Day', icon: Heart },

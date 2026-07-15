@@ -120,6 +120,15 @@ export function autoGroupLinesIntoSlides(lines, options = {}) {
   let currentHeight = 0;
 
   for (const line of lines) {
+    if (line.trim() === '---') {
+      if (currentLines.length > 0) {
+        slides.push(currentLines.join('\n'));
+        currentLines = [];
+        currentHeight = 0;
+      }
+      continue;
+    }
+
     const lineHeight = estimateLineVisualHeight(line, options);
 
     if (currentLines.length > 0 && currentHeight + lineHeight > availableHeight) {
@@ -136,8 +145,9 @@ export function autoGroupLinesIntoSlides(lines, options = {}) {
     slides.push(currentLines.join('\n'));
   }
 
-  return slides;
+  return slides.filter(Boolean);
 }
+
 
 export function manualGroupLinesIntoSlides(lines, slideBreaks = []) {
   if (!lines.length) return [];
@@ -198,10 +208,25 @@ export function buildHymnPresentationSlides(lyrics, options = {}) {
   const showChords = options.showChords !== false;
 
   if (typeof lyrics === 'string') {
-    const hasBlankLines = lyrics.includes('\n\n');
-    const blocks = hasBlankLines
-      ? lyrics.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean)
-      : autoGroupLinesIntoSlides(getLyricLines(lyrics), options);
+    const hasManualBreaks = lyrics.includes('---');
+    let blocks = [];
+    if (hasManualBreaks) {
+      const parts = lyrics.split(/(?:\r?\n)?\s*---\s*(?:\r?\n)?/);
+      parts.forEach(part => {
+        if (!part.trim()) return;
+        const hasBlankLines = part.includes('\n\n');
+        if (hasBlankLines) {
+          blocks.push(...part.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean));
+        } else {
+          blocks.push(part.trim());
+        }
+      });
+    } else {
+      const hasBlankLines = lyrics.includes('\n\n');
+      blocks = hasBlankLines
+        ? lyrics.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean)
+        : autoGroupLinesIntoSlides(getLyricLines(lyrics), options);
+    }
 
     return blocks.map((text, index) => ({
       title: `Part ${index + 1}`,

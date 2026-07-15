@@ -59,7 +59,11 @@ const ChordLyrics = ({
         <div className="chord-lyrics-container w-full" dir="rtl">
             {chordedLyrics.map((section, sIdx) => {
                 const isChorus = section.type === 'chorus';
-                const lines = section.lines || (section.text ? section.text.split('\n').map(l => ({ segments: parseLineToSegments(l) })) : []);
+                const rawLines = section.lines || (section.text ? section.text.split('\n').map(l => ({ segments: parseLineToSegments(l) })) : []);
+                const lines = rawLines.filter(line => {
+                    const text = line.segments ? line.segments.map(s => s.text).join('').trim() : '';
+                    return text !== '---';
+                });
 
                 return (
                     <div

@@ -1824,7 +1824,7 @@ export default function Category_Humns() {
     setFormData(prev => ({
       ...prev,
       party: activeTab === 'all' ? ['all'] :
-        activeTab === 'christmass' ? ['christmass'] :
+        activeTab === 'christmas' ? ['christmas'] :
           activeTab === 'prayer_times' ? ['prayer_times'] :
             activeTab === 'praise' ? ['praise'] :
               activeTab === 'cross' ? ['cross'] :
@@ -1839,13 +1839,19 @@ export default function Category_Humns() {
       ? hymn.lyrics
       : (hymn.lyrics ? [{ type: 'verse', title: '1', text: hymn.lyrics }] : []);
 
+    const loadedParty = Array.isArray(hymn.party) ? hymn.party : [hymn.party || 'all'];
+    const normalizedParty = loadedParty.map(p => {
+      const lower = String(p).toLowerCase().trim();
+      return lower === 'christmass' ? 'christmas' : lower;
+    });
+
     setFormData({
       title: hymn.title || '',
       lyrics: rawLyrics.map(normalizeStanzaForEdit),
       scale: hymn.scale || '',
       relatedChords: hymn.relatedChords || '',
       link: hymn.link || '',
-      party: Array.isArray(hymn.party) ? hymn.party : [hymn.party || 'all'],
+      party: normalizedParty,
       BPM: hymn.BPM || '',
       timeSignature: hymn.timeSignature || 'None'
     });
@@ -1859,7 +1865,7 @@ export default function Category_Humns() {
 
   const categories = [
     { id: 'all', label: t("AllHymns"), icon: Music },
-    { id: 'christmass', label: t("Christmas"), icon: Gift },
+    { id: 'christmas', label: t("Christmas"), icon: Gift },
     { id: 'prayer_times', label: t("PrayerTimes"), icon: Star },
     { id: 'praise', label: t("Praise"), icon: Sparkles },
     { id: 'cross', label: t("Cross"), icon: Heart },
@@ -2461,7 +2467,7 @@ export default function Category_Humns() {
             </div>
           )}
 
-          {/* --- Add Hymn Modal --- */}
+          {/* This is the Add/Edit Hymn form */}
           {showModal && (
             <Portal>
               <div
@@ -2766,7 +2772,7 @@ export default function Category_Humns() {
             </Portal>
           )}
 
-          {/* --- Lyrics Modal --- */}
+          {/* This is the Lyrics display */}
           {showLyricsModal && selectedLyricsHymn && (
             <Portal>
               <div
@@ -2977,7 +2983,7 @@ export default function Category_Humns() {
             </Portal>
           )}
 
-          {/* Bible form */}
+          {/* This is the Bible search and reader */}
           {showBibleModal && (
             <Portal>
               {/* Fixed the wrapper by adding overflow-hidden to prevent background interaction */}
@@ -3913,7 +3919,7 @@ export default function Category_Humns() {
             </Portal>
           )}
 
-          {/* --- Data Show (Presentation) Presenter View - Independent --- */}
+          {/* This is the Presentation controller screen */}
           {showDataShow && selectedLyricsHymn && (
             <Portal>
               <div id="showDataContainer" className="fixed inset-0 z-10000 bg-[#020617] flex flex-col">
@@ -4224,8 +4230,7 @@ export default function Category_Humns() {
         </div >
       )}
 
-      {/* Note Modal */}
-      {/* ── Note Write Modal ── z-[500] sits above everything including bible modal at z-[100] */}
+      {/* This is the Add/Edit Note form */}
       {noteModalConfig && (
         <Portal>
           <div
@@ -4309,7 +4314,7 @@ export default function Category_Humns() {
         </Portal>
       )}
 
-      {/* ── View Note Modal ── beautiful read view at z-[500] */}
+      {/* This is the View Note overlay */}
       {viewNoteConfig && (
         <Portal>
           <div

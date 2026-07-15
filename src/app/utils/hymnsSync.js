@@ -160,15 +160,16 @@ export async function getLocalHymns({ activeTab, search, pageParam = 0, limit = 
 
   // 2. Local Category Filter
   if (activeTab && activeTab !== 'all') {
+    const target = String(activeTab).toLowerCase().trim() === 'christmass' ? 'christmas' : String(activeTab).toLowerCase().trim();
     filtered = filtered.filter(hymn => {
       if (!hymn.party) return false;
       const parties = Array.isArray(hymn.party) ? hymn.party : [hymn.party];
 
-      // Normalize category naming differences
-      let target = activeTab;
-      if (activeTab === 'christmass') target = 'christmas';
-
-      return parties.some(p => String(p).toLowerCase() === target.toLowerCase());
+      return parties.some(p => {
+        const lower = String(p).toLowerCase().trim();
+        const normParty = lower === 'christmass' ? 'christmas' : lower;
+        return normParty === target;
+      });
     });
   }
 
@@ -179,18 +180,41 @@ export async function getLocalHymns({ activeTab, search, pageParam = 0, limit = 
   return filtered.slice(pageParam, pageParam + limit);
 }
 
-/**
- * Helper function for fast and accurate comparison.
- * Avoids JSON.stringify on the whole object which causes false positives and UI thrashing.
- */
 function hasHymnChanged(existing, incoming) {
-  if (existing.updatedAt && incoming.updatedAt) {
-    return existing.updatedAt !== incoming.updatedAt;
+  // If either has updatedAt and they don't match, it changed
+  if (existing.updatedAt || incoming.updatedAt) {
+    return String(existing.updatedAt) !== String(incoming.updatedAt);
   }
-  if (existing.usageCount !== incoming.usageCount) return true;
+
+  // Fallbacks if updatedAt is missing from either
   if (existing.title !== incoming.title) return true;
-  if (existing.lyrics?.length !== incoming.lyrics?.length) return true;
-  
+  if (existing.scale !== incoming.scale) return true;
+  if (existing.relatedChords !== incoming.relatedChords) return true;
+  if (existing.BPM !== incoming.BPM) return true;
+  if (existing.timeSignature !== incoming.timeSignature) return true;
+  if (existing.link !== incoming.link) return true;
+  if (existing.usageCount !== incoming.usageCount) return true;
+
+  // Compare party array
+  const arr1 = Array.isArray(existing.party) ? existing.party : [existing.party];
+  const arr2 = Array.isArray(incoming.party) ? incoming.party : [incoming.party];
+  if (arr1.length !== arr2.length) return true;
+  const set1 = new Set(arr1.map(p => String(p || '').toLowerCase()));
+  const hasMismatch = arr2.some(p => !set1.has(String(p || '').toLowerCase()));
+  if (hasMismatch) return true;
+
+  // Compare lyrics
+  if (Array.isArray(existing.lyrics) && Array.isArray(incoming.lyrics)) {
+    if (existing.lyrics.length !== incoming.lyrics.length) return true;
+    for (let i = 0; i < existing.lyrics.length; i++) {
+      if (existing.lyrics[i].text !== incoming.lyrics[i].text) return true;
+      if (existing.lyrics[i].type !== incoming.lyrics[i].type) return true;
+      if (existing.lyrics[i].title !== incoming.lyrics[i].title) return true;
+    }
+  } else if (existing.lyrics !== incoming.lyrics) {
+    return true;
+  }
+
   return false;
 }
 
@@ -212,8 +236,8 @@ export async function syncRemoteHymns(queryClient) {
 
     // Pass 1, 2 & 3: Update modified content, add new ones, and refresh popularity stats
     const endpoints = [
-      "https://worship-team-api.onrender.com/api/hymns?sort=-updatedAt&limit=200", 
-      "https://worship-team-api.onrender.com/api/hymns?sort=-createdAt&limit=200", 
+      "https://worship-team-api.onrender.com/api/hymns?sort=-updatedAt&limit=200",
+      "https://worship-team-api.onrender.com/api/hymns?sort=-createdAt&limit=200",
       "https://worship-team-api.onrender.com/api/hymns?sort=-usageCount&limit=200"
     ];
 
@@ -261,8 +285,8 @@ export async function syncRemoteHymns(queryClient) {
           }
         }
       }
-    } catch (e) { 
-      if (isDev) console.warn("[HymnsSync] Deletion reconciliation skipped:", e.message); 
+    } catch (e) {
+      if (isDev) console.warn("[HymnsSync] Deletion reconciliation skipped:", e.message);
     }
 
     if (hasChanges) {
@@ -278,7 +302,7 @@ export async function syncRemoteHymns(queryClient) {
 
       const qc = queryClient || globalQueryClient;
       if (qc) {
-        qc.invalidateQueries({ queryKey: ["humns"] }); 
+        qc.invalidateQueries({ queryKey: ["humns"] });
         if (isDev) console.log("[HymnsSync] UI notified of cache changes.");
       }
     } else {
