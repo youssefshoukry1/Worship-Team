@@ -1,5 +1,6 @@
 import localforage from 'localforage';
 import axios from 'axios';
+import { isApp } from './hymnsSync';
 
 // Configure localforage database safely (for client-side only execution)
 if (typeof window !== 'undefined') {
@@ -17,45 +18,43 @@ const memoryBiblesCaches = {}; // { AVD: [...], KEH: [...] }
 const memoryIndexCaches = {};  // { AVD: index, KEH: index }
 
 /**
- * Hydrates IndexedDB with standard AVD directly from MongoDB if empty.
+ * Hydrates IndexedDB with standard packaged AVD (Van Dyke) if empty.
  * Runs on app startup.
  */
-export async function initLocalBible(apiBase = "https://worship-team-api.onrender.com/api/bibles") {
+export async function initLocalBible() {
   if (typeof window === 'undefined') return [];
+  if (!isApp) {
+    console.log("[BibleSync] Web detected. Skipping AVD local cache hydration (API will be used).");
+    return [];
+  }
 
   const cacheKey = getCacheKey('AVD');
   try {
-    // 1. Instant load from memory if available
-    if (memoryBiblesCaches['AVD'] && memoryBiblesCaches['AVD'].length > 0) {
-      return memoryBiblesCaches['AVD'];
-    }
-
-    // 2. Fast load from local device storage (IndexedDB)
     const existing = await localforage.getItem(cacheKey);
     if (existing && existing.length > 0) {
-      console.log(`[BibleSync] AVD cache hydrated instantly with ${existing.length} verses from local device.`);
+      console.log(`[BibleSync] AVD cache hydrated with ${existing.length} verses.`);
       memoryBiblesCaches['AVD'] = existing;
       return existing;
     }
 
-    // 3. Database Fetch: If completely empty, fetch DIRECTLY from API (No local JSON fallback)
-    console.log("[BibleSync] Local AVD cache is empty. Downloading directly from MongoDB...");
+    console.log("[BibleSync] AVD local database is empty. Hydrating from public/Taspe7.bibles.json...");
+    const response = await fetch('/Taspe7.bibles.json');
+    if (!response.ok) throw new Error("Local Taspe7.bibles.json fallback file not found in public folder");
 
-    // Prevent double-fetching if the user clicks around quickly (Sync Lock)
-    if (window._isBibleDownloading) {
-      console.log("[BibleSync] Download already in progress. Waiting...");
-      return [];
-    }
+    const raw = await response.json();
 
-    window._isBibleDownloading = true;
+    // Flatten Mongo ObjectIDs if necessary & ensure translation is 'AVD'
+    const normalized = raw.map(v => ({
+      ...v,
+      _id: v._id?.$oid || v._id,
+      translation: 'AVD'
+    }));
 
-    // Use our dedicated download function to fetch and cache
-    await downloadTranslationToLocal('AVD', apiBase);
-
-    window._isBibleDownloading = false;
-    return memoryBiblesCaches['AVD'] || [];
+    await localforage.setItem(cacheKey, normalized);
+    console.log(`[BibleSync] AVD local cache successfully hydrated with ${normalized.length} verses.`);
+    memoryBiblesCaches['AVD'] = normalized;
+    return normalized;
   } catch (error) {
-    window._isBibleDownloading = false;
     console.error("[BibleSync] Failed to initialize local Bible database:", error);
     return [];
   }
@@ -84,33 +83,26 @@ export async function downloadTranslationToLocal(translation, apiBase) {
     const cleanTranslation = String(translation).toUpperCase();
     const cacheKey = getCacheKey(cleanTranslation);
 
-    console.log(`[BibleSync] Downloading full translation ${cleanTranslation} from server...`);
+    console.log(`[BibleSync] Downloading full translation ${cleanTranslation}...`);
     const { data } = await axios.get(`${apiBase}/download?translation=${cleanTranslation}`);
-
     if (!Array.isArray(data) || data.length === 0) {
       throw new Error(`Invalid response or empty data for translation ${cleanTranslation}`);
     }
 
-    // Standardize IDs just in case they come as objects from Mongo
-    const normalizedData = data.map(v => ({
-      ...v,
-      _id: v._id?.$oid || v._id,
-      translation: cleanTranslation
-    }));
-
-    await localforage.setItem(cacheKey, normalizedData);
-    console.log(`[BibleSync] Cached translation ${cleanTranslation} with ${normalizedData.length} verses.`);
+    await localforage.setItem(cacheKey, data);
+    console.log(`[BibleSync] Cached translation ${cleanTranslation} with ${data.length} verses.`);
 
     // Update memory cache
-    memoryBiblesCaches[cleanTranslation] = normalizedData;
-    delete memoryIndexCaches[cleanTranslation]; // Reset index to force rebuild
+    memoryBiblesCaches[cleanTranslation] = data;
+    delete memoryIndexCaches[cleanTranslation]; // Reset index to force build
 
     return true;
   } catch (error) {
+    // Provide a clearer message when the translation doesn't exist in the DB
     if (error?.response?.status === 404) {
       const serverMsg = error?.response?.data?.message || '';
       console.error(`[BibleSync] Translation '${translation}' is not available on the server (404). ${serverMsg}`);
-      const notFoundError = new Error(`Translation '${translation}' is not available for download.`);
+      const notFoundError = new Error(`Translation '${translation}' is not available for download. It may not be seeded in the database yet.`);
       notFoundError.isNotFound = true;
       throw notFoundError;
     }

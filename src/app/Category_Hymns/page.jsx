@@ -18,7 +18,7 @@ import { usePresentation } from '../hooks/usePresentation';
 import { normalizeBibleBooksFromApi } from '../utils/bibleBooks';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { useRouter } from 'next/navigation';
-import { initLocalHymns, getLocalHymns, syncRemoteHymns } from '../utils/hymnsSync';
+import { initLocalHymns, getLocalHymns, syncRemoteHymns, isApp } from '../utils/hymnsSync';
 import { initLocalBible, getLocalBibleIndex, searchLocalBible, isTranslationDownloaded, downloadTranslationToLocal, deleteTranslationFromLocal } from '../utils/bibleSync';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import StanzaSlideControls from '../components/StanzaSlideControls';
@@ -326,15 +326,17 @@ export default function Category_Humns() {
     let active = true;
 
     const initAndSync = async () => {
-      // 1. Ensure IndexedDB is populated with initial hymns.json
-      await initLocalHymns();
-      await initLocalBible();
+      // 1. Ensure IndexedDB is populated with initial hymns.json (only on mobile/desktop app)
+      if (isApp) {
+        await initLocalHymns();
+        await initLocalBible();
+      }
 
       // 2. Force invalidation to load cache immediately on startup
       queryClient.invalidateQueries({ queryKey: ["humns"] });
 
-      // 3. Perform background synchronization
-      if (active) {
+      // 3. Perform background synchronization (only on mobile/desktop app)
+      if (active && isApp) {
         await syncRemoteHymns(queryClient);
       }
     };
@@ -343,8 +345,10 @@ export default function Category_Humns() {
 
     // Listen to network changes to automatically sync when Wi-Fi/data is enabled
     const handleOnlineStatus = () => {
-      console.log("[HymnsSync] Network restored. Triggering automatic background sync...");
-      syncRemoteHymns(queryClient);
+      if (isApp) {
+        console.log("[HymnsSync] Network restored. Triggering automatic background sync...");
+        syncRemoteHymns(queryClient);
+      }
     };
 
     window.addEventListener('online', handleOnlineStatus);
@@ -551,14 +555,14 @@ export default function Category_Humns() {
   };
 
   // --- Offline Translation Downloads State ---
-  const [downloadedTranslations, setDownloadedTranslations] = useState(new Set(['AVD']));
+  const [downloadedTranslations, setDownloadedTranslations] = useState(new Set(isApp ? ['AVD'] : []));
   const [isDownloadingTranslation, setIsDownloadingTranslation] = useState(null);
 
   // Check which translations are offline when modal opens or available translations change
   useEffect(() => {
     if (!showBibleModal) return;
     const checkOffline = async () => {
-      const active = new Set(['AVD']); // AVD is pre-seeded
+      const active = new Set(isApp ? ['AVD'] : []); // AVD is pre-seeded only on apps
       for (const tr of availableTranslations) {
         if (tr === 'AVD') continue;
         const downloaded = await isTranslationDownloaded(tr);
@@ -1585,10 +1589,10 @@ export default function Category_Humns() {
   // 1. Fetch Hymns
   const fetchHymns = async ({ pageParam = 0 }) => {
     try {
+      const isOnline = typeof window !== 'undefined' && navigator.onLine;
+
       // ── SEARCH LOGIC ──────────────────────────────────────────────────
       if (debouncedSearch.trim()) {
-        const isOnline = typeof window !== 'undefined' && navigator.onLine;
-
         if (isOnline) {
           // Use the remote Atlas fuzzy search API (best results: scoring + fuzzy matching)
           try {
@@ -1603,8 +1607,8 @@ export default function Category_Humns() {
           }
         }
 
-        // Offline fallback: search local IndexedDB (returns up to 40 results)
-        console.log("[HymnsSync] Offline: using local search (up to 40 results).");
+        // Offline or API failure fallback: search local IndexedDB (returns up to 40 results)
+        console.log("[HymnsSync] Using local search (up to 40 results).");
         return await getLocalHymns({
           activeTab,
           search: debouncedSearch,
@@ -1613,7 +1617,33 @@ export default function Category_Humns() {
         });
       }
 
-      // ── CATEGORY BROWSING: always uses local cache with pagination ────
+      // ── CATEGORY BROWSING ──────────────────────────────────────────────
+      // Web: Fetch directly from MongoDB API when online.
+      // App/Windows: Always fetch from local cache (IndexedDB) loaded from public/hymns.json.
+      if (!isApp && isOnline) {
+        console.log(`[HymnsSync] Web online: fetching category "${activeTab}" directly from MongoDB API...`);
+        let url = `https://worship-team-api.onrender.com/api/hymns`;
+        
+        if (activeTab && activeTab !== 'all') {
+          const target = String(activeTab).toLowerCase().trim() === 'christmas' ? 'christmass' : String(activeTab).toLowerCase().trim();
+          url = `https://worship-team-api.onrender.com/api/hymns/${target}`;
+        }
+
+        const params = {
+          limit: 10,
+          skip: pageParam,
+        };
+        // For 'all', sort by usageCount
+        if (activeTab === 'all') {
+          params.sort = '-usageCount';
+        }
+
+        const { data } = await axios.get(url, { params });
+        return Array.isArray(data) ? data : [];
+      }
+
+      // Fallback for App, Windows, or Web when offline: Category Browsing from local IndexedDB cache
+      console.log(`[HymnsSync] Category browsing "${activeTab}" from local IndexedDB cache...`);
       const result = await getLocalHymns({
         activeTab,
         search: '',
