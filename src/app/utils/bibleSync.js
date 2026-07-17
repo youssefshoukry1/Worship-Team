@@ -1,6 +1,6 @@
 import localforage from 'localforage';
 import axios from 'axios';
-import { isApp } from './hymnsSync';
+import { isApp } from './ReactQueryProvider';
 
 // Configure localforage database safely (for client-side only execution)
 if (typeof window !== 'undefined') {
@@ -23,10 +23,6 @@ const memoryIndexCaches = {};  // { AVD: index, KEH: index }
  */
 export async function initLocalBible() {
   if (typeof window === 'undefined') return [];
-  if (!isApp) {
-    console.log("[BibleSync] Web detected. Skipping AVD local cache hydration (API will be used).");
-    return [];
-  }
 
   const cacheKey = getCacheKey('AVD');
   try {
@@ -37,23 +33,40 @@ export async function initLocalBible() {
       return existing;
     }
 
-    console.log("[BibleSync] AVD local database is empty. Hydrating from public/Taspe7.bibles.json...");
-    const response = await fetch('/Taspe7.bibles.json');
-    if (!response.ok) throw new Error("Local Taspe7.bibles.json fallback file not found in public folder");
+    if (isApp) {
+      // Native/Electron: load from bundled public file
+      console.log("[BibleSync] App: hydrating AVD from public/Taspe7.bibles.json...");
+      const response = await fetch('/Taspe7.bibles.json');
+      if (!response.ok) throw new Error("Local Taspe7.bibles.json not found in public folder");
 
-    const raw = await response.json();
+      const raw = await response.json();
+      const normalized = raw.map(v => ({
+        ...v,
+        _id: v._id?.$oid || v._id,
+        translation: 'AVD'
+      }));
 
-    // Flatten Mongo ObjectIDs if necessary & ensure translation is 'AVD'
-    const normalized = raw.map(v => ({
-      ...v,
-      _id: v._id?.$oid || v._id,
-      translation: 'AVD'
-    }));
-
-    await localforage.setItem(cacheKey, normalized);
-    console.log(`[BibleSync] AVD local cache successfully hydrated with ${normalized.length} verses.`);
-    memoryBiblesCaches['AVD'] = normalized;
-    return normalized;
+      await localforage.setItem(cacheKey, normalized);
+      console.log(`[BibleSync] App: AVD hydrated with ${normalized.length} verses.`);
+      memoryBiblesCaches['AVD'] = normalized;
+      return normalized;
+    } else {
+      // Web: fetch from the server download endpoint in the background
+      console.log("[BibleSync] Web: downloading AVD from server API for offline use...");
+      const apiBase = `${window.location.origin.includes('localhost') ? 'http://localhost:5000' : 'https://worship-team-api.onrender.com'}/api/bible`;
+      try {
+        const { data } = await axios.get(`${apiBase}/download?translation=AVD`);
+        if (Array.isArray(data) && data.length > 0) {
+          await localforage.setItem(cacheKey, data);
+          memoryBiblesCaches['AVD'] = data;
+          console.log(`[BibleSync] Web: AVD downloaded and cached with ${data.length} verses.`);
+          return data;
+        }
+      } catch (err) {
+        console.warn("[BibleSync] Web: could not pre-download AVD (will use API on demand).", err.message);
+      }
+      return [];
+    }
   } catch (error) {
     console.error("[BibleSync] Failed to initialize local Bible database:", error);
     return [];

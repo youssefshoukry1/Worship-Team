@@ -10,6 +10,7 @@ import { LanguageProvider } from "./context/LanguageContext";
 import  SmoothScroll  from "./SmoothScroll"
 import ServiceWorkerRegistry from "./components/ServiceWorkerRegistry";
 import ToastContainer from "./components/ToastContainer";
+import ReactQueryProvider from "../app/utils/ReactQueryProvider";
 const geistSans = Geist({
     variable: "--font-geist-sans",
     subsets: ["latin"],
@@ -39,6 +40,7 @@ export default function RootLayout({
                 <ServiceWorkerRegistry />
                 <ToastContainer />
                 <SmoothScroll>
+                    <ReactQueryProvider>
                     <LanguageProvider>
                         <UserContextProvider>
                             <HymnsContextProvider>
@@ -50,7 +52,9 @@ export default function RootLayout({
                             </HymnsContextProvider>
                         </UserContextProvider>
                     </LanguageProvider>
+                    </ReactQueryProvider>
                 </SmoothScroll>
+
 
             </body>
         </html>

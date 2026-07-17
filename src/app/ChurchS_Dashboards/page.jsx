@@ -1118,6 +1118,41 @@ export default function ChurchS_Dashboards() {
     enabled: !!isLogin
   });
 
+  // 3. Fetch Hymns Version
+  const { data: versionData, isLoading: loadingVersion } = useQuery({
+    queryKey: ['hymnsVersion'],
+    queryFn: async () => {
+      const res = await axios.get(`${API_URL}/hymns/version`);
+      return res.data;
+    }
+  });
+  const serverHymnsVersion = versionData?.version || '...';
+
+  const [increasingVersion, setIncreasingVersion] = useState(false);
+  const [publishSummary, setPublishSummary] = useState(null);
+  const handleIncreaseVersion = async () => {
+    if (!window.confirm("Are you sure you want to publish a new hymns version? This will push updates to all users.")) return;
+    setIncreasingVersion(true);
+    setPublishSummary(null);
+    try {
+      const res = await axios.post(`${API_URL}/hymns/increase-version`, {}, {
+        headers: { Authorization: `Bearer ${isLogin}` }
+      });
+      queryClient.invalidateQueries({ queryKey: ['hymnsVersion'] });
+      setPublishSummary({ version: res.data.version, ...res.data.changes });
+      showToast({ message: `✅ Published Version ${res.data.version}`, type: 'success', duration: 5000 });
+    } catch (err) {
+      console.error(err);
+      if (err.response?.status === 403) {
+        showToast({ message: "Forbidden: Only PROGRAMER can publish hymns version.", type: 'error' });
+      } else {
+        showToast({ message: "Failed to publish hymns version.", type: 'error' });
+      }
+    } finally {
+      setIncreasingVersion(false);
+    }
+  }
+
   const REVIEW_STORAGE_KEY = 'church-dashboard-review-window';
   const [reviewWindowActive, setReviewWindowActive] = useState(false);
   const [reviewWindowStartedAt, setReviewWindowStartedAt] = useState(null);
@@ -1330,6 +1365,52 @@ export default function ChurchS_Dashboards() {
               <div className="font-semibold">{dailyAdminReviewList.slice(0, 3).map((user) => `${user.Name || 'Unnamed'} (${user.approvedCount}/4)`).join(', ')}</div>
               <div>End the day to reset and start again.</div>
             </div>
+          </div>
+        )}
+
+        {/* ── Hymns Version Control Panel (PROGRAMER only) ──────── */}
+        {UserRole === 'PROGRAMER' && (
+          <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-6 flex flex-col gap-4 shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-sky-500 via-blue-500 to-indigo-500 opacity-80" />
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-sky-500/20 rounded-xl">
+                  <RefreshCw className="w-6 h-6 text-sky-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white mb-1">Hymns Database Version</h2>
+                  <p className="text-sm text-gray-400">
+                    Current Version: <span className="font-mono text-sky-400 font-bold bg-sky-500/10 px-2 py-0.5 rounded-lg border border-sky-500/20">{serverHymnsVersion}</span>
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1 max-w-lg">
+                    Publish a new version to push the latest hymn changes to all users. Only PROGRAMER can do this.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleIncreaseVersion}
+                disabled={increasingVersion}
+                className="flex-shrink-0 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-linear-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-bold transition-all shadow-lg hover:shadow-[0_0_20px_rgba(14,165,233,0.3)] disabled:opacity-50"
+              >
+                {increasingVersion ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+                Publish Hymns Version
+              </button>
+            </div>
+            {/* Publish summary */}
+            {publishSummary && (
+              <div className="mt-2 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex flex-wrap gap-4 items-center">
+                <span className="text-emerald-300 font-bold text-sm">Published Version {publishSummary.version}</span>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/25 text-emerald-300">
+                  +{publishSummary.created ?? 0} Created
+                </span>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/25 text-amber-300">
+                  ~{publishSummary.updated ?? 0} Updated
+                </span>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-red-500/15 border border-red-500/25 text-red-300">
+                  -{publishSummary.deleted ?? 0} Deleted
+                </span>
+              </div>
+            )}
           </div>
         )}
 

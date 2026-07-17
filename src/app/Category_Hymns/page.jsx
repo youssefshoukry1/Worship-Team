@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import { transposeScale, transposeChords, transposeLyrics } from '../utils/musicUtils';
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useIsRestoring } from "@tanstack/react-query";
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../loading';
@@ -18,7 +18,7 @@ import { usePresentation } from '../hooks/usePresentation';
 import { normalizeBibleBooksFromApi } from '../utils/bibleBooks';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { useRouter } from 'next/navigation';
-import { initLocalHymns, getLocalHymns, syncRemoteHymns, isApp } from '../utils/hymnsSync';
+import { isApp } from '../utils/ReactQueryProvider';
 import { initLocalBible, getLocalBibleIndex, searchLocalBible, isTranslationDownloaded, downloadTranslationToLocal, deleteTranslationFromLocal } from '../utils/bibleSync';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import StanzaSlideControls from '../components/StanzaSlideControls';
@@ -314,6 +314,21 @@ function CompareColumn({ translationCode, verses, isActive = true }) {
   );
 }
 
+function normalizeText(text) {
+  if (!text) return '';
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/[\u064B-\u0652]/g, '') // Remove Arabic diacritics (Tashkeel)
+    .replace(/[^\w\s\u0600-\u06FF]/g, ' ') // Replace punctuation with space
+    .replace(/\s+/g, ' ') // Collapse multiple spaces
+    .trim();
+}
+
 export default function Category_Humns() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -321,43 +336,34 @@ export default function Category_Humns() {
   const { addToWorkspace, isHymnInWorkspace } = useContext(HymnsContext)
   const { t, language, setLanguage } = useLanguage();
 
-  // Initialize local cache & register automatic background synchronization
+  // Initialize offline caches (Bible + Hymns) on startup
   useEffect(() => {
-    let active = true;
+    // Bible: run on both app and web (app loads from bundled JSON, web downloads from API in background)
+    initLocalBible().catch(() => {});
 
-    const initAndSync = async () => {
-      // 1. Ensure IndexedDB is populated with initial hymns.json (only on mobile/desktop app)
-      if (isApp) {
-        await initLocalHymns();
-        await initLocalBible();
-      }
-
-      // 2. Force invalidation to load cache immediately on startup
-      queryClient.invalidateQueries({ queryKey: ["humns"] });
-
-      // 3. Perform background synchronization (only on mobile/desktop app)
-      if (active && isApp) {
-        await syncRemoteHymns(queryClient);
-      }
-    };
-
-    initAndSync();
-
-    // Listen to network changes to automatically sync when Wi-Fi/data is enabled
-    const handleOnlineStatus = () => {
-      if (isApp) {
-        console.log("[HymnsSync] Network restored. Triggering automatic background sync...");
-        syncRemoteHymns(queryClient);
-      }
-    };
-
-    window.addEventListener('online', handleOnlineStatus);
-
-    return () => {
-      active = false;
-      window.removeEventListener('online', handleOnlineStatus);
-    };
-  }, [queryClient]);
+    // Hymns: on native app, pre-load bundled hymns.json into localforage if empty
+    if (isApp) {
+      (async () => {
+        const localforage_ = (await import('localforage')).default;
+        const HYMNS_CACHE_KEY = 'taspe7_hymns_json';
+        try {
+          const existing = await localforage_.getItem(HYMNS_CACHE_KEY);
+          if (!existing || existing.length === 0) {
+            const res = await fetch('/hymns.json');
+            if (res.ok) {
+              const json = await res.json();
+              if (Array.isArray(json) && json.length > 0) {
+                await localforage_.setItem(HYMNS_CACHE_KEY, json);
+                console.log('[HymnsInit] App: hymns.json cached to localforage:', json.length);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[HymnsInit] App: failed to cache hymns.json', e.message);
+        }
+      })();
+    }
+  }, []);
 
 
   // Re-introduced for Role checks
@@ -1586,77 +1592,6 @@ export default function Category_Humns() {
 
   // --- API Functions ---
 
-  // 1. Fetch Hymns
-  const fetchHymns = async ({ pageParam = 0 }) => {
-    try {
-      const isOnline = typeof window !== 'undefined' && navigator.onLine;
-
-      // ── SEARCH LOGIC ──────────────────────────────────────────────────
-      if (debouncedSearch.trim()) {
-        if (isOnline) {
-          // Use the remote Atlas fuzzy search API (best results: scoring + fuzzy matching)
-          try {
-            const { data } = await axios.get(
-              `https://worship-team-api.onrender.com/api/hymns/search?q=${encodeURIComponent(debouncedSearch)}`
-            );
-            console.log(`[HymnsSync] Online search returned ${data.length} results from API.`);
-            return Array.isArray(data) ? data : [];
-          } catch (apiErr) {
-            console.warn("[HymnsSync] API search failed, falling back to local search:", apiErr.message);
-            // Fall through to local search below
-          }
-        }
-
-        // Offline or API failure fallback: search local IndexedDB (returns up to 40 results)
-        console.log("[HymnsSync] Using local search (up to 40 results).");
-        return await getLocalHymns({
-          activeTab,
-          search: debouncedSearch,
-          pageParam,
-          limit: 10
-        });
-      }
-
-      // ── CATEGORY BROWSING ──────────────────────────────────────────────
-      // Web: Fetch directly from MongoDB API when online.
-      // App/Windows: Always fetch from local cache (IndexedDB) loaded from public/hymns.json.
-      if (!isApp && isOnline) {
-        console.log(`[HymnsSync] Web online: fetching category "${activeTab}" directly from MongoDB API...`);
-        let url = `https://worship-team-api.onrender.com/api/hymns`;
-        
-        if (activeTab && activeTab !== 'all') {
-          const target = String(activeTab).toLowerCase().trim() === 'christmas' ? 'christmass' : String(activeTab).toLowerCase().trim();
-          url = `https://worship-team-api.onrender.com/api/hymns/${target}`;
-        }
-
-        const params = {
-          limit: 10,
-          skip: pageParam,
-        };
-        // For 'all', sort by usageCount
-        if (activeTab === 'all') {
-          params.sort = '-usageCount';
-        }
-
-        const { data } = await axios.get(url, { params });
-        return Array.isArray(data) ? data : [];
-      }
-
-      // Fallback for App, Windows, or Web when offline: Category Browsing from local IndexedDB cache
-      console.log(`[HymnsSync] Category browsing "${activeTab}" from local IndexedDB cache...`);
-      const result = await getLocalHymns({
-        activeTab,
-        search: '',
-        pageParam,
-        limit: 10
-      });
-      return result;
-    } catch (error) {
-      console.error("[HymnsSync] Error in fetchHymns:", error);
-      return [];
-    }
-  };
-
   // 2. Add Hymn (Post)
   const add_Hymn = async () => {
     if (!isLogin) return;
@@ -1696,8 +1631,9 @@ export default function Category_Humns() {
       }
 
       console.log('[CREATE_HYMN] Request approved directly (PROGRAMER role)');
-      await syncRemoteHymns(queryClient);
-      queryClient.invalidateQueries(["humns"]);
+      // Optimistic cache update → PersistQueryClientProvider auto-saves to localforage
+      const newHymn = { ...formData, lyrics: prepareLyricsForSave(formData.lyrics), _id: response.data?._id || response.data?.hymn?._id || Date.now().toString(), usageCount: 0 };
+      queryClient.setQueryData(['hymns'], (old) => Array.isArray(old) ? [newHymn, ...old] : [newHymn]);
       showToast({ message: '✅ Hymn added successfully!', type: 'success', duration: 4000 });
       closeModal();
       setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', BPM: '', timeSignature: 'None', party: ['all'] });
@@ -1755,8 +1691,11 @@ export default function Category_Humns() {
       }
 
       console.log('[EDIT_HYMN] Request approved directly (PROGRAMER role)');
-      await syncRemoteHymns(queryClient);
-      queryClient.invalidateQueries(["humns"]);
+      // Optimistic cache patch → PersistQueryClientProvider auto-saves to localforage
+      const updatedHymn = { ...formData, lyrics: prepareLyricsForSave(formData.lyrics), _id: id };
+      queryClient.setQueryData(['hymns'], (old) =>
+        Array.isArray(old) ? old.map(h => h._id === id ? { ...h, ...updatedHymn } : h) : old
+      );
       showToast({ message: '✅ Hymn updated successfully!', type: 'success', duration: 4000 });
       closeModal();
       setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: 'None' });
@@ -1796,8 +1735,10 @@ export default function Category_Humns() {
       }
 
       console.log('[DELETE_HYMN] Request approved directly (PROGRAMER role)');
-      await syncRemoteHymns(queryClient);
-      queryClient.invalidateQueries(["humns"]);
+      // Remove from cache instantly → PersistQueryClientProvider auto-saves to localforage
+      queryClient.setQueryData(['hymns'], (old) =>
+        Array.isArray(old) ? old.filter(h => h._id !== id) : old
+      );
       showToast({ message: '🗑️ Hymn deleted.', type: 'success', duration: 3000 });
     } catch (error) {
       console.error("Error deleting hymn:", error);
@@ -1805,45 +1746,189 @@ export default function Category_Humns() {
     }
   };
 
-  // All data
-  // All data
-  const {
-    data,
-    isLoading,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage
-  } = useInfiniteQuery({
-    queryKey: ["humns", activeTab, debouncedSearch],
-    queryFn: fetchHymns,
-    getNextPageParam: (lastPage, allPages) => {
-      // 1. If search is active, no pagination
-      if (debouncedSearch.trim()) return undefined;
+  // Fetch Hymns — version-controlled incremental sync:
+  // 1. Fetch server version. If equal to local → return cached data (zero network cost).
+  // 2. If server version is higher → call /changes to get only what changed.
+  // 3. Merge updates into cache, remove deletes, save to localforage, bump local version.
+  // 4. Fallback to full download if /changes signals too many changes or no local cache exists.
+  const { data: allHymns = [], isLoading } = useQuery({
+    queryKey: ["hymns"],
+    queryFn: async () => {
+      const HYMNS_VERSION_KEY = 'taspe7_hymns_sync_version';
+      const HYMNS_CACHE_KEY = 'taspe7_hymns_json';
+      const API_BASE = 'https://worship-team-api.onrender.com/api/hymns';
 
-      // 2. If last page is empty or has less than 10 items, we've reached the end
-      // This works because backend always tries to return 10 items if available
-      const hasMore = lastPage && lastPage.length === 10;
-      console.log(`🔍 getNextPageParam: lastPage has ${lastPage?.length || 0} items, hasMore=${hasMore}`);
+      const localforage_ = (await import('localforage')).default;
 
-      if (!hasMore) {
-        console.log('✅ End of data reached!');
-        return undefined;
+      // --- 1. Check server version ---
+      let serverVersion = null;
+      try {
+        const verRes = await axios.get(`${API_BASE}/version`);
+        serverVersion = verRes.data.version;
+      } catch (err) {
+        console.warn('[HymnsQuery] Could not fetch server hymns version.', err.message);
       }
 
-      // 3. Otherwise, calculate next skip value
-      const nextSkip = allPages.length * 10;
-      console.log(`➡️ Loading next page with skip=${nextSkip}`);
-      return nextSkip;
-    },
-    initialPageParam: 0,
+      const localVersionStr = typeof window !== 'undefined' ? localStorage.getItem(HYMNS_VERSION_KEY) : null;
+      const localVersion = localVersionStr ? parseInt(localVersionStr) : 0;
+      const local = await localforage_.getItem(HYMNS_CACHE_KEY);
+      const hasLocalData = Array.isArray(local) && local.length > 0;
+
+      // --- 2. Up-to-date: return cache immediately ---
+      if (serverVersion !== null && serverVersion <= localVersion && hasLocalData) {
+        console.log(`[HymnsQuery] Up to date (local v${localVersion} = server v${serverVersion}). Using cache.`);
+        return local;
+      }
+
+      // --- 3. App: seed from bundled JSON if no local cache ---
+      if (isApp && !hasLocalData) {
+        try {
+          const res = await fetch('/hymns.json');
+          if (res.ok) {
+            const json = await res.json();
+            if (Array.isArray(json) && json.length > 0) {
+              await localforage_.setItem(HYMNS_CACHE_KEY, json);
+              // Don't save serverVersion yet — fall through to incremental sync below
+              console.log(`[HymnsQuery] App: seeded ${json.length} hymns from bundled fallback.`);
+              // Treat bundled hymns as local version 0 so we still sync changes
+            }
+          }
+        } catch (e) {
+          console.warn('[HymnsQuery] App: failed to read bundled hymns.', e.message);
+        }
+      }
+
+      // Re-read local data after possible seeding
+      const currentLocal = await localforage_.getItem(HYMNS_CACHE_KEY);
+      const currentLocalData = Array.isArray(currentLocal) && currentLocal.length > 0 ? currentLocal : null;
+
+      // --- 4. Incremental sync: fetch only changes since localVersion ---
+      if (currentLocalData && serverVersion !== null) {
+        try {
+          console.log(`[HymnsQuery] Incremental sync: v${localVersion} → v${serverVersion}`);
+          const changesRes = await axios.get(`${API_BASE}/changes?fromVersion=${localVersion}`);
+          const { updated = [], deleted = [], fallback, currentVersion: cv } = changesRes.data;
+
+          if (!fallback) {
+            // Merge into existing cache
+            let merged = [...currentLocalData];
+
+            // Apply deletes
+            if (deleted.length > 0) {
+              const deletedSet = new Set(deleted.map(String));
+              merged = merged.filter(h => !deletedSet.has(String(h._id)));
+            }
+
+            // Apply creates/updates (upsert by _id)
+            if (updated.length > 0) {
+              const updatedMap = new Map(updated.map(h => [String(h._id), h]));
+              // Replace existing or keep original
+              merged = merged.map(h => updatedMap.has(String(h._id)) ? updatedMap.get(String(h._id)) : h);
+              // Add truly new hymns (not already in merged)
+              const mergedIds = new Set(merged.map(h => String(h._id)));
+              for (const h of updated) {
+                if (!mergedIds.has(String(h._id))) merged.push(h);
+              }
+            }
+
+            // Persist and update local version
+            await localforage_.setItem(HYMNS_CACHE_KEY, merged);
+            if (typeof window !== 'undefined') localStorage.setItem(HYMNS_VERSION_KEY, (cv || serverVersion).toString());
+            console.log(`[HymnsQuery] Incremental sync done. +${updated.length} updated, -${deleted.length} deleted. Total: ${merged.length}`);
+
+            // Update React Query cache immediately so UI reflects new data
+            queryClient.setQueryData(['hymns'], merged);
+            return merged;
+          }
+
+          // Server returned fallback flag — too many changes, do full download
+          console.warn('[HymnsQuery] Server flagged fallback — too many changes. Doing full download.');
+        } catch (err) {
+          console.warn('[HymnsQuery] Incremental sync failed, falling back to full download.', err.message);
+        }
+      }
+
+      // --- 5. Full download fallback (first visit or fallback triggered) ---
+      console.log('[HymnsQuery] Full download from API...');
+      const response = await axios.get(`${API_BASE}?limit=50000`);
+      const data = Array.isArray(response.data) ? response.data : [];
+
+      if (data.length > 0) {
+        await localforage_.setItem(HYMNS_CACHE_KEY, data);
+        if (typeof window !== 'undefined' && serverVersion !== null) {
+          localStorage.setItem(HYMNS_VERSION_KEY, serverVersion.toString());
+        }
+      }
+
+      return data;
+    }
   });
 
-  // السطر القديم: const humns = data ? data.pages.flat() : [];
+  const isRestoring = useIsRestoring();
 
-  // السطر الجديد (بيشيل أي عنصر متكرر بناءً على الـ _id):
-  const humns = data
-    ? Array.from(new Map(data.pages.flat().map(item => [item._id, item])).values())
-    : [];
+  const humns = React.useMemo(() => {
+    let filtered = [...allHymns];
+
+    // 1. Category Tabs Filter
+    if (activeTab && activeTab !== 'all') {
+      const target = String(activeTab).toLowerCase().trim() === 'christmass' ? 'christmas' : String(activeTab).toLowerCase().trim();
+      filtered = filtered.filter(hymn => {
+        if (!hymn.party) return false;
+        const parties = Array.isArray(hymn.party) ? hymn.party : [hymn.party];
+        return parties.some(p => {
+          const lower = String(p).toLowerCase().trim();
+          const normParty = lower === 'christmass' ? 'christmas' : lower;
+          return normParty === target;
+        });
+      });
+    }
+
+    // 2. Search Filter
+    if (debouncedSearch && debouncedSearch.trim()) {
+      const query = normalizeText(debouncedSearch);
+      if (!query) return [];
+
+      filtered = filtered.map(hymn => {
+        const normTitle = normalizeText(hymn.title || '');
+
+        let lyricsRaw = '';
+        if (typeof hymn.lyrics === 'string') {
+          lyricsRaw = hymn.lyrics;
+        } else if (Array.isArray(hymn.lyrics)) {
+          lyricsRaw = hymn.lyrics.map(l => l.text).join(' ');
+        }
+        const normLyrics = normalizeText(lyricsRaw);
+
+        let score = 0;
+        // Title matching (High priority)
+        if (normTitle === query) score += 500; // Perfect match
+        else if (normTitle.startsWith(query)) score += 200;
+        else if (normTitle.includes(query)) score += 100;
+
+        // Lyrics matching (Lower priority)
+        if (normLyrics.includes(query)) score += 40;
+
+        // Add popularity boost if we have any match at all
+        if (score > 0) {
+          score += Math.log10((hymn.usageCount || 0) + 1) * 20;
+        }
+
+        return { ...hymn, _searchScore: score };
+      })
+      .filter(h => h._searchScore > 0)
+      .sort((a, b) => b._searchScore - a._searchScore);
+    } else {
+      // 3. Default Sorting (Sort categories / general list by usageCount descending)
+      filtered.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0));
+    }
+
+    // Remove duplicates by _id
+    return Array.from(new Map(filtered.map(item => [item._id, item])).values());
+  }, [allHymns, activeTab, debouncedSearch]);
+
+  const hasNextPage = false;
+  const isFetchingNextPage = false;
+  const fetchNextPage = () => {};
 
   // Infinite Scroll Trigger is now handled by Virtuoso's endReached prop
   ///////////////////////////////// API proccess end here /////////////////////////////
@@ -2427,7 +2512,7 @@ export default function Category_Humns() {
 
 
       {/* Content Table/List */}
-      {isLoading ? (
+      {(isLoading && !isRestoring) ? (
         <Loading />
       ) : (
         <div className="relative">
@@ -2491,10 +2576,12 @@ export default function Category_Humns() {
               />
             </div>
           ) : (
-            <div className="p-20 text-center flex flex-col items-center justify-center text-gray-500 bg-white/5 rounded-3xl border border-white/5 border-dashed mt-2 mb-20">
-              <Music className="w-12 h-12 mb-4 opacity-50" />
-              <p className="text-lg font-medium">{t("NoHymnsfoundinthiscategory")}</p>
-            </div>
+            !(isLoading || isRestoring) && (
+              <div className="p-20 text-center flex flex-col items-center justify-center text-gray-500 bg-white/5 rounded-3xl border border-white/5 border-dashed mt-2 mb-20">
+                <Music className="w-12 h-12 mb-4 opacity-50" />
+                <p className="text-lg font-medium">{t("NoHymnsfoundinthiscategory")}</p>
+              </div>
+            )
           )}
 
           {/* This is the Add/Edit Hymn form */}
