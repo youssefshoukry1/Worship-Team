@@ -346,6 +346,12 @@ export default function Category_Humns() {
       (async () => {
         const localforage_ = (await import('localforage')).default;
         const HYMNS_CACHE_KEY = 'taspe7_hymns_json';
+        const resolveId = (id) => {
+          if (!id) return '';
+          if (typeof id === 'string') return id;
+          if (typeof id === 'object' && id.$oid) return id.$oid;
+          return String(id);
+        };
         try {
           const existing = await localforage_.getItem(HYMNS_CACHE_KEY);
           if (!existing || existing.length === 0) {
@@ -353,8 +359,13 @@ export default function Category_Humns() {
             if (res.ok) {
               const json = await res.json();
               if (Array.isArray(json) && json.length > 0) {
-                await localforage_.setItem(HYMNS_CACHE_KEY, json);
-                console.log('[HymnsInit] App: hymns.json cached to localforage:', json.length);
+                const normalized = json.map(h => ({
+                  ...h,
+                  _id: resolveId(h._id),
+                  lyrics: Array.isArray(h.lyrics) ? h.lyrics.map(l => ({ ...l, _id: resolveId(l._id) })) : h.lyrics
+                }));
+                await localforage_.setItem(HYMNS_CACHE_KEY, normalized);
+                console.log('[HymnsInit] App: hymns.json cached to localforage:', normalized.length);
               }
             }
           }
@@ -1760,31 +1771,65 @@ export default function Category_Humns() {
       const HYMNS_CACHE_KEY = 'taspe7_hymns_json';
       const localforage_ = (await import('localforage')).default;
 
+      // Normalize _id from MongoDB extended JSON ({$oid: "..."}) or plain string
+      const resolveId = (id) => {
+        if (!id) return '';
+        if (typeof id === 'string') return id;
+        if (typeof id === 'object' && id.$oid) return id.$oid;
+        return String(id);
+      };
+
+      // Normalize all _id fields in a hymn array to plain strings
+      const normalizeIds = (hymns) => hymns.map(h => ({
+        ...h,
+        _id: resolveId(h._id),
+        lyrics: Array.isArray(h.lyrics)
+          ? h.lyrics.map(l => ({ ...l, _id: resolveId(l._id) }))
+          : h.lyrics
+      }));
+
       let serverVersion = null;
       try {
         const verRes = await axios.get(`${API_BASE}/version`);
         serverVersion = verRes.data.version;
       } catch (err) {
-        console.warn('[HymnsQuery] Could not fetch server hymns version.', err.message);
-      }
-
-      const localVersion = parseInt(localStorage.getItem(HYMNS_VERSION_KEY) || '0');
-      const local = await localforage_.getItem(HYMNS_CACHE_KEY);
-      const hasLocalData = Array.isArray(local) && local.length > 0;
-
-      if (serverVersion !== null && serverVersion <= localVersion && hasLocalData) {
-        console.log(`[HymnsQuery] App: up to date (v${localVersion}). Using cache.`);
-        return local;
-      }
-
-      if (!hasLocalData) {
+        console.warn('[HymnsQuery] Offline — using cached data.', err.message);
+        // Offline: return local cache immediately
+        const local = await localforage_.getItem(HYMNS_CACHE_KEY);
+        if (Array.isArray(local) && local.length > 0) return normalizeIds(local);
+        // Try bundled fallback
         try {
           const res = await fetch('/hymns.json');
           if (res.ok) {
             const json = await res.json();
             if (Array.isArray(json) && json.length > 0) {
-              await localforage_.setItem(HYMNS_CACHE_KEY, json);
-              console.log(`[HymnsQuery] App: seeded ${json.length} hymns from bundled file.`);
+              const normalized = normalizeIds(json);
+              await localforage_.setItem(HYMNS_CACHE_KEY, normalized);
+              return normalized;
+            }
+          }
+        } catch {}
+        return [];
+      }
+
+      const localVersion = parseInt(localStorage.getItem(HYMNS_VERSION_KEY) || '0');
+      const local = await localforage_.getItem(HYMNS_CACHE_KEY);
+      const localData = Array.isArray(local) && local.length > 0 ? normalizeIds(local) : null;
+
+      if (serverVersion !== null && serverVersion <= localVersion && localData) {
+        console.log(`[HymnsQuery] App: up to date (v${localVersion}). Using cache.`);
+        return localData;
+      }
+
+      if (!localData) {
+        try {
+          const res = await fetch('/hymns.json');
+          if (res.ok) {
+            const json = await res.json();
+            if (Array.isArray(json) && json.length > 0) {
+              const normalized = normalizeIds(json);
+              await localforage_.setItem(HYMNS_CACHE_KEY, normalized);
+              console.log(`[HymnsQuery] App: seeded ${normalized.length} hymns from bundled file.`);
             }
           }
         } catch (e) {
@@ -1793,7 +1838,7 @@ export default function Category_Humns() {
       }
 
       const currentLocal = await localforage_.getItem(HYMNS_CACHE_KEY);
-      const currentLocalData = Array.isArray(currentLocal) && currentLocal.length > 0 ? currentLocal : null;
+      const currentLocalData = Array.isArray(currentLocal) && currentLocal.length > 0 ? normalizeIds(currentLocal) : null;
 
       if (currentLocalData && serverVersion !== null) {
         try {
@@ -1806,15 +1851,15 @@ export default function Category_Humns() {
 
             if (deleted.length > 0) {
               const deletedSet = new Set(deleted.map(String));
-              merged = merged.filter(h => !deletedSet.has(String(h._id)));
+              merged = merged.filter(h => !deletedSet.has(resolveId(h._id)));
             }
 
             if (updated.length > 0) {
-              const updatedMap = new Map(updated.map(h => [String(h._id), h]));
-              merged = merged.map(h => updatedMap.has(String(h._id)) ? updatedMap.get(String(h._id)) : h);
-              const mergedIds = new Set(merged.map(h => String(h._id)));
+              const updatedMap = new Map(updated.map(h => [resolveId(h._id), h]));
+              merged = merged.map(h => updatedMap.has(resolveId(h._id)) ? updatedMap.get(resolveId(h._id)) : h);
+              const mergedIds = new Set(merged.map(h => resolveId(h._id)));
               for (const h of updated) {
-                if (!mergedIds.has(String(h._id))) merged.push(h);
+                if (!mergedIds.has(resolveId(h._id))) merged.push(h);
               }
             }
 
@@ -1830,7 +1875,7 @@ export default function Category_Humns() {
         }
       }
 
-      // --- 5. Full download fallback (first visit or fallback triggered) ---
+      // Full download fallback
       console.log('[HymnsQuery] Full download from API...');
       const response = await axios.get(`${API_BASE}?limit=50000`);
       const data = Array.isArray(response.data) ? response.data : [];
