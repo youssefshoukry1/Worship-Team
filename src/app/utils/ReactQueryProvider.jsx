@@ -1,6 +1,6 @@
 "use client";
 
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 import localforage from 'localforage';
@@ -49,11 +49,21 @@ export default function ReactQueryProvider({ children }) {
     setPersister(localPersister);
   }, []);
 
-  // لو الـ persister لسه مجهزش (أول ثانية في الـ SSR)، اعرض الـ children عادي
+  // للويب: لا نستخدم التخزين المحلي (localforage)
+  if (!isApp) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        {children}
+      </QueryClientProvider>
+    );
+  }
+
+  // للتطبيق: لو الـ persister لسه مجهزش، نعرض المكونات بدون تغليف حتى يجهز
   if (!persister) {
     return children;
   }
 
+  // للتطبيق: نستخدم PersistQueryClientProvider مع localforage
   return (
     <PersistQueryClientProvider
       client={queryClient}

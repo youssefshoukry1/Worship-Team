@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import { transposeScale, transposeChords, transposeLyrics } from '../utils/musicUtils';
-import { useQuery, useQueryClient, useIsRestoring } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useQueryClient, useIsRestoring } from "@tanstack/react-query";
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../loading';
@@ -339,7 +339,7 @@ export default function Category_Humns() {
   // Initialize offline caches (Bible + Hymns) on startup
   useEffect(() => {
     // Bible: run on both app and web (app loads from bundled JSON, web downloads from API in background)
-    initLocalBible().catch(() => {});
+    initLocalBible().catch(() => { });
 
     // Hymns: on native app, pre-load bundled hymns.json into localforage if empty
     if (isApp) {
@@ -1746,21 +1746,20 @@ export default function Category_Humns() {
     }
   };
 
-  // Fetch Hymns — version-controlled incremental sync:
-  // 1. Fetch server version. If equal to local → return cached data (zero network cost).
-  // 2. If server version is higher → call /changes to get only what changed.
-  // 3. Merge updates into cache, remove deletes, save to localforage, bump local version.
-  // 4. Fallback to full download if /changes signals too many changes or no local cache exists.
-  const { data: allHymns = [], isLoading } = useQuery({
-    queryKey: ["hymns"],
+  // Fetch Hymns:
+  // - Web: useInfiniteQuery for server-side pagination on scroll.
+  // - App: version-controlled incremental sync using localforage cache.
+
+  // ── APP: version-controlled incremental sync with localforage ──────────
+  const { data: allHymns = [], isLoading: isLoadingApp } = useQuery({
+    queryKey: ["hymns", "app"],
+    enabled: isApp,
     queryFn: async () => {
+      const API_BASE = 'https://worship-team-api.onrender.com/api/hymns';
       const HYMNS_VERSION_KEY = 'taspe7_hymns_sync_version';
       const HYMNS_CACHE_KEY = 'taspe7_hymns_json';
-      const API_BASE = 'https://worship-team-api.onrender.com/api/hymns';
-
       const localforage_ = (await import('localforage')).default;
 
-      // --- 1. Check server version ---
       let serverVersion = null;
       try {
         const verRes = await axios.get(`${API_BASE}/version`);
@@ -1769,28 +1768,23 @@ export default function Category_Humns() {
         console.warn('[HymnsQuery] Could not fetch server hymns version.', err.message);
       }
 
-      const localVersionStr = typeof window !== 'undefined' ? localStorage.getItem(HYMNS_VERSION_KEY) : null;
-      const localVersion = localVersionStr ? parseInt(localVersionStr) : 0;
+      const localVersion = parseInt(localStorage.getItem(HYMNS_VERSION_KEY) || '0');
       const local = await localforage_.getItem(HYMNS_CACHE_KEY);
       const hasLocalData = Array.isArray(local) && local.length > 0;
 
-      // --- 2. Up-to-date: return cache immediately ---
       if (serverVersion !== null && serverVersion <= localVersion && hasLocalData) {
-        console.log(`[HymnsQuery] Up to date (local v${localVersion} = server v${serverVersion}). Using cache.`);
+        console.log(`[HymnsQuery] App: up to date (v${localVersion}). Using cache.`);
         return local;
       }
 
-      // --- 3. App: seed from bundled JSON if no local cache ---
-      if (isApp && !hasLocalData) {
+      if (!hasLocalData) {
         try {
           const res = await fetch('/hymns.json');
           if (res.ok) {
             const json = await res.json();
             if (Array.isArray(json) && json.length > 0) {
               await localforage_.setItem(HYMNS_CACHE_KEY, json);
-              // Don't save serverVersion yet — fall through to incremental sync below
-              console.log(`[HymnsQuery] App: seeded ${json.length} hymns from bundled fallback.`);
-              // Treat bundled hymns as local version 0 so we still sync changes
+              console.log(`[HymnsQuery] App: seeded ${json.length} hymns from bundled file.`);
             }
           }
         } catch (e) {
@@ -1798,53 +1792,41 @@ export default function Category_Humns() {
         }
       }
 
-      // Re-read local data after possible seeding
       const currentLocal = await localforage_.getItem(HYMNS_CACHE_KEY);
       const currentLocalData = Array.isArray(currentLocal) && currentLocal.length > 0 ? currentLocal : null;
 
-      // --- 4. Incremental sync: fetch only changes since localVersion ---
       if (currentLocalData && serverVersion !== null) {
         try {
-          console.log(`[HymnsQuery] Incremental sync: v${localVersion} → v${serverVersion}`);
+          console.log(`[HymnsQuery] App: incremental sync v${localVersion} → v${serverVersion}`);
           const changesRes = await axios.get(`${API_BASE}/changes?fromVersion=${localVersion}`);
           const { updated = [], deleted = [], fallback, currentVersion: cv } = changesRes.data;
 
           if (!fallback) {
-            // Merge into existing cache
             let merged = [...currentLocalData];
 
-            // Apply deletes
             if (deleted.length > 0) {
               const deletedSet = new Set(deleted.map(String));
               merged = merged.filter(h => !deletedSet.has(String(h._id)));
             }
 
-            // Apply creates/updates (upsert by _id)
             if (updated.length > 0) {
               const updatedMap = new Map(updated.map(h => [String(h._id), h]));
-              // Replace existing or keep original
               merged = merged.map(h => updatedMap.has(String(h._id)) ? updatedMap.get(String(h._id)) : h);
-              // Add truly new hymns (not already in merged)
               const mergedIds = new Set(merged.map(h => String(h._id)));
               for (const h of updated) {
                 if (!mergedIds.has(String(h._id))) merged.push(h);
               }
             }
 
-            // Persist and update local version
             await localforage_.setItem(HYMNS_CACHE_KEY, merged);
-            if (typeof window !== 'undefined') localStorage.setItem(HYMNS_VERSION_KEY, (cv || serverVersion).toString());
-            console.log(`[HymnsQuery] Incremental sync done. +${updated.length} updated, -${deleted.length} deleted. Total: ${merged.length}`);
-
-            // Update React Query cache immediately so UI reflects new data
-            queryClient.setQueryData(['hymns'], merged);
+            localStorage.setItem(HYMNS_VERSION_KEY, (cv || serverVersion).toString());
+            console.log(`[HymnsQuery] App: sync done. +${updated.length} updated, -${deleted.length} deleted. Total: ${merged.length}`);
+            queryClient.setQueryData(['hymns', 'app'], merged);
             return merged;
           }
-
-          // Server returned fallback flag — too many changes, do full download
-          console.warn('[HymnsQuery] Server flagged fallback — too many changes. Doing full download.');
+          console.warn('[HymnsQuery] App: fallback triggered — too many changes. Full download.');
         } catch (err) {
-          console.warn('[HymnsQuery] Incremental sync failed, falling back to full download.', err.message);
+          console.warn('[HymnsQuery] App: incremental sync failed, falling back.', err.message);
         }
       }
 
@@ -1864,9 +1846,49 @@ export default function Category_Humns() {
     }
   });
 
+  // ── WEB: Server-side infinite scrolling ──────────────────────────────
+  const {
+    data: webData,
+    isLoading: isLoadingWeb,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
+    queryKey: ["hymns", "web", activeTab, debouncedSearch],
+    enabled: !isApp,
+    queryFn: async ({ pageParam = 0 }) => {
+      const API_BASE = 'https://worship-team-api.onrender.com/api/hymns';
+      let url = '';
+      let qStr = `?limit=20&skip=${pageParam}`;
+
+      if (debouncedSearch && debouncedSearch.trim()) {
+        url = `${API_BASE}/search${qStr}&q=${encodeURIComponent(debouncedSearch)}`;
+      } else if (activeTab && activeTab !== 'all') {
+        const target = String(activeTab).toLowerCase().trim() === 'christmass' ? 'christmas' : String(activeTab).toLowerCase().trim();
+        url = `${API_BASE}/${target}${qStr}`;
+      } else {
+        url = `${API_BASE}${qStr}`;
+      }
+
+      const response = await axios.get(url);
+      return Array.isArray(response.data) ? response.data : [];
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      return lastPage.length === 20 ? allPages.length * 20 : undefined;
+    }
+  });
+
+  const isLoading = isApp ? isLoadingApp : isLoadingWeb;
   const isRestoring = useIsRestoring();
 
   const humns = React.useMemo(() => {
+    // ── WEB: Server-side pagination and filtering ──────────────────────────
+    if (!isApp) {
+      return webData ? webData.pages.flat() : [];
+    }
+
+    // ── APP: Client-side filtering (offline mode) ──────────────────────────
     let filtered = [...allHymns];
 
     // 1. Category Tabs Filter
@@ -1915,8 +1937,8 @@ export default function Category_Humns() {
 
         return { ...hymn, _searchScore: score };
       })
-      .filter(h => h._searchScore > 0)
-      .sort((a, b) => b._searchScore - a._searchScore);
+        .filter(h => h._searchScore > 0)
+        .sort((a, b) => b._searchScore - a._searchScore);
     } else {
       // 3. Default Sorting (Sort categories / general list by usageCount descending)
       filtered.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0));
@@ -1924,11 +1946,8 @@ export default function Category_Humns() {
 
     // Remove duplicates by _id
     return Array.from(new Map(filtered.map(item => [item._id, item])).values());
-  }, [allHymns, activeTab, debouncedSearch]);
+  }, [isApp, webData, allHymns, activeTab, debouncedSearch]);
 
-  const hasNextPage = false;
-  const isFetchingNextPage = false;
-  const fetchNextPage = () => {};
 
   // Infinite Scroll Trigger is now handled by Virtuoso's endReached prop
   ///////////////////////////////// API proccess end here /////////////////////////////
@@ -2534,7 +2553,7 @@ export default function Category_Humns() {
                 useWindowScroll
                 data={humns}
                 endReached={() => {
-                  if (hasNextPage && !isFetchingNextPage && !debouncedSearch.trim()) {
+                  if (hasNextPage && !isFetchingNextPage) {
                     fetchNextPage();
                   }
                 }}
@@ -2565,7 +2584,7 @@ export default function Category_Humns() {
                       {isFetchingNextPage && (
                         <div className="w-8 h-8 border-4 border-sky-500/30 border-t-sky-500 rounded-full animate-spin mb-4" />
                       )}
-                      {!hasNextPage && humns.length > 0 && !debouncedSearch.trim() && (
+                      {!hasNextPage && humns.length > 0 && (
                         <p className="text-center text-gray-500 py-2 font-light italic w-full">
                           — {t("endOfList")} —
                         </p>
