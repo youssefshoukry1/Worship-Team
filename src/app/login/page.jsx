@@ -5,8 +5,10 @@ import { useContext, useState } from 'react';
 import { useRouter } from "next/navigation";
 import { UserContext } from '../../app/context/User_Context';
 import * as Yup from 'yup';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Login() {
+    const { t } = useLanguage();
     const { setLogin } = useContext(UserContext);
     const [apiError, setError] = useState('');
     const [isLoading, setLoading] = useState(false);
@@ -26,33 +28,21 @@ export default function Login() {
                     localStorage.setItem('user_Taspe7_Email', response?.data?.user?.email);
 
                     setLogin(response?.data?.token);
-                    // We should also update other context values if possible, but context loads from localStorage on mount/change.
-                    // For now, redirecting triggers re-mount or we rely on page refresh logic if any. 
-                    // Actually, context updates are not triggered by localStorage changes automatically in other components unless we use storage event or set state.
-                    // But here we only have setLogin from context. Ideally we should have setUser_id, setChurchId etc. exposed from context and call them here.
-                    // But to keep it simple and since I don't want to change too much, I will assume a reload or the context will pick it up if the user navigates. 
-                    // Actually, navigating to home '/' might no cause full reload in SPA. 
-                    // But `window.location.href = '/'` would. `router.push` won't.
-                    // Let's rely on standard Context usage.
-
                     setLoading(false);
-                    // Force reload to ensure context picks up new localStorage values if setters are not available/used.
-                    // Or better, let's just let it be. The user didn't complain about login issues, just "training page".
-                    // If they re-login, it should work.
                     window.location.href = "/";
                 }
             })
             .catch((error) => {
-                setError(error.response?.data?.message || "Something went wrong");
+                setError(error.response?.data?.message || t("somethingWentWrong"));
                 setLoading(false);
             });
     };
 
     const validationSchema = Yup.object({
-        email: Yup.string().required('Email is required').email('Enter a valid email'),
+        email: Yup.string().required(t("emailRequired")).email(t("enterValidEmail")),
         password: Yup.string()
-            .required('Password is required')
-            .matches(/^[A-Z][a-z0-9]{5,7}$/, 'Enter a valid password'),
+            .required(t("passwordRequired"))
+            .matches(/^[A-Z][a-z0-9]{5,7}$/, t("enterValidPassword")),
     });
 
     const formik = useFormik({
@@ -70,10 +60,10 @@ export default function Login() {
             <div className="w-full max-w-md space-y-8 relative z-10">
                 <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-8">
                     <h2 className="my-2 text-center text-3xl font-bold tracking-tight bg-linear-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">
-                        Welcome Back
+                        {t("welcomeBack")}
                     </h2>
                     <p className="text-center text-gray-400 text-sm mb-6">
-                        Sign in to access your dashboard
+                        {t("signInToDashboard")}
                     </p>
 
                     {apiError && (
@@ -84,7 +74,7 @@ export default function Login() {
 
                     <form onSubmit={formik.handleSubmit} className="space-y-6">
                         <div>
-                            <label htmlFor="ur-email" className="block text-sm font-medium text-gray-300">Email Address</label>
+                            <label htmlFor="ur-email" className="block text-sm font-medium text-gray-300">{t("emailAddress")}</label>
                             <input
                                 onChange={formik.handleChange}
                                 onBlur={formik.handleBlur}
@@ -103,12 +93,12 @@ export default function Login() {
 
                         <div>
                             <div className="flex items-center justify-between mb-1">
-                                <label htmlFor="password" className="block text-sm font-medium text-gray-300">Password</label>
+                                <label htmlFor="password" className="block text-sm font-medium text-gray-300">{t("password")}</label>
                                 <a
                                     href="/forgot-password"
                                     className="text-xs text-sky-400 hover:text-sky-300 transition-colors font-medium"
                                 >
-                                    Forgot password?
+                                    {t("forgotPassword")}
                                 </a>
                             </div>
                             <input
@@ -136,7 +126,7 @@ export default function Login() {
                                     ? 'bg-gray-600/50 cursor-not-allowed'
                                     : 'bg-linear-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 hover:shadow-sky-500/25'}`}
                         >
-                            {isLoading ? "Signing In..." : "Login"}
+                            {isLoading ? t("signingIn") : t("login")}
                         </button>
                     </form>
                 </div>

@@ -195,7 +195,8 @@ export default function Navbar() {
                                         ? "bg-rose-500/20 text-rose-400 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.3)]"
                                         : "bg-white/5 text-gray-300 hover:text-white hover:bg-rose-500/20 hover:border-rose-500/30 hover:shadow-[0_0_10px_rgba(244,63,94,0.2)]"
                                     }`}
-                                title={"Admin Tasks"}
+                                title={t("adminTasks")}
+
                             >
                                 <ShieldAlert size={18} />
                             </Link>
@@ -226,7 +227,8 @@ export default function Navbar() {
                         className="flex items-center gap-1 text-gray-300 hover:text-sky-400 transition"
                     >
                         {vocalsMode ? <Mic size={20} /> : <Music size={20} />}
-                        <span className="text-xs sm:text-sm font-medium">{vocalsMode ? "Vocal" : "Musician"}</span>
+                        <span className="text-xs sm:text-sm font-medium">{vocalsMode ? t("vocal") : t("musician")}</span>
+
                         <ChevronDown size={14} />
                     </button>
 
@@ -243,13 +245,15 @@ export default function Navbar() {
                                         setVocalsMode(true);
                                         setModeMenuOpen(false);
                                     }}
+
                                     className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
                                     ${vocalsMode ? "text-sky-400 font-bold bg-white/5" : "text-gray-300"}
                                     `}
                                 >
                                     <Mic size={16} />
-                                    <span>Vocal Mode</span>
+                                    <span>{t("vocalMode")}</span>
                                 </button>
+
                                 <button
                                     onClick={() => {
                                         if (canUseMusicMode) {
@@ -264,10 +268,10 @@ export default function Navbar() {
                                                 : "text-gray-300 hover:bg-white/5"
                                             : "text-gray-400 cursor-not-allowed opacity-50 "
                                         }`}
-                                    title={canUseMusicMode ? "Musician Mode" : "Musician mode coming soon"}
+                                    title={canUseMusicMode ? t("musicianMode") : t("musicianModeSoon")}
                                 >
                                     <Music size={16} />
-                                    <span>{canUseMusicMode ? "Musician Mode" : "Musician Mode (Soon)"}</span>
+                                    <span>{canUseMusicMode ? t("musicianMode") : t("musicianModeSoon")}</span>
                                 </button>
                             </motion.div>
                         )}
@@ -447,7 +451,7 @@ export default function Navbar() {
                                             }`}
                                     >
                                         <ShieldAlert size={18} />
-                                        Admin Tasks
+                                        {t("adminTasks")}
                                     </Link>
                                 </li>
                             )}
@@ -479,7 +483,7 @@ export default function Navbar() {
                                     >
                                         <span className="flex items-center gap-2">
                                             {vocalsMode ? <Mic size={20} /> : <Music size={20} />}
-                                            <span>{vocalsMode ? "Vocal Mode" : "Musician Mode"}</span>
+                                                    <span>{vocalsMode ? t("vocalMode") : t("musicianMode")}</span>
                                         </span>
                                         <ChevronDown size={14} className={'transition-transform ' + (modeMenuOpen ? 'rotate-180' : '')} />
                                     </button>
@@ -504,7 +508,7 @@ export default function Navbar() {
                                                     `}
                                                 >
                                                     <Mic size={16} />
-                                                    <span>Vocal Mode</span>
+                                                    <span>{t("vocalMode")}</span>
                                                 </button>
                                                 <button
                                                     onClick={() => {
@@ -521,10 +525,10 @@ export default function Navbar() {
                                                                 : "text-gray-300 hover:bg-white/5"
                                                             : "text-gray-400 cursor-not-allowed opacity-70 blur-sm"
                                                         }`}
-                                                    title={canUseMusicMode ? "Musician Mode" : "Musician mode coming soon"}
+                                                    title={canUseMusicMode ? t("musicianMode") : t("musicianModeSoon")}
                                                 >
                                                     <Music size={16} />
-                                                    <span>{canUseMusicMode ? "Musician Mode" : "Musician Mode (Soon)"}</span>
+                                                    <span>{canUseMusicMode ? t("musicianMode") : t("musicianModeSoon")}</span>
                                                 </button>
                                             </motion.div>
                                         )}

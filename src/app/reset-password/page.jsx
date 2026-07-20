@@ -6,6 +6,7 @@ import * as Yup from "yup";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useLanguage } from "../context/LanguageContext";
 
 function getPasswordStrength(pw) {
     if (!pw) return { score: 0, label: "", color: "" };
@@ -22,6 +23,7 @@ function getPasswordStrength(pw) {
 }
 
 export default function ResetPassword() {
+    const { t } = useLanguage();
     const router = useRouter();
     const searchParams = useSearchParams();
     const token = searchParams.get("token");
@@ -34,12 +36,12 @@ export default function ResetPassword() {
 
     const validationSchema = Yup.object({
         password: Yup.string()
-            .required("Password is required")
-            .min(6, "Password must be at least 6 characters"),
+            .required(t("passwordRequired"))
+            .min(6, t("passwordMinLength")),
 
         confirmPassword: Yup.string()
-            .required("Please confirm your password")
-            .oneOf([Yup.ref("password")], "Passwords do not match"),
+            .required(t("pleaseConfirmPassword"))
+            .oneOf([Yup.ref("password")], t("passwordsDoNotMatch")),
     });
 
     const formik = useFormik({
@@ -47,7 +49,7 @@ export default function ResetPassword() {
         validationSchema,
         onSubmit: async (values) => {
             if (!token) {
-                setError("Invalid reset link. Please request a new one.");
+                setError(t("invalidResetLink"));
                 return;
             }
             setLoading(true);
@@ -60,7 +62,7 @@ export default function ResetPassword() {
                 setSuccess(true);
                 setTimeout(() => router.push("/login"), 3500);
             } catch (err) {
-                setError(err.response?.data?.msg || "Something went wrong. Please try again.");
+                setError(err.response?.data?.msg || t("somethingWentWrong"));
             } finally {
                 setLoading(false);
             }
@@ -88,9 +90,9 @@ export default function ResetPassword() {
                     <>
                         <div className="text-center mb-6">
                             <div className="text-3xl mb-2">🔐</div>
-                            <h2 className="text-2xl font-bold text-white mb-2">Reset Your Password</h2>
+                            <h2 className="text-2xl font-bold text-white mb-2">{t("resetYourPassword")}</h2>
                             <p className="text-sm text-slate-400">
-                                Create a strong new password for your account.
+                                {t("createStrongPassword")}
                             </p>
                         </div>
 
@@ -105,7 +107,7 @@ export default function ResetPassword() {
                             {/* New Password */}
                             <div className="flex flex-col gap-1.5">
                                 <label htmlFor="rp-password" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                    New Password
+                                    {t("newPassword")}
                                 </label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔒</span>
@@ -145,7 +147,7 @@ export default function ResetPassword() {
                                             ))}
                                         </div>
                                         <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: strength.color }}>
-                                            {strength.label}
+                                            {strength.label ? t(strength.label.toLowerCase()) : ""}
                                         </span>
                                     </div>
                                 )}
@@ -158,7 +160,7 @@ export default function ResetPassword() {
                             {/* Confirm Password */}
                             <div className="flex flex-col gap-1.5">
                                 <label htmlFor="rp-confirm" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                    Confirm Password
+                                    {t("confirmPassword")}
                                 </label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔑</span>
@@ -192,12 +194,12 @@ export default function ResetPassword() {
 
                             {/* Password rules hint */}
                             <div className="bg-slate-950/40 border border-white/5 rounded-lg p-3 text-xs">
-                                <p className="text-slate-400 font-medium mb-2">Password must:</p>
+                                <p className="text-slate-400 font-medium mb-2">{t("passwordMust")}</p>
                                 <ul className="space-y-1.5 text-slate-300">
                                     {[
-                                        { rule: "Be 6–8 characters long", met: formik.values.password.length >= 6 && formik.values.password.length <= 8 },
-                                        { rule: "Start with a capital letter", met: /^[A-Z]/.test(formik.values.password) },
-                                        { rule: "Contain only letters & numbers", met: /^[A-Za-z0-9]+$/.test(formik.values.password) && formik.values.password.length > 0 },
+                                        { rule: t("rule6to8Chars"), met: formik.values.password.length >= 6 && formik.values.password.length <= 8 },
+                                        { rule: t("ruleStartCapital"), met: /^[A-Z]/.test(formik.values.password) },
+                                        { rule: t("ruleLettersNumbers"), met: /^[A-Za-z0-9]+$/.test(formik.values.password) && formik.values.password.length > 0 },
                                     ].map(({ rule, met }) => (
                                         <li key={rule} className={`flex items-center gap-2 ${formik.values.password ? (met ? "text-emerald-400" : "text-red-400/80") : "text-slate-500"}`}>
                                             <span className="font-bold">{formik.values.password ? (met ? "✓" : "✕") : "·"}</span>
@@ -218,11 +220,11 @@ export default function ResetPassword() {
                                 {isLoading ? (
                                     <span className="flex items-center justify-center gap-2">
                                         <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Resetting Password...
+                                        {t("resettingPassword")}
                                     </span>
                                 ) : (
                                     <span className="flex items-center justify-center gap-1">
-                                        Reset Password →
+                                        {t("resetPasswordBtn")}
                                     </span>
                                 )}
                             </button>
@@ -230,7 +232,7 @@ export default function ResetPassword() {
 
                         <div className="mt-6 text-center">
                             <Link href="/forgot-password" className="text-xs text-slate-400 hover:text-blue-400 transition-colors">
-                                ← Request a new link
+                                {t("requestNewLink")}
                             </Link>
                         </div>
                     </>
@@ -239,12 +241,12 @@ export default function ResetPassword() {
                         <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center text-2xl mx-auto mb-4 animate-bounce">
                             ✓
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-2">Password Reset!</h2>
+                        <h2 className="text-2xl font-bold text-white mb-2">{t("passwordResetSuccess")}</h2>
                         <p className="text-sm text-slate-400 mb-6">
-                            Your password has been successfully updated. You're being redirected to login…
+                            {t("passwordResetSuccessMsg")}
                         </p>
                         <Link href="/login" className="inline-block w-full py-2.5 bg-white/10 hover:bg-white/10 text-white rounded-lg text-sm font-semibold transition-colors border border-white/10">
-                            Go to Login →
+                            {t("goToLogin")}
                         </Link>
                     </div>
                 )}

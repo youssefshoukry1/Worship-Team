@@ -3,8 +3,10 @@
 import axios from "axios";
 import { useState } from "react";
 import Link from "next/link";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function ForgotPassword() {
+    const { t } = useLanguage();
     const [email, setEmail] = useState("");
     const [isLoading, setLoading] = useState(false);
     const [apiError, setError] = useState("");
@@ -13,7 +15,7 @@ export default function ForgotPassword() {
     async function handleSubmit(e) {
         e.preventDefault();
         if (!email.trim()) {
-            setError("Please enter your email address.");
+            setError(t("pleaseEnterEmail"));
             return;
         }
         setLoading(true);
@@ -25,7 +27,7 @@ export default function ForgotPassword() {
             );
             setSuccess(true);
         } catch (err) {
-            setError(err.response?.data?.msg || "Something went wrong. Please try again.");
+            setError(err.response?.data?.msg || t("somethingWentWrong"));
         } finally {
             setLoading(false);
         }
@@ -48,9 +50,9 @@ export default function ForgotPassword() {
                 {!success ? (
                     <>
                         <div className="card-header">
-                            <h2 className="card-title">Forgot Password?</h2>
+                            <h2 className="card-title">{t("forgotPasswordTitle")}</h2>
                             <p className="card-subtitle">
-                                No worries. Enter your email and we'll send you a secure reset link.
+                                {t("forgotPasswordSubtitle")}
                             </p>
                         </div>
 
@@ -64,7 +66,7 @@ export default function ForgotPassword() {
                         <form onSubmit={handleSubmit} className="fp-form">
                             <div className="field-group">
                                 <label htmlFor="fp-email" className="field-label">
-                                    Email Address
+                                    {t("emailAddress")}
                                 </label>
                                 <div className="input-wrapper">
                                     <span className="input-icon">✉</span>
@@ -89,11 +91,11 @@ export default function ForgotPassword() {
                                 {isLoading ? (
                                     <span className="btn-inner">
                                         <span className="spinner" />
-                                        Sending Reset Link...
+                                        {t("sendingResetLink")}
                                     </span>
                                 ) : (
                                     <span className="btn-inner">
-                                        <span>Send Reset Link</span>
+                                        <span>{t("sendResetLink")}</span>
                                         <span className="btn-arrow">→</span>
                                     </span>
                                 )}
@@ -106,19 +108,19 @@ export default function ForgotPassword() {
                             <div className="success-icon">✉</div>
                             <div className="success-ring" />
                         </div>
-                        <h2 className="success-title">Check Your Inbox!</h2>
+                        <h2 className="success-title">{t("checkYourInbox")}</h2>
                         <p className="success-text">
-                            We've sent a password reset link to{" "}
+                            {t("resetLinkSent")}{" "}
                             <strong className="success-email">{email}</strong>.
-                            The link will expire in <strong>1 hour</strong>.
+                            {t("linkExpiresIn")} <strong>{t("oneHour")}</strong>.
                         </p>
                         <p className="success-hint">
-                            Didn't receive it? Check your spam folder, or{" "}
+                            {t("didntReceive")}{" "}
                             <button
                                 className="resend-link"
                                 onClick={() => setSuccess(false)}
                             >
-                                try again
+                                {t("tryAgain")}
                             </button>
                             .
                         </p>
@@ -127,7 +129,7 @@ export default function ForgotPassword() {
 
                 <div className="back-link-wrap">
                     <Link href="/login" className="back-link">
-                        ← Back to Login
+                        {t("backToLogin")}
                     </Link>
                 </div>
             </div>

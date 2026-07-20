@@ -71,10 +71,10 @@ const BibleCard = ({ bible, idx, updateWorkspaceHymn, removeFromWorkspace, openL
                             {bible.title}
                         </h3>
                         <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                            📖 Bible
+                            📖 {translate('bibleLabel')}
                         </span>
                         <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                            {bible.verses?.length || 0} verses
+                            {bible.verses?.length || 0} {translate('verses')}
                         </span>
                     </div>
                 </div>
@@ -83,23 +83,23 @@ const BibleCard = ({ bible, idx, updateWorkspaceHymn, removeFromWorkspace, openL
                     <button
                         onClick={() => openLyrics(bible)}
                         className="px-3 py-1.5 text-xs font-bold rounded-lg bg-sky-500/30 text-sky-200 border border-sky-500/50 hover:bg-sky-500/40 transition-all"
-                        title="Lyrics"
+                        title={translate('lyrics')}
                     >
-                        <FileText className="w-3.5 h-3.5 inline mr-1" /> Lyrics
+                        <FileText className="w-3.5 h-3.5 inline mr-1" /> {translate('lyrics')}
                     </button>
                     <button
                         onClick={() => openPresentation(bible)}
                         className="px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-500/30 text-blue-200 border border-blue-500/50 hover:bg-blue-500/40 transition-all"
-                        title="Present verses"
+                        title={translate('present')}
                     >
-                        <Monitor className="w-3.5 h-3.5 inline mr-1" /> Present
+                        <Monitor className="w-3.5 h-3.5 inline mr-1" /> {translate('present')}
                     </button>
                     <button
                         onClick={() => {
                             removeFromWorkspace(bible._id);
                         }}
                         className="px-3 py-1.5 text-xs font-bold rounded-lg bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 transition-all"
-                        title="Remove from workspace"
+                        title={translate('remove')}
                     >
                         <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -155,11 +155,11 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                             {hymn.title}
                         </h3>
                         <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30">
-                            Key: {hymn.scale || '-'}
+                            {translate('keyChords')}: {hymn.scale || '-'}
                         </span>
                         {localFontSize > 0 && (
                             <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
-                                Font Size: {localFontSize}px
+                                {translate('fontSize')}: {localFontSize}px
                             </span>
                         )}
                     </div>
@@ -170,11 +170,11 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                         onClick={() => setIsEditingLyrics(!isEditingLyrics)}
                         className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${isEditingLyrics ? 'bg-sky-500 text-white' : 'text-gray-400 hover:text-white'}`}
                     >
-                        Edit Lyrics
+                        {translate('editLyrics')}
                     </button>
                     <div className="w-px bg-white/10 mx-1"></div>
                     <div className="flex items-center gap-2 px-2 text-xs font-bold text-gray-400">
-                        <span>PDF Zoom:</span>
+                        <span>{translate('pdfZoom')}</span>
                         <button
                             onClick={() => setLocalFontSize(prev => prev === 0 ? 14 : Math.max(10, prev - 1))}
                             className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 text-white flex items-center justify-center"
@@ -188,7 +188,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                             <button
                                 onClick={() => setLocalFontSize(0)}
                                 className="w-6 h-6 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 flex items-center justify-center ml-1"
-                                title="Reset to Auto"
+                                title={translate('resetToAuto')}
                             ><X size={12} /></button>
                         )}
                     </div>
@@ -199,7 +199,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                 <div className="mb-4 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex justify-between items-center mb-3">
                         <span className="text-[11px] font-semibold uppercase tracking-wide text-sky-400">
-                            Custom Lyrics (Edit & Print)
+                            {translate('customLyrics')}
                         </span>
                         <div className="flex gap-2">
                             <button
@@ -211,7 +211,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                                 }}
                                 className="text-[10px] font-bold px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-white transition-colors"
                             >
-                                + العدد
+                                {translate('addVerse')}
                             </button>
                             <button
                                 type="button"
@@ -222,7 +222,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                                 }}
                                 className="text-[10px] font-bold px-2 py-1 rounded bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 transition-colors"
                             >
-                                + القرار
+                                {translate('addChorus')}
                             </button>
                         </div>
                     </div>
@@ -280,12 +280,12 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
 
                                             <button
                                                 onClick={() => {
-                                                    if (!confirm('هل تريد مسح هذا المقطع؟')) return;
+                                                    if (!confirm(translate('confirmDeleteSection'))) return;
                                                     const newArray = localLyrics.filter((_, i) => i !== sIdx);
                                                     setLocalLyrics(newArray);
                                                 }}
                                                 className="text-gray-500 hover:text-red-400 transition-colors p-1.5 rounded-full hover:bg-red-500/10"
-                                                title="Remove section"
+                                                title={translate('removeSection')}
                                             >
                                                 <X size={14} />
                                             </button>
@@ -302,7 +302,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                                         rows={3}
                                         className="w-full p-3 rounded-lg bg-black/40 border border-black/50 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[100px] resize-y whitespace-pre-wrap text-sm leading-relaxed custom-scrollbar shadow-inner"
                                         dir="rtl"
-                                        placeholder="كلمات المقطع هنا..."
+                                        placeholder={translate('sectionLyricsPlaceholder')}
                                     />
                                 </div>
                             ))
@@ -313,7 +313,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                                 rows={6}
                                 className="w-full p-3 rounded-xl bg-black/40 border border-sky-500/30 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition min-h-[150px] resize-y whitespace-pre-wrap text-sm leading-relaxed custom-scrollbar shadow-inner"
                                 dir="rtl"
-                                placeholder="Write lyrics here or add sections above..."
+                                placeholder={translate('lyricsPlaceholder')}
                             />
                         )}
                     </div>
@@ -329,7 +329,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                         <div className="flex flex-col sm:flex-row gap-3">
                             <div className="sm:w-40 flex flex-col gap-1">
                                 <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                                    Role
+                                    {translate('role')}
                                 </span>
                                 <select
                                     value={note.role}
@@ -340,18 +340,18 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                                     }}
                                     className="w-full bg-sky-900/40 text-xs font-bold text-sky-200 border border-sky-500/40 rounded-xl px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-400"
                                 >
-                                    <option value="General">General</option>
-                                    <option value="Guitar">Guitar</option>
-                                    <option value="Piano">Piano</option>
-                                    <option value="Drums">Drums</option>
-                                    <option value="Bass">Bass</option>
-                                    <option value="Vocals">Vocals</option>
+                                    <option value="General">{translate('role.general')}</option>
+                                    <option value="Guitar">{translate('role.guitar')}</option>
+                                    <option value="Piano">{translate('role.piano')}</option>
+                                    <option value="Drums">{translate('role.drums')}</option>
+                                    <option value="Bass">{translate('role.bass')}</option>
+                                    <option value="Vocals">{translate('role.vocals')}</option>
                                 </select>
                             </div>
 
                             <div className="flex-1 flex flex-col gap-2">
                                 <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                                    Instruction / Intro
+                                    {translate('instructionIntro')}
                                 </span>
                                 <textarea
                                     value={note.note}
@@ -361,7 +361,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                                         updateWorkspaceHymn(hymn._id, { musitionNotes: newNotes });
                                     }}
                                     rows={2}
-                                    placeholder="e.g. Soft pad intro, drums enter on chorus, repeat bridge 2x..."
+                                    placeholder={translate('instructionPlaceholder')}
                                     className="w-full bg-transparent border border-white/10 rounded-xl text-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600"
                                 />
                             </div>
@@ -370,7 +370,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                         {/* Lyrics Reference / Line Input */}
                         <div className="flex flex-col gap-2 mt-1">
                             <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                                Lyrics Reference (Optional)
+                                {translate('lyricsRef')}
                             </span>
                             <input
                                 type="text"
@@ -380,7 +380,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                                     newNotes[nIdx].line = e.target.value;
                                     updateWorkspaceHymn(hymn._id, { musitionNotes: newNotes });
                                 }}
-                                placeholder="e.g. Type some lyrics to reference here..."
+                                placeholder={translate('lyricsRefPlaceholder')}
                                 className="w-full bg-transparent border border-white/10 rounded-xl text-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600"
                             />
                         </div>
@@ -394,7 +394,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                                 className="inline-flex items-center gap-1 text-[11px] text-red-400/70 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-all"
                             >
                                 <X size={14} />
-                                Remove
+                                {translate('remove')}
                             </button>
                         </div>
                     </div>
@@ -410,7 +410,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                     }}
                     className="w-full py-2.5 border border-dashed border-white/10 rounded-xl text-xs font-semibold text-gray-400 hover:text-sky-300 hover:border-sky-500/40 hover:bg-sky-500/10 transition-all"
                 >
-                    + Add Instruction / Intro
+                    {translate('addInstruction')}
                 </button>
             </div>
         </div>

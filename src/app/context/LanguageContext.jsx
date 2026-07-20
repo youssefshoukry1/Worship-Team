@@ -8,16 +8,18 @@ export function LanguageProvider({ children }) {
     // Default to English initially to avoid hydration mismatch,
     // or use a more complex logic if server-side detection is needed.
     // For now, we'll stick to 'en' and update on mount if needed.
-    const [language, setLanguage] = useState("en");
+    const [language, setLanguage] = useState("ar");
 
     // Load saved language on mount
     useEffect(() => {
         const savedLang = localStorage.getItem("app-language");
-        if (savedLang && ["en", "ar", "de"].includes(savedLang)) {
-            setLanguage(savedLang);
-            document.documentElement.dir = "ltr";
-            document.documentElement.lang = savedLang;
+        const activeLang = (savedLang && ["en", "ar", "de"].includes(savedLang)) ? savedLang : "ar";
+        setLanguage(activeLang);
+        if (!savedLang) {
+            localStorage.setItem("app-language", "ar");
         }
+        document.documentElement.dir = "ltr";
+        document.documentElement.lang = activeLang;
     }, []);
 
     const handleSetLanguage = (lang) => {
