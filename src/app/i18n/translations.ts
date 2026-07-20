@@ -123,7 +123,6 @@ export const translations = {
     passwordRequired: "Password is required",
     passwordMinLength: "Password must be at least 6 characters",
     churchNameRequired: "Church Name is required",
-    pleaseEnterValidEmail: "Please enter a valid, real email address.",
     checking: "checking…",
     somethingWentWrong: "Something went wrong",
 
@@ -391,7 +390,6 @@ export const translations = {
     passwordRequired: "كلمة المرور مطلوبة",
     passwordMinLength: "كلمة المرور يجب أن تكون ٦ أحرف على الأقل",
     churchNameRequired: "اسم الكنيسة مطلوب",
-    pleaseEnterValidEmail: "برجاء إدخال بريد إلكتروني صحيح.",
     checking: "جاري التحقق…",
     somethingWentWrong: "حدث خطأ ما",
 
@@ -472,13 +470,10 @@ export const translations = {
     newHymn: "ترنيمة جديدة",
     category: "التصنيف",
     youtubeLink: "رابط يوتيوب",
-    addingHymn: "جاري الإضافة...",
     confirmDeleteHymn: "هل أنت متأكد أنك تريد حذف هذه الترنيمة؟",
     endOfList: "نهاية القائمة",
 
     // Auth - Login/Register/Forgot/Reset buttons
-    sendingResetLink: "جاري الإرسال...",
-
     // Prayer feelings
     thankful: "شاكر",
     anxious: "قلق",
@@ -505,12 +500,7 @@ export const translations = {
     addNewHymn: "إضافة ترنيمة جديدة",
     deleteSong: "حذف الترنيمة",
     editSong: "تعديل الترنيمة",
-    category: "التصنيف",
-    youtubeLink: "رابط يوتيوب",
     addingHymn: "جاري الإضافة." ,
-    confirmDeleteHymn: "هل أنت متأكد أنك تريد حذف هذه الترنيمة؟",
-    endOfList: "نهاية القائمة",
-    newHymn: "ترنيمة جديدة",
     searchPlaceholder: "ابحث عن ترانيم...",
     PrayerTimes: "أوقات الصلاة",
     Praise: "تسبيح",
