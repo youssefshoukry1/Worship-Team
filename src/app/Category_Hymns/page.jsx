@@ -2579,18 +2579,20 @@ export default function Category_Humns() {
       {(isLoading && !isRestoring) ? (
         <Loading />
       ) : (
-        <div className="relative">
-          {/* Table Header - Hidden on small mobile for cleaner look */}
-          {/* Table Header - Hidden on small mobile for cleaner look */}
-          <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest bg-white/5 rounded-t-2xl border-b border-white/10 mx-2">
-            <div className="col-span-1 text-center">#</div>
-            <div className="col-span-11 sm:col-span-5 md:col-span-5">{t("songTitle")}</div>
-            <div className="col-span-2 text-center bg-white/5 rounded-lg py-1">{t("keyChords")}</div>
-            <div className="col-span-1 text-center">{t("action")}</div>
+       <div className="relative">
+  {/* Table Header */}
+  <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest bg-white/5 rounded-t-2xl border-b border-white/10 mx-2">
+    <div className="col-span-1 text-center">#</div>
+    <div className="col-span-5">{t("songTitle")}</div>
+  
+    {/* الخلية بتفضل واخدة 2 columns بس الكلام جواه مختفي invisible */}
+    <div className={`col-span-2 text-center bg-white/5 rounded-lg py-1 ${vocalsMode ? "invisible" : ""}`}>
+      {t("keyChords")}
+    </div>
 
-            <div className="col-span-3 text-center">{t("media")}</div>
-          </div>
-
+    <div className="col-span-1 text-center">{t("action")}</div>
+    <div className="col-span-3 text-center">{t("media")}</div>
+  </div>
           {/* List Body with react-virtuoso */}
           {humns.length > 0 ? (
             <div className="pb-20 mt-2">
@@ -4725,7 +4727,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       </div>
 
       {/* Key/Scale - Under Title on Mobile (Left Aligned), Center on Desktop */}
-      <div className={`col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0 lg:top-2 transition-opacity ${vocalsMode && !['MUSIC_ADMIN', 'PROGRAMER'].includes(UserRole) ? 'opacity-0 pointer-events-none' : ''}`}>
+      <div className={`col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0 lg:top-2 transition-opacity ${vocalsMode? 'opacity-0 pointer-events-none' : ''}`}>
         <KeyDisplay
           scale={currentScale}
           relatedChords={currentChords}
