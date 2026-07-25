@@ -5088,6 +5088,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
 
       {vocalsMode && humn.lyrics && (
         <button
+          id={index === 0 ? 'tour-presentation-mobile' : undefined}
           onClick={() => openPresentation(humn, transposeStep)}
           className="absolute top-3 right-3 sm:hidden p-2.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 hover:text-sky-300 border border-sky-500/30 hover:border-sky-500/50 transition-all z-30 backdrop-blur-md shadow-lg shadow-sky-500/10 active:scale-95"
           title="Open Presentation Mode"
@@ -5217,6 +5218,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
             {/* Presentation Button - Vocals Mode only */}
             {vocalsMode && (
               <button
+                id={index === 0 ? 'tour-presentation-desktop' : undefined}
                 onClick={() => openPresentation(humn, transposeStep)}
                 className="hidden sm:flex p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 hover:text-sky-300 border border-sky-500/30 hover:border-sky-500/50 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10"
                 title="Open Presentation Mode"
