@@ -119,15 +119,21 @@ export default function Navbar() {
 
     return (
         <nav className="sticky w-full flex justify-between items-center py-3 px-6 top-0 z-50 bg-[#0b0f19]/60 backdrop-blur-md border-b border-white/10 shadow-lg shadow-black/20 transition-all duration-300">
-            {/* Logo */}
+            {/* Responsive & Fast Logo */}
             <Link
                 href="/"
-                className="relative font-bold text-2xl tracking-tight bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent drop-shadow-sm cursor-pointer"
+                className="relative flex items-center transition-transform hover:scale-105 active:scale-95"
             >
-                {/* {t("praiseTeam")} */}
-                <Image src="/wasla.svg" alt="logo" width={100} height={100} />
+                <Image
+                    src="/wasla.svg"
+                    alt="Logo"
+                    width={110}
+                    height={40}
+                    priority
+                    sizes="(max-width: 640px) 85px, (max-width: 768px) 100px, 110px"
+                    className="w-20 sm:w-24 md:w-28 h-auto object-contain"
+                />
             </Link>
-
             {/* Desktop Menu */}
             <motion.ul
                 className="relative hidden md:flex gap-8 items-center"
@@ -485,7 +491,7 @@ export default function Navbar() {
                                     >
                                         <span className="flex items-center gap-2">
                                             {vocalsMode ? <Mic size={20} /> : <Music size={20} />}
-                                                    <span>{vocalsMode ? t("vocalMode") : t("musicianMode")}</span>
+                                            <span>{vocalsMode ? t("vocalMode") : t("musicianMode")}</span>
                                         </span>
                                         <ChevronDown size={14} className={'transition-transform ' + (modeMenuOpen ? 'rotate-180' : '')} />
                                     </button>
