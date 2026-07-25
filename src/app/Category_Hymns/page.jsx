@@ -9,7 +9,7 @@ import Portal from '../Portal/Portal';
 import Metronome from '../Metronome/page';
 import { UserContext } from '../context/User_Context';
 // Add BookOpen to this line
-import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2, Mic, MicOff, BookOpen, ChevronDown, Loader2, Copy, Share2, ClipboardCheck, Link2, Lightbulb } from 'lucide-react';
+import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2, Mic, MicOff, BookOpen, ChevronDown, Loader2, Copy, Share2, ClipboardCheck, Link2, Lightbulb, Eraser, Moon, RotateCcw, ZoomOut, ZoomIn    } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
 import { showToast } from '../components/ToastContainer';
@@ -1153,6 +1153,24 @@ export default function Category_Humns() {
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [isJoiningSession, setIsJoiningSession] = useState(false);
 
+  // ── Presentation Controls & Custom Backgrounds States ─────────────
+  const [dataShowBlackout, setDataShowBlackout] = useState(false);
+  const [dataShowFontScale, setDataShowFontScale] = useState(1.0);
+  const [dataShowBackgrounds, setDataShowBackgrounds] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem('taspe_presentation_backgrounds');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [dataShowActiveBg, setDataShowActiveBg] = useState(() => {
+    if (typeof window === 'undefined') return 'default';
+    return localStorage.getItem('taspe_active_background') || 'default';
+  });
+  const [showBgSelector, setShowBgSelector] = useState(false);
+
   useEffect(() => {
     const savedSession = localStorage.getItem('myLivePresentationId');
     if (savedSession) {
@@ -1462,6 +1480,15 @@ export default function Category_Humns() {
   const LOCAL_CHANNEL = 'taspe_presenter';
   const localDisplayRef = React.useRef(null);
 
+  const broadcastLocalSettings = React.useCallback((settings) => {
+    const ch = new BroadcastChannel(LOCAL_CHANNEL);
+    ch.postMessage({
+      type: 'settings',
+      settings
+    });
+    ch.close();
+  }, []);
+
   const broadcastLocalSlide = React.useCallback((slides, index, hymnTitle) => {
     const slide = slides[index];
     if (!slide) return;
@@ -1471,10 +1498,120 @@ export default function Category_Humns() {
       slide,
       hymn: hymnTitle,
       index,
-      total: slides.length
+      total: slides.length,
+      settings: {
+        blackout: dataShowBlackout,
+        activeBg: dataShowActiveBg,
+        fontScale: dataShowFontScale
+      }
     });
     ch.close();
-  }, []);
+  }, [dataShowBlackout, dataShowActiveBg, dataShowFontScale]);
+
+  // Background Management Functions
+  const handleUploadBackground = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (dataShowBackgrounds.length >= 5) {
+      alert(language === 'ar' ? 'يمكنك رفع 5 صور كحد أقصى.' : 'You can upload a maximum of 5 images.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target.result;
+      const updated = [...dataShowBackgrounds, base64];
+      setDataShowBackgrounds(updated);
+      localStorage.setItem('taspe_presentation_backgrounds', JSON.stringify(updated));
+      
+      setDataShowActiveBg(base64);
+      localStorage.setItem('taspe_active_background', base64);
+      
+      broadcastLocalSettings({
+        blackout: dataShowBlackout,
+        activeBg: base64,
+        fontScale: dataShowFontScale
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleDeleteBackground = (bgToDelete, e) => {
+    e.stopPropagation();
+    const updated = dataShowBackgrounds.filter(bg => bg !== bgToDelete);
+    setDataShowBackgrounds(updated);
+    localStorage.setItem('taspe_presentation_backgrounds', JSON.stringify(updated));
+
+    if (dataShowActiveBg === bgToDelete) {
+      setDataShowActiveBg('default');
+      localStorage.setItem('taspe_active_background', 'default');
+      broadcastLocalSettings({
+        blackout: dataShowBlackout,
+        activeBg: 'default',
+        fontScale: dataShowFontScale
+      });
+    }
+  };
+
+  const handleSelectBackground = (bg) => {
+    setDataShowActiveBg(bg);
+    localStorage.setItem('taspe_active_background', bg);
+    broadcastLocalSettings({
+      blackout: dataShowBlackout,
+      activeBg: bg,
+      fontScale: dataShowFontScale
+    });
+  };
+
+  // Presentation Quick Settings Handlers
+  const toggleBlackout = () => {
+    setDataShowBlackout(prev => {
+      const next = !prev;
+      broadcastLocalSettings({
+        blackout: next,
+        activeBg: dataShowActiveBg,
+        fontScale: dataShowFontScale
+      });
+      return next;
+    });
+  };
+
+  const handleReset = () => {
+    setDataShowBlackout(false);
+    setDataShowFontScale(1.0);
+    setDataShowActiveBg('default');
+    localStorage.setItem('taspe_active_background', 'default');
+    broadcastLocalSettings({
+      blackout: false,
+      activeBg: 'default',
+      fontScale: 1.0
+    });
+  };
+
+  const decreaseFontSize = () => {
+    setDataShowFontScale(prev => {
+      const next = Math.max(0.5, parseFloat((prev - 0.1).toFixed(1)));
+      broadcastLocalSettings({
+        blackout: dataShowBlackout,
+        activeBg: dataShowActiveBg,
+        fontScale: next
+      });
+      return next;
+    });
+  };
+
+  const increaseFontSize = () => {
+    setDataShowFontScale(prev => {
+      const next = Math.min(2.0, parseFloat((prev + 0.1).toFixed(1)));
+      broadcastLocalSettings({
+        blackout: dataShowBlackout,
+        activeBg: dataShowActiveBg,
+        fontScale: next
+      });
+      return next;
+    });
+  };
 
   // Open the local display window (offline, HDMI screen)
   const openPresentation = (hymn, transposeStep = 0) => {
@@ -1490,6 +1627,13 @@ export default function Category_Humns() {
       } else {
         localDisplayRef.current.focus();
       }
+      setTimeout(() => {
+        broadcastLocalSettings({
+          blackout: dataShowBlackout,
+          activeBg: dataShowActiveBg,
+          fontScale: dataShowFontScale
+        });
+      }, 600);
     }
   };
 
@@ -1808,7 +1952,7 @@ export default function Category_Humns() {
               return normalized;
             }
           }
-        } catch {}
+        } catch { }
         return [];
       }
 
@@ -1996,6 +2140,52 @@ export default function Category_Humns() {
 
   // Infinite Scroll Trigger is now handled by Virtuoso's endReached prop
   ///////////////////////////////// API proccess end here /////////////////////////////
+
+  // ── Presentation Hymn Search States & Effect ──────────────────────
+  const [presetSearchQuery, setPresetSearchQuery] = useState('');
+  const [presetSearchResults, setPresetSearchResults] = useState([]);
+  const [isSearchingPreset, setIsSearchingPreset] = useState(false);
+
+  useEffect(() => {
+    const query = presetSearchQuery.trim();
+    if (!query) {
+      setPresetSearchResults(prev => prev.length ? [] : prev);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearchingPreset(true);
+      try {
+        if (isApp) {
+          // Client-side search for App (offline mode)
+          const normalizedQuery = normalizeText(query);
+          const results = allHymns.filter(hymn => {
+            const normalizedTitle = normalizeText(hymn.title || '');
+            let lyricsText = '';
+            if (typeof hymn.lyrics === 'string') {
+              lyricsText = hymn.lyrics;
+            } else if (Array.isArray(hymn.lyrics)) {
+              lyricsText = hymn.lyrics.map(l => l.text).join(' ');
+            }
+            const normalizedLyrics = normalizeText(lyricsText);
+            return normalizedTitle.includes(normalizedQuery) || normalizedLyrics.includes(normalizedQuery);
+          });
+          setPresetSearchResults(results.slice(0, 15));
+        } else {
+          // API Search for Web
+          const API_BASE = 'https://worship-team-api.onrender.com/api/hymns';
+          const response = await axios.get(`${API_BASE}/search?limit=15&q=${encodeURIComponent(query)}`);
+          setPresetSearchResults(Array.isArray(response.data) ? response.data : []);
+        }
+      } catch (err) {
+        console.error("Presentation search error:", err);
+      } finally {
+        setIsSearchingPreset(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [presetSearchQuery, isApp, allHymns]);
 
   // --- Modal Helpers ---//
   const openModal = () => {
@@ -2270,6 +2460,7 @@ export default function Category_Humns() {
       // لو قفل الترنيمة أو اختار واحدة تانية قبل الـ 10 ثواني، التايمر بيتمسح ومبيحسبش حاجة
       return () => clearTimeout(timer);
     }, [selectedHymn]); // الـ Effect ده بيشتغل كل ما الـ selectedHymn تتغير
+
 
     return (
       <>
@@ -2579,20 +2770,20 @@ export default function Category_Humns() {
       {(isLoading && !isRestoring) ? (
         <Loading />
       ) : (
-       <div className="relative">
-  {/* Table Header */}
-  <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest bg-white/5 rounded-t-2xl border-b border-white/10 mx-2">
-    <div className="col-span-1 text-center">#</div>
-    <div className="col-span-5">{t("songTitle")}</div>
-  
-    {/* الخلية بتفضل واخدة 2 columns بس الكلام جواه مختفي invisible */}
-    <div className={`col-span-2 text-center bg-white/5 rounded-lg py-1 ${vocalsMode ? "invisible" : ""}`}>
-      {t("keyChords")}
-    </div>
+        <div className="relative">
+          {/* Table Header */}
+          <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest bg-white/5 rounded-t-2xl border-b border-white/10 mx-2">
+            <div className="col-span-1 text-center">#</div>
+            <div className="col-span-5">{t("songTitle")}</div>
 
-    <div className="col-span-1 text-center">{t("action")}</div>
-    <div className="col-span-3 text-center">{t("media")}</div>
-  </div>
+            {/* الخلية بتفضل واخدة 2 columns بس الكلام جواه مختفي invisible */}
+            <div className={`col-span-2 text-center bg-white/5 rounded-lg py-1 ${vocalsMode ? "invisible" : ""}`}>
+              {t("keyChords")}
+            </div>
+
+            <div className="col-span-1 text-center">{t("action")}</div>
+            <div className="col-span-3 text-center">{t("media")}</div>
+          </div>
           {/* List Body with react-virtuoso */}
           {humns.length > 0 ? (
             <div className="pb-20 mt-2">
@@ -4105,7 +4296,7 @@ export default function Category_Humns() {
           {/* This is the Presentation controller screen */}
           {showDataShow && selectedLyricsHymn && (
             <Portal>
-              <div id="showDataContainer" className="fixed inset-0 z-10000 bg-[#020617] flex flex-col">
+              <div id="showDataContainer" className="fixed inset-0 z-10000 bg-[#020617] flex flex-col" data-lenis-prevent>
                 {/* ── Shared Header ── */}
                 <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-[#0f172a] border-b border-white/10 shrink-0 z-20">
                   <div className="flex flex-col min-w-0">
@@ -4282,126 +4473,337 @@ export default function Category_Humns() {
                   </div>
                 </div>
 
-                {/* ══ DESKTOP VIEW: Grid of cuts + session footer ══ */}
-                <div className="hidden sm:flex flex-1 flex-col min-h-0">
-                  <div className="flex-1 overflow-y-auto p-6 custom-scrollbar" dir="rtl">
-                    <div className="max-w-7xl mx-auto grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-4">
-                      {dataShowSlides.map((slide, i) => {
-                        const isActive = dataShowIndex === i;
-                        const isChorus = slide.type === 'chorus';
-                        return (
+
+
+{/* ══ DESKTOP VIEW: Professional Grid, Preview + Quick Settings ══ */}
+                <div className="hidden sm:flex flex-1 flex-col min-h-0 bg-[#0a0f1c] text-white">
+                  
+                  {/* Top Header Section */}
+                  <div className="flex items-center justify-between px-8 py-5 border-b border-white/5 shrink-0 gap-6" dir="rtl">
+                    <div className="flex items-center gap-4 min-w-0 shrink-0">
+                      <h1 className="text-2xl font-bold tracking-wide drop-shadow-md text-gray-50 truncate max-w-[200px] xl:max-w-[300px]">
+                        {selectedLyricsHymn?.title || 'ليسوع كل القدرة'}
+                      </h1>
+                      {dataShowId && (
+                        <span className="flex items-center gap-1.5 bg-red-500/10 text-red-500 border border-red-500/20 px-2.5 py-1 rounded-md text-xs font-bold tracking-widest uppercase">
+                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> LIVE
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Middle: Search Bar Widget */}
+                    <div className="flex-1 max-w-md relative z-30" dir="rtl">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={presetSearchQuery}
+                          onChange={(e) => setPresetSearchQuery(e.target.value)}
+                          placeholder="البحث عن ترنيمة واختيارها فوراً..."
+                          className="w-full bg-white/5 border border-white/10 hover:border-white/20 focus:border-sky-500/50 rounded-full px-5 py-2 pl-12 pr-4 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-sky-500/30 transition-all text-right"
+                        />
+                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none">
+                          {isSearchingPreset ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
+                          ) : (
+                            <Search className="w-4 h-4" />
+                          )}
+                        </div>
+                        {presetSearchQuery && (
                           <button
-                            key={i}
-                            onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
-                            className={`relative flex flex-col h-40 p-4 rounded-2xl border text-right transition-all duration-200 overflow-hidden group
-                              ${isActive
-                                ? 'bg-sky-500/20 border-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.3)] z-10'
-                                : 'bg-white/5 border-white/10 opacity-70 hover:opacity-100 hover:bg-white/10 hover:border-white/20 hover:scale-[1.02]'}`}
+                            onClick={() => { setPresetSearchQuery(''); setPresetSearchResults([]); }}
+                            className="absolute left-10 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/80 p-0.5 rounded-full hover:bg-white/5 transition-all"
                           >
-                            {isActive && <div className="absolute inset-0 bg-linear-to-b from-sky-500/10 to-transparent pointer-events-none" />}
-                            <div className="flex items-center justify-between w-full mb-3 relative z-10" dir="ltr">
-                              <span className="text-[10px] font-mono text-gray-500">{i + 1}</span>
-                              <div className="flex items-center gap-1.5">
-                                {isActive && (
-                                  <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-red-500 text-white px-2 py-0.5 rounded-full animate-pulse">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-white opacity-80" /> Live
-                                  </span>
-                                )}
-                                {slide.title && (
-                                  <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full
-                                    ${isChorus ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' : 'bg-white/10 text-gray-300 border border-white/10'}`}>
-                                    {slide.title}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex-1 w-full text-sm font-bold leading-relaxed text-gray-200 line-clamp-4 relative z-10 wrap-break-word whitespace-pre-line text-right">
-                              {slide.text.replace(/\[.*?\]/g, '')}
-                            </div>
+                            <X className="w-3.5 h-3.5" />
                           </button>
-                        );
-                      })}
+                        )}
+                      </div>
+
+                      {/* Dropdown Recommendations Box */}
+                      {presetSearchResults.length > 0 && (
+                        <div className="absolute top-full mt-2 left-0 right-0 max-h-60 overflow-y-auto bg-[#0d1321]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] p-2 custom-scrollbar flex flex-col gap-1.5 z-[100]">
+                          {presetSearchResults.map((hymn) => (
+                            <button
+                              key={hymn._id}
+                              onClick={() => {
+                                setSelectedLyricsHymn(hymn);
+                                setDataShowIndex(0);
+                                setPresetSearchQuery('');
+                                setPresetSearchResults([]);
+                                
+                                const slides = buildHymnPresentationSlides(hymn.lyrics, {
+                                  showChords,
+                                  viewportHeight: presentationViewport.height,
+                                  viewportWidth: presentationViewport.width,
+                                });
+                                broadcastLocalSlide(slides, 0, hymn.title);
+                              }}
+                              className="w-full text-right px-4 py-2 rounded-xl text-xs font-bold text-gray-300 hover:text-white bg-white/5 hover:bg-sky-500/25 border border-white/5 hover:border-sky-500/30 transition-all flex items-center justify-between gap-3 active:scale-[0.98]"
+                            >
+                              <span className="truncate">{hymn.title}</span>
+                              {hymn.party && (
+                                <span className="text-[9px] font-medium text-gray-500 bg-white/5 px-2 py-0.5 rounded-full shrink-0">
+                                  {Array.isArray(hymn.party) ? hymn.party[0] : hymn.party}
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      {dataShowId ? (
+                        <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-1.5 rounded-full text-sm font-medium shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981]" /> متصل
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 bg-white/5 border border-white/10 text-gray-400 px-4 py-1.5 rounded-full text-sm font-medium">
+                          <div className="w-2 h-2 rounded-full bg-gray-500" /> غير متصل
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Desktop Live Session Footer */}
-                  <div className="shrink-0 bg-[#0f172a] border-t border-white/10 px-6 py-3 z-20">
-                    {!dataShowId ? (
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-2 text-xs text-gray-500 shrink-0">
-                          <Tv2 className="w-4 h-4" />
-                          <span className="font-semibold">HDMI Session</span>
-                        </div>
-                        <div className="flex flex-1 items-center gap-2">
-                          <input type="text" value={dataShowIdInput} onChange={e => setDataShowIdInput(e.target.value)}
-                            placeholder='Room ID, e.g. "sunday-01"'
-                            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600 min-w-0"
-                            onKeyDown={e => { if (e.key === 'Enter') handleCreateSession(); }}
-                          />
-                          <button
-                            onClick={handleCreateSession}
-                            disabled={isCreatingSession}
-                            className="flex items-center justify-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-400 disabled:bg-sky-500/50 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-all whitespace-nowrap"
-                          >
-                            {isCreatingSession ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                <span>Creating...</span>
-                              </>
-                            ) : 'Create'}
-                          </button>
-                          <button
-                            onClick={handleJoinSession}
-                            disabled={isJoiningSession}
-                            className="px-4 py-2 bg-indigo-500/80 hover:bg-indigo-500 disabled:bg-indigo-500/40 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-all whitespace-nowrap"
-                          >
-                            Join
-                          </button>
-                        </div>
+                  {/* Main Content: Grid & Preview */}
+                  <div className="flex-1 flex gap-8 p-8 min-h-0 overflow-hidden" dir="rtl">
+                    
+                    {/* Preview Panel (Right Side) */}
+                    <div className="hidden lg:flex flex-col w-80 xl:w-[450px] shrink-0 h-full">
+                      <div className="flex justify-between items-center mb-4 px-1">
+                        <span className="text-sm font-semibold text-gray-400">معاينة</span>
+                        <span className="text-lg font-bold text-gray-100 tracking-wide">ملخص الشاشة الثانية</span>
                       </div>
-                    ) : (
-                      <div className="flex flex-wrap items-center gap-2">
-                        {sessionExpiresAt && (
-                          <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[11px] font-mono whitespace-nowrap">
-                            <span>⏳ Expires at {new Date(sessionExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <div
+                        className="flex-1 border border-white/10 rounded-3xl p-8 flex flex-col justify-center items-center text-center relative shadow-[inset_0_0_40px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300"
+                        style={{
+                          background: dataShowActiveBg === 'default'
+                            ? 'radial-gradient(ellipse 80% 60% at 50% 40%, #0d1527 0%, #070a14 100%)'
+                            : `url(${dataShowActiveBg}) center/cover no-repeat`
+                        }}
+                      >
+                        <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-gray-500/20 to-transparent" />
+                        <div className="text-2xl sm:text-4xl font-extrabold text-white leading-relaxed wrap-break-word whitespace-pre-line drop-shadow-[0_5px_15px_rgba(0,0,0,0.8)]">
+                          {dataShowSlides[dataShowIndex] ? dataShowSlides[dataShowIndex].text.replace(/\[.*?\]/g, '') : 'لا يوجد نص'}
+                        </div>
+                        {dataShowBlackout && (
+                          <div className="absolute inset-0 bg-black/95 backdrop-blur-md flex flex-col justify-center items-center gap-3 transition-all duration-300 z-20">
+                            <EyeOff className="w-10 h-10 text-amber-500/80 animate-pulse" />
+                            <span className="text-sm font-bold text-amber-500/80">الشاشة الحية مخفية (Blackout)</span>
                           </div>
                         )}
-                        <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
-                          onClick={(e) => {
-                            if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
-                              e.preventDefault();
-                              setIsJoiningSession(true);
-                              router.push(`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`);
-                            }
-                          }}
-                          target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all">
-                          <Tv2 className="w-4 h-4" /> Open Display Window
-                        </a>
-                        <a href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`}
-                          onClick={(e) => {
-                            if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
-                              e.preventDefault();
-                              setIsJoiningSession(true);
-                              router.push(`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`);
-                            }
-                          }}
-                          target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all">
-                          <ExternalLink className="w-4 h-4" /> Mobile Remote
-                        </a>
-                        <button onClick={toggleAudio}
-                          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${isAudioActive ? 'bg-sky-500/10 border-sky-500/30 text-sky-400' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}>
-                          {isAudioActive ? <Mic className="w-4 h-4 animate-pulse text-sky-400" /> : <MicOff className="w-4 h-4" />}
-                          {isAudioActive ? 'Mic On' : 'Mic Off'}
-                        </button>
-                        <button onClick={() => { if (isAudioActive) toggleAudio(); clearDisplay(); setDataShowId(''); setSessionExpiresAt(null); localStorage.removeItem('myLivePresentationId'); }}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all ml-auto">
-                          <X className="w-4 h-4" /> End Session
+                        <div className="absolute bottom-4 left-4 bg-black/40 backdrop-blur-md border border-white/5 px-3 py-1 rounded-lg text-xs font-medium text-gray-400">
+                          معاينة
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Slides Grid (Left Side) */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar pl-2">
+                      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5 pb-4">
+                        {dataShowSlides.map((slide, i) => {
+                          const isActive = dataShowIndex === i;
+                          const isChorus = slide.type === 'chorus';
+                          return (
+                            <button
+                              key={i}
+                              onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
+                              className={`relative flex flex-col h-44 p-5 rounded-2xl border text-right transition-all duration-300 overflow-hidden group outline-none
+                                ${isActive
+                                  ? 'bg-sky-900/40 border-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.15)] ring-1 ring-sky-400/50 z-10 scale-[1.02]'
+                                  : 'bg-white/5 border-white/10 opacity-70 hover:opacity-100 hover:bg-white/10 hover:border-white/20 hover:scale-[1.02] shadow-lg shadow-black/20'}`}
+                            >
+                              {isActive && <div className="absolute inset-0 bg-linear-to-br from-sky-500/10 to-transparent pointer-events-none" />}
+                              <div className="flex items-center justify-between w-full mb-4 relative z-10" dir="ltr">
+                                <span className={`text-[11px] font-mono px-2 py-0.5 rounded-md ${isActive ? 'bg-sky-500/20 text-sky-300' : 'bg-black/30 text-gray-400'}`}>
+                                  {i + 1}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  {isActive && (
+                                    <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest bg-red-500 text-white px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.5)]">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-white opacity-90 animate-pulse" /> Live
+                                    </span>
+                                  )}
+                                  {slide.title && (
+                                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full backdrop-blur-sm
+                                      ${isChorus ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : 'bg-white/5 text-gray-300 border border-white/10'}`}>
+                                      {slide.title}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex-1 w-full text-[15px] font-bold leading-relaxed text-gray-100 line-clamp-4 relative z-10 wrap-break-word whitespace-pre-line text-right">
+                                {slide.text.replace(/\[.*?\]/g, '')}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Settings Footer (Bottom Bar) */}
+                  <div className="shrink-0 bg-[#0d1321] border-t border-white/5 px-8 py-5 z-20" dir="rtl">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-sm font-bold text-gray-300 tracking-wide">Quick Settings</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-gray-400 font-medium">LiveAudioBadge</span>
+                        <button onClick={toggleAudio} className={`p-2 rounded-full transition-all active:scale-95 ${isAudioActive ? 'bg-sky-500/20 text-sky-400 shadow-[0_0_15px_rgba(56,189,248,0.3)]' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+                          {isAudioActive ? <Mic className="w-5 h-5 animate-pulse" /> : <MicOff className="w-5 h-5" />}
                         </button>
                       </div>
+                    </div>
+
+                    {/* Background Images Selection Grid (Collapsible) */}
+                    {showBgSelector && (
+                      <div className="mb-4 p-4 bg-black/40 border border-white/5 rounded-2xl flex flex-col gap-3 transition-all duration-300" dir="rtl">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-gray-400">خلفية الشاشة الحية (أقصى حد: 5 صور)</span>
+                          <span className="text-[11px] text-gray-500 font-medium">تم رفع {dataShowBackgrounds.length} من أصل 5 صور</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 py-1">
+                          {/* Default Option */}
+                          <button
+                            onClick={() => handleSelectBackground('default')}
+                            className={`relative w-16 h-12 rounded-xl overflow-hidden border flex-none flex items-center justify-center text-[10px] font-bold text-white transition-all active:scale-95
+                              ${dataShowActiveBg === 'default'
+                                ? 'border-sky-400 ring-2 ring-sky-400/30'
+                                : 'border-white/10 opacity-70 hover:opacity-100 shadow-md'}`}
+                            style={{
+                              background: 'radial-gradient(ellipse 80% 60% at 50% 40%, #0d1527 0%, #070a14 100%)'
+                            }}
+                          >
+                            الافتراضي
+                          </button>
+
+                          {/* Uploaded Backgrounds */}
+                          {dataShowBackgrounds.map((bg, idx) => {
+                            const isActive = dataShowActiveBg === bg;
+                            return (
+                              <div key={idx} className="relative w-16 h-12 rounded-xl flex-none group">
+                                <button
+                                  onClick={() => handleSelectBackground(bg)}
+                                  className={`w-full h-full rounded-xl overflow-hidden border transition-all active:scale-95
+                                    ${isActive
+                                      ? 'border-sky-400 ring-2 ring-sky-400/30'
+                                      : 'border-white/10 opacity-70 hover:opacity-100 shadow-md'}`}
+                                >
+                                  <img src={bg} alt="custom bg" className="w-full h-full object-cover" />
+                                </button>
+                                <button
+                                  onClick={(e) => handleDeleteBackground(bg, e)}
+                                  className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-red-500/90 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-all active:scale-90"
+                                  title="حذف"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            );
+                          })}
+
+                          {/* Upload Slot */}
+                          {dataShowBackgrounds.length < 5 && (
+                            <label className="w-16 h-12 rounded-xl border border-dashed border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 flex items-center justify-center cursor-pointer transition-all active:scale-95 flex-none shadow-md">
+                              <PlusCircle className="w-5 h-5 text-gray-400 hover:text-white" />
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleUploadBackground}
+                                className="hidden"
+                              />
+                            </label>
+                          )}
+                        </div>
+                      </div>
                     )}
+
+                    {/* Controls & Connection Row */}
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      {/* Left side in RTL (UI Actions) */}
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button
+                          onClick={toggleBlackout}
+                          className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all hover:scale-105 active:scale-95
+                            ${dataShowBlackout
+                              ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)] animate-pulse'
+                              : 'bg-white/5 border-white/5 text-gray-300 hover:bg-white/10'}`}
+                        >
+                          {dataShowBlackout ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                          {dataShowBlackout ? 'إظهار الشاشة' : 'إخفاء الشاشة'}
+                        </button>
+                        <button
+                          onClick={() => setShowBgSelector(!showBgSelector)}
+                          className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all hover:scale-105 active:scale-95
+                            ${showBgSelector
+                              ? 'bg-sky-500/20 border-sky-500/40 text-sky-300 shadow-[0_0_15px_rgba(56,189,248,0.15)]'
+                              : 'bg-white/5 border-white/5 text-gray-300 hover:bg-white/10'}`}
+                        >
+                          <Moon className="w-4 h-4" /> المظهر
+                        </button>
+                        <button
+                          onClick={handleReset}
+                          className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/5 border border-white/5 text-gray-300 text-sm font-medium hover:bg-white/10 transition-all hover:scale-105 active:scale-95"
+                        >
+                          <RotateCcw className="w-4 h-4" /> إعادة تعيين
+                        </button>
+                        
+                        <div className="h-6 w-px bg-white/10 mx-1"></div>
+
+                        {/* Font Scale Control Widget */}
+                        <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1 rounded-full">
+                          <button
+                            onClick={decreaseFontSize}
+                            disabled={dataShowFontScale <= 0.5}
+                            className="p-1.5 hover:bg-white/10 rounded-full text-gray-300 disabled:opacity-20 transition-all active:scale-90"
+                            title="تصغير الخط"
+                          >
+                            <ZoomOut className="w-4 h-4" />
+                          </button>
+                          <span className="text-xs font-mono text-gray-300 min-w-[40px] text-center select-none">
+                            {Math.round(dataShowFontScale * 100)}%
+                          </span>
+                          <button
+                            onClick={increaseFontSize}
+                            disabled={dataShowFontScale >= 2.0}
+                            className="p-1.5 hover:bg-white/10 rounded-full text-gray-300 disabled:opacity-20 transition-all active:scale-90"
+                            title="تكبير الخط"
+                          >
+                            <ZoomIn className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Right side in RTL (Session Management) */}
+                      <div className="flex items-center gap-3 bg-black/30 p-1.5 rounded-2xl border border-white/5" dir="ltr">
+                        {!dataShowId ? (
+                          <>
+                            <input type="text" value={dataShowIdInput} onChange={e => setDataShowIdInput(e.target.value)}
+                              placeholder="Room ID..."
+                              className="bg-transparent px-3 py-1.5 text-sm text-white focus:outline-none w-32 placeholder:text-gray-600"
+                              onKeyDown={e => { if (e.key === 'Enter') handleCreateSession(); }}
+                            />
+                            <button onClick={handleCreateSession} disabled={isCreatingSession} className="px-4 py-1.5 bg-sky-500/80 hover:bg-sky-500 active:scale-95 rounded-xl text-sm font-bold text-white transition-all">
+                              {isCreatingSession ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
+                            </button>
+                            <button onClick={handleJoinSession} disabled={isJoiningSession} className="px-4 py-1.5 bg-white/10 hover:bg-white/20 active:scale-95 rounded-xl text-sm font-bold text-white transition-all">
+                              Join
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
+                              className="px-4 py-1.5 rounded-xl bg-indigo-500/20 text-indigo-300 text-xs font-bold hover:bg-indigo-500/30 active:scale-95 transition-all flex items-center gap-1.5">
+                              <Tv2 className="w-3.5 h-3.5" /> Display
+                            </a>
+                            <button onClick={() => { if (isAudioActive) toggleAudio(); clearDisplay(); setDataShowId(''); setSessionExpiresAt(null); localStorage.removeItem('myLivePresentationId'); }}
+                              className="px-4 py-1.5 rounded-xl bg-red-500/20 text-red-400 text-xs font-bold hover:bg-red-500/30 active:scale-95 transition-all flex items-center gap-1.5">
+                              <X className="w-3.5 h-3.5" /> End
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
+
                 </div>
 
               </div >
@@ -4727,7 +5129,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       </div>
 
       {/* Key/Scale - Under Title on Mobile (Left Aligned), Center on Desktop */}
-      <div className={`col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0 lg:top-2 transition-opacity ${vocalsMode? 'opacity-0 pointer-events-none' : ''}`}>
+      <div className={`col-span-12 sm:col-span-2 relative z-10 flex items-center justify-start sm:justify-center -mt-2 sm:mt-0 pl-2 sm:pl-0 lg:top-2 transition-opacity ${vocalsMode ? 'opacity-0 pointer-events-none' : ''}`}>
         <KeyDisplay
           scale={currentScale}
           relatedChords={currentChords}

@@ -12,21 +12,39 @@ function LocalDisplayContent() {
   const [totalSlides, setTotalSlides] = useState(0);
   const [ready, setReady] = useState(false);
 
+  // Sync settings states
+  const [blackout, setBlackout] = useState(false);
+  const [fontScale, setFontScale] = useState(1.0);
+  const [activeBg, setActiveBg] = useState(() => {
+    if (typeof window === 'undefined') return 'default';
+    return localStorage.getItem('taspe_active_background') || 'default';
+  });
+
   useEffect(() => {
     setReady(true);
     const channel = new BroadcastChannel(CHANNEL_NAME);
 
     channel.onmessage = (event) => {
-      const { type, slide, hymn, index, total } = event.data || {};
+      const { type, slide, hymn, index, total, settings } = event.data || {};
 
       if (type === 'slide') {
         setSlideData(slide);
         setHymnTitle(hymn || '');
         setSlideIndex(index ?? 0);
         setTotalSlides(total ?? 0);
+        if (settings) {
+          if (settings.blackout !== undefined) setBlackout(settings.blackout);
+          if (settings.activeBg !== undefined) setActiveBg(settings.activeBg);
+          if (settings.fontScale !== undefined) setFontScale(settings.fontScale);
+        }
       } else if (type === 'clear') {
         setSlideData(null);
         setHymnTitle('');
+      } else if (type === 'settings') {
+        const { blackout, activeBg, fontScale } = event.data.settings || {};
+        if (blackout !== undefined) setBlackout(blackout);
+        if (activeBg !== undefined) setActiveBg(activeBg);
+        if (fontScale !== undefined) setFontScale(fontScale);
       }
     };
 
@@ -56,9 +74,21 @@ function LocalDisplayContent() {
 
   return (
     <div
-      className="fixed inset-0 bg-black flex flex-col items-center justify-center select-none overflow-hidden"
-      style={{ fontFamily: "'Georgia', serif" }}
+      className="fixed inset-0 flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-300"
+      style={{
+        fontFamily: "'Georgia', serif",
+        background: activeBg === 'default'
+          ? 'radial-gradient(ellipse 80% 60% at 50% 40%, #0d1527 0%, #070a14 100%)'
+          : `url(${activeBg}) center/cover no-repeat`
+      }}
     >
+      {/* Blackout Overlay */}
+      <div
+        className={`fixed inset-0 bg-black transition-opacity duration-500 z-50 pointer-events-none ${
+          blackout ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+
       {/* Hymn title — subtle top-left */}
       {hymnTitle && (
         <div className="absolute top-6 left-8 text-white/25 text-base font-light tracking-widest truncate max-w-[40vw]">
@@ -104,6 +134,7 @@ function LocalDisplayContent() {
               <div
                 className="absolute top-8 left-1/2 -translate-x-1/2 text-white/40 text-base sm:text-xl font-black tracking-[0.4em] px-6 py-2 rounded-full border border-white/10 bg-white/5 uppercase select-none"
                 dir="rtl"
+                style={{ fontSize: `clamp(12px, ${1.5 * fontScale}vw, ${22 * fontScale}px)` }}
               >
                 {title}
               </div>
@@ -130,7 +161,7 @@ function LocalDisplayContent() {
                           dir="ltr"
                           style={{
                             color: '#38BDF8',
-                            fontSize: 'clamp(10px, 1.5vw, 22px)',
+                            fontSize: `clamp(10px, ${1.5 * fontScale}vw, ${22 * fontScale}px)`,
                             visibility: seg.chord ? 'visible' : 'hidden',
                             textShadow: '0 2px 8px rgba(0,0,0,0.8)'
                           }}
@@ -139,8 +170,8 @@ function LocalDisplayContent() {
                         </span>
                         {/* Lyric row */}
                         <span
-                          className={`font-bold whitespace-pre-wrap leading-tight select-none tracking-tight drop-shadow-[0_2px_16px_rgba(0,0,0,0.6)] ${isChorus ? 'text-yellow-300' : 'text-white'}`}
-                          style={{ fontSize: 'clamp(28px, 7vw, 100px)' }}
+                          className={'font-bold whitespace-pre-wrap leading-tight select-none tracking-tight drop-shadow-[0_2px_16px_rgba(0,0,0,0.6)] text-white'}
+                          style={{ fontSize: `clamp(20px, ${6.5 * fontScale}vw, ${90 * fontScale}px)` }}
                         >
                           {seg.text || '\u00A0'}
                         </span>
