@@ -5,6 +5,31 @@
 
 const DEFAULT_VIEWPORT = { width: 1200, height: 900 };
 
+function resolveViewport(options = {}) {
+  let width = options.viewportWidth;
+  let height = options.viewportHeight;
+
+  if (typeof window !== 'undefined') {
+    const presentationWin = window.presentationWindow || (window.name === 'taspe_local_display' ? window : null);
+    if (presentationWin && !presentationWin.closed) {
+      width = presentationWin.innerWidth;
+      height = presentationWin.innerHeight;
+    } else {
+      if (!width || width === window.innerWidth) {
+        width = window.screen.width;
+      }
+      if (!height || height === window.innerHeight) {
+        height = window.screen.height;
+      }
+    }
+  }
+
+  return {
+    width: width || DEFAULT_VIEWPORT.width,
+    height: height || DEFAULT_VIEWPORT.height,
+  };
+}
+
 export function getLyricLines(text) {
   if (!text) return [];
   return text.split('\n').map((l) => l.trimEnd()).filter((l) => l.trim() !== '');
@@ -95,7 +120,7 @@ function estimateWrappedRows(line, viewportWidth, fontSize) {
 }
 
 export function estimateLineVisualHeight(line, options = {}) {
-  const viewportWidth = options.viewportWidth ?? DEFAULT_VIEWPORT.width;
+  const { width: viewportWidth } = resolveViewport(options);
   const showChords = options.showChords !== false;
   const fontSize = estimateFontSize(viewportWidth);
   const rows = estimateWrappedRows(line, viewportWidth, fontSize);
@@ -110,7 +135,7 @@ export function estimateLineVisualHeight(line, options = {}) {
 export function autoGroupLinesIntoSlides(lines, options = {}) {
   if (!lines.length) return [];
 
-  const viewportHeight = options.viewportHeight ?? DEFAULT_VIEWPORT.height;
+  const { width: viewportWidth, height: viewportHeight } = resolveViewport(options);
   const titleHeight = options.titleHeight ?? 72;
   const paddingVertical = options.paddingVertical ?? 140;
   const availableHeight = Math.max(200, viewportHeight - titleHeight - paddingVertical);
@@ -129,7 +154,7 @@ export function autoGroupLinesIntoSlides(lines, options = {}) {
       continue;
     }
 
-    const lineHeight = estimateLineVisualHeight(line, options);
+    const lineHeight = estimateLineVisualHeight(line, { ...options, viewportWidth, viewportHeight });
 
     if (currentLines.length > 0 && currentHeight + lineHeight > availableHeight) {
       slides.push(currentLines.join('\n'));
