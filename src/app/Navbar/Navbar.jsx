@@ -9,6 +9,7 @@ import { useLanguage } from "../context/LanguageContext";
 // Adjust import according to your file structure
 import { translations } from "../i18n/translations";
 import { UserContext } from "../context/User_Context";
+import Image from "next/image";
 
 export default function Navbar() {
     const { t, language, setLanguage } = useLanguage();
@@ -117,13 +118,14 @@ export default function Navbar() {
     }
 
     return (
-        <nav className="sticky w-full flex justify-between items-center py-3 px-6 top-0 z-50 bg-blue-950/20 backdrop-blur-xl border-b border-sky-500/10 transition-all duration-300">
+        <nav className="sticky w-full flex justify-between items-center py-3 px-6 top-0 z-50 bg-[#0b0f19]/60 backdrop-blur-md border-b border-white/10 shadow-lg shadow-black/20 transition-all duration-300">
             {/* Logo */}
             <Link
                 href="/"
                 className="relative font-bold text-2xl tracking-tight bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent drop-shadow-sm cursor-pointer"
             >
-                {t("praiseTeam")}
+                {/* {t("praiseTeam")} */}
+                <Image src="/wasla.svg" alt="logo" width={100} height={100} />
             </Link>
 
             {/* Desktop Menu */}
