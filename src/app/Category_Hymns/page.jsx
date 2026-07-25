@@ -28,6 +28,7 @@ import {
   prepareLyricsForSave,
   sanitizeSlideBreaks,
 } from '../utils/hymnSlides';
+import { useCategoryHymnsTour } from './Tour/useCategoryHymnsTour';
 
 const API_ROOT = getApiBaseUrl();
 const BIBLE_API = `${API_ROOT}/bible`;
@@ -376,6 +377,8 @@ export default function Category_Humns() {
     }
   }, []);
 
+  // Product tour
+  useCategoryHymnsTour(language);
 
   // Re-introduced for Role checks
   const [activeTab, setActiveTab] = useState('all');
@@ -2540,6 +2543,7 @@ export default function Category_Humns() {
       <div className="mb-8 flex items-center justify-center gap-3 relative z-20 h-12">
         {/* Search Toggle (Icon Only) */}
         <button
+          id="tour-search-btn"
           onClick={() => {
             setShowSearchBar(!showSearchBar);
             if (showSearchBar) {
@@ -2586,7 +2590,7 @@ export default function Category_Humns() {
       {
         showSearchBar ?
           (null) :
-          <div className="flex flex-wrap justify-center gap-4 mb-8">
+          <div id="tour-categories" className="flex flex-wrap justify-center gap-4 mb-8">
             {categories.map((cat) => {
               const Icon = cat.icon;
               const isActive = activeTab === cat.id;
@@ -2620,6 +2624,7 @@ export default function Category_Humns() {
       <div className="flex flex-wrap justify-end items-center gap-3 mb-6">
         {/* --- ADD THIS BIBLE BUTTON --- */}
         <button
+          id="tour-bible-btn"
           onClick={() => setShowBibleModal(true)}
           className="flex items-center gap-2 px-5 py-2.5 bg-sky-500/10 text-sky-400 border border-sky-500/30 rounded-full hover:bg-sky-500/20 transition-all shadow-[0_0_15px_rgba(56,189,248,0.1)] active:scale-95 font-semibold text-sm"
         >
@@ -2639,7 +2644,7 @@ export default function Category_Humns() {
         )}
 
         {/* Live Session Panel */}
-        <div className="relative animate-live-session-parent-full">
+        <div id="tour-live-session" className="relative animate-live-session-parent-full">
           <div className={`relative p-[1px] rounded-full overflow-hidden transition-all duration-300 animate-live-session-intro
             ${isConnected
               ? 'shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]'
