@@ -16,7 +16,7 @@ export const translations = {
     musicianModeSoon: "Musician Mode (Soon)",
     vocal: "Vocal",
     musician: "Musician",
-
+livesession: 'Live Session',
     // Workspace
     myWorkspace: "My Workspace",
     manageSetlist: "Manage your setlist for the service",
@@ -283,10 +283,10 @@ export const translations = {
     musicianModeSoon: "وضع الموسيقي (قريبًا)",
     vocal: "مرنم",
     musician: "موسيقي",
-
+    livesession: 'غرفة المزامنة',
     // Workspace
-    myWorkspace: "مساحة العمل الخاصة بي",
-    manageSetlist: "إدارة قائمة الترانيم للخدمة",
+    myWorkspace: "مساحة العمل",
+    manageSetlist: "إدارة القائمة للخدمة",
     songTitle: "عنوان الترنيمة",
     keyChords: "المفتاح / الكوردات",
     media: "الوسائط",

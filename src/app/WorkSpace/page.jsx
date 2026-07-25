@@ -6,6 +6,7 @@ import { PlayCircle, Trash2, Heart, Music, Gift, Star, Sparkles, GraduationCap, 
 import Metronome from '../Metronome/page';
 import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
+import { useLanguage } from "../context/LanguageContext";
 import Portal from '../Portal/Portal';
 import { Virtuoso } from 'react-virtuoso';
 import { transposeScale, transposeChords, transposeLyrics } from '../utils/musicUtils';
@@ -805,6 +806,7 @@ export default function WorkSpace() {
     const [showSubjectModal, setShowSubjectModal] = useState(false);
     const [subjectForm, setSubjectForm] = useState({ id: null, title: 'Title 1', text: '' });
     const { isLogin, UserRole, vocalsMode, user_id } = useContext(UserContext);
+    const { t, language, setLanguage } = useLanguage();
 
     // Categories Configuration for Icon Lookup
     const categories = [
@@ -1228,7 +1230,7 @@ export default function WorkSpace() {
                     } else if (typeof errData === 'string') {
                         errMsg = errData;
                     }
-                } catch (_) {}
+                } catch (_) { }
                 alert(errMsg);
             }
         } catch (error) {
@@ -1749,9 +1751,9 @@ export default function WorkSpace() {
                 <div className="text-center mb-10">
 
                     <h1 className="text-3xl sm:text-5xl font-extrabold bg-linear-to-br from-sky-300 via-blue-400 to-indigo-500 text-transparent bg-clip-text drop-shadow-lg">
-                        My Workspace
+                        {t('myWorkspace')}
                     </h1>
-                    <p className="mt-2 text-gray-400">Manage your setlist for the service</p>
+                    <p className="mt-2 text-gray-400">{t('manageSetlist')}</p>
 
                     {/* Smart Floating Dock */}
                     <div className="relative flex justify-center mt-6">
@@ -1766,7 +1768,7 @@ export default function WorkSpace() {
                                     aria-label="Open actions"
                                 >
                                     <ChevronUp size={16} className="dock-fab-icon" strokeWidth={2.5} />
-                                    <span className="dock-fab-label">Actions</span>
+                                    <span className="dock-fab-label">{t('actions')}</span>
                                 </button>
                             ) : (
                                 <div className="dock-pill">
@@ -1864,7 +1866,7 @@ export default function WorkSpace() {
                                     <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse text-green-400' : ''}`} />
                                     {isConnected ? (
                                         <><span className="text-[10px] text-green-400 font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
-                                    ) : 'Start Live Session'}
+                                    ) : t('livesession')}
                                 </button>
                             </div>
                         </div>
@@ -1986,10 +1988,15 @@ export default function WorkSpace() {
                     {/* Table Header */}
                     <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest bg-white/5 rounded-t-2xl border-b border-white/10 mx-2">
                         <div className="col-span-1 text-center">#</div>
-                        <div className="col-span-11 sm:col-span-5 md:col-span-5">Song Title</div>
-                        <div className="col-span-2 text-center bg-white/5 rounded-lg py-1">Key / Chords</div>
-                        <div className="col-span-1 text-center">Remove</div>
-                        <div className="col-span-3 text-center">Media</div>
+                        <div className="col-span-5">{t("songTitle")}</div>
+
+                        {/* الخلية بتفضل واخدة 2 columns بس الكلام جواه مختفي invisible */}
+                        <div className={`col-span-2 text-center bg-white/5 rounded-lg py-1 ${vocalsMode ? "invisible" : ""}`}>
+                            {t("keyChords")}
+                        </div>
+
+                        <div className="col-span-1 text-center">{t("action")}</div>
+                        <div className="col-span-3 text-center">{t("media")}</div>
                     </div>
 
                     {/* List Body with react-virtuoso */}

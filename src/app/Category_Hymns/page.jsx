@@ -9,7 +9,7 @@ import Portal from '../Portal/Portal';
 import Metronome from '../Metronome/page';
 import { UserContext } from '../context/User_Context';
 // Add BookOpen to this line
-import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2, Mic, MicOff, BookOpen, ChevronDown, Loader2, Copy, Share2, ClipboardCheck, Link2, Lightbulb, Eraser, Moon, RotateCcw, ZoomOut, ZoomIn    } from 'lucide-react';
+import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2, Mic, MicOff, BookOpen, ChevronDown, Loader2, Copy, Share2, ClipboardCheck, Link2, Lightbulb, Eraser, Moon, RotateCcw, ZoomOut, ZoomIn,Cross } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
 import { showToast } from '../components/ToastContainer';
@@ -2237,7 +2237,7 @@ export default function Category_Humns() {
     { id: 'christmas', label: t("Christmas"), icon: Gift },
     { id: 'prayer_times', label: t("PrayerTimes"), icon: Star },
     { id: 'praise', label: t("Praise"), icon: Sparkles },
-    { id: 'cross', label: t("Cross"), icon: Heart },
+    { id: 'cross', label: t("Cross"), icon: Cross },
     { id: 'kids', label: t("Kids"), icon: GraduationCap },
   ];
 
@@ -2624,7 +2624,7 @@ export default function Category_Humns() {
           className="flex items-center gap-2 px-5 py-2.5 bg-sky-500/10 text-sky-400 border border-sky-500/30 rounded-full hover:bg-sky-500/20 transition-all shadow-[0_0_15px_rgba(56,189,248,0.1)] active:scale-95 font-semibold text-sm"
         >
           <BookOpen className="w-5 h-5" />
-          <span>Bible Search</span>
+          <span>{t('bible')}</span>
         </button>
         {/* ----------------------------- */}
 
@@ -2665,7 +2665,7 @@ export default function Category_Humns() {
               <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse text-green-400' : ''}`} />
               {isConnected ? (
                 <><span className="text-[10px] text-green-400 font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
-              ) : 'Live Session'}
+              ) : t('livesession')}
             </button>
           </div>
 
@@ -3800,7 +3800,7 @@ export default function Category_Humns() {
                             onClick={() => setPrayModeActive(true)}
                             className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95"
                           >
-                            <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400/20" /> Pray
+                            <Cross className="w-3.5 h-3.5 text-rose-400 fill-rose-400/20" /> Pray
                           </button>
                           {/* AI Analyze Button */}
                           <button
