@@ -22,10 +22,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-    title: "Worship Team",
+    title: "Wasla",
     description: "تسبيحنا يرتفع للسماء",
     icons: {
-        icon: "/worship-bg.webp", // هيظهر بدل أي favicon افتراضي
+        icon: "/wasla0.svg", // هيظهر بدل أي favicon افتراضي
     },
 };
 
