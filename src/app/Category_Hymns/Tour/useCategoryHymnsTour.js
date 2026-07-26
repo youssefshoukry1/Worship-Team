@@ -28,7 +28,7 @@ export function useCategoryHymnsTour(language) {
           popover: {
             title: isAr ? '🔍 البحث' : isDe ? '🔍 Suche' : '🔍 Search',
             description: isAr
-              ? 'ابحث عن أي ترنيمة بسرعة بالاسم أو الكلمات'
+              ? 'استمتع بالسيرش الذكي اونلاين واوفلاين مقبول'
               : isDe
                 ? 'Finde schnell jedes Lied nach Name oder Text'
                 : 'Quickly find any hymn by name or lyrics',
@@ -67,7 +67,7 @@ export function useCategoryHymnsTour(language) {
           popover: {
             title: isAr ? '📡 غرفة المزامنة' : isDe ? '📡 Live-Sitzung' : '📡 Live Session',
             description: isAr
-              ? 'أنشئ أو انضم لغرفة عرض مباشر لمزامنة الترانيم مع فريقك'
+              ? 'أنشئ أو انضم لغرفة عرض مباشر لمزامنة الترانيم مع اصحابك'
               : isDe
                 ? 'Erstelle oder tritt einem Live-Raum bei, um Lieder mit deinem Team zu synchronisieren'
                 : 'Create or join a live room to sync hymns with your team',
