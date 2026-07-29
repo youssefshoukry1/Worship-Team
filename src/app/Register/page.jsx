@@ -1,10 +1,8 @@
 "use client";
 
 import axios from "axios";
-import { useFormik } from "formik";
 import React, { useCallback, useContext, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import * as Yup from "yup";
 import { UserContext } from "../context/User_Context";
 import Link from "next/link";
 
@@ -23,18 +21,27 @@ export default function Register() {
     const [emailStatus, setEmailStatus] = useState(EMAIL_STATUS.IDLE);
     const [emailStatusMsg, setEmailStatusMsg] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const router = useRouter();
     const emailCheckTimeout = useRef(null);
 
+    // Form states
+    const [name, setName] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [churchName, setChurchName] = useState("");
+    const [accountType, setAccountType] = useState("normal");
+
     // Debounced backend email check
-    const checkEmailDomain = useCallback(async (email) => {
-        if (!email || !email.includes("@") || !email.split("@")[1]) return;
+    const checkEmailDomain = useCallback(async (emailVal) => {
+        if (!emailVal || !emailVal.includes("@") || !emailVal.split("@")[1]) return;
         setEmailStatus(EMAIL_STATUS.CHECKING);
         setEmailStatusMsg("Verifying email...");
         try {
             const res = await axios.post(
                 `${process.env.NEXT_PUBLIC_API_URL}/users/check-email`,
-                { email }
+                { email: emailVal }
             );
             if (res.data.valid) {
                 setEmailStatus(EMAIL_STATUS.VALID);
@@ -50,34 +57,53 @@ export default function Register() {
     }, []);
 
     function handleEmailChange(e) {
-        formik.handleChange(e);
-        const email = e.target.value;
+        const val = e.target.value;
+        setEmail(val);
         setEmailStatus(EMAIL_STATUS.IDLE);
         setEmailStatusMsg("");
         // Debounce: check 600ms after user stops typing
         if (emailCheckTimeout.current) clearTimeout(emailCheckTimeout.current);
-        if (email && email.includes("@") && email.split("@")[1]?.length > 2) {
+        if (val && val.includes("@") && val.split("@")[1]?.length > 2) {
             emailCheckTimeout.current = setTimeout(() => {
-                checkEmailDomain(email);
+                checkEmailDomain(val);
             }, 600);
         }
     }
 
     function handleEmailBlur(e) {
-        formik.handleBlur(e);
         if (emailCheckTimeout.current) clearTimeout(emailCheckTimeout.current);
-        const email = e.target.value;
-        if (email && email.includes("@") && email.split("@")[1]?.length > 2) {
-            checkEmailDomain(email);
+        const val = e.target.value;
+        if (val && val.includes("@") && val.split("@")[1]?.length > 2) {
+            checkEmailDomain(val);
         }
     }
 
-    function handleRegister(formsData) {
+    function handleSubmit(e) {
+        e.preventDefault();
+        
+        // Final validations before submitting
         if (emailStatus === EMAIL_STATUS.INVALID) {
             setError("Please enter a valid, real email address.");
             return;
         }
+        if (password.length < 3) {
+            setError("Password must be at least 3 characters.");
+            return;
+        }
+        if (password !== confirmPassword) {
+            setError("Passwords do not match.");
+            return;
+        }
+
         setLoading(true);
+        setError("");
+        const formsData = {
+            Name: name,
+            email,
+            password,
+            accountType,
+            ChurchName: accountType === "church" ? churchName : "",
+        };
         axios
             .post(`${process.env.NEXT_PUBLIC_API_URL}/users/register`, formsData)
             .then((response) => {
@@ -96,46 +122,23 @@ export default function Register() {
             });
     }
 
-    let validationSchema = Yup.object().shape({
-        Name: Yup.string()
-            .required("Name is required")
-            .min(3, "Minimum 3 characters")
-            .max(30, "Maximum 30 characters"), // زودتها لـ 30 عشان الأسماء المركبة
-
-        email: Yup.string()
-            .required("Email is required")
-            .email("Enter a valid email"),
-
-        password: Yup.string()
-            .required("Password is required")
-            .min(6, "Password must be at least 6 characters"),
-        accountType: Yup.string(),
-
-        ChurchName: Yup.string().when("accountType", {
-            is: "church",
-            then: (schema) => schema.required("Church Name is required"),
-            otherwise: (schema) => schema.notRequired(),
-        }),
-    });
-    let formik = useFormik({
-        initialValues: {
-            Name: "",
-            email: "",
-            password: "",
-            ChurchName: "",
-            accountType: "normal",
-        },
-        validationSchema: validationSchema,
-        onSubmit: handleRegister,
-    });
-
-    // Determine email input border color
+    // Determine input border colors dynamically
     const emailBorderClass =
         emailStatus === EMAIL_STATUS.VALID
-            ? "input-email-valid"
+            ? "input-success"
             : emailStatus === EMAIL_STATUS.INVALID
-                ? "input-email-invalid"
+                ? "input-error"
                 : "";
+
+    const passwordErrorMsg = password && password.length < 3 ? "Password must be at least 3 characters" : "";
+    const confirmPasswordErrorMsg = confirmPassword && password !== confirmPassword ? "Passwords do not match" : "";
+
+    const isFormInvalid = 
+        isLoading || 
+        emailStatus === EMAIL_STATUS.INVALID || 
+        emailStatus === EMAIL_STATUS.CHECKING ||
+        password.length < 3 ||
+        password !== confirmPassword;
 
     return (
         <div className="reg-root">
@@ -160,23 +163,23 @@ export default function Register() {
                     </div>
                 )}
 
-                <form onSubmit={formik.handleSubmit} className="reg-form">
+                <form onSubmit={handleSubmit} className="reg-form">
                     {/* Account Type Tabs */}
                     <div className="reg-tabs">
                         <button
                             type="button"
                             onClick={() => {
-                                formik.setFieldValue("accountType", "normal");
-                                formik.setFieldValue("ChurchName", "");
+                                setAccountType("normal");
+                                setChurchName("");
                             }}
-                            className={`reg-tab ${formik.values.accountType === "normal" ? "reg-tab-active" : ""}`}
+                            className={`reg-tab ${accountType === "normal" ? "reg-tab-active" : ""}`}
                         >
                             👤 Normal User
                         </button>
                         <button
                             type="button"
-                            onClick={() => formik.setFieldValue("accountType", "church")}
-                            className={`reg-tab ${formik.values.accountType === "church" ? "reg-tab-active" : ""}`}
+                            onClick={() => setAccountType("church")}
+                            className={`reg-tab ${accountType === "church" ? "reg-tab-active" : ""}`}
                         >
                             ⛪ Church User
                         </button>
@@ -188,20 +191,18 @@ export default function Register() {
                         <div className="reg-input-wrap">
                             <span className="reg-icon">👤</span>
                             <input
-                                onChange={formik.handleChange}
-                                onBlur={formik.handleBlur}
-                                value={formik.values.Name}
+                                onChange={(e) => setName(e.target.value)}
+                                value={name}
                                 name="Name"
                                 id="Name"
                                 type="text"
                                 required
+                                minLength={3}
+                                maxLength={30}
                                 className="reg-input"
                                 placeholder="Your Name"
                             />
                         </div>
-                        {formik.errors.Name && formik.touched.Name && (
-                            <p className="reg-field-error">{formik.errors.Name}</p>
-                        )}
                     </div>
 
                     {/* Email */}
@@ -217,7 +218,7 @@ export default function Register() {
                             <input
                                 onChange={handleEmailChange}
                                 onBlur={handleEmailBlur}
-                                value={formik.values.email}
+                                value={email}
                                 name="email"
                                 id="email"
                                 type="email"
@@ -237,12 +238,8 @@ export default function Register() {
                             )}
                         </div>
 
-                        {/* Formik validation error */}
-                        {formik.errors.email && formik.touched.email && (
-                            <p className="reg-field-error">{formik.errors.email}</p>
-                        )}
-                        {/* Email domain check feedback (only when no formik error) */}
-                        {!(formik.errors.email && formik.touched.email) && emailStatusMsg && (
+                        {/* Email domain check feedback */}
+                        {emailStatusMsg && (
                             <p className={`email-status-msg ${emailStatus === EMAIL_STATUS.VALID ? "email-status-valid" : emailStatus === EMAIL_STATUS.INVALID ? "email-status-invalid" : "email-status-neutral"}`}>
                                 {emailStatusMsg}
                             </p>
@@ -255,14 +252,14 @@ export default function Register() {
                         <div className="reg-input-wrap">
                             <span className="reg-icon">🔒</span>
                             <input
-                                onChange={formik.handleChange}
-                                onBlur={formik.handleBlur}
-                                value={formik.values.password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                value={password}
                                 name="password"
                                 id="password"
                                 type={showPassword ? "text" : "password"}
                                 required
-                                className="reg-input"
+                                minLength={3}
+                                className={`reg-input ${passwordErrorMsg ? "input-error" : ""}`}
                                 placeholder="••••••••"
                             />
                             <button
@@ -274,39 +271,66 @@ export default function Register() {
                                 {showPassword ? "🙈" : "👁"}
                             </button>
                         </div>
-                        {formik.errors.password && formik.touched.password && (
-                            <p className="reg-field-error">{formik.errors.password}</p>
+                        {passwordErrorMsg && (
+                            <p className="reg-field-error">{passwordErrorMsg}</p>
+                        )}
+                    </div>
+
+                    {/* Confirm Password */}
+                    <div className="reg-field">
+                        <label htmlFor="confirmPassword" className="reg-label">Confirm Password</label>
+                        <div className="reg-input-wrap">
+                            <span className="reg-icon">🔒</span>
+                            <input
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                value={confirmPassword}
+                                name="confirmPassword"
+                                id="confirmPassword"
+                                type={showConfirmPassword ? "text" : "password"}
+                                required
+                                minLength={3}
+                                className={`reg-input ${confirmPasswordErrorMsg ? "input-error" : ""}`}
+                                placeholder="••••••••"
+                            />
+                            <button
+                                type="button"
+                                className="reg-eye-btn"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                aria-label="Toggle confirm password"
+                            >
+                                {showConfirmPassword ? "🙈" : "👁"}
+                            </button>
+                        </div>
+                        {confirmPasswordErrorMsg && (
+                            <p className="reg-field-error">{confirmPasswordErrorMsg}</p>
                         )}
                     </div>
 
                     {/* Church Name (conditional) */}
-                    {formik.values.accountType === "church" && (
+                    {accountType === "church" && (
                         <div className="reg-field">
                             <label htmlFor="ChurchName" className="reg-label">Church Name</label>
                             <div className="reg-input-wrap">
                                 <span className="reg-icon">⛪</span>
                                 <input
-                                    onChange={formik.handleChange}
-                                    onBlur={formik.handleBlur}
-                                    value={formik.values.ChurchName}
+                                    onChange={(e) => setChurchName(e.target.value)}
+                                    value={churchName}
                                     name="ChurchName"
                                     id="ChurchName"
                                     type="text"
+                                    required={accountType === "church"}
                                     className="reg-input"
                                     placeholder="Enter your church name"
                                 />
                             </div>
-                            {formik.errors.ChurchName && formik.touched.ChurchName && (
-                                <p className="reg-field-error">{formik.errors.ChurchName}</p>
-                            )}
                         </div>
                     )}
 
                     {/* Submit */}
                     <button
                         type="submit"
-                        disabled={isLoading || emailStatus === EMAIL_STATUS.INVALID || emailStatus === EMAIL_STATUS.CHECKING}
-                        className={`reg-submit ${isLoading || emailStatus === EMAIL_STATUS.INVALID || emailStatus === EMAIL_STATUS.CHECKING ? "reg-submit-disabled" : ""}`}
+                        disabled={isFormInvalid}
+                        className={`reg-submit ${isFormInvalid ? "reg-submit-disabled" : ""}`}
                     >
                         {isLoading ? (
                             <span className="reg-btn-inner">
@@ -471,11 +495,11 @@ export default function Register() {
                     border-color: #0ea5e9;
                     box-shadow: 0 0 0 3px rgba(14,165,233,0.15);
                 }
-                .input-email-valid {
+                .input-success {
                     border-color: rgba(34,197,94,0.5) !important;
                     box-shadow: 0 0 0 2px rgba(34,197,94,0.12) !important;
                 }
-                .input-email-invalid {
+                .input-error {
                     border-color: rgba(239,68,68,0.5) !important;
                     box-shadow: 0 0 0 2px rgba(239,68,68,0.1) !important;
                 }
@@ -510,7 +534,12 @@ export default function Register() {
                 .email-status-invalid { color: #f87171; }
                 .email-status-neutral { color: #94a3b8; }
 
-                .reg-field-error { font-size: 12px; color: #f87171; margin: 0; text-align: right; }
+                .reg-field-error { 
+                    font-size: 12px; 
+                    color: #f87171; 
+                    margin: 4px 0 0 4px; 
+                    text-align: left; 
+                }
 
                 /* submit */
                 .reg-submit {

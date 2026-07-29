@@ -1,8 +1,6 @@
 "use client";
 
 import axios from "axios";
-import { useFormik } from "formik";
-import * as Yup from "yup";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -11,14 +9,14 @@ import { useLanguage } from "../context/LanguageContext";
 function getPasswordStrength(pw) {
     if (!pw) return { score: 0, label: "", color: "" };
     let score = 0;
+    if (pw.length >= 3) score++;
     if (pw.length >= 6) score++;
-    if (pw.length >= 8) score++;
     if (/[A-Z]/.test(pw)) score++;
     if (/[0-9]/.test(pw)) score++;
     if (/[a-z]/.test(pw)) score++;
     if (score <= 2) return { score, label: "Weak", color: "#ef4444" };
     if (score === 3) return { score, label: "Fair", color: "#f59e0b" };
-    if (score === 4) return { score, label: "Good", color: "#3b82f6" };
+    if (score >= 4) return { score, label: "Strong", color: "#22c55e" };
     return { score, label: "Strong", color: "#22c55e" };
 }
 
@@ -28,48 +26,47 @@ export default function ResetPassword() {
     const searchParams = useSearchParams();
     const token = searchParams.get("token");
 
+    const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [apiError, setError] = useState("");
     const [isLoading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
-    const validationSchema = Yup.object({
-        password: Yup.string()
-            .required(t("passwordRequired"))
-            .min(6, t("passwordMinLength")),
+    // تم تعديل الحد الأدنى ليكون 3 مطابقاً لصفحة التسجيل وتسجيل الدخول
+    const isPasswordValid = password.length >= 3;
+    const doPasswordsMatch = password === confirmPassword;
+    const isFormValid = isPasswordValid && confirmPassword && doPasswordsMatch;
 
-        confirmPassword: Yup.string()
-            .required(t("pleaseConfirmPassword"))
-            .oneOf([Yup.ref("password")], t("passwordsDoNotMatch")),
-    });
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!token) {
+            setError(t("invalidResetLink"));
+            return;
+        }
+        if (!isFormValid) {
+            setError(t("passwordsDoNotMatch"));
+            return;
+        }
+        setLoading(true);
+        setError("");
+        try {
+            await axios.post(
+                `${process.env.NEXT_PUBLIC_API_URL}/users/reset-password/${token}`,
+                { password }
+            );
+            setSuccess(true);
+            // تم تقليل وقت الانتظار لثانيتين فقط
+            setTimeout(() => router.push("/login"), 2000);
+        } catch (err) {
+            setError(err.response?.data?.msg || t("somethingWentWrong"));
+        } finally {
+            setLoading(false);
+        }
+    };
 
-    const formik = useFormik({
-        initialValues: { password: "", confirmPassword: "" },
-        validationSchema,
-        onSubmit: async (values) => {
-            if (!token) {
-                setError(t("invalidResetLink"));
-                return;
-            }
-            setLoading(true);
-            setError("");
-            try {
-                await axios.post(
-                    `${process.env.NEXT_PUBLIC_API_URL}/users/reset-password/${token}`,
-                    { password: values.password }
-                );
-                setSuccess(true);
-                setTimeout(() => router.push("/login"), 3500);
-            } catch (err) {
-                setError(err.response?.data?.msg || t("somethingWentWrong"));
-            } finally {
-                setLoading(false);
-            }
-        },
-    });
-
-    const strength = getPasswordStrength(formik.values.password);
+    const strength = getPasswordStrength(password);
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#030712]">
@@ -86,7 +83,18 @@ export default function ResetPassword() {
                     <span className="text-xl font-extrabold tracking-wider text-white"></span>
                 </div>
 
-                {!success ? (
+                {/* التحقق من وجود التوكن أولاً */}
+                {!token ? (
+                    <div className="text-center py-6">
+                        <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl mb-6">
+                            <span className="text-2xl block mb-2">⚠️</span>
+                            {t("invalidResetLink")}
+                        </div>
+                        <Link href="/forgot-password" className="inline-block w-full py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-semibold transition-colors border border-white/10">
+                            {t("requestNewLink")}
+                        </Link>
+                    </div>
+                ) : !success ? (
                     <>
                         <div className="text-center mb-6">
                             <div className="text-3xl mb-2">🔐</div>
@@ -103,7 +111,7 @@ export default function ResetPassword() {
                             </div>
                         )}
 
-                        <form onSubmit={formik.handleSubmit} className="space-y-5" noValidate>
+                        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                             {/* New Password */}
                             <div className="flex flex-col gap-1.5">
                                 <label htmlFor="rp-password" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -115,12 +123,13 @@ export default function ResetPassword() {
                                         id="rp-password"
                                         name="password"
                                         type={showPassword ? "text" : "password"}
-                                        value={formik.values.password}
-                                        onChange={formik.handleChange}
-                                        onBlur={formik.handleBlur}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
                                         placeholder="••••••••"
-                                        className={`w-full bg-slate-950/50 border ${formik.touched.password && formik.errors.password ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-blue-500'} rounded-lg py-2.5 pl-10 pr-10 text-white placeholder-slate-600 outline-none transition-all text-sm`}
+                                        className={`w-full bg-slate-950/50 border ${password && !isPasswordValid ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-blue-500'} rounded-lg py-2.5 pl-10 pr-10 text-white placeholder-slate-600 outline-none transition-all text-sm`}
                                         autoComplete="new-password"
+                                        required
+                                        minLength={3} // تم التعديل
                                     />
                                     <button
                                         type="button"
@@ -133,7 +142,7 @@ export default function ResetPassword() {
                                 </div>
 
                                 {/* Strength bar */}
-                                {formik.values.password && (
+                                {password && (
                                     <div className="mt-2 flex items-center gap-2">
                                         <div className="flex gap-1 flex-1">
                                             {[1, 2, 3, 4, 5].map((n) => (
@@ -151,10 +160,6 @@ export default function ResetPassword() {
                                         </span>
                                     </div>
                                 )}
-
-                                {formik.touched.password && formik.errors.password && (
-                                    <p className="text-xs text-red-400 mt-1">{formik.errors.password}</p>
-                                )}
                             </div>
 
                             {/* Confirm Password */}
@@ -168,12 +173,12 @@ export default function ResetPassword() {
                                         id="rp-confirm"
                                         name="confirmPassword"
                                         type={showConfirm ? "text" : "password"}
-                                        value={formik.values.confirmPassword}
-                                        onChange={formik.handleChange}
-                                        onBlur={formik.handleBlur}
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
                                         placeholder="••••••••"
-                                        className={`w-full bg-slate-950/50 border ${formik.touched.confirmPassword && formik.errors.confirmPassword ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-blue-500'} rounded-lg py-2.5 pl-10 pr-10 text-white placeholder-slate-600 outline-none transition-all text-sm`}
+                                        className={`w-full bg-slate-950/50 border ${confirmPassword && !doPasswordsMatch ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-blue-500'} rounded-lg py-2.5 pl-10 pr-10 text-white placeholder-slate-600 outline-none transition-all text-sm`}
                                         autoComplete="new-password"
+                                        required
                                     />
                                     <button
                                         type="button"
@@ -183,13 +188,10 @@ export default function ResetPassword() {
                                     >
                                         {showConfirm ? "🙈" : "👁"}
                                     </button>
-                                    {formik.values.confirmPassword && formik.values.password === formik.values.confirmPassword && (
+                                    {confirmPassword && password === confirmPassword && (
                                         <span className="absolute right-9 top-1/2 -translate-y-1/2 text-emerald-400 text-xs">✓</span>
                                     )}
                                 </div>
-                                {formik.touched.confirmPassword && formik.errors.confirmPassword && (
-                                    <p className="text-xs text-red-400 mt-1">{formik.errors.confirmPassword}</p>
-                                )}
                             </div>
 
                             {/* Password rules hint */}
@@ -197,12 +199,11 @@ export default function ResetPassword() {
                                 <p className="text-slate-400 font-medium mb-2">{t("passwordMust")}</p>
                                 <ul className="space-y-1.5 text-slate-300">
                                     {[
-                                        { rule: t("rule6to8Chars"), met: formik.values.password.length >= 6 && formik.values.password.length <= 8 },
-                                        { rule: t("ruleStartCapital"), met: /^[A-Z]/.test(formik.values.password) },
-                                        { rule: t("ruleLettersNumbers"), met: /^[A-Za-z0-9]+$/.test(formik.values.password) && formik.values.password.length > 0 },
+                                        // تم التبسيط لشرط واحد عشان ما يتعارضش مع الـ API
+                                        { rule: t("ruleMin3Chars") || "3 أحرف كحد أدنى", met: password.length >= 3 },
                                     ].map(({ rule, met }) => (
-                                        <li key={rule} className={`flex items-center gap-2 ${formik.values.password ? (met ? "text-emerald-400" : "text-red-400/80") : "text-slate-500"}`}>
-                                            <span className="font-bold">{formik.values.password ? (met ? "✓" : "✕") : "·"}</span>
+                                        <li key={rule} className={`flex items-center gap-2 ${password ? (met ? "text-emerald-400" : "text-red-400/80") : "text-slate-500"}`}>
+                                            <span className="font-bold">{password ? (met ? "✓" : "✕") : "·"}</span>
                                             <span>{rule}</span>
                                         </li>
                                     ))}
@@ -211,10 +212,10 @@ export default function ResetPassword() {
 
                             <button
                                 type="submit"
-                                disabled={isLoading || !formik.isValid || !formik.dirty}
-                                className={`w-full py-3 px-4 rounded-lg font-bold text-sm text-white transition-all ${isLoading || !formik.isValid || !formik.dirty
-                                        ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5"
-                                        : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                                disabled={isLoading || !isFormValid}
+                                className={`w-full py-3 px-4 rounded-lg font-bold text-sm text-white transition-all ${isLoading || !isFormValid
+                                    ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5"
+                                    : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-blue-500/20 active:scale-[0.98]"
                                     }`}
                             >
                                 {isLoading ? (

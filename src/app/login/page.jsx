@@ -1,21 +1,24 @@
 "use client";
 import axios from 'axios';
-import { useFormik } from 'formik';
 import { useContext, useState } from 'react';
 import { useRouter } from "next/navigation";
 import { UserContext } from '../../app/context/User_Context';
-import * as Yup from 'yup';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function Login() {
     const { t } = useLanguage();
     const { setLogin } = useContext(UserContext);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [apiError, setError] = useState('');
     const [isLoading, setLoading] = useState(false);
     const router = useRouter();
 
-    const handleLogin = (formsData) => {
+    const handleLogin = (e) => {
+        e.preventDefault();
         setLoading(true);
+        setError('');
+        const formsData = { email, password };
         axios.post('https://worship-team-api.onrender.com/api/users/login', formsData)
             .then((response) => {
                 console.log('success', response);
@@ -38,19 +41,6 @@ export default function Login() {
             });
     };
 
-    const validationSchema = Yup.object({
-        email: Yup.string().required(t("emailRequired")).email(t("enterValidEmail")),
-        password: Yup.string()
-            .required(t("passwordRequired"))
-            .matches(/^[A-Z][a-z0-9]{5,7}$/, t("enterValidPassword")),
-    });
-
-    const formik = useFormik({
-        initialValues: { email: "", password: "" },
-        validationSchema,
-        onSubmit: handleLogin
-    });
-
     return (
         <div className="flex h-screen items-center justify-center px-4 sm:px-6 lg:px-8 bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] relative overflow-hidden">
             {/* Background Decoration */}
@@ -72,13 +62,12 @@ export default function Login() {
                         </div>
                     )}
 
-                    <form onSubmit={formik.handleSubmit} className="space-y-6">
+                    <form onSubmit={handleLogin} className="space-y-6">
                         <div>
                             <label htmlFor="ur-email" className="block text-sm font-medium text-gray-300">{t("emailAddress")}</label>
                             <input
-                                onChange={formik.handleChange}
-                                onBlur={formik.handleBlur}
-                                value={formik.values.email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                value={email}
                                 name='email'
                                 id='ur-email'
                                 type="email"
@@ -86,9 +75,6 @@ export default function Login() {
                                 className="px-4 py-3 mt-1.5 block w-full rounded-xl bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 sm:text-sm transition-all"
                                 placeholder="name@example.com"
                             />
-                            {formik.errors.email && formik.touched.email && (
-                                <div className="mt-1 text-red-400 text-xs">{formik.errors.email}</div>
-                            )}
                         </div>
 
                         <div>
@@ -102,21 +88,17 @@ export default function Login() {
                                 </a>
                             </div>
                             <input
-                                onChange={formik.handleChange}
-                                onBlur={formik.handleBlur}
-                                value={formik.values.password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                value={password}
                                 name='password'
                                 id='password'
                                 type="password"
                                 required
+                                minLength={3}
                                 className="px-4 py-3 mt-1.5 block w-full rounded-xl bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 sm:text-sm transition-all"
                                 placeholder="••••••••"
                             />
-                            {formik.errors.password && formik.touched.password && (
-                                <div className="mt-1 text-red-400 text-xs">{formik.errors.password}</div>
-                            )}
                         </div>
-
 
                         <button
                             type="submit"
