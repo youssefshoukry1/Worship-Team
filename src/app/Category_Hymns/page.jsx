@@ -9,7 +9,7 @@ import Portal from '../Portal/Portal';
 import Metronome from '../Metronome/page';
 import { UserContext } from '../context/User_Context';
 // Add BookOpen to this line
-import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2, Mic, MicOff, BookOpen, ChevronDown, Loader2, Copy, Share2, ClipboardCheck, Link2, Lightbulb, Eraser, Moon, RotateCcw, ZoomOut, ZoomIn,Cross } from 'lucide-react';
+import { Music, Calendar, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, Heart, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2, Mic, MicOff, BookOpen, ChevronDown, Loader2, Copy, Share2, ClipboardCheck, Link2, Lightbulb, Eraser, Moon, RotateCcw, ZoomOut, ZoomIn, Cross } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
 import { showToast } from '../components/ToastContainer';
@@ -391,6 +391,23 @@ export default function Category_Humns() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingHymnId, setEditingHymnId] = useState(null); // Track which hymn is being edited
 
+  // Presentation view visibility state (moved up to avoid TDZ error)
+  const [showDataShow, setShowDataShow] = useState(false);
+  const [showQuickSettings, setShowQuickSettings] = useState(true);
+
+  // Desktop presentation search option ('hymns' or 'bible') (moved up to avoid TDZ error)
+  const [desktopSearchType, setDesktopSearchType] = useState(() => {
+    if (typeof window === 'undefined') return 'hymns';
+    return localStorage.getItem('taspe7_desktop_search_type') || 'hymns';
+  });
+
+  const handleSetDesktopSearchType = (val) => {
+    setDesktopSearchType(val);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('taspe7_desktop_search_type', val);
+    }
+  };
+
   ////Bible State & UseEffects
   // --- Bible Modal State ---
   const [showBibleModal, setShowBibleModal] = useState(false);
@@ -713,15 +730,21 @@ export default function Category_Humns() {
       const chEl = bibleChapterPickerRef.current;
       if (biblePickerOpen === 'book' && bookEl && !bookEl.contains(e.target)) setBiblePickerOpen(null);
       if (biblePickerOpen === 'chapter' && chEl && !chEl.contains(e.target)) setBiblePickerOpen(null);
+
+      // Close presentation Bible picker when clicking outside picker buttons or dropdowns
+      const isPickerClick = e.target.closest('.bible-picker-btn') || e.target.closest('.bible-picker-dropdown');
+      if (!isPickerClick && (biblePickerOpen === 'book_present' || biblePickerOpen === 'chapter_present')) {
+        setBiblePickerOpen(null);
+      }
     };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, [biblePickerOpen]);
 
-  // ─── Fetch available translations (runs once on first modal open) ───
+  // ─── Fetch available translations (runs once on first modal open or presentation mode active) ───
   const translationsFetchedRef = React.useRef(false);
   useEffect(() => {
-    if (!showBibleModal || translationsFetchedRef.current) return;
+    if ((!showBibleModal && !(showDataShow && desktopSearchType === 'bible')) || translationsFetchedRef.current) return;
     translationsFetchedRef.current = true;
     axios.get(`${BIBLE_API}/translations`)
       .then(({ data }) => {
@@ -730,11 +753,11 @@ export default function Category_Humns() {
         }
       })
       .catch(() => { /* keep the default ['AVD','KEH'] */ });
-  }, [showBibleModal]);
+  }, [showBibleModal, showDataShow, desktopSearchType]);
 
-  // ─── Load books when modal opens ───
+  // ─── Load books when modal opens or presentation Bible mode is active ───
   useEffect(() => {
-    if (!showBibleModal) return;
+    if (!showBibleModal && !(showDataShow && desktopSearchType === 'bible')) return;
     setBibleModalBook(null);
     setBibleModalChapter(null);
     setBibleModalChapters([]);
@@ -759,13 +782,11 @@ export default function Category_Humns() {
       }
     })();
     return () => { cancelled = true; };
-    // NOTE: NOT depending on bibleTranslation here — books are the same across translations
-    // and we don't want the book list to reset every time the user switches translation.
-  }, [showBibleModal]);
+  }, [showBibleModal, showDataShow, desktopSearchType]);
 
-  // ─── Load chapters when book or translation changes ───
+  // ─── Load chapters when book or translation changes (synced with presentation) ───
   useEffect(() => {
-    if (!showBibleModal || !bibleModalBook?.bookName) {
+    if ((!showBibleModal && !(showDataShow && desktopSearchType === 'bible')) || !bibleModalBook?.bookName) {
       setBibleModalChapters([]);
       setBibleSelectedVerseIds(new Set());
       return;
@@ -799,11 +820,11 @@ export default function Category_Humns() {
       }
     })();
     return () => { cancelled = true; };
-  }, [showBibleModal, bibleModalBook, bibleTranslation, downloadedTranslations]);
+  }, [showBibleModal, showDataShow, desktopSearchType, bibleModalBook, bibleTranslation, downloadedTranslations]);
 
-  // ─── Load verses when chapter or translation changes ───
+  // ─── Load verses when chapter or translation changes (synced with presentation) ───
   useEffect(() => {
-    if (!showBibleModal || !bibleModalBook?.bookName || bibleModalChapter == null) {
+    if ((!showBibleModal && !(showDataShow && desktopSearchType === 'bible')) || !bibleModalBook?.bookName || bibleModalChapter == null) {
       setBibleModalVerses([]);
       setBibleSelectedVerseIds(new Set());
       return;
@@ -837,7 +858,7 @@ export default function Category_Humns() {
       }
     })();
     return () => { cancelled = true; };
-  }, [showBibleModal, bibleModalBook, bibleModalChapter, bibleTranslation, downloadedTranslations]);
+  }, [showBibleModal, showDataShow, desktopSearchType, bibleModalBook, bibleModalChapter, bibleTranslation, downloadedTranslations]);
 
 
   // Bible Search Debounce Effect
@@ -1143,7 +1164,6 @@ export default function Category_Humns() {
   const [copiedLyrics, setCopiedLyrics] = useState(false);
 
   //Data Show
-  const [showDataShow, setShowDataShow] = useState(false);
   const [dataShowIndex, setDataShowIndex] = useState(0);
   const [presentationViewport, setPresentationViewport] = useState({ width: 1200, height: 900 });
   const thumbContainerRef = React.useRef(null);
@@ -1526,10 +1546,10 @@ export default function Category_Humns() {
       const updated = [...dataShowBackgrounds, base64];
       setDataShowBackgrounds(updated);
       localStorage.setItem('taspe_presentation_backgrounds', JSON.stringify(updated));
-      
+
       setDataShowActiveBg(base64);
       localStorage.setItem('taspe_active_background', base64);
-      
+
       broadcastLocalSettings({
         blackout: dataShowBlackout,
         activeBg: base64,
@@ -1678,12 +1698,34 @@ export default function Category_Humns() {
   const presentBibleFromSearchHit = async (hit) => {
     if (!hit?.bookName || hit.chapter == null || hit.verseNumber == null) return;
     try {
-      const { data } = await axios.get(
-        `${BIBLE_API}/verses/${encodeURIComponent(hit.bookName)}/${hit.chapter}?&lang=arabic`
-      );
-      const list = Array.isArray(data) ? data : [];
+      let list = [];
+      const translation = hit.translation || bibleTranslation || 'AVD';
+      const isDownloaded = downloadedTranslations.has(translation) || (await isTranslationDownloaded(translation));
+
+      if (isDownloaded) {
+        const index = await getLocalBibleIndex(translation);
+        if (index) {
+          list = index.versesMap.get(`${hit.bookName}_${parseInt(hit.chapter)}`) || [];
+        }
+      }
+
+      if (!list.length) {
+        const { data } = await axios.get(
+          `${BIBLE_API}/verses/${encodeURIComponent(hit.bookName)}/${hit.chapter}?&lang=arabic`
+        );
+        list = Array.isArray(data) ? data : [];
+      }
+
       if (!list.length) return;
       const idx = list.findIndex((v) => v.verseNumber === hit.verseNumber);
+
+      // Keep Book & Chapter picker states in sync
+      const book = bibleModalBooks.find(b => b.bookName === hit.bookName);
+      if (book) {
+        setBibleModalBook(book);
+        setBibleModalChapter(hit.chapter);
+      }
+
       openBiblePresentation({
         bookName: hit.bookName,
         chapter: hit.chapter,
@@ -1692,6 +1734,29 @@ export default function Category_Humns() {
       });
     } catch (e) {
       console.error('Bible search present:', e);
+      // Fallback: if offline, try loading AVD local index
+      try {
+        const index = await getLocalBibleIndex('AVD');
+        if (index) {
+          const list = index.versesMap.get(`${hit.bookName}_${parseInt(hit.chapter)}`) || [];
+          if (list.length) {
+            const idx = list.findIndex((v) => v.verseNumber === hit.verseNumber);
+            const book = bibleModalBooks.find(b => b.bookName === hit.bookName);
+            if (book) {
+              setBibleModalBook(book);
+              setBibleModalChapter(hit.chapter);
+            }
+            openBiblePresentation({
+              bookName: hit.bookName,
+              chapter: hit.chapter,
+              verses: list,
+              startIndex: idx >= 0 ? idx : 0,
+            });
+          }
+        }
+      } catch (innerErr) {
+        console.error('Offline AVD fallback failed:', innerErr);
+      }
     }
   };
 
@@ -2147,6 +2212,28 @@ export default function Category_Humns() {
 
   // Infinite Scroll Trigger is now handled by Virtuoso's endReached prop
   ///////////////////////////////// API proccess end here /////////////////////////////
+
+  // Automatically load selected Bible verses into presentation slides
+  useEffect(() => {
+    if (showDataShow && desktopSearchType === 'bible' && bibleModalBook?.bookName && bibleModalChapter != null && bibleModalVerses.length > 0) {
+      const expectedId = `bible-${bibleModalBook.bookName}-${bibleModalChapter}`;
+      if (selectedLyricsHymn?._id !== expectedId) {
+        const lyrics = bibleModalVerses.map((v) => ({
+          type: 'verse',
+          title: `آية ${v.verseNumber}`,
+          text: v.text,
+        }));
+        setSelectedLyricsHymn({
+          _id: expectedId,
+          title: `${bibleModalBook.bookName} · ${t('chapter')} ${bibleModalChapter}`,
+          lyrics,
+          transposeStep: 0,
+          isBible: true,
+        });
+        setDataShowIndex(0);
+      }
+    }
+  }, [showDataShow, desktopSearchType, bibleModalBook, bibleModalChapter, bibleModalVerses, selectedLyricsHymn?._id, t]);
 
   // ── Presentation Hymn Search States & Effect ──────────────────────
   const [presetSearchQuery, setPresetSearchQuery] = useState('');
@@ -3555,7 +3642,11 @@ export default function Category_Humns() {
                                 {bibleSearchResults.map((hit, idx) => (
                                   <div
                                     key={idx}
-                                    onClick={() => goToChapterFromSearch(hit)}
+                                    onClick={() => {
+                                      presentBibleFromSearchHit(hit);
+                                      setBibleSearchQuery('');
+                                      setBibleSearchResults([]);
+                                    }}
 
                                     className="group p-4 rounded-2xl bg-white/[0.03] border border-white/0 hover:border-sky-500/30 hover:bg-sky-500/5 transition-all cursor-pointer"
                                   >
@@ -4484,9 +4575,9 @@ export default function Category_Humns() {
 
 
 
-{/* ══ DESKTOP VIEW: Professional Grid, Preview + Quick Settings ══ */}
+                {/* ══ DESKTOP VIEW: Professional Grid, Preview + Quick Settings ══ */}
                 <div className="hidden sm:flex flex-1 flex-col min-h-0 bg-[#0a0f1c] text-white">
-                  
+
                   {/* Top Header Section */}
                   <div className="flex items-center justify-between px-8 py-5 border-b border-white/5 shrink-0 gap-6" dir="rtl">
                     <div className="flex items-center gap-4 min-w-0 shrink-0">
@@ -4500,35 +4591,106 @@ export default function Category_Humns() {
                       )}
                     </div>
 
-                    {/* Middle: Search Bar Widget */}
-                    <div className="flex-1 max-w-md relative z-30" dir="rtl">
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={presetSearchQuery}
-                          onChange={(e) => setPresetSearchQuery(e.target.value)}
-                          placeholder="البحث عن ترنيمة واختيارها فوراً..."
-                          className="w-full bg-white/5 border border-white/10 hover:border-white/20 focus:border-sky-500/50 rounded-full px-5 py-2 pl-12 pr-4 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-sky-500/30 transition-all text-right"
-                        />
-                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none">
-                          {isSearchingPreset ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
-                          ) : (
-                            <Search className="w-4 h-4" />
-                          )}
-                        </div>
-                        {presetSearchQuery && (
+                    {/* Middle: Compact Search Bar Widget with Hymns/Bible Toggle */}
+                    <div className="flex-1 max-w-lg relative z-30" dir="rtl">
+                      <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-2 py-1.5">
+
+                        {/* Segmented Control - inline pill */}
+                        <div className="flex items-center gap-0.5 bg-black/30 rounded-full p-0.5 shrink-0">
                           <button
-                            onClick={() => { setPresetSearchQuery(''); setPresetSearchResults([]); }}
-                            className="absolute left-10 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/80 p-0.5 rounded-full hover:bg-white/5 transition-all"
+                            onClick={() => handleSetDesktopSearchType('hymns')}
+                            className={`py-1 px-3 text-xs font-bold rounded-full transition-all duration-200 whitespace-nowrap ${desktopSearchType === 'hymns'
+                              ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20'
+                              : 'text-gray-400 hover:text-white'
+                              }`}
                           >
-                            <X className="w-3.5 h-3.5" />
+                            ترانيم
                           </button>
+                          <button
+                            onClick={() => handleSetDesktopSearchType('bible')}
+                            className={`py-1 px-3 text-xs font-bold rounded-full transition-all duration-200 whitespace-nowrap ${desktopSearchType === 'bible'
+                              ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20'
+                              : 'text-gray-400 hover:text-white'
+                              }`}
+                          >
+                            الكتاب
+                          </button>
+                        </div>
+
+                        {/* Divider */}
+                        <div className="w-px h-4 bg-white/10 shrink-0" />
+
+                        {/* Hymns Search Input */}
+                        {desktopSearchType === 'hymns' && (
+                          <div className="relative flex-1 flex items-center">
+                            <input
+                              type="text"
+                              value={presetSearchQuery}
+                              onChange={(e) => setPresetSearchQuery(e.target.value)}
+                              placeholder="ابحث عن ترنيمة..."
+                              className="w-full bg-transparent py-0.5 px-2 text-sm text-white placeholder-white/30 focus:outline-none text-right"
+                            />
+                            {isSearchingPreset ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-sky-400 shrink-0" />
+                            ) : presetSearchQuery ? (
+                              <button
+                                onClick={() => { setPresetSearchQuery(''); setPresetSearchResults([]); }}
+                                className="text-white/30 hover:text-white/80 shrink-0 p-0.5 rounded-full hover:bg-white/5 transition-all"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            ) : (
+                              <Search className="w-4 h-4 text-white/20 shrink-0 pointer-events-none" />
+                            )}
+                          </div>
+                        )}
+
+                        {/* Bible Search & Picker Controls - inline */}
+                        {desktopSearchType === 'bible' && (
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                            <div className="relative flex-1 flex items-center">
+                              <input
+                                type="text"
+                                value={bibleSearchQuery}
+                                onChange={(e) => setBibleSearchQuery(e.target.value)}
+                                placeholder="ابحث في الآيات..."
+                                className="w-full bg-transparent py-0.5 px-2 text-sm text-white placeholder-white/30 focus:outline-none text-right"
+                              />
+                              {bibleSearchQuery ? (
+                                <button
+                                  onClick={() => setBibleSearchQuery('')}
+                                  className="text-white/30 hover:text-white/80 shrink-0 p-0.5 rounded-full hover:bg-white/5 transition-all"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              ) : (
+                                <Search className="w-4 h-4 text-white/20 shrink-0 pointer-events-none" />
+                              )}
+                            </div>
+                            <div className="w-px h-4 bg-white/10 shrink-0" />
+                            <button
+                              onClick={() => setBiblePickerOpen(o => o === 'book_present' ? null : 'book_present')}
+                              className="bible-picker-btn flex items-center gap-1 text-[11px] font-bold text-gray-300 hover:text-white transition-colors shrink-0 whitespace-nowrap"
+                            >
+                              <span className="opacity-50 text-[10px]">السفر:</span>
+                              <span className="max-w-[55px] truncate">{bibleModalBook?.bookName || '...'}</span>
+                              <ChevronDown className="w-3 h-3 opacity-50" />
+                            </button>
+                            <button
+                              onClick={() => setBiblePickerOpen(o => o === 'chapter_present' ? null : 'chapter_present')}
+                              disabled={!bibleModalBook}
+                              className="bible-picker-btn flex items-center gap-1 text-[11px] font-bold text-gray-300 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0 whitespace-nowrap"
+                            >
+                              <span className="opacity-50 text-[10px]">الأصحاح:</span>
+                              <span>{bibleModalChapter || '0'}</span>
+                              <ChevronDown className="w-3 h-3 opacity-50" />
+                            </button>
+                          </div>
                         )}
                       </div>
 
-                      {/* Dropdown Recommendations Box */}
-                      {presetSearchResults.length > 0 && (
+                      {/* Dropdown Recommendations Box for Hymns */}
+                      {desktopSearchType === 'hymns' && presetSearchResults.length > 0 && (
                         <div className="absolute top-full mt-2 left-0 right-0 max-h-60 overflow-y-auto bg-[#0d1321]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] p-2 custom-scrollbar flex flex-col gap-1.5 z-[100]">
                           {presetSearchResults.map((hymn) => (
                             <button
@@ -4538,7 +4700,7 @@ export default function Category_Humns() {
                                 setDataShowIndex(0);
                                 setPresetSearchQuery('');
                                 setPresetSearchResults([]);
-                                
+
                                 const slides = buildHymnPresentationSlides(hymn.lyrics, {
                                   showChords,
                                   viewportHeight: presentationViewport.height,
@@ -4558,6 +4720,73 @@ export default function Category_Humns() {
                           ))}
                         </div>
                       )}
+
+                      {/* Dropdown Recommendations Box for Bible Search Hits */}
+                      {desktopSearchType === 'bible' && bibleSearchQuery.trim() && bibleSearchResults.length > 0 && (
+                        <div className="absolute top-full mt-2 left-0 right-0 max-h-60 overflow-y-auto bg-[#0d1321]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] p-2 custom-scrollbar flex flex-col gap-1.5 z-[100]">
+                          {bibleSearchResults.map((hit, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                presentBibleFromSearchHit(hit);
+                                setBibleSearchQuery('');
+                                setBibleSearchResults([]);
+                              }}
+                              className="w-full text-right px-4 py-2 rounded-xl text-xs font-bold text-gray-300 hover:text-sky-300 bg-white/5 hover:bg-sky-500/25 border border-white/5 hover:border-sky-500/30 transition-all flex flex-col gap-1 active:scale-[0.98]"
+                            >
+                              <span className="text-sky-400 font-bold text-[10px]">{hit.bookName} {hit.chapter}:{hit.verseNumber}</span>
+                              <span className="truncate text-gray-300 font-medium text-[11px] text-right" dangerouslySetInnerHTML={{ __html: hit.text.replace(/<b[^>]*>(.*?)<\/b>/g, '$1') }} />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Dropdown Book Selection Grid */}
+                      {desktopSearchType === 'bible' && biblePickerOpen === 'book_present' && (
+                        <div className="bible-picker-dropdown absolute top-full mt-2 left-0 right-0 max-h-60 overflow-y-auto bg-[#0d1321]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] p-3 custom-scrollbar z-[100]">
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {bibleModalBooks.map((book) => (
+                              <button
+                                key={book._id}
+                                className={`px-2 py-1.5 rounded-xl text-center text-[10px] font-bold transition-all truncate border ${bibleModalBook?.bookName === book.bookName
+                                  ? 'bg-sky-500 text-white border-sky-400'
+                                  : 'bg-white/5 text-gray-300 border-white/5 hover:bg-sky-500/25 hover:border-sky-500/30'
+                                  }`}
+                                onClick={() => {
+                                  setBibleModalBook(book);
+                                  setBibleModalChapter(null);
+                                  setBiblePickerOpen('chapter_present');
+                                }}
+                              >
+                                {book.bookName}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Dropdown Chapter Selection Grid */}
+                      {desktopSearchType === 'bible' && biblePickerOpen === 'chapter_present' && (
+                        <div className="bible-picker-dropdown absolute top-full mt-2 left-0 right-0 max-h-60 overflow-y-auto bg-[#0d1321]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] p-3 custom-scrollbar z-[100]">
+                          <div className="grid grid-cols-6 gap-1.5">
+                            {bibleModalChapters.map((ch) => (
+                              <button
+                                key={ch}
+                                className={`h-8 rounded-xl flex items-center justify-center text-[11px] font-bold transition-all border ${bibleModalChapter === ch
+                                  ? 'bg-sky-500 text-white border-sky-400'
+                                  : 'bg-white/5 text-gray-300 border-white/5 hover:bg-sky-500/25 hover:border-sky-500/30'
+                                  }`}
+                                onClick={() => {
+                                  setBibleModalChapter(ch);
+                                  setBiblePickerOpen(null);
+                                }}
+                              >
+                                {ch}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -4575,7 +4804,7 @@ export default function Category_Humns() {
 
                   {/* Main Content: Grid & Preview */}
                   <div className="flex-1 flex gap-8 p-8 min-h-0 overflow-hidden" dir="rtl">
-                    
+
                     {/* Preview Panel (Right Side) */}
                     <div className="hidden lg:flex flex-col w-80 xl:w-[450px] shrink-0 h-full">
                       <div className="flex justify-between items-center mb-4 px-1">
@@ -4651,166 +4880,184 @@ export default function Category_Humns() {
                   </div>
 
                   {/* Quick Settings Footer (Bottom Bar) */}
-                  <div className="shrink-0 bg-[#0d1321] border-t border-white/5 px-8 py-5 z-20" dir="rtl">
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-sm font-bold text-gray-300 tracking-wide">Quick Settings</span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs text-gray-400 font-medium">LiveAudioBadge</span>
-                        <button onClick={toggleAudio} className={`p-2 rounded-full transition-all active:scale-95 ${isAudioActive ? 'bg-sky-500/20 text-sky-400 shadow-[0_0_15px_rgba(56,189,248,0.3)]' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
-                          {isAudioActive ? <Mic className="w-5 h-5 animate-pulse" /> : <MicOff className="w-5 h-5" />}
-                        </button>
+                  <div className="shrink-0 bg-[#0d1321] border-t border-white/5 z-20" dir="rtl">
+
+                    {/* Toggle Header Bar */}
+                    <button
+                      onClick={() => setShowQuickSettings(v => !v)}
+                      className="w-full flex items-center justify-between px-8 py-3 hover:bg-white/[0.03] transition-colors group"
+                    >
+                      <span className="text-xs font-bold text-gray-500 tracking-widest uppercase group-hover:text-gray-400 transition-colors">Quick Settings</span>
+                      <div className="flex items-center gap-2 text-gray-600 group-hover:text-gray-400 transition-colors">
+                        <span className="text-[10px] font-medium">{showQuickSettings ? 'إخفاء' : 'إظهار'}</span>
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${showQuickSettings ? 'rotate-180' : ''}`} />
                       </div>
-                    </div>
+                    </button>
 
-                    {/* Background Images Selection Grid (Collapsible) */}
-                    {showBgSelector && (
-                      <div className="mb-4 p-4 bg-black/40 border border-white/5 rounded-2xl flex flex-col gap-3 transition-all duration-300" dir="rtl">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-gray-400">خلفية الشاشة الحية (أقصى حد: 5 صور)</span>
-                          <span className="text-[11px] text-gray-500 font-medium">تم رفع {dataShowBackgrounds.length} من أصل 5 صور</span>
+                    {/* Collapsible Content */}
+                    {showQuickSettings && (
+                      <div className="px-8 pb-5">
+                        <div className="flex items-center justify-between mb-4">
+                          <span className="text-sm font-bold text-gray-300 tracking-wide"></span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-gray-400 font-medium">LiveAudioBadge</span>
+                            <button onClick={toggleAudio} className={`p-2 rounded-full transition-all active:scale-95 ${isAudioActive ? 'bg-sky-500/20 text-sky-400 shadow-[0_0_15px_rgba(56,189,248,0.3)]' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+                              {isAudioActive ? <Mic className="w-5 h-5 animate-pulse" /> : <MicOff className="w-5 h-5" />}
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-3 py-1">
-                          {/* Default Option */}
-                          <button
-                            onClick={() => handleSelectBackground('default')}
-                            className={`relative w-16 h-12 rounded-xl overflow-hidden border flex-none flex items-center justify-center text-[10px] font-bold text-white transition-all active:scale-95
-                              ${dataShowActiveBg === 'default'
-                                ? 'border-sky-400 ring-2 ring-sky-400/30'
-                                : 'border-white/10 opacity-70 hover:opacity-100 shadow-md'}`}
-                            style={{
-                              background: 'radial-gradient(ellipse 80% 60% at 50% 40%, #0d1527 0%, #070a14 100%)'
-                            }}
-                          >
-                            الافتراضي
-                          </button>
 
-                          {/* Uploaded Backgrounds */}
-                          {dataShowBackgrounds.map((bg, idx) => {
-                            const isActive = dataShowActiveBg === bg;
-                            return (
-                              <div key={idx} className="relative w-16 h-12 rounded-xl flex-none group">
-                                <button
-                                  onClick={() => handleSelectBackground(bg)}
-                                  className={`w-full h-full rounded-xl overflow-hidden border transition-all active:scale-95
-                                    ${isActive
-                                      ? 'border-sky-400 ring-2 ring-sky-400/30'
-                                      : 'border-white/10 opacity-70 hover:opacity-100 shadow-md'}`}
-                                >
-                                  <img src={bg} alt="custom bg" className="w-full h-full object-cover" />
-                                </button>
-                                <button
-                                  onClick={(e) => handleDeleteBackground(bg, e)}
-                                  className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-red-500/90 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-all active:scale-90"
-                                  title="حذف"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            );
-                          })}
+                        {/* Background Images Selection Grid (Collapsible) */}
+                        {showBgSelector && (
+                          <div className="mb-4 p-4 bg-black/40 border border-white/5 rounded-2xl flex flex-col gap-3 transition-all duration-300" dir="rtl">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-gray-400">خلفية الشاشة الحية (أقصى حد: 5 صور)</span>
+                              <span className="text-[11px] text-gray-500 font-medium">تم رفع {dataShowBackgrounds.length} من أصل 5 صور</span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3 py-1">
+                              {/* Default Option */}
+                              <button
+                                onClick={() => handleSelectBackground('default')}
+                                className={`relative w-16 h-12 rounded-xl overflow-hidden border flex-none flex items-center justify-center text-[10px] font-bold text-white transition-all active:scale-95
+                                  ${dataShowActiveBg === 'default'
+                                    ? 'border-sky-400 ring-2 ring-sky-400/30'
+                                    : 'border-white/10 opacity-70 hover:opacity-100 shadow-md'}`}
+                                style={{
+                                  background: 'radial-gradient(ellipse 80% 60% at 50% 40%, #0d1527 0%, #070a14 100%)'
+                                }}
+                              >
+                                الافتراضي
+                              </button>
 
-                          {/* Upload Slot */}
-                          {dataShowBackgrounds.length < 5 && (
-                            <label className="w-16 h-12 rounded-xl border border-dashed border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 flex items-center justify-center cursor-pointer transition-all active:scale-95 flex-none shadow-md">
-                              <PlusCircle className="w-5 h-5 text-gray-400 hover:text-white" />
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleUploadBackground}
-                                className="hidden"
-                              />
-                            </label>
-                          )}
+                              {/* Uploaded Backgrounds */}
+                              {dataShowBackgrounds.map((bg, idx) => {
+                                const isActive = dataShowActiveBg === bg;
+                                return (
+                                  <div key={idx} className="relative w-16 h-12 rounded-xl flex-none group">
+                                    <button
+                                      onClick={() => handleSelectBackground(bg)}
+                                      className={`w-full h-full rounded-xl overflow-hidden border transition-all active:scale-95
+                                        ${isActive
+                                          ? 'border-sky-400 ring-2 ring-sky-400/30'
+                                          : 'border-white/10 opacity-70 hover:opacity-100 shadow-md'}`}
+                                    >
+                                      <img src={bg} alt="custom bg" className="w-full h-full object-cover" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => handleDeleteBackground(bg, e)}
+                                      className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-red-500/90 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-all active:scale-90"
+                                      title="حذف"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                );
+                              })}
+
+                              {/* Upload Slot */}
+                              {dataShowBackgrounds.length < 5 && (
+                                <label className="w-16 h-12 rounded-xl border border-dashed border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 flex items-center justify-center cursor-pointer transition-all active:scale-95 flex-none shadow-md">
+                                  <PlusCircle className="w-5 h-5 text-gray-400 hover:text-white" />
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleUploadBackground}
+                                    className="hidden"
+                                  />
+                                </label>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Controls & Connection Row */}
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                          {/* Left side in RTL (UI Actions) */}
+                          <div className="flex flex-wrap items-center gap-3">
+                            <button
+                              onClick={toggleBlackout}
+                              className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all hover:scale-105 active:scale-95
+                                ${dataShowBlackout
+                                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)] animate-pulse'
+                                  : 'bg-white/5 border-white/5 text-gray-300 hover:bg-white/10'}`}
+                            >
+                              {dataShowBlackout ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                              {dataShowBlackout ? 'إظهار الشاشة' : 'إخفاء الشاشة'}
+                            </button>
+                            <button
+                              onClick={() => setShowBgSelector(!showBgSelector)}
+                              className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all hover:scale-105 active:scale-95
+                                ${showBgSelector
+                                  ? 'bg-sky-500/20 border-sky-500/40 text-sky-300 shadow-[0_0_15px_rgba(56,189,248,0.15)]'
+                                  : 'bg-white/5 border-white/5 text-gray-300 hover:bg-white/10'}`}
+                            >
+                              <Moon className="w-4 h-4" /> المظهر
+                            </button>
+                            <button
+                              onClick={handleReset}
+                              className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/5 border border-white/5 text-gray-300 text-sm font-medium hover:bg-white/10 transition-all hover:scale-105 active:scale-95"
+                            >
+                              <RotateCcw className="w-4 h-4" /> إعادة تعيين
+                            </button>
+
+                            <div className="h-6 w-px bg-white/10 mx-1"></div>
+
+                            {/* Font Scale Control Widget */}
+                            <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1 rounded-full">
+                              <button
+                                onClick={decreaseFontSize}
+                                disabled={dataShowFontScale <= 0.5}
+                                className="p-1.5 hover:bg-white/10 rounded-full text-gray-300 disabled:opacity-20 transition-all active:scale-90"
+                                title="تصغير الخط"
+                              >
+                                <ZoomOut className="w-4 h-4" />
+                              </button>
+                              <span className="text-xs font-mono text-gray-300 min-w-[40px] text-center select-none">
+                                {Math.round(dataShowFontScale * 100)}%
+                              </span>
+                              <button
+                                onClick={increaseFontSize}
+                                disabled={dataShowFontScale >= 2.0}
+                                className="p-1.5 hover:bg-white/10 rounded-full text-gray-300 disabled:opacity-20 transition-all active:scale-90"
+                                title="تكبير الخط"
+                              >
+                                <ZoomIn className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Right side in RTL (Session Management) */}
+                          <div className="flex items-center gap-3 bg-black/30 p-1.5 rounded-2xl border border-white/5" dir="ltr">
+                            {!dataShowId ? (
+                              <>
+                                <input type="text" value={dataShowIdInput} onChange={e => setDataShowIdInput(e.target.value)}
+                                  placeholder="Room ID..."
+                                  className="bg-transparent px-3 py-1.5 text-sm text-white focus:outline-none w-32 placeholder:text-gray-600"
+                                  onKeyDown={e => { if (e.key === 'Enter') handleCreateSession(); }}
+                                />
+                                <button onClick={handleCreateSession} disabled={isCreatingSession} className="px-4 py-1.5 bg-sky-500/80 hover:bg-sky-500 active:scale-95 rounded-xl text-sm font-bold text-white transition-all">
+                                  {isCreatingSession ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
+                                </button>
+                                <button onClick={handleJoinSession} disabled={isJoiningSession} className="px-4 py-1.5 bg-white/10 hover:bg-white/20 active:scale-95 rounded-xl text-sm font-bold text-white transition-all">
+                                  Join
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
+                                  className="px-4 py-1.5 rounded-xl bg-indigo-500/20 text-indigo-300 text-xs font-bold hover:bg-indigo-500/30 active:scale-95 transition-all flex items-center gap-1.5">
+                                  <Tv2 className="w-3.5 h-3.5" /> Display
+                                </a>
+                                <button onClick={() => { if (isAudioActive) toggleAudio(); clearDisplay(); setDataShowId(''); setSessionExpiresAt(null); localStorage.removeItem('myLivePresentationId'); }}
+                                  className="px-4 py-1.5 rounded-xl bg-red-500/20 text-red-400 text-xs font-bold hover:bg-red-5~00/30 active:scale-95 transition-all flex items-center gap-1.5">
+                                  <X className="w-3.5 h-3.5" /> End
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
-
-                    {/* Controls & Connection Row */}
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      {/* Left side in RTL (UI Actions) */}
-                      <div className="flex flex-wrap items-center gap-3">
-                        <button
-                          onClick={toggleBlackout}
-                          className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all hover:scale-105 active:scale-95
-                            ${dataShowBlackout
-                              ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)] animate-pulse'
-                              : 'bg-white/5 border-white/5 text-gray-300 hover:bg-white/10'}`}
-                        >
-                          {dataShowBlackout ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                          {dataShowBlackout ? 'إظهار الشاشة' : 'إخفاء الشاشة'}
-                        </button>
-                        <button
-                          onClick={() => setShowBgSelector(!showBgSelector)}
-                          className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all hover:scale-105 active:scale-95
-                            ${showBgSelector
-                              ? 'bg-sky-500/20 border-sky-500/40 text-sky-300 shadow-[0_0_15px_rgba(56,189,248,0.15)]'
-                              : 'bg-white/5 border-white/5 text-gray-300 hover:bg-white/10'}`}
-                        >
-                          <Moon className="w-4 h-4" /> المظهر
-                        </button>
-                        <button
-                          onClick={handleReset}
-                          className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/5 border border-white/5 text-gray-300 text-sm font-medium hover:bg-white/10 transition-all hover:scale-105 active:scale-95"
-                        >
-                          <RotateCcw className="w-4 h-4" /> إعادة تعيين
-                        </button>
-                        
-                        <div className="h-6 w-px bg-white/10 mx-1"></div>
-
-                        {/* Font Scale Control Widget */}
-                        <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1 rounded-full">
-                          <button
-                            onClick={decreaseFontSize}
-                            disabled={dataShowFontScale <= 0.5}
-                            className="p-1.5 hover:bg-white/10 rounded-full text-gray-300 disabled:opacity-20 transition-all active:scale-90"
-                            title="تصغير الخط"
-                          >
-                            <ZoomOut className="w-4 h-4" />
-                          </button>
-                          <span className="text-xs font-mono text-gray-300 min-w-[40px] text-center select-none">
-                            {Math.round(dataShowFontScale * 100)}%
-                          </span>
-                          <button
-                            onClick={increaseFontSize}
-                            disabled={dataShowFontScale >= 2.0}
-                            className="p-1.5 hover:bg-white/10 rounded-full text-gray-300 disabled:opacity-20 transition-all active:scale-90"
-                            title="تكبير الخط"
-                          >
-                            <ZoomIn className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Right side in RTL (Session Management) */}
-                      <div className="flex items-center gap-3 bg-black/30 p-1.5 rounded-2xl border border-white/5" dir="ltr">
-                        {!dataShowId ? (
-                          <>
-                            <input type="text" value={dataShowIdInput} onChange={e => setDataShowIdInput(e.target.value)}
-                              placeholder="Room ID..."
-                              className="bg-transparent px-3 py-1.5 text-sm text-white focus:outline-none w-32 placeholder:text-gray-600"
-                              onKeyDown={e => { if (e.key === 'Enter') handleCreateSession(); }}
-                            />
-                            <button onClick={handleCreateSession} disabled={isCreatingSession} className="px-4 py-1.5 bg-sky-500/80 hover:bg-sky-500 active:scale-95 rounded-xl text-sm font-bold text-white transition-all">
-                              {isCreatingSession ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
-                            </button>
-                            <button onClick={handleJoinSession} disabled={isJoiningSession} className="px-4 py-1.5 bg-white/10 hover:bg-white/20 active:scale-95 rounded-xl text-sm font-bold text-white transition-all">
-                              Join
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`} target="_blank" rel="noopener noreferrer"
-                              className="px-4 py-1.5 rounded-xl bg-indigo-500/20 text-indigo-300 text-xs font-bold hover:bg-indigo-500/30 active:scale-95 transition-all flex items-center gap-1.5">
-                              <Tv2 className="w-3.5 h-3.5" /> Display
-                            </a>
-                            <button onClick={() => { if (isAudioActive) toggleAudio(); clearDisplay(); setDataShowId(''); setSessionExpiresAt(null); localStorage.removeItem('myLivePresentationId'); }}
-                              className="px-4 py-1.5 rounded-xl bg-red-500/20 text-red-400 text-xs font-bold hover:bg-red-500/30 active:scale-95 transition-all flex items-center gap-1.5">
-                              <X className="w-3.5 h-3.5" /> End
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
                   </div>
 
                 </div>
