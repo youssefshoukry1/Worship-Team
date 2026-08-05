@@ -1140,7 +1140,16 @@ export default function ChurchS_Dashboards() {
       });
       queryClient.invalidateQueries({ queryKey: ['hymnsVersion'] });
       setPublishSummary({ version: res.data.version, ...res.data.changes });
-      showToast({ message: `✅ Published Version ${res.data.version}`, type: 'success', duration: 5000 });
+      showToast({ message: `✅ Published Version ${res.data.version} — Force Sync sent to all devices`, type: 'success', duration: 5000 });
+
+      // Set persistent flag so devices sync on next app open
+      localStorage.setItem('taspe7_force_sync', 'true');
+      // Broadcast real-time signal to all open tabs on the same device
+      try {
+        const ch = new BroadcastChannel('taspe7_sync');
+        ch.postMessage({ type: 'force_sync', version: res.data.version });
+        ch.close();
+      } catch { }
     } catch (err) {
       console.error(err);
       if (err.response?.status === 403) {
@@ -1383,7 +1392,7 @@ export default function ChurchS_Dashboards() {
                     Current Version: <span className="font-mono text-sky-400 font-bold bg-sky-500/10 px-2 py-0.5 rounded-lg border border-sky-500/20">{serverHymnsVersion}</span>
                   </p>
                   <p className="text-xs text-gray-500 mt-1 max-w-lg">
-                    Publish a new version to push the latest hymn changes to all users. Only PROGRAMER can do this.
+                    Publish a new version to force-sync all devices on next open. App devices load offline instantly — sync only runs after you publish. Only PROGRAMER can do this.
                   </p>
                 </div>
               </div>
@@ -1393,7 +1402,7 @@ export default function ChurchS_Dashboards() {
                 className="flex-shrink-0 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-linear-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-bold transition-all shadow-lg hover:shadow-[0_0_20px_rgba(14,165,233,0.3)] disabled:opacity-50"
               >
                 {increasingVersion ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
-                Publish Hymns Version
+                Publish & Force Sync
               </button>
             </div>
             {/* Publish summary */}

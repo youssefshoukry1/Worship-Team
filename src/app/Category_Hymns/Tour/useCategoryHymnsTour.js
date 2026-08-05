@@ -75,11 +75,7 @@ export function useCategoryHymnsTour(language) {
             align: 'center',
           },
         },
-      ];
-
-      // Add presentation step only if the button is rendered
-      if (presEl) {
-        steps.push({
+        {
           element: presSelector,
           popover: {
             title: isAr ? '🖥️ وضع العرض' : isDe ? '🖥️ Präsentation' : '🖥️ Presentation',
@@ -91,8 +87,11 @@ export function useCategoryHymnsTour(language) {
             side: isMobile ? 'bottom' : 'left',
             align: 'center',
           },
-        });
-      }
+        }
+      ];
+
+      // Add presentation step only if the button is rendered
+
 
       const tourDriver = driver({
         showProgress: true,

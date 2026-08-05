@@ -1908,25 +1908,21 @@ export default function Category_Humns() {
   // - Web: useInfiniteQuery for server-side pagination on scroll.
   // - App: version-controlled incremental sync using localforage cache.
 
-  // ── APP: version-controlled incremental sync with localforage ──────────
+  // ── APP: offline-first load from localforage (no network on open) ─────
   const { data: allHymns = [], isLoading: isLoadingApp } = useQuery({
     queryKey: ["hymns", "app"],
     enabled: isApp,
+    staleTime: Infinity,
     queryFn: async () => {
-      const API_BASE = 'https://worship-team-api.onrender.com/api/hymns';
-      const HYMNS_VERSION_KEY = 'taspe7_hymns_sync_version';
       const HYMNS_CACHE_KEY = 'taspe7_hymns_json';
       const localforage_ = (await import('localforage')).default;
 
-      // Normalize _id from MongoDB extended JSON ({$oid: "..."}) or plain string
       const resolveId = (id) => {
         if (!id) return '';
         if (typeof id === 'string') return id;
         if (typeof id === 'object' && id.$oid) return id.$oid;
         return String(id);
       };
-
-      // Normalize all _id fields in a hymn array to plain strings
       const normalizeIds = (hymns) => hymns.map(h => ({
         ...h,
         _id: resolveId(h._id),
@@ -1935,72 +1931,77 @@ export default function Category_Humns() {
           : h.lyrics
       }));
 
-      let serverVersion = null;
+      // 1. Try localforage cache (instant, offline)
+      const cached = await localforage_.getItem(HYMNS_CACHE_KEY);
+      if (Array.isArray(cached) && cached.length > 0) return normalizeIds(cached);
+
+      // 2. Seed from bundled hymns.json (first install)
       try {
-        const verRes = await axios.get(`${API_BASE}/version`);
-        serverVersion = verRes.data.version;
-      } catch (err) {
-        console.warn('[HymnsQuery] Offline — using cached data.', err.message);
-        // Offline: return local cache immediately
-        const local = await localforage_.getItem(HYMNS_CACHE_KEY);
-        if (Array.isArray(local) && local.length > 0) return normalizeIds(local);
-        // Try bundled fallback
-        try {
-          const res = await fetch('/hymns.json');
-          if (res.ok) {
-            const json = await res.json();
-            if (Array.isArray(json) && json.length > 0) {
-              const normalized = normalizeIds(json);
-              await localforage_.setItem(HYMNS_CACHE_KEY, normalized);
-              return normalized;
-            }
+        const res = await fetch('/hymns.json');
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json) && json.length > 0) {
+            const normalized = normalizeIds(json);
+            await localforage_.setItem(HYMNS_CACHE_KEY, normalized);
+            return normalized;
           }
-        } catch { }
-        return [];
-      }
-
-      const localVersion = parseInt(localStorage.getItem(HYMNS_VERSION_KEY) || '0');
-      const local = await localforage_.getItem(HYMNS_CACHE_KEY);
-      const localData = Array.isArray(local) && local.length > 0 ? normalizeIds(local) : null;
-
-      if (serverVersion !== null && serverVersion <= localVersion && localData) {
-        console.log(`[HymnsQuery] App: up to date (v${localVersion}). Using cache.`);
-        return localData;
-      }
-
-      if (!localData) {
-        try {
-          const res = await fetch('/hymns.json');
-          if (res.ok) {
-            const json = await res.json();
-            if (Array.isArray(json) && json.length > 0) {
-              const normalized = normalizeIds(json);
-              await localforage_.setItem(HYMNS_CACHE_KEY, normalized);
-              console.log(`[HymnsQuery] App: seeded ${normalized.length} hymns from bundled file.`);
-            }
-          }
-        } catch (e) {
-          console.warn('[HymnsQuery] App: failed to read bundled hymns.', e.message);
         }
-      }
+      } catch { }
+      return [];
+    }
+  });
 
-      const currentLocal = await localforage_.getItem(HYMNS_CACHE_KEY);
-      const currentLocalData = Array.isArray(currentLocal) && currentLocal.length > 0 ? normalizeIds(currentLocal) : null;
+  // ── APP: background sync — runs after mount, only when needed ──────────
+  // Triggered by: (a) force_sync flag from dashboard, (b) BroadcastChannel signal, (c) no cache yet
+  useEffect(() => {
+    if (!isApp || typeof window === 'undefined') return;
 
-      if (currentLocalData && serverVersion !== null) {
-        try {
-          console.log(`[HymnsQuery] App: incremental sync v${localVersion} → v${serverVersion}`);
+    const API_BASE = 'https://worship-team-api.onrender.com/api/hymns';
+    const HYMNS_VERSION_KEY = 'taspe7_hymns_sync_version';
+    const HYMNS_CACHE_KEY = 'taspe7_hymns_json';
+    const SYNC_FLAG_KEY = 'taspe7_force_sync';
+    const SYNC_CHANNEL = 'taspe7_sync';
+
+    const resolveId = (id) => {
+      if (!id) return '';
+      if (typeof id === 'string') return id;
+      if (typeof id === 'object' && id.$oid) return id.$oid;
+      return String(id);
+    };
+    const normalizeIds = (hymns) => hymns.map(h => ({
+      ...h,
+      _id: resolveId(h._id),
+      lyrics: Array.isArray(h.lyrics)
+        ? h.lyrics.map(l => ({ ...l, _id: resolveId(l._id) }))
+        : h.lyrics
+    }));
+
+    const doSync = async () => {
+      try {
+        const localforage_ = (await import('localforage')).default;
+        const verRes = await axios.get(`${API_BASE}/version`);
+        const serverVersion = verRes.data.version;
+        const localVersion = parseInt(localStorage.getItem(HYMNS_VERSION_KEY) || '0');
+
+        if (serverVersion <= localVersion) {
+          localStorage.removeItem(SYNC_FLAG_KEY);
+          return; // already up to date
+        }
+
+        const cached = await localforage_.getItem(HYMNS_CACHE_KEY);
+        const localData = Array.isArray(cached) && cached.length > 0 ? normalizeIds(cached) : null;
+
+        if (localData) {
+          // Incremental sync
           const changesRes = await axios.get(`${API_BASE}/changes?fromVersion=${localVersion}`);
           const { updated = [], deleted = [], fallback, currentVersion: cv } = changesRes.data;
 
           if (!fallback) {
-            let merged = [...currentLocalData];
-
+            let merged = [...localData];
             if (deleted.length > 0) {
               const deletedSet = new Set(deleted.map(String));
               merged = merged.filter(h => !deletedSet.has(resolveId(h._id)));
             }
-
             if (updated.length > 0) {
               const updatedMap = new Map(updated.map(h => [resolveId(h._id), h]));
               merged = merged.map(h => updatedMap.has(resolveId(h._id)) ? updatedMap.get(resolveId(h._id)) : h);
@@ -2009,34 +2010,37 @@ export default function Category_Humns() {
                 if (!mergedIds.has(resolveId(h._id))) merged.push(h);
               }
             }
-
             await localforage_.setItem(HYMNS_CACHE_KEY, merged);
             localStorage.setItem(HYMNS_VERSION_KEY, (cv || serverVersion).toString());
-            console.log(`[HymnsQuery] App: sync done. +${updated.length} updated, -${deleted.length} deleted. Total: ${merged.length}`);
-            queryClient.setQueryData(['hymns', 'app'], merged);
-            return merged;
+            localStorage.removeItem(SYNC_FLAG_KEY);
+            queryClient.setQueryData(['hymns', 'app'], normalizeIds(merged));
+            return;
           }
-          console.warn('[HymnsQuery] App: fallback triggered — too many changes. Full download.');
-        } catch (err) {
-          console.warn('[HymnsQuery] App: incremental sync failed, falling back.', err.message);
         }
-      }
 
-      // Full download fallback
-      console.log('[HymnsQuery] Full download from API...');
-      const response = await axios.get(`${API_BASE}?limit=50000`);
-      const data = Array.isArray(response.data) ? response.data : [];
-
-      if (data.length > 0) {
-        await localforage_.setItem(HYMNS_CACHE_KEY, data);
-        if (typeof window !== 'undefined' && serverVersion !== null) {
+        // Full download
+        const response = await axios.get(`${API_BASE}?limit=50000`);
+        const data = Array.isArray(response.data) ? response.data : [];
+        if (data.length > 0) {
+          await localforage_.setItem(HYMNS_CACHE_KEY, data);
           localStorage.setItem(HYMNS_VERSION_KEY, serverVersion.toString());
+          localStorage.removeItem(SYNC_FLAG_KEY);
+          queryClient.setQueryData(['hymns', 'app'], normalizeIds(data));
         }
+      } catch {
+        // Offline — silently skip
       }
+    };
 
-      return data;
-    }
-  });
+    // Always check for updates when the app opens
+    doSync();
+    // Listen for real-time force sync from dashboard (same device, any tab)
+    const channel = new BroadcastChannel(SYNC_CHANNEL);
+    channel.onmessage = (e) => {
+      if (e.data?.type === 'force_sync') doSync();
+    };
+    return () => channel.close();
+  }, [isApp, queryClient]);
 
   // ── WEB: Server-side infinite scrolling ──────────────────────────────
   const {
