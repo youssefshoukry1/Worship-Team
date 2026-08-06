@@ -421,7 +421,7 @@ export default function Category_Humns() {
   const [bibleModalVerses, setBibleModalVerses] = useState([]);
   const [bibleSelectedVerseIds, setBibleSelectedVerseIds] = useState(new Set());
   // AI analysis state
-  const [aiAnalysis, setAiAnalysis] = useState({ loading: false, type: null, text: '', error: null });
+  const [aiAnalysis, setAiAnalysis] = useState({ loading: false, type: null, text: '', error: null, isLimit: false });
   const [showAiOptions, setShowAiOptions] = useState(false);
   const [bibleVerseFontSize, setBibleVerseFontSize] = useState(() => {
     if (typeof window === 'undefined') return 24;
@@ -1092,16 +1092,18 @@ export default function Category_Humns() {
     if (!selectedVersesData.length) return;
     const textContent = selectedVersesData.map(v => `[${v.verseNumber}] ${v.text}`).join(' ');
     const verseId = Array.from(bibleSelectedVerseIds).sort().join('-');
-    setAiAnalysis({ loading: true, type: analysisType, text: '', error: null });
+    setAiAnalysis({ loading: true, type: analysisType, text: '', error: null, isLimit: false });
     try {
       const { data } = await axios.post(`${API_ROOT}/ai/analyze-verse`, {
         verseId,
         textContent,
         analysisType
       });
-      setAiAnalysis({ loading: false, type: analysisType, text: data.explanation || '', error: null });
-    } catch {
-      setAiAnalysis({ loading: false, type: analysisType, text: '', error: 'حدث خطأ، حاول مجدداً.' });
+      setAiAnalysis({ loading: false, type: analysisType, text: data.explanation || '', error: null, isLimit: false });
+    } catch (err) {
+      const responseMessage = err?.response?.data?.message || 'حدث خطأ، حاول مجدداً.';
+      const isLimit = err?.response?.status === 429;
+      setAiAnalysis({ loading: false, type: analysisType, text: '', error: responseMessage, isLimit });
     }
   };
 
@@ -1231,7 +1233,11 @@ export default function Category_Humns() {
 
     setIsCreatingSession(true);
     try {
-      const response = await axios.post(`${API_ROOT}/presentation/create`, { dataShowId: id });
+      const token = typeof window !== 'undefined' ? localStorage.getItem('user_Taspe7_Token') : null;
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const response = await axios.post(`${API_ROOT}/presentation/create`, { dataShowId: id }, { headers });
       if (response.data.success) {
         setDataShowId(id);
         if (response.data.expiresAt) setSessionExpiresAt(response.data.expiresAt);
@@ -3964,7 +3970,19 @@ export default function Category_Humns() {
                                   <span className="text-[11px] text-violet-300/60 font-bold">جارٍ التحليل الذكي...</span>
                                 </div>
                               ) : aiAnalysis.error ? (
-                                <p className="text-xs text-red-400 text-center py-3">{aiAnalysis.error}</p>
+                                <>
+                                  <p className="text-xs text-red-400 text-center py-3">{aiAnalysis.error}</p>
+                                  {aiAnalysis.isLimit && !isLogin && (
+                                    <div className="mt-3 flex justify-center">
+                                      <button
+                                        onClick={() => router.push('/login')}
+                                        className="inline-flex items-center justify-center rounded-full bg-sky-500 px-4 py-2 text-xs font-black text-white transition hover:bg-sky-400"
+                                      >
+                                        تسجيل الدخول
+                                      </button>
+                                    </div>
+                                  )}
+                                </>
                               ) : (
                                 <p className="text-[13px] leading-loose text-slate-200/90 font-arabic whitespace-pre-line">{aiAnalysis.text}</p>
                               )}

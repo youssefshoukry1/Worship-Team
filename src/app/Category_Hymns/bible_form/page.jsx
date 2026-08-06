@@ -10,6 +10,7 @@ import { showToast } from '../../components/ToastContainer';
 import { useLanguage } from "../../context/LanguageContext";
 import { normalizeBibleBooksFromApi } from '../../utils/bibleBooks';
 import { getApiBaseUrl } from '../../utils/apiBase';
+import { useRouter } from 'next/navigation';
 import { isApp } from '../../utils/ReactQueryProvider';
 import { getLocalBibleIndex, searchLocalBible, isTranslationDownloaded, downloadTranslationToLocal, deleteTranslationFromLocal } from '../../utils/bibleSync';
 import { queueOfflineAction } from '../../utils/offlineQueue';
@@ -315,6 +316,7 @@ function normalizeText(text) {
 }
 
 export default function BibleModal({ isOpen: showBibleModal, onClose: setShowBibleModal, onOpenPresentation, verseNotes, setVerseNotes, noteModalConfig, setNoteModalConfig, noteText, setNoteText, isSubmittingNote, setIsSubmittingNote, viewNoteConfig, setViewNoteConfig }) {
+    const router = useRouter();
     const { user_id, isLogin } = useContext(UserContext);
     const { addToWorkspace } = useContext(HymnsContext);
     const { language, t } = useLanguage();
@@ -904,64 +906,18 @@ export default function BibleModal({ isOpen: showBibleModal, onClose: setShowBib
         if (!selectedVersesData.length) return;
         const textContent = selectedVersesData.map(v => `[${v.verseNumber}] ${v.text}`).join(' ');
         const verseId = Array.from(bibleSelectedVerseIds).sort().join('-');
-        setAiAnalysis({ loading: true, type: analysisType, text: '', error: null });
+        setAiAnalysis({ loading: true, type: analysisType, text: '', error: null, isLimit: false });
         try {
             const { data } = await axios.post(`${API_ROOT}/ai/analyze-verse`, {
                 verseId,
                 textContent,
                 analysisType
             });
-            setAiAnalysis({ loading: false, type: analysisType, text: data.explanation || '', error: null });
-        } catch {
-            setAiAnalysis({ loading: false, type: analysisType, text: '', error: 'حدث خطأ، حاول مجدداً.' });
-        }
-    };
-
-    // Save Bible verses to workspace
-    const saveBibleToWorkspace = async () => {
-        if (!bibleModalBook?.bookName || bibleModalChapter == null || bibleSelectedVerseIds.size === 0) {
-            return;
-        }
-
-        setIsSavingBible(true);
-        try {
-            const selectedVersesData = bibleModalVerses.filter(verse => bibleSelectedVerseIds.has(verse._id));
-
-            if (selectedVersesData.length === 0) {
-                setIsSavingBible(false);
-                return;
-            }
-
-            const selectedVerseNumbers = selectedVersesData.map(v => v.verseNumber).sort((a, b) => a - b);
-            const verseNumbersString = selectedVerseNumbers.join(', ');
-
-            const title = `${bibleModalBook.bookName} · ${t('chapter')} ${bibleModalChapter}:${verseNumbersString}`;
-            const uniqueIdSuffix = selectedVerseNumbers.join('-'); // For unique ID based on selected verses
-
-            const bibleItem = {
-                _id: `bible-${bibleModalBook.bookName}-${bibleModalChapter}-${uniqueIdSuffix}`,
-                title: title,
-                bookName: bibleModalBook.bookName,
-                chapter: bibleModalChapter,
-                // Store only the selected verses
-                verses: selectedVersesData,
-                // Lyrics for presentation/display should also be only selected verses
-                isBible: true,
-                lyrics: selectedVersesData.map(v => ({
-                    type: 'verse',
-                    title: `آية ${v.verseNumber}`,
-                    text: v.text
-                }))
-            };
-
-            addToWorkspace(bibleItem);
-
-            setBibleAddedSuccess(true);
-            setTimeout(() => setBibleAddedSuccess(false), 2000);
-        } catch (error) {
-            console.error('Error saving Bible to workspace:', error);
-        } finally {
-            setIsSavingBible(false);
+            setAiAnalysis({ loading: false, type: analysisType, text: data.explanation || '', error: null, isLimit: false });
+        } catch (err) {
+            const responseMessage = err?.response?.data?.message || 'حدث خطأ، حاول مجدداً.';
+            const isLimit = err?.response?.status === 429;
+            setAiAnalysis({ loading: false, type: analysisType, text: '', error: responseMessage, isLimit });
         }
     };
     ////////////////////////////////////////////////////////
@@ -1444,7 +1400,7 @@ export default function BibleModal({ isOpen: showBibleModal, onClose: setShowBib
                                             </button>
                                             {/* AI Analyze Button */}
                                             <button
-                                                onClick={() => { setShowAiOptions(p => !p); setAiAnalysis({ loading: false, type: null, text: '', error: null }); }}
+                                                onClick={() => { setShowAiOptions(p => !p); setAiAnalysis({ loading: false, type: null, text: '', error: null, isLimit: false }); }}
                                                 className={`flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 relative overflow-hidden ${showAiOptions
                                                     ? 'bg-violet-500/20 border-violet-400/50 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.3)]'
                                                     : 'bg-white/5 hover:bg-violet-500/10 border-white/10 hover:border-violet-400/30 text-white hover:text-violet-300'
@@ -1504,7 +1460,19 @@ export default function BibleModal({ isOpen: showBibleModal, onClose: setShowBib
                                                             <span className="text-[11px] text-violet-300/60 font-bold">جارٍ التحليل الذكي...</span>
                                                         </div>
                                                     ) : aiAnalysis.error ? (
-                                                        <p className="text-xs text-red-400 text-center py-3">{aiAnalysis.error}</p>
+                                                        <>
+                                                            <p className="text-xs text-red-400 text-center py-3">{aiAnalysis.error}</p>
+                                                            {aiAnalysis.isLimit && !isLogin && (
+                                                                <div className="mt-3 flex justify-center">
+                                                                    <button
+                                                                        onClick={() => router.push('/login')}
+                                                                        className="inline-flex items-center justify-center rounded-full bg-sky-500 px-4 py-2 text-xs font-black text-white transition hover:bg-sky-400"
+                                                                    >
+                                                                        تسجيل الدخول
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </>
                                                     ) : (
                                                         <p className="text-[13px] leading-loose text-slate-200/90 font-arabic whitespace-pre-line">{aiAnalysis.text}</p>
                                                     )}

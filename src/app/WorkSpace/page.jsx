@@ -1056,9 +1056,13 @@ export default function WorkSpace() {
 
         setIsCreatingSession(true);
         try {
+            const token = typeof window !== 'undefined' ? localStorage.getItem('user_Taspe7_Token') : null;
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers.Authorization = `Bearer ${token}`;
+
             const response = await fetch(`${API_URL}/presentation/create`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({ dataShowId: id })
             });
             const data = await response.json();
