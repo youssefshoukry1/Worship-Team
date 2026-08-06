@@ -1094,11 +1094,14 @@ export default function Category_Humns() {
     const verseId = Array.from(bibleSelectedVerseIds).sort().join('-');
     setAiAnalysis({ loading: true, type: analysisType, text: '', error: null, isLimit: false });
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('user_Taspe7_Token') : null;
+      const headers = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
       const { data } = await axios.post(`${API_ROOT}/ai/analyze-verse`, {
         verseId,
         textContent,
         analysisType
-      });
+      }, { headers });
       setAiAnalysis({ loading: false, type: analysisType, text: data.explanation || '', error: null, isLimit: false });
     } catch (err) {
       const responseMessage = err?.response?.data?.message || 'حدث خطأ، حاول مجدداً.';

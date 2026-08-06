@@ -34,6 +34,14 @@ export function usePresentation(dataShowId, role = 'controller') {
     const viewerPeerRef = useRef(null);
     const currentControllerIdRef = useRef(null);
 
+    // Session timer & Limit exceeded state
+    const [remainingSeconds, setRemainingSeconds] = useState(null);
+    const [limitModalInfo, setLimitModalInfo] = useState({ show: false, message: '', resetAt: null });
+
+    const closeLimitModal = useCallback(() => {
+        setLimitModalInfo({ show: false, message: '', resetAt: null });
+    }, []);
+
     const cleanupWebRTC = useCallback(() => {
         if (localStreamRef.current) {
             localStreamRef.current.getTracks().forEach(track => track.stop());
@@ -51,9 +59,32 @@ export function usePresentation(dataShowId, role = 'controller') {
         currentControllerIdRef.current = null;
     }, []);
 
+    // Countdown interval for presenter timer
+    useEffect(() => {
+        if (remainingSeconds === null || remainingSeconds === Infinity || remainingSeconds <= 0) return;
+
+        const timer = setInterval(() => {
+            setRemainingSeconds(prev => {
+                if (prev === null || prev <= 1) {
+                    clearInterval(timer);
+                    localStorage.removeItem('myLivePresentationId');
+                    cleanupWebRTC();
+                    if (socketRef.current) socketRef.current.disconnect();
+                    setLimitModalInfo(modalPrev => ({
+                        ...modalPrev,
+                        show: true,
+                        message: modalPrev.message || 'لقد انتهت مهلة الجلسة المباشرة المسموح بها.'
+                    }));
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [remainingSeconds, cleanupWebRTC]);
+
     // Keep-alive: ping the server every 10 minutes while a session is active.
-    // Render's free tier spins down after ~15 min of inactivity; this prevents
-    // a cold-start delay from appearing mid-presentation.
     useEffect(() => {
         if (!dataShowId) return;
         const PING_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
@@ -67,11 +98,11 @@ export function usePresentation(dataShowId, role = 'controller') {
         if (!dataShowId) return;
 
         const socket = io(SOCKET_URL, {
-            transports: ['websocket'], // Force WebSocket, skips heavy HTTP polling requests
-            reconnectionAttempts: Infinity, // Keep trying to reconnect
+            transports: ['websocket'], // Force WebSocket
+            reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            timeout: 20000, // Longer timeout for slow/unstable networks
+            timeout: 20000,
         });
         socketRef.current = socket;
 
@@ -86,8 +117,29 @@ export function usePresentation(dataShowId, role = 'controller') {
             cleanupWebRTC();
         });
 
+        socket.on('session-timer-init', ({ remainingMinutes, resetAt }) => {
+            if (remainingMinutes === Infinity) {
+                setRemainingSeconds(Infinity);
+            } else if (typeof remainingMinutes === 'number') {
+                setRemainingSeconds(Math.floor(remainingMinutes * 60));
+            }
+            if (resetAt) {
+                setLimitModalInfo(prev => ({ ...prev, resetAt }));
+            }
+        });
+
+        socket.on('session-limit-exceeded', ({ message, resetAt }) => {
+            localStorage.removeItem('myLivePresentationId');
+            cleanupWebRTC();
+            setIsConnected(false);
+            setLimitModalInfo({
+                show: true,
+                message: message || 'لقد انتهت مهلة الجلسة المباشرة.',
+                resetAt: resetAt || null
+            });
+        });
+
         // Display / remote roles listen for updates.
-        // Use functional setState to skip re-renders when nothing meaningful changed.
         socket.on('display-update', (state) => {
             setDisplayState(prev => {
                 if (
@@ -97,11 +149,9 @@ export function usePresentation(dataShowId, role = 'controller') {
                     prev.type          === state.type
                 ) return prev;
 
-                // Merge with previous state to allow partial updates (saves bandwidth)
                 return {
                     ...prev,
                     ...state,
-                    // If the backend omits 'slides' to save data, keep the existing ones
                     slides: state.slides !== undefined ? state.slides : (prev ? prev.slides : [])
                 };
             });
@@ -109,14 +159,12 @@ export function usePresentation(dataShowId, role = 'controller') {
 
         // --- WebRTC signaling ---
 
-        // Viewer hears that audio started -> Requests audio
         socket.on('audio-started', ({ controllerId }) => {
             if (role === 'controller') return;
             currentControllerIdRef.current = controllerId;
             socket.emit('request-audio', { targetId: controllerId });
         });
 
-        // Viewer hears that audio stopped -> Clear remote audio
         socket.on('audio-stopped', () => {
             if (role === 'controller') return;
             setRemoteAudioStream(null);
@@ -127,7 +175,6 @@ export function usePresentation(dataShowId, role = 'controller') {
             }
         });
 
-        // Controller hears a request to join audio from a viewer
         socket.on('request-audio', async ({ from }) => {
             if (role !== 'controller') return;
             if (!localStreamRef.current) return;
@@ -154,7 +201,6 @@ export function usePresentation(dataShowId, role = 'controller') {
             }
         });
 
-        // Viewer receives an offer from Controller
         socket.on('webrtc-offer', async ({ from, offer }) => {
             if (role === 'controller') return;
 
@@ -190,7 +236,6 @@ export function usePresentation(dataShowId, role = 'controller') {
             }
         });
 
-        // Controller receives answer from Viewer
         socket.on('webrtc-answer', async ({ from, answer }) => {
             if (role !== 'controller') return;
             const pc = peersRef.current[from];
@@ -203,7 +248,6 @@ export function usePresentation(dataShowId, role = 'controller') {
             }
         });
 
-        // Both receive ICE candidates
         socket.on('webrtc-ice-candidate', async ({ from, candidate }) => {
             try {
                 if (role === 'controller') {
@@ -251,7 +295,6 @@ export function usePresentation(dataShowId, role = 'controller') {
         }
     }, [isAudioActive, dataShowId, role]);
 
-    /** Tell all displays a new hymn is being presented */
     const broadcastHymn = useCallback((hymn, slides) => {
         if (!socketRef.current || !dataShowId) return;
         socketRef.current.emit('hymn-change', {
@@ -262,17 +305,19 @@ export function usePresentation(dataShowId, role = 'controller') {
         });
     }, [dataShowId]);
 
-    /** Tell all displays to jump to a specific slide */
     const broadcastSlide = useCallback((slideIndex) => {
         if (!socketRef.current || !dataShowId) return;
         socketRef.current.emit('slide-change', { dataShowId, slideIndex });
     }, [dataShowId]);
 
-    /** Blank the display for everyone */
     const clearDisplay = useCallback(() => {
         if (!socketRef.current || !dataShowId) return;
         socketRef.current.emit('clear-display', { dataShowId });
     }, [dataShowId]);
+
+    const formattedRemainingTime = remainingSeconds === null ? null : (
+        remainingSeconds === Infinity ? 'غير محدود' : `${Math.floor(remainingSeconds / 60).toString().padStart(2, '0')}:${(remainingSeconds % 60).toString().padStart(2, '0')}`
+    );
 
     return {
         isConnected,
@@ -282,6 +327,11 @@ export function usePresentation(dataShowId, role = 'controller') {
         displayState,
         toggleAudio,
         isAudioActive,
-        remoteAudioStream
+        remoteAudioStream,
+        remainingSeconds,
+        formattedRemainingTime,
+        limitModalInfo,
+        closeLimitModal,
+        setRemainingSeconds
     };
 }
