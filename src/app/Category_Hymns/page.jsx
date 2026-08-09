@@ -3908,12 +3908,6 @@ const handleShare = () => {
                           >
                             <FileText className="w-3.5 h-3.5 text-indigo-400" /> Note
                           </button>
-                          <button
-                            onClick={() => setPrayModeActive(true)}
-                            className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95"
-                          >
-                            <Cross className="w-3.5 h-3.5 text-rose-400 fill-rose-400/20" /> Pray
-                          </button>
                           {/* AI Analyze Button */}
                           <button
                             onClick={() => { setShowAiOptions(p => !p); setAiAnalysis({ loading: false, type: null, text: '', error: null }); }}
