@@ -716,29 +716,7 @@ export default function Category_Humns() {
     await fetchCompareData(verseNumbers, activeTrs);
   };
 
-  // 1. أضف هذه الـ States في بداية المكون (Component) الخاص بك للتحكم في السحب
-  const [touchStartX, setTouchStartX] = useState(null);
-  const [touchEndX, setTouchEndX] = useState(null);
-
-  // 2. دالة معالجة السحب (Swipe Handler)
-  const handleTouchEnd = (allColumnsLength, currentTab, setTab) => {
-    if (!touchStartX || !touchEndX) return;
-    const distance = touchStartX - touchEndX;
-    const minSwipeDistance = 50; // الحد الأدنى للمسافة لاعتبارها سحبة
-
-    // بما أن الواجهة تدعم العربية (RTL)، السحب لليمين يعني السابق، واليسار يعني التالي
-    if (distance > minSwipeDistance) {
-      // سحب لليسار (التالي)
-      setTab(prev => Math.min(allColumnsLength - 1, prev + 1));
-    } else if (distance < -minSwipeDistance) {
-      // سحب لليمين (السابق)
-      setTab(prev => Math.max(0, prev - 1));
-    }
-
-    // إعادة تعيين القيم
-    setTouchStartX(null);
-    setTouchEndX(null);
-  };
+  
 
   // Notes: keyed by verseId for O(1) lookup
   const [verseNotes, setVerseNotes] = useState({}); // { [verseId]: noteText }
@@ -4046,7 +4024,7 @@ export default function Category_Humns() {
                           </div>
                         )}
 
-                        {/* Highlights Circle Color Picker */}
+{/* Highlights Circle Color Picker */}
                         <div className="flex flex-col gap-2.5 shrink-0 mt-1">
                           <div className="flex items-center gap-3">
                             <span className="text-xs font-black text-white/50 whitespace-nowrap">تمييز:</span>
@@ -4114,42 +4092,42 @@ export default function Category_Humns() {
                           {/* Custom Pure-In-App Spectrum Picker (Horizontal Layout) */}
                           {showColorCustomizer && (
                             <div className="flex flex-col sm:flex-row gap-5 bg-[#141824]/95 backdrop-blur-xl text-white rounded-[24px] p-5 mt-2 animate-in fade-in slide-in-from-bottom-2 duration-200 shadow-[0_15px_50px_rgba(0,0,0,0.6)] border border-white/10 w-full max-w-[540px] z-50 select-none origin-top-right">
-
+                              
                               {/* Left Side (Spectrum Box) */}
                               <div className="flex flex-col gap-2 shrink-0">
                                 <div className="flex items-center justify-between px-1">
                                   <span className="text-xs font-bold text-white/70">طيف الألوان</span>
                                   <Sparkles className="w-3.5 h-3.5 text-sky-400" />
                                 </div>
-                                <div
+                                <div 
                                   className="relative w-full sm:w-[260px] h-32 sm:h-[160px] rounded-2xl overflow-hidden cursor-crosshair shadow-inner border border-white/15 touch-none"
                                   onPointerDown={(e) => {
                                     const rect = e.currentTarget.getBoundingClientRect();
                                     const updateColor = (pEvent) => {
                                       const x = Math.max(0, Math.min(1, (pEvent.clientX - rect.left) / rect.width));
                                       const y = Math.max(0, Math.min(1, (pEvent.clientY - rect.top) / rect.height));
-
+                                      
                                       const hue = x * 360;
                                       const sat = 1;
                                       const val = 1 - y;
-
+                                      
                                       const f = (n, k = (n + hue / 60) % 6) => val - val * sat * Math.max(0, Math.min(k, 4 - k, 1));
                                       const r = Math.round(f(5) * 255);
                                       const g = Math.round(f(3) * 255);
                                       const b = Math.round(f(1) * 255);
-
+                                      
                                       const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
                                       setCustomColorHex(hex);
                                     };
 
                                     updateColor(e);
-
+                                    
                                     const onPointerMove = (pEvent) => updateColor(pEvent);
                                     const onPointerUp = () => {
                                       window.removeEventListener('pointermove', onPointerMove);
                                       window.removeEventListener('pointerup', onPointerUp);
                                     };
-
+                                    
                                     window.addEventListener('pointermove', onPointerMove);
                                     window.addEventListener('pointerup', onPointerUp);
                                   }}
@@ -4162,12 +4140,12 @@ export default function Category_Humns() {
 
                               {/* Right Side (Details & Actions) */}
                               <div className="flex flex-col flex-1 gap-4 justify-between">
-
+                                
                                 {/* Color Preview & Values Container */}
                                 <div className="flex items-center gap-3">
                                   {/* Color Square */}
                                   <div className="w-12 h-12 rounded-xl shadow-inner border border-white/20 shrink-0 transition-colors" style={{ backgroundColor: customColorHex }} />
-
+                                  
                                   {/* HEX and RGB Values */}
                                   <div className="flex flex-col w-full bg-black/30 rounded-xl p-2.5 border border-white/5 font-mono text-xs text-white/90 shadow-inner">
                                     <div className="flex justify-between items-center px-1">
@@ -4260,7 +4238,6 @@ export default function Category_Humns() {
                   // Mobile: current tab
                   const mtSafe = Math.min(compareMobileTab, Math.max(0, allColumns.length - 1));
                   const mobileActiveCode = allColumns[mtSafe] || null;
-
                   return (
                     <motion.div
                       initial={{ opacity: 0 }}
