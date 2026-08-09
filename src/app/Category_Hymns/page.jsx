@@ -1060,22 +1060,25 @@ export default function Category_Humns() {
     }
   };
 
-  const handleShare = () => {
-    const selectedVersesData = bibleModalVerses.filter(v => bibleSelectedVerseIds.has(v._id));
-    const shareText = selectedVersesData.map(v => `[${v.verseNumber}] ${v.text}`).join('\n') + `\n(${getSelectedVersesRef()})`;
-    if (navigator.share) {
-      navigator.share({
-        title: getSelectedVersesRef(),
-        text: shareText
-      }).catch(() => {
-        navigator.clipboard.writeText(shareText);
-        showToast(language === 'ar' ? 'تم نسخ النص المختار!' : 'Selected text copied!');
-      });
-    } else {
-      navigator.clipboard.writeText(shareText);
+const handleShare = () => {
+  const selectedVersesData = bibleModalVerses.filter(v => bibleSelectedVerseIds.has(v._id));
+  const shareText = selectedVersesData.map(v => `[${v.verseNumber}] ${v.text}`).join('\n') + `\n(${getSelectedVersesRef()})`;
+
+  try {
+    navigator.share({
+      title: getSelectedVersesRef(),
+      text: shareText
+    });
+  } catch (error) {
+    console.error('navigator.share is not supported', error);
+    navigator.clipboard.writeText(shareText).then(() => {
       showToast(language === 'ar' ? 'تم نسخ النص المختار!' : 'Selected text copied!');
-    }
-  };
+    }).catch((clipboardError) => {
+      console.error('Clipboard write failed', clipboardError);
+      // Handle the error further if needed
+    });
+  }
+};
 
   const handleOpenImageCard = () => {
     const selectedVersesData = bibleModalVerses.filter(v => bibleSelectedVerseIds.has(v._id));
