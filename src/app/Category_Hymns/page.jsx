@@ -716,6 +716,30 @@ export default function Category_Humns() {
     await fetchCompareData(verseNumbers, activeTrs);
   };
 
+  // 1. أضف هذه الـ States في بداية المكون (Component) الخاص بك للتحكم في السحب
+  const [touchStartX, setTouchStartX] = useState(null);
+  const [touchEndX, setTouchEndX] = useState(null);
+
+  // 2. دالة معالجة السحب (Swipe Handler)
+  const handleTouchEnd = (allColumnsLength, currentTab, setTab) => {
+    if (!touchStartX || !touchEndX) return;
+    const distance = touchStartX - touchEndX;
+    const minSwipeDistance = 50; // الحد الأدنى للمسافة لاعتبارها سحبة
+
+    // بما أن الواجهة تدعم العربية (RTL)، السحب لليمين يعني السابق، واليسار يعني التالي
+    if (distance > minSwipeDistance) {
+      // سحب لليسار (التالي)
+      setTab(prev => Math.min(allColumnsLength - 1, prev + 1));
+    } else if (distance < -minSwipeDistance) {
+      // سحب لليمين (السابق)
+      setTab(prev => Math.max(0, prev - 1));
+    }
+
+    // إعادة تعيين القيم
+    setTouchStartX(null);
+    setTouchEndX(null);
+  };
+
   // Notes: keyed by verseId for O(1) lookup
   const [verseNotes, setVerseNotes] = useState({}); // { [verseId]: noteText }
   const [noteModalConfig, setNoteModalConfig] = useState(null); // { type, data, existingNote }
@@ -1060,25 +1084,25 @@ export default function Category_Humns() {
     }
   };
 
-const handleShare = () => {
-  const selectedVersesData = bibleModalVerses.filter(v => bibleSelectedVerseIds.has(v._id));
-  const shareText = selectedVersesData.map(v => `[${v.verseNumber}] ${v.text}`).join('\n') + `\n(${getSelectedVersesRef()})`;
+  const handleShare = () => {
+    const selectedVersesData = bibleModalVerses.filter(v => bibleSelectedVerseIds.has(v._id));
+    const shareText = selectedVersesData.map(v => `[${v.verseNumber}] ${v.text}`).join('\n') + `\n(${getSelectedVersesRef()})`;
 
-  try {
-    navigator.share({
-      title: getSelectedVersesRef(),
-      text: shareText
-    });
-  } catch (error) {
-    console.error('navigator.share is not supported', error);
-    navigator.clipboard.writeText(shareText).then(() => {
-      showToast(language === 'ar' ? 'تم نسخ النص المختار!' : 'Selected text copied!');
-    }).catch((clipboardError) => {
-      console.error('Clipboard write failed', clipboardError);
-      // Handle the error further if needed
-    });
-  }
-};
+    try {
+      navigator.share({
+        title: getSelectedVersesRef(),
+        text: shareText
+      });
+    } catch (error) {
+      console.error('navigator.share is not supported', error);
+      navigator.clipboard.writeText(shareText).then(() => {
+        showToast(language === 'ar' ? 'تم نسخ النص المختار!' : 'Selected text copied!');
+      }).catch((clipboardError) => {
+        console.error('Clipboard write failed', clipboardError);
+        // Handle the error further if needed
+      });
+    }
+  };
 
   const handleOpenImageCard = () => {
     const selectedVersesData = bibleModalVerses.filter(v => bibleSelectedVerseIds.has(v._id));
@@ -3943,12 +3967,18 @@ const handleShare = () => {
 
                         {/* AI Response Panel */}
                         {(aiAnalysis.loading || aiAnalysis.text || aiAnalysis.error) && (
-                          <div className="shrink-0 rounded-2xl overflow-hidden border border-violet-500/20 bg-[#0c0f1e]/80 backdrop-blur-md shadow-[0_4px_24px_rgba(139,92,246,0.12)]">
+                          <div
+                            className="shrink-0 rounded-2xl overflow-hidden border border-violet-500/20 bg-[#0c0f1e]/80 backdrop-blur-md shadow-[0_4px_24px_rgba(139,92,246,0.12)]"
+                            style={{ transition: 'background-color 0.3s ease-in-out', padding: '1rem' }}
+                          >
                             {/* Panel header */}
-                            <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 bg-gradient-to-r from-violet-600/10 to-indigo-600/5">
+                            <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-gradient-to-r from-violet-600/10 to-indigo-600/5">
                               <div className="flex items-center gap-2">
                                 <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-                                <span className="text-[11px] font-black text-violet-300 tracking-wider uppercase">
+                                <span
+                                  className="text-[11px] font-black text-violet-300 tracking-wider uppercase"
+                                  style={{ transition: 'color 0.3s ease-in-out' }}
+                                >
                                   {aiAnalysis.type === 'explain' ? 'تفسير روحي' : aiAnalysis.type === 'cross_reference' ? 'مراجع كتابية' : 'تطبيق عملي'}
                                 </span>
                               </div>
@@ -3960,18 +3990,39 @@ const handleShare = () => {
                               </button>
                             </div>
                             {/* Content */}
-                            <div className="px-4 py-3 max-h-52 overflow-y-auto custom-scrollbar-thin" dir="rtl">
+                            <div
+                              className="px-4 py-3 max-h-52 overflow-y-auto custom-scrollbar-thin"
+                              dir="rtl"
+                              style={{ transition: 'max-height 0.3s ease-in-out' }}
+                            >
                               {aiAnalysis.loading ? (
-                                <div className="flex flex-col items-center justify-center gap-3 py-6">
-                                  <div className="relative w-8 h-8">
-                                    <div className="absolute inset-0 rounded-full border-2 border-violet-500/30 border-t-violet-400 animate-spin" />
-                                    <Sparkles className="absolute inset-0 m-auto w-3.5 h-3.5 text-violet-400 animate-pulse" />
+                                <div
+                                  className="flex flex-col items-center justify-center gap-3 py-6"
+                                  style={{
+                                    animation: 'pulse 1s ease-in-out infinite',
+                                    backgroundColor: '#0c0f1e'
+                                  }}
+                                >
+                                  <div className="relative w-8 h-8" style={{ animation: 'spin 2s linear infinite' }}>
+                                    <div
+                                      className="absolute inset-0 rounded-full border-2 border-violet-500/30 border-t-violet-400"
+                                      style={{ animation: 'pulse 1s ease-in-out infinite', backgroundColor: '#0c0f1e' }}
+                                    >
+                                      <Sparkles className="absolute inset-0 m-auto w-3.5 h-3.5 text-violet-400 animate-pulse" />
+                                    </div>
                                   </div>
-                                  <span className="text-[11px] text-violet-300/60 font-bold">جارٍ التحليل الذكي...</span>
+                                  <span
+                                    className="text-[11px] text-violet-300/60 font-bold"
+                                    style={{ color: '#7b8392' }}
+                                  >
+                                    جاري التحليل الذكي...
+                                  </span>
                                 </div>
                               ) : aiAnalysis.error ? (
                                 <>
-                                  <p className="text-xs text-red-400 text-center py-3">{aiAnalysis.error}</p>
+                                  <p className="text-xs text-red-400 text-center py-3" style={{ color: '#f15c6d' }}>
+                                    {aiAnalysis.error}
+                                  </p>
                                   {aiAnalysis.isLimit && !isLogin && (
                                     <div className="mt-3 flex justify-center">
                                       <button
@@ -3984,7 +4035,12 @@ const handleShare = () => {
                                   )}
                                 </>
                               ) : (
-                                <p className="text-[13px] leading-loose text-slate-200/90 font-arabic whitespace-pre-line">{aiAnalysis.text}</p>
+                                <p
+                                  className="text-[13px] leading-loose text-slate-200/90 font-arabic whitespace-pre-line"
+                                  style={{ color: '#c5d8e4' }}
+                                >
+                                  {aiAnalysis.text}
+                                </p>
                               )}
                             </div>
                           </div>
@@ -4055,67 +4111,104 @@ const handleShare = () => {
                             </div>
                           </div>
 
-                          {/* Custom Color Editor Widget */}
+                          {/* Custom Pure-In-App Spectrum Picker (Horizontal Layout) */}
                           {showColorCustomizer && (
-                            <div className="flex flex-col gap-3 bg-[#0c1222]/90 backdrop-blur-md border border-white/10 rounded-2xl p-3 mt-1.5 animate-in fade-in slide-in-from-bottom-2 duration-200 shadow-xl shadow-black/40">
-                              <span className="text-[11px] font-bold text-white/50 mb-1">Choose a vibrant preset:</span>
+                            <div className="flex flex-col sm:flex-row gap-5 bg-[#141824]/95 backdrop-blur-xl text-white rounded-[24px] p-5 mt-2 animate-in fade-in slide-in-from-bottom-2 duration-200 shadow-[0_15px_50px_rgba(0,0,0,0.6)] border border-white/10 w-full max-w-[540px] z-50 select-none origin-top-right">
 
-                              <div className="grid grid-cols-6 gap-2">
-                                {['#f43f5e', '#ec4899', '#d946ef', '#a855f7', '#8b5cf6', '#6366f1', '#3b82f6', '#0ea5e9', '#06b6d4', '#14b8a6', '#10b981', '#84cc16'].map(presetHex => (
-                                  <button
-                                    key={presetHex}
-                                    onClick={() => {
-                                      const newId = `custom-${presetHex.replace('#', '')}`;
-                                      setHighlightColorsList(prev => {
-                                        if (prev.some(c => c.hex.toLowerCase() === presetHex.toLowerCase())) return prev;
-                                        return [...prev, { id: newId, hex: presetHex }];
-                                      });
-                                      handleApplyHighlight(newId);
-                                      setShowColorCustomizer(false);
-                                    }}
-                                    className="w-8 h-8 rounded-full border-2 border-white/10 hover:border-white hover:scale-110 transition-all shadow-md"
-                                    style={{ backgroundColor: presetHex }}
-                                    title={`Preset ${presetHex}`}
-                                  />
-                                ))}
+                              {/* Left Side (Spectrum Box) */}
+                              <div className="flex flex-col gap-2 shrink-0">
+                                <div className="flex items-center justify-between px-1">
+                                  <span className="text-xs font-bold text-white/70">طيف الألوان</span>
+                                  <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                                </div>
+                                <div
+                                  className="relative w-full sm:w-[260px] h-32 sm:h-[160px] rounded-2xl overflow-hidden cursor-crosshair shadow-inner border border-white/15 touch-none"
+                                  onPointerDown={(e) => {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const updateColor = (pEvent) => {
+                                      const x = Math.max(0, Math.min(1, (pEvent.clientX - rect.left) / rect.width));
+                                      const y = Math.max(0, Math.min(1, (pEvent.clientY - rect.top) / rect.height));
+
+                                      const hue = x * 360;
+                                      const sat = 1;
+                                      const val = 1 - y;
+
+                                      const f = (n, k = (n + hue / 60) % 6) => val - val * sat * Math.max(0, Math.min(k, 4 - k, 1));
+                                      const r = Math.round(f(5) * 255);
+                                      const g = Math.round(f(3) * 255);
+                                      const b = Math.round(f(1) * 255);
+
+                                      const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+                                      setCustomColorHex(hex);
+                                    };
+
+                                    updateColor(e);
+
+                                    const onPointerMove = (pEvent) => updateColor(pEvent);
+                                    const onPointerUp = () => {
+                                      window.removeEventListener('pointermove', onPointerMove);
+                                      window.removeEventListener('pointerup', onPointerUp);
+                                    };
+
+                                    window.addEventListener('pointermove', onPointerMove);
+                                    window.addEventListener('pointerup', onPointerUp);
+                                  }}
+                                >
+                                  {/* Spectrum Gradients */}
+                                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%)' }} />
+                                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 100%)' }} />
+                                </div>
                               </div>
 
-                              <div className="h-px bg-white/5 w-full my-1"></div>
+                              {/* Right Side (Details & Actions) */}
+                              <div className="flex flex-col flex-1 gap-4 justify-between">
 
-                              <div className="flex items-center gap-2 relative">
-                                <span className="text-[10px] text-white/40 shrink-0">Custom:</span>
+                                {/* Color Preview & Values Container */}
+                                <div className="flex items-center gap-3">
+                                  {/* Color Square */}
+                                  <div className="w-12 h-12 rounded-xl shadow-inner border border-white/20 shrink-0 transition-colors" style={{ backgroundColor: customColorHex }} />
 
-                                {/* Visual Color Picker Wrapper */}
-                                <label className="relative group/picker shrink-0 cursor-pointer w-6 h-6 rounded-md border border-white/20 shadow-inner overflow-hidden flex items-center justify-center hover:scale-110 transition-transform"
-                                  style={{
-                                    background: `linear-gradient(135deg, ${customColorHex}, ${customColorHex}80, #000)`,
-                                    backgroundColor: customColorHex
-                                  }}
-                                  title="Open Color Picker"
-                                >
-                                  <Sparkles className="w-3 h-3 text-white/50 mix-blend-overlay pointer-events-none" />
-                                  <input
-                                    type="color"
-                                    value={customColorHex}
-                                    onChange={(e) => setCustomColorHex(e.target.value)}
-                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                                  />
-                                </label>
+                                  {/* HEX and RGB Values */}
+                                  <div className="flex flex-col w-full bg-black/30 rounded-xl p-2.5 border border-white/5 font-mono text-xs text-white/90 shadow-inner">
+                                    <div className="flex justify-between items-center px-1">
+                                      <span className="text-[9px] text-white/40 font-sans font-bold">HEX</span>
+                                      <span>{customColorHex.toUpperCase()}</span>
+                                    </div>
+                                    <div className="w-full h-px bg-white/10 my-1.5" />
+                                    <div className="flex justify-between items-center px-1">
+                                      <span className="text-[9px] text-white/40 font-sans font-bold">RGB</span>
+                                      <span className="text-[10px] text-white/70">
+                                        {parseInt(customColorHex.slice(1, 3) || '0', 16)}, {parseInt(customColorHex.slice(3, 5) || '0', 16)}, {parseInt(customColorHex.slice(5, 7) || '0', 16)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
 
-                                <input
-                                  type="text"
-                                  value={customColorHex}
-                                  onChange={(e) => setCustomColorHex(e.target.value)}
-                                  className="bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white/80 font-mono w-[4.5rem] focus:outline-none focus:border-sky-500/50 transition-colors"
-                                  placeholder="#000000"
-                                />
+                                {/* Quick Swatches */}
+                                <div className="flex flex-col gap-2">
+                                  <span className="text-[10px] text-white/40 font-bold px-1">ألوان جاهزة:</span>
+                                  <div className="flex flex-wrap gap-2.5 px-1">
+                                    {['#f43f5e', '#ec4899', '#a855f7', '#6366f1', '#3b82f6', '#0ea5e9', '#10b981', '#f59e0b'].map(presetHex => (
+                                      <button
+                                        key={presetHex}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          setCustomColorHex(presetHex);
+                                        }}
+                                        className="w-6 h-6 rounded-full border border-white/20 hover:scale-125 transition-transform shrink-0 shadow-md hover:z-10"
+                                        style={{ backgroundColor: presetHex }}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
 
-                                <div className="flex gap-1.5 ml-auto" dir="ltr">
+                                {/* Control Buttons */}
+                                <div className="flex gap-2.5 mt-auto pt-2">
                                   <button
                                     onClick={() => setShowColorCustomizer(false)}
-                                    className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 text-[10px] font-black transition-all active:scale-95"
+                                    className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-xs font-bold transition-all active:scale-95"
                                   >
-                                    Cancel
+                                    إلغاء
                                   </button>
                                   <button
                                     onClick={() => {
@@ -4128,12 +4221,13 @@ const handleShare = () => {
                                       handleApplyHighlight(newId);
                                       setShowColorCustomizer(false);
                                     }}
-                                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400 text-white text-[10px] font-black transition-all active:scale-95 shadow-[0_0_12px_rgba(56,189,248,0.3)]"
+                                    className="flex-[1.5] py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-black transition-all active:scale-95 shadow-[0_0_15px_rgba(56,189,248,0.3)]"
                                   >
-                                    Add
+                                    تطبيق اللون
                                   </button>
                                 </div>
                               </div>
+
                             </div>
                           )}
                         </div>
@@ -4141,57 +4235,6 @@ const handleShare = () => {
                     )}
                   </AnimatePresence>
 
-
-
-                  {/* ── PRAY MODE FULLSCREEN OVERLAY ── */}
-                  {prayModeActive && (
-                    <Portal>
-                      <div className="fixed inset-0 z-[300] bg-[#05050c] flex flex-col justify-between p-6 sm:p-12 text-white">
-                        {/* Soft pulsing ambient lights in background */}
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(99,102,241,0.06),transparent_50%)] pointer-events-none" />
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_70%,rgba(14,165,233,0.04),transparent_50%)] pointer-events-none animate-pulse duration-[6s]" />
-
-                        <div className="shrink-0 flex justify-between items-center border-b border-white/5 pb-4 z-10">
-                          <div className="flex items-center gap-2">
-                            <Heart className="w-5 h-5 text-rose-400 fill-rose-400/20 animate-pulse" />
-                            <span className="text-xs font-bold text-white/50 tracking-wider">وقت الصلاة والتأمل • Prayer & Meditation</span>
-                          </div>
-                          <button
-                            onClick={() => setPrayModeActive(false)}
-                            className="p-2 rounded-full hover:bg-white/5 text-white/40 hover:text-white transition-all"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
-                        </div>
-
-                        <div className="flex-1 flex flex-col justify-center items-center max-w-4xl mx-auto py-10 px-4 text-center z-10 overflow-y-auto custom-scrollbar-thin">
-                          <div className="space-y-8 select-none" dir="rtl">
-                            {bibleModalVerses
-                              .filter(v => bibleSelectedVerseIds.has(v._id))
-                              .map(v => (
-                                <p key={v._id} className="text-3xl sm:text-5xl font-arabic leading-relaxed font-medium text-slate-100/90 hover:text-white transition-all duration-300">
-                                  {v.text}
-                                  <span className="text-sky-500/40 text-xl sm:text-2xl mr-3 select-none font-bold">({v.verseNumber})</span>
-                                </p>
-                              ))}
-                          </div>
-                          <p className="text-sm font-bold text-sky-400 mt-12 tracking-wide uppercase">
-                            — {getSelectedVersesRef()} —
-                          </p>
-                        </div>
-
-                        <div className="shrink-0 flex flex-col items-center gap-4 z-10">
-                          <p className="text-xs text-white/30 text-center">تأمل بعمق في الآية ودعها تملأ قلبك بالسلام</p>
-                          <button
-                            onClick={() => setPrayModeActive(false)}
-                            className="py-3 px-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm font-bold transition-all active:scale-95"
-                          >
-                            رجوع • Back
-                          </button>
-                        </div>
-                      </div>
-                    </Portal>
-                  )}
 
                   {/* Smart Progress Indicator */}
                   <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-sky-500/50 to-transparent" />
@@ -4217,6 +4260,7 @@ const handleShare = () => {
                   // Mobile: current tab
                   const mtSafe = Math.min(compareMobileTab, Math.max(0, allColumns.length - 1));
                   const mobileActiveCode = allColumns[mtSafe] || null;
+
                   return (
                     <motion.div
                       initial={{ opacity: 0 }}
