@@ -29,6 +29,8 @@ import {
   sanitizeSlideBreaks,
 } from '../utils/hymnSlides';
 import { useCategoryHymnsTour } from './Tour/useCategoryHymnsTour';
+import Link from 'next/link';
+
 
 const API_ROOT = getApiBaseUrl();
 const BIBLE_API = `${API_ROOT}/bible`;
@@ -677,6 +679,9 @@ export default function Category_Humns() {
     if (typeof window !== 'undefined') localStorage.setItem(COMPARE_STORAGE_KEY, JSON.stringify(trs));
   };
 
+
+  ////////////////////////////////////////////
+
   // UI state: mobile tab index, desktop page (groups of 3)
   const [compareMobileTab, setCompareMobileTab] = useState(0);
   const [compareDesktopPage, setCompareDesktopPage] = useState(0);
@@ -716,8 +721,18 @@ export default function Category_Humns() {
     await fetchCompareData(verseNumbers, activeTrs);
   };
 
-  
 
+  const dataKeys = compareData ? Object.keys(compareData) : [];
+  const allColumns = compareSelectedTranslations.length > 0
+    ? compareSelectedTranslations.filter(t => dataKeys.includes(t))
+    : dataKeys;
+  const DESKTOP_PAGE_SIZE = 3;
+  const totalPages = Math.ceil(allColumns.length / DESKTOP_PAGE_SIZE);
+  const dpSafe = Math.min(compareDesktopPage, Math.max(0, totalPages - 1));
+  const desktopColumns = allColumns.slice(dpSafe * DESKTOP_PAGE_SIZE, dpSafe * DESKTOP_PAGE_SIZE + DESKTOP_PAGE_SIZE);
+  const mtSafe = Math.min(compareMobileTab, Math.max(0, allColumns.length - 1));
+  const mobileActiveCode = allColumns[mtSafe] || null;
+  ///////////////////////////////////////////
   // Notes: keyed by verseId for O(1) lookup
   const [verseNotes, setVerseNotes] = useState({}); // { [verseId]: noteText }
   const [noteModalConfig, setNoteModalConfig] = useState(null); // { type, data, existingNote }
@@ -1162,6 +1177,7 @@ export default function Category_Humns() {
       setIsSavingBible(false);
     }
   };
+
   ////////////////////////////////////////////////////////
 
   // Lyrics Modal State
@@ -3479,71 +3495,79 @@ export default function Category_Humns() {
                   className="relative w-full h-full sm:h-[85vh] max-w-4xl bg-white/[0.02] border border-white/10 sm:rounded-[2.5rem] shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden backdrop-blur-2xl"
                 >
                   {/* ── Top Bar ── */}
-                  <div className="shrink-0 px-4 py-3 flex items-center justify-between border-b border-white/[0.05] bg-black/20 gap-3">
-                    <div className="flex items-center gap-2.5">
+                  <div className="shrink-0 px-3 py-2 flex items-center justify-between border-b border-white/[0.1] bg-black/30 gap-2 sm:gap-3 rounded-t-xl flex-wrap sm:flex-nowrap">
+
+                    {/* Left / Brand Section */}
+                    <div className="flex items-center gap-2 shrink-0">
                       <div className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Digital Scripture</span>
+                      <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/60 hidden xs:inline">
+                        Digital Scripture
+                      </span>
                     </div>
 
-                    {/* ── Translation Selector ── */}
-                    <div className="flex items-center gap-1 bg-white/[0.04] rounded-2xl p-1 border border-white/[0.07]">
-                      {availableTranslations.map((tr) => {
-                        const isActive = bibleTranslation === tr;
-                        const colors = {
-                          AVD: isActive ? 'bg-amber-500 text-black shadow-[0_0_12px_rgba(245,158,11,0.5)]' : 'text-amber-400/60 hover:text-amber-300',
-                          KEH: isActive ? 'bg-emerald-500 text-black shadow-[0_0_12px_rgba(16,185,129,0.5)]' : 'text-emerald-400/60 hover:text-emerald-300',
-                        };
-                        const colorClass = colors[tr] || (isActive ? 'bg-sky-500 text-white' : 'text-sky-400/60 hover:text-sky-300');
-                        return (
-                          <button
-                            key={tr}
-                            onClick={() => setBibleTranslation(tr)}
-                            className={`px-3 py-1 text-[11px] font-black tracking-widest rounded-xl transition-all duration-300 ${colorClass}`}
-                          >
-                            {tr}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* ── Offline Download Option ── */}
-                    {bibleTranslation !== 'AVD' && (
-                      <div className="flex items-center gap-1.5" dir="rtl">
-                        {isDownloadingTranslation === bibleTranslation ? (
-                          <div className="flex items-center gap-1.5 text-[10px] font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-1 rounded-xl animate-pulse">
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                            <span>تحميل...</span>
-                          </div>
-                        ) : downloadedTranslations.has(bibleTranslation) ? (
-                          <button
-                            onClick={() => toggleDownloadTranslation(bibleTranslation)}
-                            className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-red-500/25 hover:text-red-300 hover:border-red-500/30 px-2 py-1 rounded-xl transition-all duration-300"
-                            title="حذف الترجمة من الجهاز"
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                            <span>محفوظة محلياً</span>
-                            <X className="w-2.5 h-2.5 mr-0.5 opacity-60" />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => toggleDownloadTranslation(bibleTranslation)}
-                            className="flex items-center gap-1 text-[10px] font-bold text-sky-300 bg-sky-500/20 border border-sky-500/30 hover:bg-sky-500/35 hover:text-white px-2.5 py-1 rounded-xl transition-all duration-300"
-                            title="تنزيل للتشغيل بدون إنترنت"
-                          >
-                            📥 تنزيل للعمل أوفلاين
-                          </button>
-                        )}
+                    {/* Middle Controls (Translations + Offline Toggle) */}
+                    <div className="flex items-center gap-2 overflow-x-auto min-w-0">
+                      {/* Translation Selector */}
+                      <div className="flex items-center gap-1.5 bg-white/10 rounded-xl p-1 border border-white/20 shrink-0">
+                        {availableTranslations.map((tr) => {
+                          const isActive = bibleTranslation === tr;
+                          return (
+                            <button
+                              key={tr}
+                              onClick={() => setBibleTranslation(tr)}
+                              className={`px-3 py-1 text-[12px] font-bold tracking-wider rounded-lg transition-all duration-300 ${isActive
+                                ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30'
+                                : 'text-white/90 hover:text-white bg-white/5 hover:bg-white/20'
+                                }`}
+                            >
+                              {tr}
+                            </button>
+                          );
+                        })}
                       </div>
-                    )}
 
+                      {/* Offline Download Option */}
+                      {bibleTranslation !== 'AVD' && (
+                        <div className="flex items-center gap-1.5 shrink-0" dir="rtl">
+                          <div>
+                            {isDownloadingTranslation === bibleTranslation ? (
+                              <div className="flex items-center gap-1.5 text-[10px] font-bold text-sky-400 bg-sky-500/20 border border-sky-500/30 px-2 py-1 rounded-xl animate-pulse whitespace-nowrap">
+                                <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                                <span>تحميل...</span>
+                              </div>
+                            ) : downloadedTranslations.has(bibleTranslation) ? (
+                              <button
+                                onClick={() => toggleDownloadTranslation(bibleTranslation)}
+                                className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/20 border border-emerald-500/30 hover:bg-red-500/25 hover:text-red-300 hover:border-red-500/30 px-2 py-1 rounded-xl transition-all duration-300 whitespace-nowrap"
+                                title="حذف الترجمة من الجهاز"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                                <span>محفوظة</span>
+                                <X className="w-2.5 h-2.5 shrink-0 opacity-60" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => toggleDownloadTranslation(bibleTranslation)}
+                                className="flex items-center gap-1 text-[10px] font-bold text-sky-300 bg-sky-500/20 border border-sky-500/30 hover:bg-sky-500/35 hover:text-white px-2 py-1 rounded-xl transition-all duration-300 whitespace-nowrap"
+                                title="تنزيل للتشغيل بدون إنترنت"
+                              >
+                                📥 <span className="hidden sm:inline">تنزيل أوفلاين</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Close Button - Guaranteed to Stay Visible */}
                     <button
                       onClick={closeBibleModal}
-                      className="group p-2 bg-white/5 hover:bg-red-500/20 rounded-full transition-all duration-300"
+                      className="group p-1.5 sm:p-2 bg-white/5 hover:bg-red-500/20 rounded-full transition-all duration-300 shrink-0 ml-auto sm:ml-0"
+                      title="إغلاق"
                     >
-                      <X className="w-4 h-4 text-white/50 group-hover:text-red-400" />
+                      <X className="w-4 h-4 text-white/60 group-hover:text-red-400" />
                     </button>
                   </div>
-
                   {/* Smart Navigation Hub - Floating Style */}
                   <div className="shrink-0 p-3 sm:p-5 space-y-3 bg-gradient-to-b from-black/40 to-transparent" dir="rtl">
                     <div className="flex flex-col sm:flex-row gap-2">
@@ -3654,14 +3678,9 @@ export default function Category_Humns() {
                               </div>
                               <div className="grid gap-4">
                                 {bibleSearchResults.map((hit, idx) => (
-                                  <div
+                                  <button
                                     key={idx}
-                                    onClick={() => {
-                                      presentBibleFromSearchHit(hit);
-                                      setBibleSearchQuery('');
-                                      setBibleSearchResults([]);
-                                    }}
-
+                                    onClick={() => goToChapterFromSearch(hit)}
                                     className="group p-4 rounded-2xl bg-white/[0.03] border border-white/0 hover:border-sky-500/30 hover:bg-sky-500/5 transition-all cursor-pointer"
                                   >
                                     <div className="flex justify-between items-start gap-4 mb-2">
@@ -3683,7 +3702,7 @@ export default function Category_Humns() {
                                       className="text-white/80 group-hover:text-white text-base leading-relaxed font-arabic transition-all [&_b]:text-sky-400 [&_b]:font-black"
                                       dangerouslySetInnerHTML={{ __html: hit.text }}
                                     />
-                                  </div>
+                                  </button>
                                 ))}
                               </div>
                             </>
@@ -4024,7 +4043,7 @@ export default function Category_Humns() {
                           </div>
                         )}
 
-{/* Highlights Circle Color Picker */}
+                        {/* Highlights Circle Color Picker */}
                         <div className="flex flex-col gap-2.5 shrink-0 mt-1">
                           <div className="flex items-center gap-3">
                             <span className="text-xs font-black text-white/50 whitespace-nowrap">تمييز:</span>
@@ -4092,42 +4111,42 @@ export default function Category_Humns() {
                           {/* Custom Pure-In-App Spectrum Picker (Horizontal Layout) */}
                           {showColorCustomizer && (
                             <div className="flex flex-col sm:flex-row gap-5 bg-[#141824]/95 backdrop-blur-xl text-white rounded-[24px] p-5 mt-2 animate-in fade-in slide-in-from-bottom-2 duration-200 shadow-[0_15px_50px_rgba(0,0,0,0.6)] border border-white/10 w-full max-w-[540px] z-50 select-none origin-top-right">
-                              
+
                               {/* Left Side (Spectrum Box) */}
                               <div className="flex flex-col gap-2 shrink-0">
                                 <div className="flex items-center justify-between px-1">
                                   <span className="text-xs font-bold text-white/70">طيف الألوان</span>
                                   <Sparkles className="w-3.5 h-3.5 text-sky-400" />
                                 </div>
-                                <div 
+                                <div
                                   className="relative w-full sm:w-[260px] h-32 sm:h-[160px] rounded-2xl overflow-hidden cursor-crosshair shadow-inner border border-white/15 touch-none"
                                   onPointerDown={(e) => {
                                     const rect = e.currentTarget.getBoundingClientRect();
                                     const updateColor = (pEvent) => {
                                       const x = Math.max(0, Math.min(1, (pEvent.clientX - rect.left) / rect.width));
                                       const y = Math.max(0, Math.min(1, (pEvent.clientY - rect.top) / rect.height));
-                                      
+
                                       const hue = x * 360;
                                       const sat = 1;
                                       const val = 1 - y;
-                                      
+
                                       const f = (n, k = (n + hue / 60) % 6) => val - val * sat * Math.max(0, Math.min(k, 4 - k, 1));
                                       const r = Math.round(f(5) * 255);
                                       const g = Math.round(f(3) * 255);
                                       const b = Math.round(f(1) * 255);
-                                      
+
                                       const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
                                       setCustomColorHex(hex);
                                     };
 
                                     updateColor(e);
-                                    
+
                                     const onPointerMove = (pEvent) => updateColor(pEvent);
                                     const onPointerUp = () => {
                                       window.removeEventListener('pointermove', onPointerMove);
                                       window.removeEventListener('pointerup', onPointerUp);
                                     };
-                                    
+
                                     window.addEventListener('pointermove', onPointerMove);
                                     window.addEventListener('pointerup', onPointerUp);
                                   }}
@@ -4140,12 +4159,12 @@ export default function Category_Humns() {
 
                               {/* Right Side (Details & Actions) */}
                               <div className="flex flex-col flex-1 gap-4 justify-between">
-                                
+
                                 {/* Color Preview & Values Container */}
                                 <div className="flex items-center gap-3">
                                   {/* Color Square */}
                                   <div className="w-12 h-12 rounded-xl shadow-inner border border-white/20 shrink-0 transition-colors" style={{ backgroundColor: customColorHex }} />
-                                  
+
                                   {/* HEX and RGB Values */}
                                   <div className="flex flex-col w-full bg-black/30 rounded-xl p-2.5 border border-white/5 font-mono text-xs text-white/90 shadow-inner">
                                     <div className="flex justify-between items-center px-1">
@@ -4223,80 +4242,71 @@ export default function Category_Humns() {
                   COMPARE MODAL — slides in over the Bible modal
                   ══════════════════════════════════════════════ */}
               <AnimatePresence>
-                {compareModal && (() => {
-                  // All translation codes present in the fetched data
-                  const dataKeys = compareData ? Object.keys(compareData) : [];
-                  // Active selected translations (user toggled)
-                  const allColumns = compareSelectedTranslations.length > 0
-                    ? compareSelectedTranslations.filter(t => dataKeys.includes(t))
-                    : dataKeys;
-                  // Desktop: paginate in groups of 3
-                  const DESKTOP_PAGE_SIZE = 3;
-                  const totalPages = Math.ceil(allColumns.length / DESKTOP_PAGE_SIZE);
-                  const dpSafe = Math.min(compareDesktopPage, Math.max(0, totalPages - 1));
-                  const desktopColumns = allColumns.slice(dpSafe * DESKTOP_PAGE_SIZE, dpSafe * DESKTOP_PAGE_SIZE + DESKTOP_PAGE_SIZE);
-                  // Mobile: current tab
-                  const mtSafe = Math.min(compareMobileTab, Math.max(0, allColumns.length - 1));
-                  const mobileActiveCode = allColumns[mtSafe] || null;
-                  return (
+                {compareModal && (
+                  <Portal>
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      transition={{ duration: 0.15, ease: 'easeOut' }}
+                      transition={{ duration: 0.3, ease: 'easeInOut' }}
                       className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-6"
                     >
-                      {/* Backdrop */}
+                      {/* ── Modern Backdrop with Blur ── */}
                       <div
-                        className="absolute inset-0 bg-[#03030f]/90 sm:backdrop-blur-xl"
+                        className="absolute inset-0 bg-[#020205]/80 backdrop-blur-sm transition-opacity"
                         onClick={() => setCompareModal(false)}
                       />
 
                       <motion.div
-                        initial={{ y: 56, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: 40, opacity: 0 }}
-                        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                        initial={{ y: 50, opacity: 0, scale: 0.98 }}
+                        animate={{ y: 0, opacity: 1, scale: 1 }}
+                        exit={{ y: 30, opacity: 0, scale: 0.98 }}
+                        transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
                         style={{ willChange: 'transform, opacity' }}
-                        className="relative w-full sm:max-w-5xl h-[92vh] sm:h-[82vh] rounded-t-[2.5rem] sm:rounded-[2.5rem] bg-[#09091a] border border-white/10 sm:shadow-[0_0_80px_-10px_rgba(14,165,233,0.4)] flex flex-col overflow-hidden"
+                        className="relative w-full sm:max-w-6xl h-[92vh] sm:h-[85vh] rounded-t-[2rem] sm:rounded-[2rem] bg-[#0A0A14]/95 backdrop-blur-2xl border-t sm:border border-white/[0.08] shadow-2xl sm:shadow-[0_0_60px_-15px_rgba(14,165,233,0.15)] flex flex-col overflow-hidden ring-1 ring-white/5"
                       >
                         {/* ── Compare Modal Header ── */}
-                        <div className="shrink-0 px-4 sm:px-5 py-3 sm:py-4 border-b border-white/[0.07] bg-gradient-to-r from-sky-900/30 to-indigo-900/20">
-                          {/* Top row: icon + title + close */}
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center shadow-[0_0_14px_rgba(14,165,233,0.6)] text-sm">
-                                ⚖️
+                        <div className="shrink-0 px-5 sm:px-8 py-5 border-b border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent">
+                          <div className="flex items-center justify-between mb-5">
+                            <div className="flex items-center gap-3.5">
+                              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-400/20 to-indigo-500/20 border border-white/10 flex items-center justify-center shadow-[inset_0_0_12px_rgba(56,189,248,0.2)]">
+                                <span className="text-lg drop-shadow-md">⚖️</span>
                               </div>
                               <div>
-                                <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.25em] text-sky-400/80">Translation Compare</p>
-                                <p className="text-xs sm:text-sm font-bold text-white" dir="rtl">
+                                <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-sky-400/90 mb-0.5">
+                                  مقارنة التراجم
+                                </p>
+                                <p className="text-sm sm:text-base font-bold text-white/95 tracking-wide" dir="rtl">
                                   {bibleModalBook?.bookName} {bibleModalChapter}
                                   {compareVerseNums.length > 0 && (
-                                    <span className="text-white/50 font-medium"> — {compareVerseNums.length > 1 ? `آيات ${compareVerseNums.join('، ')}` : `آية ${compareVerseNums[0]}`}</span>
+                                    <span className="text-white/40 font-medium ml-1">
+                                      — {compareVerseNums.length > 1 ? `آيات ${compareVerseNums.join('، ')}` : `آية ${compareVerseNums[0]}`}
+                                    </span>
                                   )}
                                 </p>
                               </div>
                             </div>
+
                             <button
                               onClick={() => setCompareModal(false)}
-                              className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all"
+                              className="group p-2.5 rounded-full bg-white/5 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all duration-300"
                             >
-                              <X className="w-4 h-4" />
+                              <X className="w-4 h-4 text-white/50 group-hover:text-red-400 group-active:scale-90 transition-transform" />
                             </button>
                           </div>
 
-                          {/* Translation multi-selector pills */}
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider mr-0.5 shrink-0">ترجمة:</span>
+                          {/* Modern Translation Multi-selector Pills */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[11px] font-semibold text-white/30 mr-1 shrink-0 flex items-center gap-1.5">
+                              <div className="w-1 h-1 rounded-full bg-white/30" />
+                              الترجمات المعروضة:
+                            </span>
                             {availableTranslations.map(tr => {
                               const isSelected = compareSelectedTranslations.includes(tr);
-                              const th = getTranslationTheme(tr);
                               return (
                                 <button
                                   key={tr}
                                   onClick={async () => {
-                                    // Must keep at least 1 selected
                                     if (isSelected && compareSelectedTranslations.length === 1) return;
                                     const next = isSelected
                                       ? compareSelectedTranslations.filter(t => t !== tr)
@@ -4306,9 +4316,9 @@ export default function Category_Humns() {
                                     setCompareDesktopPage(0);
                                     await fetchCompareData(compareVerseNums, next);
                                   }}
-                                  className={`px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-black tracking-wide border transition-all active:scale-95 ${isSelected
-                                    ? `${th.badge} border-transparent`
-                                    : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70 hover:bg-white/10'
+                                  className={`px-3.5 py-1.5 rounded-full text-[11px] sm:text-xs font-bold tracking-wider transition-all duration-300 active:scale-95 border ${isSelected
+                                    ? 'bg-white text-black border-white shadow-[0_0_15px_-3px_rgba(255,255,255,0.3)]'
+                                    : 'bg-white/5 border-white/10 text-white/60 hover:text-white/90 hover:bg-white/10 hover:border-white/20'
                                     }`}
                                 >
                                   {tr}
@@ -4318,37 +4328,41 @@ export default function Category_Humns() {
                           </div>
                         </div>
 
-                        {/* ── Mobile Tab Bar (hidden on sm+) ── */}
+                        {/* ── Mobile Tab Bar ── */}
                         {!isLoadingCompare && allColumns.length > 1 && (
-                          <div className="sm:hidden shrink-0 flex border-b border-white/[0.07] bg-[#09091a]/80 overflow-x-auto hide-scrollbar">
-                            {allColumns.map((tr, idx) => {
-                              const th = getTranslationTheme(tr);
-                              return (
-                                <button
-                                  key={tr}
-                                  onClick={() => setCompareMobileTab(idx)}
-                                  className={`flex-1 min-w-[80px] px-3 py-3 text-xs font-black tracking-wide transition-all whitespace-nowrap ${idx === mtSafe ? th.tab : th.tabInactive
-                                    }`}
-                                >
-                                  {tr}
-                                </button>
-                              );
-                            })}
+                          <div className="sm:hidden shrink-0 flex border-b border-white/[0.06] bg-black/20 overflow-x-auto hide-scrollbar px-2">
+                            {allColumns.map((tr, idx) => (
+                              <button
+                                key={tr}
+                                onClick={() => setCompareMobileTab(idx)}
+                                className={`relative flex-1 min-w-[90px] px-4 py-4 text-[13px] font-bold tracking-wide transition-colors whitespace-nowrap ${idx === mtSafe ? 'text-sky-400' : 'text-white/40 hover:text-white/70'
+                                  }`}
+                              >
+                                {tr}
+                                {idx === mtSafe && (
+                                  <motion.div
+                                    layoutId="activeTabMobile"
+                                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-400 rounded-t-full shadow-[0_-2px_8px_rgba(56,189,248,0.5)]"
+                                  />
+                                )}
+                              </button>
+                            ))}
                           </div>
                         )}
 
                         {/* ── Compare Body ── */}
-                        <div className="flex-1 overflow-hidden flex min-h-0">
+                        <div className="flex-1 overflow-hidden flex min-h-0 bg-[#0A0A14]/50">
                           {isLoadingCompare ? (
                             <div className="flex-1 flex flex-col sm:flex-row gap-0 min-h-0">
                               {[...Array(Math.min(3, compareSelectedTranslations.length || 2))].map((_, i) => (
-                                <div key={i} className="flex-1 p-6 border-b sm:border-b-0 sm:border-r border-white/[0.06] last:border-0 space-y-4 animate-pulse">
-                                  <div className="h-5 w-24 bg-white/10 rounded-full" />
+                                <div key={i} className="flex-1 p-6 sm:p-8 border-b sm:border-b-0 sm:border-r border-white/[0.04] last:border-0 space-y-6">
+                                  <div className="h-6 w-24 bg-white/5 rounded-lg animate-pulse" />
                                   {[...Array(compareVerseNums.length || 2)].map((_, j) => (
-                                    <div key={j} className="space-y-2">
-                                      <div className="h-3 w-10 bg-white/5 rounded" />
-                                      <div className="h-4 bg-white/5 rounded w-full" />
-                                      <div className="h-4 bg-white/5 rounded w-4/5" />
+                                    <div key={j} className="space-y-3">
+                                      <div className="h-4 w-12 bg-white/5 rounded animate-pulse" />
+                                      <div className="h-4 bg-white/5 rounded w-full animate-pulse delay-75" />
+                                      <div className="h-4 bg-white/5 rounded w-5/6 animate-pulse delay-100" />
+                                      <div className="h-4 bg-white/5 rounded w-4/6 animate-pulse delay-150" />
                                     </div>
                                   ))}
                                 </div>
@@ -4356,39 +4370,45 @@ export default function Category_Humns() {
                             </div>
                           ) : allColumns.length > 0 ? (
                             <>
-                              {/* DESKTOP: up to 3 columns with prev/next */}
+                              {/* DESKTOP */}
                               <div className="hidden sm:flex flex-1 min-h-0 relative overflow-hidden">
                                 {desktopColumns.map((tr) => (
-                                  <CompareColumn
-                                    key={tr}
-                                    translationCode={tr}
-                                    verses={compareData?.[tr] || []}
-                                    isActive={true}
-                                  />
+                                  <div key={tr} className="flex-1 border-r border-white/[0.04] last:border-0 overflow-y-auto custom-scrollbar">
+                                    <CompareColumn
+                                      translationCode={tr}
+                                      verses={compareData?.[tr] || []}
+                                      isActive={true}
+                                    />
+                                  </div>
                                 ))}
-                                {/* Desktop Prev/Next pills */}
+
                                 {totalPages > 1 && (
-                                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-[#09091a]/90 backdrop-blur-md border border-white/10 rounded-full px-4 py-2 shadow-xl z-10">
+                                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-[#12121A]/80 backdrop-blur-xl border border-white/10 rounded-full p-1.5 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] z-10 ring-1 ring-white/5">
                                     <button
                                       onClick={() => setCompareDesktopPage(p => Math.max(0, p - 1))}
                                       disabled={dpSafe === 0}
-                                      className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/15 text-white/60 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center"
+                                      className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:hover:bg-transparent transition-all"
                                     >
                                       <ChevronDown className="w-4 h-4 rotate-90" />
                                     </button>
-                                    <div className="flex gap-1.5 items-center">
+
+                                    <div className="flex gap-2 items-center px-2">
                                       {Array.from({ length: totalPages }).map((_, pi) => (
                                         <button
                                           key={pi}
                                           onClick={() => setCompareDesktopPage(pi)}
-                                          className={`h-2 rounded-full transition-all ${pi === dpSafe ? 'bg-sky-400 w-5' : 'bg-white/20 w-2 hover:bg-white/40'}`}
+                                          className={`h-1.5 rounded-full transition-all duration-500 ease-out ${pi === dpSafe
+                                            ? 'bg-sky-400 w-6 shadow-[0_0_10px_rgba(56,189,248,0.5)]'
+                                            : 'bg-white/20 w-1.5 hover:bg-white/40 hover:w-3'
+                                            }`}
                                         />
                                       ))}
                                     </div>
+
                                     <button
                                       onClick={() => setCompareDesktopPage(p => Math.min(totalPages - 1, p + 1))}
                                       disabled={dpSafe >= totalPages - 1}
-                                      className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/15 text-white/60 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center"
+                                      className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:hover:bg-transparent transition-all"
                                     >
                                       <ChevronDown className="w-4 h-4 -rotate-90" />
                                     </button>
@@ -4396,38 +4416,58 @@ export default function Category_Humns() {
                                 )}
                               </div>
 
-                              {/* MOBILE: one tab at a time */}
-                              <div className="sm:hidden flex-1 flex flex-col min-h-0 overflow-hidden">
+                              {/* MOBILE (With Swipe Gesture Support) */}
+                              <div className="sm:hidden flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar relative">
                                 {mobileActiveCode && compareData?.[mobileActiveCode] ? (
-                                  <CompareColumn
+                                  <motion.div
                                     key={mobileActiveCode}
-                                    translationCode={mobileActiveCode}
-                                    verses={compareData[mobileActiveCode]}
-                                    isActive={true}
-                                  />
+                                    drag="x"
+                                    dragConstraints={{ left: 0, right: 0 }}
+                                    dragElastic={0.15}
+                                    onDragEnd={(_, info) => {
+                                      const swipeThreshold = 50; // مسافة السحب المطلوبة بالبكسل
+                                      if (info.offset.x < -swipeThreshold && mtSafe < allColumns.length - 1) {
+                                        // سحب لليسار -> الانتقال للترجمة التالية
+                                        setCompareMobileTab(prev => prev + 1);
+                                      } else if (info.offset.x > swipeThreshold && mtSafe > 0) {
+                                        // سحب لليمين -> الانتقال للترجمة السابقة
+                                        setCompareMobileTab(prev => prev - 1);
+                                      }
+                                    }}
+                                    initial={{ opacity: 0, scale: 0.97 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.97 }}
+                                    transition={{ duration: 0.25 }}
+                                    className="flex-1 touch-pan-y cursor-grab active:cursor-grabbing"
+                                  >
+                                    <CompareColumn
+                                      translationCode={mobileActiveCode}
+                                      verses={compareData[mobileActiveCode]}
+                                      isActive={true}
+                                    />
+                                  </motion.div>
                                 ) : (
-                                  <div className="flex-1 flex items-center justify-center opacity-20">
-                                    <p className="text-sm">لا توجد بيانات</p>
+                                  <div className="flex-1 flex items-center justify-center">
+                                    <p className="text-white/30 text-sm font-medium">لا توجد بيانات</p>
                                   </div>
                                 )}
                               </div>
                             </>
                           ) : (
-                            <div className="flex-1 flex items-center justify-center opacity-20">
-                              <div className="text-center">
-                                <div className="text-4xl mb-3">⚖️</div>
-                                <p className="text-sm font-bold">لا توجد بيانات</p>
+                            <div className="flex-1 flex items-center justify-center">
+                              <div className="text-center opacity-40">
+                                <div className="text-5xl mb-4 drop-shadow-xl">⚖️</div>
+                                <p className="text-base font-bold text-white tracking-wide">لا توجد بيانات للمقارنة</p>
                               </div>
                             </div>
                           )}
                         </div>
 
-                        {/* Bottom glow line */}
-                        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-sky-500/60 to-transparent" />
+                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-sky-500/40 to-transparent blur-[0.5px]" />
                       </motion.div>
                     </motion.div>
-                  );
-                })()}
+                  </Portal>
+                )}
               </AnimatePresence>
             </Portal>
           )}
