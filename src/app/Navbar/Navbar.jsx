@@ -118,7 +118,7 @@ export default function Navbar() {
     }
 
     return (
-       <nav className="sticky top-0 z-50 h-20 px-6 flex items-center justify-between bg-[#0b0f19]/60 backdrop-blur-md border-b border-white/10">
+       <nav className="sticky top-0 z-50 h-20 px-2 flex items-center justify-between bg-[#0b0f19]/60 backdrop-blur-md border-b border-white/10">
             {/* Responsive & Fast Logo */}
             <Link
                 href="/"
@@ -131,7 +131,7 @@ export default function Navbar() {
                     height={40}
                     priority
                     sizes="(max-width: 640px) 85px, (max-width: 768px) 100px, 110px"
-                    className="w-24 sm:w-24 md:w-28 h-auto object-contain "
+                    className="w-20 sm:w-24 md:w-28 h-auto object-contain "
                 />
             </Link>
             {/* Desktop Menu */}
