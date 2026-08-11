@@ -2,6 +2,7 @@
 
 import { useContext, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import localforage from 'localforage';
 import Portal from '../Portal/Portal';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { showToast } from '../components/ToastContainer';
@@ -248,11 +249,27 @@ export default function normal_UserProfile() {
     const [activeTab, setActiveTab] = useState('overview');
 
     const [noteModalConfig, setNoteModalConfig] = useState(null);
+    const [noteText, setNoteText] = useState('');
+    const [isSubmittingNote, setIsSubmittingNote] = useState(false);
+
     const [prayWords, setPrayWords] = useState('');
     const [prayFeeling, setPrayFeeling] = useState('other');
     const [prayEditId, setPrayEditId] = useState(null);
     const [isSubmittingPray, setIsSubmittingPray] = useState(false);
     const [prayBlocks, setPrayBlocks] = useState([]);
+
+    const CACHE_KEY = `profile_data_${user_id}`;
+
+    // الدالة المسؤولة عن تحديث الـ UI والكاش في نفس الوقت
+    const updateProfileState = (modifier) => {
+        setProfile(prev => {
+            const updatedProfile = typeof modifier === 'function' ? modifier(prev) : modifier;
+            if (updatedProfile) {
+                localforage.setItem(CACHE_KEY, updatedProfile).catch(console.error);
+            }
+            return updatedProfile;
+        });
+    };
 
     useEffect(() => {
         if (!isLogin || !user_id) {
@@ -264,32 +281,47 @@ export default function normal_UserProfile() {
         let ignore = false;
         const loadProfile = async () => {
             try {
-                setLoading(true);
-                setError(null);
+                // 1. استرجاع البيانات من الكاش أولاً لعرضها فوراً
+                const cachedData = await localforage.getItem(CACHE_KEY);
+                if (cachedData && !ignore) {
+                    setProfile(cachedData);
+                    setLoading(false); 
+                } else if (!ignore) {
+                    setLoading(true);
+                }
 
+                // 2. تحديث البيانات من السيرفر في الخلفية
                 const res = await fetch(`${API_URL}/users/my-profile`, {
                     headers: { Authorization: `Bearer ${isLogin}` },
                 });
 
                 if (!res.ok) {
-                    throw new Error('Failed to fetch user profile');
+                    if (!cachedData) throw new Error('Failed to fetch user profile');
+                    return; 
                 }
 
                 const data = await res.json();
                 
                 if (ignore) return;
                 
-                setProfile({
+                const newProfileData = {
                     user: data.user,
                     bibleNotes: data.user?.bibleNotes?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
                     bibleHighlights: data.user?.bibleHighlights?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
                     prayTime: data.user?.prayTime?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
-                });
+                };
+
+                // 3. تحديث الكاش والـ UI بالبيانات الجديدة
+                updateProfileState(newProfileData);
+                setError(null);
 
             } catch (fetchError) {
                 if (!ignore) {
                     console.error('Error fetching profile:', fetchError);
-                    setError(fetchError.message || 'Failed to load profile data');
+                    const cachedData = await localforage.getItem(CACHE_KEY);
+                    if (!cachedData) {
+                        setError(fetchError.message || 'Failed to load profile data');
+                    }
                 }
             } finally {
                 if (!ignore) setLoading(false);
@@ -314,7 +346,7 @@ export default function normal_UserProfile() {
             });
 
             if (response.ok) {
-                setProfile(prev => ({
+                updateProfileState(prev => ({
                     ...prev,
                     bibleNotes: prev.bibleNotes.filter(n => n._id !== noteId)
                 }));
@@ -323,6 +355,16 @@ export default function normal_UserProfile() {
                 alert(data.message || 'Failed to delete note');
             }
         } catch (error) {
+            const isNetworkError = !navigator.onLine || error.message.includes('Failed to fetch') || error.message.includes('Network Error');
+            if (isNetworkError) {
+                await queueOfflineAction(`${API_URL}/users/bible-note/${user_id}`, 'DELETE', { noteId }, { Authorization: `Bearer ${isLogin}` });
+                updateProfileState(prev => ({
+                    ...prev,
+                    bibleNotes: prev.bibleNotes.filter(n => n._id !== noteId)
+                }));
+                showToast({ message: '📶 Offline: Note deleted locally. Will sync when online.', type: 'offline', duration: 4000 });
+                return;
+            }
             console.error('Delete note error:', error);
             alert('Error deleting note');
         }
@@ -341,7 +383,7 @@ export default function normal_UserProfile() {
             });
 
             if (response.ok) {
-                setProfile(prev => ({
+                updateProfileState(prev => ({
                     ...prev,
                     bibleHighlights: prev.bibleHighlights.filter(h => h.verseId !== verseId)
                 }));
@@ -350,6 +392,16 @@ export default function normal_UserProfile() {
                 alert(data.message || 'Failed to delete highlight');
             }
         } catch (error) {
+            const isNetworkError = !navigator.onLine || error.message.includes('Failed to fetch') || error.message.includes('Network Error');
+            if (isNetworkError) {
+                await queueOfflineAction(`${API_URL}/users/bible-highlight/${user_id}`, 'DELETE', { verseId }, { Authorization: `Bearer ${isLogin}` });
+                updateProfileState(prev => ({
+                    ...prev,
+                    bibleHighlights: prev.bibleHighlights.filter(h => h.verseId !== verseId)
+                }));
+                showToast({ message: '📶 Offline: Highlight deleted locally. Will sync when online.', type: 'offline', duration: 4000 });
+                return;
+            }
             console.error('Delete highlight error:', error);
             alert('Error deleting highlight');
         }
@@ -358,27 +410,30 @@ export default function normal_UserProfile() {
     const handleSaveNote = async () => {
         if (!noteText.trim() || !noteModalConfig) return;
         setIsSubmittingNote(true);
+        const noteItem = noteModalConfig.data;
+        
+        const payload = {
+            userid: user_id,
+            verseId: noteItem.verseId,
+            bookName: noteItem.bookName,
+            chapter: noteItem.chapter,
+            verseNumber: noteItem.verseNumber,
+            text: noteItem.text,
+            note: noteText
+        };
+
         try {
-            const noteItem = noteModalConfig.data;
             const response = await fetch(`${API_URL}/users/bible-note`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${isLogin}`
                 },
-                body: JSON.stringify({
-                    userid: user_id,
-                    verseId: noteItem.verseId,
-                    bookName: noteItem.bookName,
-                    chapter: noteItem.chapter,
-                    verseNumber: noteItem.verseNumber,
-                    text: noteItem.text,
-                    note: noteText
-                })
+                body: JSON.stringify(payload)
             });
 
             if (response.ok) {
-                setProfile(prev => ({
+                updateProfileState(prev => ({
                     ...prev,
                     bibleNotes: prev.bibleNotes.map(n =>
                         n.verseId === noteItem.verseId ? { ...n, note: noteText, date: new Date() } : n
@@ -391,6 +446,20 @@ export default function normal_UserProfile() {
                 alert(data.message || 'Failed to update note');
             }
         } catch (error) {
+            const isNetworkError = !navigator.onLine || error.message.includes('Failed to fetch') || error.message.includes('Network Error');
+            if (isNetworkError) {
+                await queueOfflineAction(`${API_URL}/users/bible-note`, 'POST', payload, { Authorization: `Bearer ${isLogin}` });
+                updateProfileState(prev => ({
+                    ...prev,
+                    bibleNotes: prev.bibleNotes.map(n =>
+                        n.verseId === noteItem.verseId ? { ...n, note: noteText, date: new Date() } : n
+                    ).sort((a, b) => new Date(b.date) - new Date(a.date))
+                }));
+                setNoteModalConfig(null);
+                setNoteText('');
+                showToast({ message: '📶 Offline: Note saved locally. Will sync when online.', type: 'offline', duration: 4000 });
+                return;
+            }
             console.error('Update note error:', error);
             alert('Error updating note');
         } finally {
@@ -463,7 +532,7 @@ export default function normal_UserProfile() {
                 throw new Error(data?.message || 'Failed to save pray time');
             }
 
-            setProfile(prev => ({
+            updateProfileState(prev => ({
                 ...prev,
                 prayTime: (data.user?.prayTime || []).sort((a, b) => new Date(b.date) - new Date(a.date))
             }));
@@ -479,8 +548,7 @@ export default function normal_UserProfile() {
                 
                 await queueOfflineAction(`${API_URL}/users/pray-time${isEditMode ? `/${user_id}` : ''}`, method, body, { Authorization: `Bearer ${isLogin}` });
                 
-                // Optimistic UI update
-                setProfile(prev => {
+                updateProfileState(prev => {
                     const newEntry = isEditMode ? { ...body, _id: prayEditId, date: new Date().toISOString() } : { ...body, _id: 'temp-' + Date.now(), date: new Date().toISOString() };
                     let existing = prev.prayTime || [];
                     if (isEditMode) {
@@ -530,7 +598,7 @@ export default function normal_UserProfile() {
                 throw new Error(data?.message || 'Failed to delete pray time');
             }
 
-            setProfile(prev => ({
+            updateProfileState(prev => ({
                 ...prev,
                 prayTime: (prev?.prayTime || []).filter((entry) => entry._id !== prayId)
             }));
@@ -542,7 +610,7 @@ export default function normal_UserProfile() {
             const isNetworkError = !navigator.onLine || deleteError.message.includes('Failed to fetch') || deleteError.message.includes('Network Error') || deleteError.message.includes('Load failed');
             if (isNetworkError) {
                 await queueOfflineAction(`${API_URL}/users/pray-time/${user_id}`, 'DELETE', { prayId }, { Authorization: `Bearer ${isLogin}` });
-                setProfile(prev => ({
+                updateProfileState(prev => ({
                     ...prev,
                     prayTime: (prev?.prayTime || []).filter((entry) => entry._id !== prayId)
                 }));
@@ -580,7 +648,7 @@ export default function normal_UserProfile() {
         );
     }
 
-    if (error) {
+    if (error && !profile) {
         return (
             <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
                 <div className="bg-red-500/10 border border-red-500/20 rounded-3xl p-8 max-w-md w-full text-center backdrop-blur-xl">
@@ -627,6 +695,9 @@ export default function normal_UserProfile() {
 
                         <div className="flex flex-wrap gap-2 sm:gap-3">
                             <Badge icon={User} label="Role" value={titleCase(profile?.user?.role)} classes="bg-sky-500/5 text-sky-200 border-sky-500/10" />
+                            {!navigator.onLine && (
+                                <Badge icon={Activity} label="Status" value="Offline Mode" classes="bg-orange-500/10 text-orange-400 border-orange-500/20" />
+                            )}
                         </div>
                     </div>
                 </div>

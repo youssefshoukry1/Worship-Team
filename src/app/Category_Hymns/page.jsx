@@ -29,7 +29,6 @@ import {
   sanitizeSlideBreaks,
 } from '../utils/hymnSlides';
 import { useCategoryHymnsTour } from './Tour/useCategoryHymnsTour';
-import Link from 'next/link';
 
 
 const API_ROOT = getApiBaseUrl();
