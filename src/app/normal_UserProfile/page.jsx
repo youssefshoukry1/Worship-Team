@@ -70,11 +70,11 @@ const getPrayTypeLabel = (value) => PRAY_TYPES.find((item) => item.id === value)
 
 const getPrayTypeStyle = (type) => {
     const t = (type || 'general').toLowerCase();
-    switch(t) {
+    switch (t) {
         case 'prayer for me': return { activeBtn: 'bg-blue-500/20 text-blue-200 border-blue-400/40', textareaFocus: 'focus:border-blue-400/50 focus:ring-blue-400/30', cardBg: 'bg-blue-900/10 border-blue-500/20 shadow-[inset_0_0_20px_rgba(59,130,246,0.05)]', badge: 'bg-blue-500/20 text-blue-200 border-blue-500/20', accent: 'text-blue-400', glass: 'bg-blue-500/5 border-blue-500/10' };
-        case 'prayer for other': 
+        case 'prayer for other':
         case 'prayer for others': return { activeBtn: 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40', textareaFocus: 'focus:border-emerald-400/50 focus:ring-emerald-400/30', cardBg: 'bg-emerald-900/10 border-emerald-500/20 shadow-[inset_0_0_20px_rgba(16,185,129,0.05)]', badge: 'bg-emerald-500/20 text-emerald-200 border-emerald-500/20', accent: 'text-emerald-400', glass: 'bg-emerald-500/5 border-emerald-500/10' };
-        case 'chapter': 
+        case 'chapter':
         case 'chapter reflection': return { activeBtn: 'bg-purple-500/20 text-purple-200 border-purple-400/40', textareaFocus: 'focus:border-purple-400/50 focus:ring-purple-400/30', cardBg: 'bg-purple-900/10 border-purple-500/20 shadow-[inset_0_0_20px_rgba(168,85,247,0.05)]', badge: 'bg-purple-500/20 text-purple-200 border-purple-500/20', accent: 'text-purple-400', glass: 'bg-purple-500/5 border-purple-500/10' };
         default: return { activeBtn: 'bg-rose-500/20 text-rose-200 border-rose-400/40', textareaFocus: 'focus:border-rose-400/50 focus:ring-rose-400/30', cardBg: 'bg-black/20 border-white/5 hover:bg-white/5', badge: 'bg-rose-500/20 text-rose-200 border-rose-500/20', accent: 'text-rose-400', glass: 'bg-rose-500/5 border-rose-500/10' };
     }
@@ -82,15 +82,15 @@ const getPrayTypeStyle = (type) => {
 
 const renderStyledPrayer = (content) => {
     if (!content) return null;
-    
+
     const parts = content.split(/(\[ PRAYER FOR ME \]|\[ PRAYER FOR OTHERS \]|\[ CHAPTER REFLECTION \])/gi);
-    
+
     return (
         <div className="text-sm text-slate-200 font-medium leading-relaxed whitespace-pre-wrap">
             {parts.map((part, idx) => {
                 const p = part.trim();
                 if (!p) return null;
-                
+
                 if (p === '[ PRAYER FOR ME ]') {
                     return <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[9px] font-black mr-1.5 border border-blue-500/20 align-middle mb-0.5">{p}</span>;
                 }
@@ -100,7 +100,7 @@ const renderStyledPrayer = (content) => {
                 if (p === '[ CHAPTER REFLECTION ]') {
                     return <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 text-[9px] font-black mr-1.5 border border-purple-500/20 align-middle mb-0.5">{p}</span>;
                 }
-                
+
                 return <span key={idx} className="opacity-90">{part}</span>;
             })}
         </div>
@@ -198,10 +198,10 @@ function SummaryCard({
                     <p className={`text-3xl sm:text-4xl font-black ${accentClass} leading-none`}>{primaryValue}</p>
                 </div>
                 {secondaryLabel && (
-                <div className="text-right">
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 font-semibold">{secondaryLabel}</p>
-                    <p className="text-xl sm:text-2xl font-bold text-slate-200 leading-none">{secondaryValue}</p>
-                </div>
+                    <div className="text-right">
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 font-semibold">{secondaryLabel}</p>
+                        <p className="text-xl sm:text-2xl font-bold text-slate-200 leading-none">{secondaryValue}</p>
+                    </div>
                 )}
             </div>
         </div>
@@ -222,7 +222,7 @@ function ListPanel({ title, icon: Icon, accentClass = 'text-sky-400', iconBgClas
                     {items.length} records
                 </div>
             </div>
-            <div 
+            <div
                 className="flex-1 p-3 sm:p-5 overflow-y-auto max-h-[350px] space-y-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[::-webkit-scrollbar-thumb]:bg-white/20"
                 data-lenis-prevent-wheel
             >
@@ -285,7 +285,7 @@ export default function normal_UserProfile() {
                 const cachedData = await localforage.getItem(CACHE_KEY);
                 if (cachedData && !ignore) {
                     setProfile(cachedData);
-                    setLoading(false); 
+                    setLoading(false);
                 } else if (!ignore) {
                     setLoading(true);
                 }
@@ -297,13 +297,13 @@ export default function normal_UserProfile() {
 
                 if (!res.ok) {
                     if (!cachedData) throw new Error('Failed to fetch user profile');
-                    return; 
+                    return;
                 }
 
                 const data = await res.json();
-                
+
                 if (ignore) return;
-                
+
                 const newProfileData = {
                     user: data.user,
                     bibleNotes: data.user?.bibleNotes?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
@@ -411,7 +411,7 @@ export default function normal_UserProfile() {
         if (!noteText.trim() || !noteModalConfig) return;
         setIsSubmittingNote(true);
         const noteItem = noteModalConfig.data;
-        
+
         const payload = {
             userid: user_id,
             verseId: noteItem.verseId,
@@ -497,7 +497,7 @@ export default function normal_UserProfile() {
             .filter(b => b.words.trim())
             .map(b => `\n\n[ ${getPrayTypeLabel(b.prayType).toUpperCase()} ]\n${b.words.trim()}`)
             .join('');
-        
+
         finalWords = (finalWords + extraText).trim();
 
         if (!finalWords) return;
@@ -505,17 +505,17 @@ export default function normal_UserProfile() {
         try {
             const isEditMode = Boolean(prayEditId);
             const method = isEditMode ? 'PATCH' : 'POST';
-            
+
             const body = isEditMode
-                ? { 
-                    prayId: prayEditId, 
-                    words: finalWords, 
-                    feeling: prayFeeling, 
-                    prayType: 'general' 
+                ? {
+                    prayId: prayEditId,
+                    words: finalWords,
+                    feeling: prayFeeling,
+                    prayType: 'general'
                 }
-                : { 
-                    userid: user_id, 
-                    words: finalWords, 
+                : {
+                    userid: user_id,
+                    words: finalWords,
                     feeling: prayFeeling,
                     prayType: 'general'
                 };
@@ -545,9 +545,9 @@ export default function normal_UserProfile() {
                 const body = isEditMode
                     ? { prayId: prayEditId, words: finalWords, feeling: prayFeeling, prayType: 'general' }
                     : { userid: user_id, words: finalWords, feeling: prayFeeling, prayType: 'general' };
-                
+
                 await queueOfflineAction(`${API_URL}/users/pray-time${isEditMode ? `/${user_id}` : ''}`, method, body, { Authorization: `Bearer ${isLogin}` });
-                
+
                 updateProfileState(prev => {
                     const newEntry = isEditMode ? { ...body, _id: prayEditId, date: new Date().toISOString() } : { ...body, _id: 'temp-' + Date.now(), date: new Date().toISOString() };
                     let existing = prev.prayTime || [];
@@ -710,8 +710,8 @@ export default function normal_UserProfile() {
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`flex-shrink-0 flex items-center justify-center gap-1.5 px-3 sm:px-6 py-2.5 sm:py-3 rounded-xl text-[11px] sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab.id
-                                        ? 'bg-white/10 text-white shadow-lg shadow-black/20 border border-white/5 ring-1 ring-white/10'
-                                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'
+                                    ? 'bg-white/10 text-white shadow-lg shadow-black/20 border border-white/5 ring-1 ring-white/10'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'
                                     }`}
                             >
                                 <tab.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${activeTab === tab.id ? 'text-sky-400' : 'opacity-60'}`} />
@@ -787,16 +787,16 @@ export default function normal_UserProfile() {
                                                     </p>
                                                 </div>
                                             </div>
-                                            
+
                                             <div className="flex sm:flex-col gap-2 shrink-0">
-                                                <button 
+                                                <button
                                                     onClick={() => handleEditBibleNote(note)}
                                                     className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all border border-white/5"
                                                     title="Edit Note"
                                                 >
                                                     <Edit3 className="w-4 h-4" />
                                                 </button>
-                                                <button 
+                                                <button
                                                     onClick={() => handleDeleteBibleNote(note._id)}
                                                     className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5"
                                                     title="Delete Note"
@@ -901,11 +901,10 @@ export default function normal_UserProfile() {
                                                 <button
                                                     key={item.id}
                                                     onClick={() => setPrayFeeling(item.id)}
-                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                                                        prayFeeling === item.id
-                                                            ? 'bg-rose-500/20 text-rose-200 border-rose-400/40'
-                                                            : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
-                                                    }`}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${prayFeeling === item.id
+                                                        ? 'bg-rose-500/20 text-rose-200 border-rose-400/40'
+                                                        : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
+                                                        }`}
                                                 >
                                                     {item.label}
                                                 </button>
@@ -921,41 +920,52 @@ export default function normal_UserProfile() {
                                     </p>
                                 </div>
 
-                                <div className="w-full bg-white/[0.04] border border-white/10 rounded-xl p-3 focus-within:ring-1 focus-within:ring-rose-400/30 focus-within:border-rose-400/50 transition-all flex flex-col mb-4">
+                                <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3 sm:p-4 focus-within:ring-1 focus-within:ring-rose-400/30 focus-within:border-rose-400/50 transition-all flex flex-col gap-3.5 mb-4">
+                                    {/* General Prayer Textarea */}
                                     {(!prayEditId || prayWords || prayBlocks.length === 0) && (
                                         <textarea
                                             value={prayWords}
                                             onChange={(e) => setPrayWords(e.target.value)}
                                             placeholder="Write your general prayer words here..."
-                                            rows={5}
-                                            className="w-full bg-transparent border-none text-white placeholder-white/20 focus:outline-none focus:ring-0 resize-none text-sm leading-relaxed p-0 m-0"
+                                            rows={4}
+                                            className="w-full bg-transparent border-none text-white placeholder-white/20 focus:outline-none focus:ring-0 resize-y min-h-[90px] text-sm leading-relaxed p-0 m-0"
                                         />
                                     )}
+
+                                    {/* Dynamic Prayer Blocks (Integrated seamlessly inside the same box) */}
                                     {prayBlocks.length > 0 && (
-                                        <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-white/5">
-                                            {prayBlocks.map((block, idx) => (
-                                                <div key={block.id} className="relative group flex items-center">
-                                                    <span className={`absolute left-3 text-[10px] px-2 py-0.5 rounded-md border uppercase font-bold tracking-wider ${getPrayTypeStyle(block.prayType).badge}`}>
-                                                        {getPrayTypeLabel(block.prayType)}
-                                                    </span>
-                                                    <input
-                                                        type="text"
-                                                        value={block.words}
-                                                        onChange={(e) => updateBlockWords(block.id, e.target.value)}
-                                                        placeholder="Type here..."
-                                                        className={`w-full pl-[135px] pr-10 py-3 rounded-lg border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 transition-all ${getPrayTypeStyle(block.prayType).textareaFocus} ${getPrayTypeStyle(block.prayType).cardBg.replace('hover:bg-white/5', '')}`}
-                                                    />
-                                                    {!prayEditId && (
-                                                        <button 
-                                                            onClick={() => removeBlock(block.id)}
-                                                            className="absolute right-2 p-1.5 rounded-md text-slate-400 hover:text-red-400 hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-all border border-white/5"
-                                                            title="Remove section"
-                                                        >
-                                                            <X className="w-4 h-4" />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ))}
+                                        <div className={`flex flex-col gap-3 ${prayWords ? 'pt-3 border-t border-white/10' : ''}`}>
+                                            {prayBlocks.map((block) => {
+                                                const blockStyle = getPrayTypeStyle(block.prayType);
+                                                return (
+                                                    <div
+                                                        key={block.id}
+                                                        className={`flex flex-col gap-2 p-3 rounded-xl border transition-all bg-black/20 ${blockStyle.cardBg.replace('hover:bg-white/5', '')}`}
+                                                    >
+                                                        <div className="flex justify-between items-center">
+                                                            <span className={`text-[10px] px-2 py-0.5 rounded-md border uppercase font-bold tracking-wider ${blockStyle.badge}`}>
+                                                                {getPrayTypeLabel(block.prayType)}
+                                                            </span>
+                                                            {!prayEditId && (
+                                                                <button
+                                                                    onClick={() => removeBlock(block.id)}
+                                                                    className="p-1 rounded-md text-slate-400 hover:text-red-400 hover:bg-red-500/20 transition-all"
+                                                                    title="Remove section"
+                                                                >
+                                                                    <X className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        <textarea
+                                                            value={block.words}
+                                                            onChange={(e) => updateBlockWords(block.id, e.target.value)}
+                                                            placeholder={`Write your ${getPrayTypeLabel(block.prayType).toLowerCase()}...`}
+                                                            rows={3}
+                                                            className="w-full bg-transparent border-none text-white placeholder-white/30 focus:outline-none focus:ring-0 resize-y min-h-[60px] text-sm leading-relaxed p-0 m-0"
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </div>
