@@ -4415,29 +4415,46 @@ export default function Category_Humns() {
                                 )}
                               </div>
 
-                              {/* MOBILE (With Swipe Gesture Support) */}
-                              <div className="sm:hidden flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar relative">
+                              {/* ── MOBILE (With Native Touch Swipe - طلقة) ── */}
+                              <div
+                                className="sm:hidden flex-1 flex flex-col min-h-0 overflow-hidden relative w-full"
+                                onTouchStart={(e) => {
+                                  e.currentTarget.dataset.startX = e.targetTouches[0].clientX;
+                                }}
+                                onTouchMove={(e) => {
+                                  e.currentTarget.dataset.endX = e.targetTouches[0].clientX;
+                                }}
+                                onTouchEnd={(e) => {
+                                  const start = parseFloat(e.currentTarget.dataset.startX);
+                                  const end = parseFloat(e.currentTarget.dataset.endX);
+
+                                  // لو مفيش سحب حقيقي أو لمسة عادية نوقف
+                                  if (!start || !end) return;
+
+                                  const distance = start - end;
+                                  const swipeThreshold = 50; // حساسية السحب (تقدر تقللها لو عايزه يقلب أسرع)
+
+                                  if (distance > swipeThreshold && mtSafe < allColumns.length - 1) {
+                                    // سحب لليسار -> الترجمة التالية
+                                    setCompareMobileTab(prev => prev + 1);
+                                  } else if (distance < -swipeThreshold && mtSafe > 0) {
+                                    // سحب لليمين -> الترجمة السابقة
+                                    setCompareMobileTab(prev => prev - 1);
+                                  }
+
+                                  // تصفير القيم بعد السحب
+                                  e.currentTarget.dataset.startX = '';
+                                  e.currentTarget.dataset.endX = '';
+                                }}
+                              >
                                 {mobileActiveCode && compareData?.[mobileActiveCode] ? (
                                   <motion.div
                                     key={mobileActiveCode}
-                                    drag="x"
-                                    dragConstraints={{ left: 0, right: 0 }}
-                                    dragElastic={0.15}
-                                    onDragEnd={(_, info) => {
-                                      const swipeThreshold = 50; // مسافة السحب المطلوبة بالبكسل
-                                      if (info.offset.x < -swipeThreshold && mtSafe < allColumns.length - 1) {
-                                        // سحب لليسار -> الانتقال للترجمة التالية
-                                        setCompareMobileTab(prev => prev + 1);
-                                      } else if (info.offset.x > swipeThreshold && mtSafe > 0) {
-                                        // سحب لليمين -> الانتقال للترجمة السابقة
-                                        setCompareMobileTab(prev => prev - 1);
-                                      }
-                                    }}
-                                    initial={{ opacity: 0, scale: 0.97 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.97 }}
-                                    transition={{ duration: 0.25 }}
-                                    className="flex-1 touch-pan-y cursor-grab active:cursor-grabbing"
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -20 }}
+                                    transition={{ duration: 0.25, ease: "easeOut" }}
+                                    className="flex-1 overflow-y-auto custom-scrollbar w-full h-full pb-6"
                                   >
                                     <CompareColumn
                                       translationCode={mobileActiveCode}
