@@ -51,9 +51,6 @@ const PRAY_FEELINGS = [
     { id: 'thankful', label: 'Thankful', helper: 'Gratitude opens more words. Write one blessing from today.' },
     { id: 'anxious', label: 'Anxious', helper: 'You are safe here. Write one worry, then one small hope.' },
     { id: 'tired', label: 'Tired', helper: 'Keep it simple. Even a few honest lines are enough.' },
-    { id: 'hopeful', label: 'Hopeful', helper: 'Beautiful. Write what you are trusting God for next.' },
-    { id: 'confused', label: 'Confused', helper: 'It is okay to not understand. Write your questions freely.' },
-    { id: 'joyful', label: 'Joyful', helper: 'Let joy flow. Write what made your heart alive today.' },
     { id: 'other', label: 'Other', helper: 'No pressure. Just write exactly what is in your heart.' },
 ];
 
@@ -63,7 +60,7 @@ const PRAY_TYPES = [
     { id: 'general', label: 'General Prayer' },
     { id: 'prayer for me', label: 'Prayer For Me' },
     { id: 'prayer for other', label: 'Prayer For Others' },
-    { id: 'chapter', label: 'Chapter Reflection' },
+    // { id: 'chapter', label: 'Chapter Reflection' },
 ];
 
 const getPrayTypeLabel = (value) => PRAY_TYPES.find((item) => item.id === value)?.label || 'General Prayer';
@@ -873,9 +870,6 @@ export default function normal_UserProfile() {
                                     <Heart className="w-5 h-5 text-rose-300" />
                                     <h3 className="text-base sm:text-lg font-bold text-white">Pray Time</h3>
                                 </div>
-                                <p className="text-xs sm:text-sm text-slate-300 mb-4 leading-relaxed">
-                                    Write freely. Choose your feeling and let your words flow at your own pace.
-                                </p>
 
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     <div className="w-full mb-1">
@@ -913,12 +907,12 @@ export default function normal_UserProfile() {
                                     </div>
                                 </div>
 
-                                <div className="rounded-xl border border-rose-400/20 bg-black/20 p-3 mb-4 flex items-start gap-2">
+                                {/* <div className="rounded-xl border border-rose-400/20 bg-black/20 p-3 mb-4 flex items-start gap-2">
                                     <Sparkles className="w-4 h-4 text-rose-300 mt-0.5 shrink-0" />
                                     <p className="text-xs sm:text-sm text-rose-100/90 leading-relaxed">
                                         {PRAY_FEELINGS.find((item) => item.id === prayFeeling)?.helper}
                                     </p>
-                                </div>
+                                </div> */}
 
                                 <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3 sm:p-4 focus-within:ring-1 focus-within:ring-rose-400/30 focus-within:border-rose-400/50 transition-all flex flex-col gap-3.5 mb-4">
                                     {/* General Prayer Textarea */}
