@@ -33,6 +33,7 @@
     "yup": "^1.7.1"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

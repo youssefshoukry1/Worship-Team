@@ -25,7 +25,7 @@ export const metadata = {
     title: "Wasla",
     description: "تسبيحنا يرتفع للسماء",
     icons: {
-        icon: "/wasla0.svg", // هيظهر بدل أي favicon افتراضي
+        icon: "/wasla.jpg", // هيظهر بدل أي favicon افتراضي
     },
 };
 
