@@ -34,6 +34,7 @@ import { useCategoryHymnsTour } from './Tour/useCategoryHymnsTour';
 const API_ROOT = getApiBaseUrl();
 const BIBLE_API = `${API_ROOT}/bible`;
 const LOCAL_BIBLE_NOTES_KEY = 'taspe7_local_bible_notes';
+const BIBLE_LAST_POS_KEY = 'taspe7_bible_last_position';
 
 function readLocalBibleNotes() {
   if (typeof window === 'undefined') return {};
@@ -799,6 +800,21 @@ export default function Category_Humns() {
     })();
     return () => { cancelled = true; };
   }, [showBibleModal, showDataShow, desktopSearchType]);
+
+  // Restore last book/chapter after books are loaded
+  useEffect(() => {
+    if (!bibleModalBooksReady || bibleModalBooks.length === 0) return;
+    try {
+      const saved = localStorage.getItem(BIBLE_LAST_POS_KEY);
+      if (!saved) return;
+      const { bookName, chapter } = JSON.parse(saved);
+      const book = bibleModalBooks.find(b => b.bookName === bookName);
+      if (book) {
+        setBibleModalBook(book);
+        if (chapter != null) setBibleModalChapter(chapter);
+      }
+    } catch { }
+  }, [bibleModalBooksReady]);
 
   // ─── Load chapters when book or translation changes (synced with presentation) ───
   useEffect(() => {
@@ -1795,6 +1811,7 @@ export default function Category_Humns() {
       setBibleModalBook(book);
       setBibleModalChapter(hit.chapter);
       setBibleSearchQuery('');
+      if (typeof window !== 'undefined') localStorage.setItem(BIBLE_LAST_POS_KEY, JSON.stringify({ bookName: hit.bookName, chapter: hit.chapter }));
     }
   };
 
@@ -3629,7 +3646,7 @@ export default function Category_Humns() {
                                   <button
                                     key={book._id}
                                     className={`px-3 py-2 rounded-xl text-right text-[11px] font-medium transition-all ${bibleModalBook?.bookName === book.bookName ? 'bg-slate-700/80 text-slate-100 border border-slate-500/30 shadow-lg shadow-black/30' : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10 hover:text-white'}`}
-                                    onClick={() => { setBibleModalBook(book); setBibleModalChapter(null); setBiblePickerOpen('chapter'); }}
+                                    onClick={() => { setBibleModalBook(book); setBibleModalChapter(null); setBiblePickerOpen('chapter'); if (typeof window !== 'undefined') localStorage.setItem(BIBLE_LAST_POS_KEY, JSON.stringify({ bookName: book.bookName, chapter: null })); }}
                                   >
                                     {book.bookName}
                                   </button>
@@ -3641,7 +3658,7 @@ export default function Category_Humns() {
                                   <button
                                     key={ch}
                                     className={`h-10 rounded-xl flex items-center justify-center text-xs font-black transition-all ${bibleModalChapter === ch ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20' : 'bg-white/5 text-white/40 hover:text-white'}`}
-                                    onClick={() => { setBibleModalChapter(ch); setBiblePickerOpen(null); }}
+                                    onClick={() => { setBibleModalChapter(ch); setBiblePickerOpen(null); if (typeof window !== 'undefined' && bibleModalBook) localStorage.setItem(BIBLE_LAST_POS_KEY, JSON.stringify({ bookName: bibleModalBook.bookName, chapter: ch })); }}
                                   >
                                     {ch}
                                   </button>

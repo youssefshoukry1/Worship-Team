@@ -1777,18 +1777,18 @@ export default function WorkSpace() {
                             ) : (
                                 <div className="dock-pill">
                                     {/* notes button */}
-                                    <button
+                                    {/* <button
                                         ref={noteRef}
                                         className="act-btn act-btn--notes"
                                         onClick={(e) => { addDockRipple(e, noteRef); setShowSetlistModal(true); setDockOpen(false); }}
                                     >
                                         <span className="act-icon"><FileText size={17} strokeWidth={2.2} /></span>
                                         <span className="act-label">Notes</span>
-                                    </button>
+                                    </button> */}
 
                                     <div className="dock-divider" />
                                     {/* save event button */}
-                                    {['ADMIN', 'MANEGER', 'PROGRAMER', 'Admin', 'Maneger', 'Programer'].includes(UserRole) && (
+                                    {/* {['ADMIN', 'MANEGER', 'PROGRAMER', 'Admin', 'Maneger', 'Programer'].includes(UserRole) && (
                                         <button
                                             ref={saveRef}
                                             className="act-btn act-btn--save"
@@ -1800,7 +1800,7 @@ export default function WorkSpace() {
                                                 : <span className="act-icon"><Music size={17} strokeWidth={2.2} /></span>}
                                             <span className="act-label">{isSavingEvent ? 'Saving…' : 'Save'}</span>
                                         </button>
-                                    )}
+                                    )} */}
 
                                     <div className="dock-divider" />
 
@@ -1819,7 +1819,7 @@ export default function WorkSpace() {
 
                                     <div className="dock-divider" />
                                     {/* pdf download button */}
-                                    <button
+                                    {/* <button
                                         ref={dlRef}
                                         className="act-btn act-btn--download"
                                         disabled={workspace.length === 0 || isDownloading}
@@ -1829,7 +1829,7 @@ export default function WorkSpace() {
                                             ? <span className="dock-btn-spinner" />
                                             : <span className="act-icon"><Monitor size={17} strokeWidth={2.2} /></span>}
                                         <span className="act-label">{isDownloading ? 'Exporting…' : 'PDF'}</span>
-                                    </button>
+                                    </button> */}
 
                                     <div className="dock-divider" />
 
@@ -1841,6 +1841,8 @@ export default function WorkSpace() {
                             )}
                         </div>
                     </div>
+
+                    
                     {/* ── Live Session Panel ───────────────────────────────────── */}
                     <div className="mt-6">
                         {/* Toggle button */}

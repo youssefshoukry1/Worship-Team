@@ -238,6 +238,59 @@ function ListPanel({ title, icon: Icon, accentClass = 'text-sky-400', iconBgClas
 
 /* --- MAIN PAGE COMPONENT --- */
 
+const formatVerseNumbers = (nums) => {
+    if (!nums || nums.length === 0) return '';
+    const sorted = [...nums].sort((a, b) => a - b);
+    const isConsecutive = sorted.every((num, i) => i === 0 || num === sorted[i - 1] + 1);
+    if (isConsecutive && sorted.length > 1) {
+        return `${sorted[0]}-${sorted[sorted.length - 1]}`;
+    }
+    return sorted.join(', ');
+};
+
+const groupHighlights = (highlights) => {
+    if (!highlights || highlights.length === 0) return [];
+    // Sort highlights by date ascending so we can process them sequentially
+    const sorted = [...highlights].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const groups = [];
+    sorted.forEach((item) => {
+        const match = groups.find(g => 
+            g.bookName === item.bookName &&
+            g.chapter === item.chapter &&
+            g.color === item.color &&
+            Math.abs(new Date(g.date) - new Date(item.date)) < 15000 // 15 seconds threshold
+        );
+        if (match) {
+            match.verseIds.push(item.verseId);
+            match.verseNumbers.push(item.verseNumber);
+            match.verses.push({
+                verseId: item.verseId,
+                verseNumber: item.verseNumber,
+                text: item.text,
+                _id: item._id
+            });
+            match.verses.sort((a, b) => a.verseNumber - b.verseNumber);
+        } else {
+            groups.push({
+                _id: item._id || item.verseId,
+                verseIds: [item.verseId],
+                bookName: item.bookName,
+                chapter: item.chapter,
+                verseNumbers: [item.verseNumber],
+                color: item.color,
+                date: item.date,
+                verses: [{
+                    verseId: item.verseId,
+                    verseNumber: item.verseNumber,
+                    text: item.text,
+                    _id: item._id
+                }]
+            });
+        }
+    });
+    return groups.sort((a, b) => new Date(b.date) - new Date(a.date));
+};
+
 export default function normal_UserProfile() {
     const { user_id, isLogin } = useContext(UserContext);
     const [profile, setProfile] = useState(null);
@@ -380,10 +433,13 @@ export default function normal_UserProfile() {
             });
 
             if (response.ok) {
-                updateProfileState(prev => ({
-                    ...prev,
-                    bibleHighlights: prev.bibleHighlights.filter(h => h.verseId !== verseId)
-                }));
+                updateProfileState(prev => {
+                    const idsToDelete = Array.isArray(verseId) ? verseId : [verseId];
+                    return {
+                        ...prev,
+                        bibleHighlights: prev.bibleHighlights.filter(h => !idsToDelete.includes(h.verseId))
+                    };
+                });
             } else {
                 const data = await response.json();
                 alert(data.message || 'Failed to delete highlight');
@@ -392,10 +448,13 @@ export default function normal_UserProfile() {
             const isNetworkError = !navigator.onLine || error.message.includes('Failed to fetch') || error.message.includes('Network Error');
             if (isNetworkError) {
                 await queueOfflineAction(`${API_URL}/users/bible-highlight/${user_id}`, 'DELETE', { verseId }, { Authorization: `Bearer ${isLogin}` });
-                updateProfileState(prev => ({
-                    ...prev,
-                    bibleHighlights: prev.bibleHighlights.filter(h => h.verseId !== verseId)
-                }));
+                updateProfileState(prev => {
+                    const idsToDelete = Array.isArray(verseId) ? verseId : [verseId];
+                    return {
+                        ...prev,
+                        bibleHighlights: prev.bibleHighlights.filter(h => !idsToDelete.includes(h.verseId))
+                    };
+                });
                 showToast({ message: '📶 Offline: Highlight deleted locally. Will sync when online.', type: 'offline', duration: 4000 });
                 return;
             }
@@ -816,7 +875,7 @@ export default function normal_UserProfile() {
                                 icon={Sparkles}
                                 accentClass="text-sky-400"
                                 iconBgClass="bg-sky-500/10 text-sky-400 border-sky-500/20"
-                                items={profile?.bibleHighlights || []}
+                                items={groupHighlights(profile?.bibleHighlights || [])}
                                 emptyText="No bible highlights saved yet"
                                 renderItem={(highlight) => {
                                     const getHighlightHex = (colorId) => {
@@ -830,25 +889,30 @@ export default function normal_UserProfile() {
                                     };
                                     const hex = getHighlightHex(highlight.color);
                                     return (
-                                        <div key={highlight._id || highlight.verseId} className="rounded-2xl border border-white/5 bg-black/20 p-4 sm:p-5 hover:bg-white/5 transition-all duration-300 relative overflow-hidden group">
+                                        <div key={highlight._id} className="rounded-2xl border border-white/5 bg-black/20 p-4 sm:p-5 hover:bg-white/5 transition-all duration-300 relative overflow-hidden group">
                                             <div className="absolute top-0 bottom-0 right-0 w-1.5 opacity-80" style={{ backgroundColor: hex }}></div>
                                             <div className="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-4 relative z-10 pr-2">
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                                                         <h4 className="text-base font-bold text-white tracking-tight">{highlight.bookName}</h4>
                                                         <span className="bg-sky-500/20 text-sky-300 text-[10px] font-black px-2 py-0.5 rounded-md border border-sky-500/20">
-                                                            {highlight.chapter}:{highlight.verseNumber}
+                                                            {highlight.chapter}:{formatVerseNumbers(highlight.verseNumbers)}
                                                         </span>
                                                         <span className="text-[10px] text-slate-500 font-bold ml-auto sm:ml-0">
                                                             {formatDate(highlight.date)}
                                                         </span>
                                                     </div>
-                                                    <p className="text-xs sm:text-sm text-slate-200 leading-relaxed p-3 rounded-xl border border-white/5 bg-white/5 shadow-inner mt-2" style={{ backgroundColor: `${hex}15`, borderColor: `${hex}30` }} dir="rtl">
-                                                        {highlight.text}
-                                                    </p>
+                                                    <div className="space-y-2 mt-2">
+                                                        {highlight.verses.map((v) => (
+                                                            <p key={v.verseId} className="text-xs sm:text-sm text-slate-200 leading-relaxed p-3 rounded-xl border border-white/5 bg-white/5 shadow-inner" style={{ backgroundColor: `${hex}15`, borderColor: `${hex}30` }} dir="rtl">
+                                                                <span className="text-sky-400/80 font-bold ml-1.5">[{v.verseNumber}]</span>
+                                                                {v.text}
+                                                            </p>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                                 <button
-                                                    onClick={() => handleDeleteBibleHighlight(highlight.verseId)}
+                                                    onClick={() => handleDeleteBibleHighlight(highlight.verseIds)}
                                                     className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 shrink-0 self-start"
                                                     title="Delete Highlight"
                                                 >
