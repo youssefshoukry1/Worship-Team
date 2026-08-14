@@ -369,6 +369,30 @@ function ChordRow({ slideData }) {
     );
 }
 
+// ─── Bible Slide Renderer ──────────────────────────────────────────────────
+function BibleSlide({ slide, fontScale }) {
+    if (!slide?.text) return null;
+    return (
+        <div className="w-full flex flex-col items-center gap-1" dir="rtl">
+            {slide.text.split('\n').map((line, i) => {
+                if (!line.trim()) return <div key={i} className="h-[0.4em]" />;
+                return (
+                    <p
+                        key={i}
+                        className="slide-text text-center text-white font-bold leading-relaxed"
+                        style={{
+                            fontSize: `clamp(${Math.round(20 * fontScale)}px, ${(5.5 * fontScale).toFixed(2)}vw, ${Math.round(76 * fontScale)}px)`,
+                            lineHeight: '1.55',
+                        }}
+                    >
+                        {line}
+                    </p>
+                );
+            })}
+        </div>
+    );
+}
+
 // ─── Main Display Content ───────────────────────────────────────────────────
 
 function DisplayContent() {
@@ -618,14 +642,18 @@ function DisplayContent() {
                             transition={{ duration: 0.3, ease: 'easeOut' }}
                             className="w-full flex flex-col items-center justify-center text-center"
                         >
-                            {/* ── Lyrics Container ── */}
-                            <div className="presentation-wrapper w-full max-w-7xl">
-                                <ChordLyrics
-                                    chordedLyrics={Array.isArray(slideData) ? slideData : [slideData]}
-                                    showChords={false}
-                                    presentation={true}
-                                    fontScale={fontScale}
-                                />
+                            {/* ── Lyrics / Bible Container ── */}
+                            <div className="presentation-wrapper w-full max-w-5xl">
+                                {slideData?.type === 'verse' ? (
+                                    <BibleSlide slide={slideData} fontScale={fontScale} />
+                                ) : (
+                                    <ChordLyrics
+                                        chordedLyrics={Array.isArray(slideData) ? slideData : [slideData]}
+                                        showChords={false}
+                                        presentation={true}
+                                        fontScale={fontScale}
+                                    />
+                                )}
                             </div>
 
                             {/* Subtle bottom line separator */}

@@ -357,7 +357,7 @@ export default function Navbar() {
                                 exit={{ opacity: 0, y: 10 }}
                                 className="absolute right-0 mt-2 w-32 bg-[#0f172a] border border-white/10 rounded-lg shadow-xl overflow-hidden py-1"
                             >
-                                {["en", "ar", "de"].map((lang) => (
+                                {["en", "ar"].map((lang) => (
                                     <button
                                         key={lang}
                                         onClick={() => {
@@ -567,7 +567,7 @@ export default function Navbar() {
                                                 transition={{ duration: 0.2 }}
                                                 className="mt-1 bg-[#0f172a] border border-white/10 rounded-lg shadow-inner overflow-hidden py-1"
                                             >
-                                                {["en", "ar", "de"].map((lang) => (
+                                                {["en", "ar"].map((lang) => (
                                                     <button
                                                         key={lang}
                                                         onClick={() => {
