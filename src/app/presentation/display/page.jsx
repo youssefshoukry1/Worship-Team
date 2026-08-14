@@ -373,16 +373,24 @@ function ChordRow({ slideData }) {
 function BibleSlide({ slide, fontScale }) {
     if (!slide?.text) return null;
     return (
-        <div className="w-full flex flex-col items-center gap-1" dir="rtl">
+        <div
+            className="w-full flex flex-col items-center"
+            dir="rtl"
+            style={{ gap: `clamp(14px, ${2.2 * fontScale}vw, ${36 * fontScale}px)` }}
+        >
             {slide.text.split('\n').map((line, i) => {
-                if (!line.trim()) return <div key={i} className="h-[0.4em]" />;
+                if (!line.trim()) return null;
                 return (
                     <p
                         key={i}
-                        className="slide-text text-center text-white font-bold leading-relaxed"
+                        className="slide-text text-center text-white w-full"
                         style={{
-                            fontSize: `clamp(${Math.round(20 * fontScale)}px, ${(5.5 * fontScale).toFixed(2)}vw, ${Math.round(76 * fontScale)}px)`,
-                            lineHeight: '1.55',
+                            fontFamily: "'Amiri', 'Georgia', serif",
+                            fontWeight: 400,
+                            fontSize: `clamp(${Math.round(22 * fontScale)}px, ${(5.8 * fontScale).toFixed(2)}vw, ${Math.round(80 * fontScale)}px)`,
+                            lineHeight: '1.9',
+                            letterSpacing: '0.015em',
+                            textShadow: '0 2px 12px rgba(0,0,0,0.85)',
                         }}
                     >
                         {line}
