@@ -9,49 +9,76 @@ export default function CapgoUpdater() {
     const [isApplying, setIsApplying] = useState(false);
 
     useEffect(() => {
-        // 1. طباعة حالة المنصة
-        console.log('📱 Platform:', Capacitor.getPlatform());
-        console.log('📱 isNative:', Capacitor.isNativePlatform());
+        // 1. طباعة حالة المنصة للتحقق
+        const platform = Capacitor.getPlatform();
+        const isNative = Capacitor.isNativePlatform();
+        console.log('📱 [OTA Check] Platform:', platform, '| isNative:', isNative);
 
-        // مؤقتاً: علّق هذا السطر لضمان تنفيذ الكود أثناء التجربة عبر DevTools
-        // if (!Capacitor.isNativePlatform()) return;
+        // لو عاوز تجرّب في الـ DevTools حتى لو مش قاري Native، اقفل الـ return ده مؤقتاً
+        if (!isNative) {
+            console.log('⚠️ [OTA] Skipped: Not running on a native platform.');
+            return;
+        }
 
         const checkSelfHostedUpdate = async () => {
             try {
-                console.log('🚀 [OTA] Starting check...');
+                console.log('🚀 [OTA] 1. Notifying app ready...');
                 await CapacitorUpdater.notifyAppReady();
 
+                console.log('🚀 [OTA] 2. Fetching version.json...');
                 const res = await fetch('https://wasla-app.vercel.app/version.json', {
                     cache: 'no-store',
                     headers: { 'Cache-Control': 'no-cache' }
                 });
 
+                if (!res.ok) {
+                    console.error('❌ [OTA] Failed to fetch version.json, status:', res.status);
+                    return;
+                }
+
                 const serverData = await res.json();
-                console.log('📦 Server Data:', serverData);
+                console.log('📦 [OTA] Server version data:', serverData);
 
+                // 2. قراءة نسخة الـ Bundle الحالية بأمان
                 const currentBundle = await CapacitorUpdater.current();
-                console.log('Current Bundle:', currentBundle);
+                console.log('📱 [OTA] Raw current bundle:', currentBundle);
 
+                const currentVersion = currentBundle?.bundle?.version || 'builtin';
+                console.log('📱 [OTA] Current resolved version:', currentVersion);
+
+                // 3. المقارنة والتنزيل
+                if (serverData.version !== currentVersion) {
+                    console.log(`⏳ [OTA] New update found (${serverData.version}). Downloading...`);
+
+                    const downloadRes = await CapacitorUpdater.download({
+                        url: serverData.url,
+                        version: serverData.version,
+                    });
+
+                    console.log('✅ [OTA] Download successful:', downloadRes);
+                    setUpdateInfo(serverData);
+                } else {
+                    console.log('🎉 [OTA] App is already up to date.');
+                }
             } catch (error) {
-                console.error('💥 OTA Error:', error);
+                console.error('💥 [OTA] Error during update check:', error);
             }
         };
 
         checkSelfHostedUpdate();
     }, []);
 
-
     const handleApplyUpdate = async () => {
         if (!updateInfo) return;
         setIsApplying(true);
         try {
-            // 1. تطبيق النسخة التي تم تنزيلها
+            console.log('🔄 [OTA] Setting version:', updateInfo.version);
             await CapacitorUpdater.set({ version: updateInfo.version });
 
-            // 2. إعادة إقلاع التطبيق بالنسخة الجديدة فوراً
+            console.log('🔄 [OTA] Reloading app...');
             await CapacitorUpdater.reload();
         } catch (error) {
-            console.error('Failed to apply update:', error);
+            console.error('💥 [OTA] Failed to apply update:', error);
             setIsApplying(false);
         }
     };
