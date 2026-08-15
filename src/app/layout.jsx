@@ -7,10 +7,12 @@ import UserContextProvider from "./context/User_Context";
 import QueryProvider from "../../QueryProvider";
 import HymnsContextProvider from "./context/Hymns_Context";
 import { LanguageProvider } from "./context/LanguageContext";
-import  SmoothScroll  from "./SmoothScroll"
+import SmoothScroll from "./SmoothScroll"
 import ServiceWorkerRegistry from "./components/ServiceWorkerRegistry";
 import ToastContainer from "./components/ToastContainer";
 import ReactQueryProvider from "../app/utils/ReactQueryProvider";
+import CapgoUpdater from "./CapgoUpdater";
+
 const geistSans = Geist({
     variable: "--font-geist-sans",
     subsets: ["latin"],
@@ -29,6 +31,15 @@ export const metadata = {
     },
 };
 
+// تظبيط الـ Viewport لتوافق الموبايل ومنع الزوم غير المرغوب
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: "no", // أو حذفه لأن maximumScale: 1 يؤدي نفس الغرض
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
     children,
 }) {
@@ -37,21 +48,22 @@ export default function RootLayout({
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
+                <CapgoUpdater />
                 <ServiceWorkerRegistry />
                 <ToastContainer />
                 <SmoothScroll>
                     <ReactQueryProvider>
-                    <LanguageProvider>
-                        <UserContextProvider>
-                            <HymnsContextProvider>
-                                <Navbar />
-                                <QueryProvider>
-                                    <PageTransition>{children}</PageTransition>
-                                </QueryProvider>
-                                <Footer />
-                            </HymnsContextProvider>
-                        </UserContextProvider>
-                    </LanguageProvider>
+                        <LanguageProvider>
+                            <UserContextProvider>
+                                <HymnsContextProvider>
+                                    <Navbar />
+                                    <QueryProvider>
+                                        <PageTransition>{children}</PageTransition>
+                                    </QueryProvider>
+                                    <Footer />
+                                </HymnsContextProvider>
+                            </UserContextProvider>
+                        </LanguageProvider>
                     </ReactQueryProvider>
                 </SmoothScroll>
 

@@ -1842,12 +1842,12 @@ export default function WorkSpace() {
                         </div>
                     </div>
 
-                    
+
                     {/* ── Live Session Panel ───────────────────────────────────── */}
                     <div className="mt-6">
                         {/* Toggle button */}
-                        <div className="relative inline-block animate-live-session-parent-2xl">
-                            <div className={`relative p-[1px] rounded-2xl overflow-hidden transition-all duration-300 inline-block animate-live-session-intro
+                        <div className="relative inline-block">
+                            <div className={`relative p-[1px] rounded-2xl overflow-hidden transition-all duration-300 inline-block
                                 ${isConnected
                                     ? 'shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]'
                                     : 'shadow-[0_0_15px_rgba(255,255,255,0.02)]'}`}

@@ -2781,8 +2781,8 @@ export default function Category_Humns() {
         )}
 
         {/* Live Session Panel */}
-        <div id="tour-live-session" className="relative animate-live-session-parent-full">
-          <div className={`relative p-[1px] rounded-full overflow-hidden transition-all duration-300 animate-live-session-intro
+        <div id="tour-live-session" className="relative">
+          <div className={`relative p-[1px] rounded-full overflow-hidden transition-all duration-300
             ${isConnected
               ? 'shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]'
               : 'shadow-[0_0_15px_rgba(255,255,255,0.02)]'}`}
@@ -2799,7 +2799,7 @@ export default function Category_Humns() {
             <button
               onClick={() => setShowSessionPanel(p => !p)}
               className={`relative z-10 flex items-center gap-2 px-5 py-2.5 rounded-full transition-all font-semibold text-sm w-full h-full justify-center
-                    ${isConnected
+                  ${isConnected
                   ? 'bg-[#0c142c] text-green-400 hover:bg-[#121d3f]'
                   : 'bg-[#0a1020] text-gray-400 hover:bg-[#0f172f] hover:text-white'
                 }`}

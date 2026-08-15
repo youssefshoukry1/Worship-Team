@@ -41,5 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 public/*.json
-
+!public/version.json
+*.zip
+public/*.zip
 assets 
