@@ -9,51 +9,37 @@ export default function CapgoUpdater() {
     const [isApplying, setIsApplying] = useState(false);
 
     useEffect(() => {
-        if (!Capacitor.isNativePlatform()) return;
+        // 1. طباعة حالة المنصة
+        console.log('📱 Platform:', Capacitor.getPlatform());
+        console.log('📱 isNative:', Capacitor.isNativePlatform());
+
+        // مؤقتاً: علّق هذا السطر لضمان تنفيذ الكود أثناء التجربة عبر DevTools
+        // if (!Capacitor.isNativePlatform()) return;
+
         const checkSelfHostedUpdate = async () => {
             try {
-                console.log('🚀 [OTA] 1. Notifying app ready...');
+                console.log('🚀 [OTA] Starting check...');
                 await CapacitorUpdater.notifyAppReady();
 
-                console.log('🚀 [OTA] 2. Fetching version.json...');
                 const res = await fetch('https://wasla-app.vercel.app/version.json', {
                     cache: 'no-store',
                     headers: { 'Cache-Control': 'no-cache' }
                 });
 
-                if (!res.ok) {
-                    console.error('❌ [OTA] Failed to fetch version.json, status:', res.status);
-                    return;
-                }
-
                 const serverData = await res.json();
-                console.log('📦 [OTA] Server version data:', serverData);
+                console.log('📦 Server Data:', serverData);
 
                 const currentBundle = await CapacitorUpdater.current();
-                // لو التطبيق لسه متثبت جديد، الـ version ممكن تكون builtin أو undefined
-                const currentVersion = currentBundle?.bundle?.version || 'builtin';
-                console.log('📱 [OTA] Current app version:', currentVersion);
+                console.log('Current Bundle:', currentBundle);
 
-                if (serverData.version !== currentVersion) {
-                    console.log(`⏳ [OTA] New version found (${serverData.version}). Downloading zip...`);
-
-                    const downloadRes = await CapacitorUpdater.download({
-                        url: serverData.url,
-                        version: serverData.version,
-                    });
-
-                    console.log('✅ [OTA] Download completed successfully:', downloadRes);
-                    setUpdateInfo(serverData);
-                } else {
-                    console.log('🎉 [OTA] App is already up to date.');
-                }
             } catch (error) {
-                console.error('💥 [OTA] Check failed with error:', error);
+                console.error('💥 OTA Error:', error);
             }
         };
 
         checkSelfHostedUpdate();
     }, []);
+
 
     const handleApplyUpdate = async () => {
         if (!updateInfo) return;
