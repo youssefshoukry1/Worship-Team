@@ -13,28 +13,30 @@ export default function CapgoUpdater() {
 
         const checkSelfHostedUpdate = async () => {
             try {
-                // 1. إبلاغ النظام بنجاح تحميل النسخة الحالية
+                // 1. إبلاغ النظام بنجاح تحميل النسخة الحالية لضمان عدم حدوث Rollback
                 await CapacitorUpdater.notifyAppReady();
 
-                // 2. جلب معلومات الإصدار من سيرفرك (رابط Vercel الخاص بمشروعك)
+                // 2. جلب معلومات الإصدار من سيرفرك
                 const res = await fetch('https://wasla-app.vercel.app/version.json', {
                     cache: 'no-store',
+                    headers: { 'Cache-Control': 'no-cache' }
                 });
 
                 if (!res.ok) return;
                 const serverData = await res.json();
 
-                // 3. التحقق من الإصدار الحالي وتنزيل التحديث إن وجد جديد
-                const currentPluginVersion = await CapacitorUpdater.getPluginVersion();
+                // 3. الحصول على رقم الإصدار الحالي للـ Web Bundle
+                const currentBundle = await CapacitorUpdater.current();
+                const currentVersion = currentBundle?.bundle?.version;
 
-                if (serverData.version !== currentPluginVersion.version) {
-                    // تنزيل ملف الـ Zip من المجلد العام public
+                // 4. المقارنة والتنزيل
+                if (serverData.version !== currentVersion) {
                     await CapacitorUpdater.download({
                         url: serverData.url,
                         version: serverData.version,
                     });
 
-                    // إظهار بنر التحديث للمستخدم
+                    // إظهار البنر بعد تمام التنزيل
                     setUpdateInfo(serverData);
                 }
             } catch (error) {
@@ -49,8 +51,11 @@ export default function CapgoUpdater() {
         if (!updateInfo) return;
         setIsApplying(true);
         try {
-            // تثبيت الحزمة وإعادة تشغيل التطبيق بالنسخة الجديدة
+            // 1. تطبيق النسخة التي تم تنزيلها
             await CapacitorUpdater.set({ version: updateInfo.version });
+
+            // 2. إعادة إقلاع التطبيق بالنسخة الجديدة فوراً
+            await CapacitorUpdater.reload();
         } catch (error) {
             console.error('Failed to apply update:', error);
             setIsApplying(false);
