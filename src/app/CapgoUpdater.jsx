@@ -10,37 +10,45 @@ export default function CapgoUpdater() {
 
     useEffect(() => {
         if (!Capacitor.isNativePlatform()) return;
-
         const checkSelfHostedUpdate = async () => {
             try {
-                // 1. إبلاغ النظام بنجاح تحميل النسخة الحالية لضمان عدم حدوث Rollback
+                console.log('🚀 [OTA] 1. Notifying app ready...');
                 await CapacitorUpdater.notifyAppReady();
 
-                // 2. جلب معلومات الإصدار من سيرفرك
+                console.log('🚀 [OTA] 2. Fetching version.json...');
                 const res = await fetch('https://wasla-app.vercel.app/version.json', {
                     cache: 'no-store',
                     headers: { 'Cache-Control': 'no-cache' }
                 });
 
-                if (!res.ok) return;
+                if (!res.ok) {
+                    console.error('❌ [OTA] Failed to fetch version.json, status:', res.status);
+                    return;
+                }
+
                 const serverData = await res.json();
+                console.log('📦 [OTA] Server version data:', serverData);
 
-                // 3. الحصول على رقم الإصدار الحالي للـ Web Bundle
                 const currentBundle = await CapacitorUpdater.current();
-                const currentVersion = currentBundle?.bundle?.version;
+                // لو التطبيق لسه متثبت جديد، الـ version ممكن تكون builtin أو undefined
+                const currentVersion = currentBundle?.bundle?.version || 'builtin';
+                console.log('📱 [OTA] Current app version:', currentVersion);
 
-                // 4. المقارنة والتنزيل
                 if (serverData.version !== currentVersion) {
-                    await CapacitorUpdater.download({
+                    console.log(`⏳ [OTA] New version found (${serverData.version}). Downloading zip...`);
+
+                    const downloadRes = await CapacitorUpdater.download({
                         url: serverData.url,
                         version: serverData.version,
                     });
 
-                    // إظهار البنر بعد تمام التنزيل
+                    console.log('✅ [OTA] Download completed successfully:', downloadRes);
                     setUpdateInfo(serverData);
+                } else {
+                    console.log('🎉 [OTA] App is already up to date.');
                 }
             } catch (error) {
-                console.error('Self-hosted OTA check failed:', error);
+                console.error('💥 [OTA] Check failed with error:', error);
             }
         };
 
