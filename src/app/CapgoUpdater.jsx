@@ -27,7 +27,7 @@ export default function CapgoUpdater() {
                 await CapacitorUpdater.notifyAppReady();
 
                 console.log('🚀 [OTA] 2. Fetching version.json...');
-                const res = await fetch('https://wasla-app.vercel.app/version.json', {
+                const res = await fetch('https://wasla-w.vercel.app/version.json', {
                     cache: 'no-store',
                     headers: { 'Cache-Control': 'no-cache' }
                 });
