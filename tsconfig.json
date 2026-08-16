@@ -35,7 +35,7 @@
     ".next/types/**/*.ts",
     "src/app/Trainings/page.jsx",
     ".next/dev/types/**/*.ts"
-, "src/app/page.jsx"  ],
+, "src/app/page.jsx", "capacitor.config.js"  ],
   "exclude": [
     "node_modules"
   ]

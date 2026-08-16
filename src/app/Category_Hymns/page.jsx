@@ -2760,6 +2760,8 @@ export default function Category_Humns() {
       {/* Admin Controls */}
       <div className="flex flex-wrap justify-end items-center gap-3 mb-6">
         {/* --- ADD THIS BIBLE BUTTON --- */}
+      
+        {/* ----------------------------- */}
 
         {canEdit && (
           <button

@@ -1,27 +1,28 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CapacitorUpdater } from '@capgo/capacitor-updater';
-import { Capacitor } from '@capacitor/core';
 
 export default function CapgoUpdater() {
     const [updateInfo, setUpdateInfo] = useState(null);
     const [isApplying, setIsApplying] = useState(false);
 
     useEffect(() => {
-        // 1. طباعة حالة المنصة للتحقق
-        const platform = Capacitor.getPlatform();
-        const isNative = Capacitor.isNativePlatform();
-        console.log('📱 [OTA Check] Platform:', platform, '| isNative:', isNative);
-
-        // لو عاوز تجرّب في الـ DevTools حتى لو مش قاري Native، اقفل الـ return ده مؤقتاً
-        if (!isNative) {
-            console.log('⚠️ [OTA] Skipped: Not running on a native platform.');
-            return;
-        }
-
         const checkSelfHostedUpdate = async () => {
             try {
+                // 1. استدعاء ديناميكي للمكتبات عشان Next.js مايعملش مشكلة في الـ Build
+                const { Capacitor } = await import('@capacitor/core');
+
+                const platform = Capacitor.getPlatform();
+                const isNative = Capacitor.isNativePlatform();
+                console.log('📱 [OTA Check] Platform:', platform, '| isNative:', isNative);
+
+                if (!isNative) {
+                    console.log('⚠️ [OTA] Skipped: Not running on a native platform.');
+                    return;
+                }
+
+                const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
+
                 console.log('🚀 [OTA] 1. Notifying app ready...');
                 await CapacitorUpdater.notifyAppReady();
 
@@ -56,7 +57,12 @@ export default function CapgoUpdater() {
                     });
 
                     console.log('✅ [OTA] Download successful:', downloadRes);
-                    setUpdateInfo(serverData);
+
+                    // حفظ بيانات التحديث + הـ ID اللي رجع من التحميل عشان نستخدمه في التثبيت
+                    setUpdateInfo({
+                        ...serverData,
+                        downloadId: downloadRes.id
+                    });
                 } else {
                     console.log('🎉 [OTA] App is already up to date.');
                 }
@@ -72,11 +78,14 @@ export default function CapgoUpdater() {
         if (!updateInfo) return;
         setIsApplying(true);
         try {
-            console.log('🔄 [OTA] Setting version:', updateInfo.version);
-            await CapacitorUpdater.set({ version: updateInfo.version });
+            // استدعاء ديناميكي تاني وقت الضغط
+            const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
 
-            console.log('🔄 [OTA] Reloading app...');
-            await CapacitorUpdater.reload();
+            console.log('🔄 [OTA] Setting version ID:', updateInfo.downloadId || updateInfo.version);
+
+            // الدالة دي بتعمل reload تلقائي للـ WebView بعد التثبيت
+            await CapacitorUpdater.set({ id: updateInfo.downloadId || updateInfo.version });
+
         } catch (error) {
             console.error('💥 [OTA] Failed to apply update:', error);
             setIsApplying(false);

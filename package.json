@@ -1,6 +1,6 @@
 {
   "name": "globalnextstartup",
-  "version": "1.0.4",
+  "version": "1.0.6",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,7 +13,7 @@
     "@capacitor/cli": "^8.3.4",
     "@capacitor/core": "^8.3.4",
     "@capacitor/ios": "^8.3.4",
-    "@capgo/capacitor-updater": "^8.51.8",
+    "@capgo/capacitor-updater": "^8.51.10",
     "@tanstack/query-persist-client-core": "^5.101.2",
     "@tanstack/query-sync-storage-persister": "^5.101.2",
     "@tanstack/react-query": "^5.90.10",
