@@ -2760,15 +2760,6 @@ export default function Category_Humns() {
       {/* Admin Controls */}
       <div className="flex flex-wrap justify-end items-center gap-3 mb-6">
         {/* --- ADD THIS BIBLE BUTTON --- */}
-        <button
-          id="tour-bible-btn"
-          onClick={() => setShowBibleModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-sky-500/10 text-sky-400 border border-sky-500/30 rounded-full hover:bg-sky-500/20 transition-all shadow-[0_0_15px_rgba(56,189,248,0.1)] active:scale-95 font-semibold text-sm"
-        >
-          <BookOpen className="w-5 h-5" />
-          <span>{t('bible')}</span>
-        </button>
-        {/* ----------------------------- */}
 
         {canEdit && (
           <button

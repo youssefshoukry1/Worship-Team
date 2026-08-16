@@ -31,14 +31,6 @@ export const metadata = {
     },
 };
 
-// تظبيط الـ Viewport لتوافق الموبايل ومنع الزوم غير المرغوب
-export const viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: "no", // أو حذفه لأن maximumScale: 1 يؤدي نفس الغرض
-  viewportFit: "cover",
-};
 
 export default function RootLayout({
     children,
