@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 
 export default function CapgoUpdater() {
-    const [updateInfo, setUpdateInfo] = useState(null);
-    const [isApplying, setIsApplying] = useState(false);
+    // idle: مفيش حاجة | downloading: بيحمل في الخلفية | applying: خلص وهيعمل ريستارت
+    const [updateStatus, setUpdateStatus] = useState('idle');
 
     useEffect(() => {
         const checkSelfHostedUpdate = async () => {
@@ -14,136 +14,89 @@ export default function CapgoUpdater() {
 
                 const platform = Capacitor.getPlatform();
                 const isNative = Capacitor.isNativePlatform();
-                console.log('📱 [OTA Check] Platform:', platform, '| isNative:', isNative);
 
-                if (!isNative) {
-                    console.log('⚠️ [OTA] Skipped: Not running on a native platform.');
-                    return;
-                }
+                if (!isNative) return;
 
                 const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
-
-                console.log('🚀 [OTA] 1. Notifying app ready...');
                 await CapacitorUpdater.notifyAppReady();
 
-                console.log('🚀 [OTA] 2. Fetching version.json...');
-
+                // 2. التحقق من وجود تحديث
                 const res = await fetch(`https://wasla-w.vercel.app/version.json?t=${Date.now()}`, {
                     cache: 'no-store'
                 });
 
-                if (!res.ok) {
-                    console.error('❌ [OTA] Failed to fetch version.json, status:', res.status);
-                    return;
-                }
+                if (!res.ok) return;
 
                 const serverData = await res.json();
-                console.log('📦 [OTA] Server version data:', serverData);
-
-                // 2. قراءة نسخة الـ Bundle الحالية بأمان
                 const currentBundle = await CapacitorUpdater.current();
-                console.log('📱 [OTA] Raw current bundle:', currentBundle);
-
                 const currentVersion = currentBundle?.bundle?.version || 'builtin';
-                console.log('📱 [OTA] Current resolved version:', currentVersion);
 
-                // 3. المقارنة والتنزيل
+                // 3. المقارنة والتحميل التلقائي
                 if (serverData.version !== currentVersion) {
-                    console.log(`⏳ [OTA] New update found (${serverData.version}). Downloading...`);
+                    console.log(`⏳ [OTA] Auto-updating to (${serverData.version})...`);
 
+                    // إظهار إشعار التحميل
+                    setUpdateStatus('downloading');
+
+                    // تحميل التحديث في الخلفية
                     const downloadRes = await CapacitorUpdater.download({
                         url: serverData.url,
                         version: serverData.version,
                     });
 
-                    console.log('✅ [OTA] Download successful:', downloadRes);
+                    // تغيير الإشعار لـ "تم التحديث"
+                    setUpdateStatus('applying');
 
-                    setUpdateInfo({
-                        ...serverData,
-                        downloadId: downloadRes.id
-                    });
-                } else {
-                    console.log('🎉 [OTA] App is already up to date.');
+                    // تأخير بسيط (ثانيتين) عشان المستخدم يلحق يقرأ إن التحديث خلص قبل ما نعمل Reload
+                    setTimeout(async () => {
+                        await CapacitorUpdater.set({ id: downloadRes.id });
+                    }, 2000);
                 }
             } catch (error) {
-                console.error('💥 [OTA] Error during update check:', error);
+                console.error('💥 [OTA] Error during auto-update:', error);
+                setUpdateStatus('idle'); // إخفاء الإشعار لو حصل مشكلة
             }
         };
 
         checkSelfHostedUpdate();
     }, []);
 
-    const handleApplyUpdate = async () => {
-        if (!updateInfo) return;
-        setIsApplying(true);
-        try {
-            const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
-            console.log('🔄 [OTA] Setting version ID:', updateInfo.downloadId || updateInfo.version);
-
-            // تطبيق التحديث وإعادة تحميل الـ WebView
-            await CapacitorUpdater.set({ id: updateInfo.downloadId || updateInfo.version });
-
-        } catch (error) {
-            console.error('💥 [OTA] Failed to apply update:', error);
-            setIsApplying(false);
-        }
-    };
-
-    if (!updateInfo) return null;
+    // لو مفيش تحديث بيحصل، مانعرضش أي UI
+    if (updateStatus === 'idle') return null;
 
     return (
-        <div className="fixed inset-0 z-[99999] flex items-end justify-center bg-slate-950/60 p-4 transition-opacity duration-200 sm:items-center">
-            <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-                {/* Header */}
-                <div className="flex items-center gap-3.5">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-500 dark:bg-sky-400/15 dark:text-sky-400">
+        <div className="fixed bottom-8 left-0 right-0 z-[99999] mx-auto flex max-w-[90%] justify-center sm:max-w-sm pointer-events-none">
+            <div
+                className={`flex w-full items-center gap-3 rounded-2xl bg-slate-900 p-3.5 text-white shadow-2xl transition-all duration-500 ease-out 
+                ${updateStatus !== 'idle' ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}
+            >
+                {/* الأيقونة (بتتغير حسب الحالة) */}
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800">
+                    {updateStatus === 'downloading' ? (
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" />
+                    ) : (
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={2}
-                            stroke="currentColor"
-                            className="h-6 w-6"
+                            className="h-6 w-6 text-emerald-400 animate-in zoom-in duration-300"
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
                         >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
-                            />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
-                    </div>
-
-                    <div className="flex flex-col">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">
-                            تحديث مطلوب
-                        </span>
-                        <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                            إصدار جديد متوفر ({updateInfo.version})
-                        </h3>
-                    </div>
+                    )}
                 </div>
 
-                {/* Body Text */}
-                <p className="mt-3 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-                    يتوفر تحديث جديد يحتوي على تحسينات ملموسة وإصلاحات للتطبيق. يرجى التحديث الآن للمتابعة.
-                </p>
-
-                {/* CTA Button */}
-                <div className="mt-5">
-                    <button
-                        onClick={handleApplyUpdate}
-                        disabled={isApplying}
-                        className="w-full rounded-xl bg-sky-500 py-3 text-xs font-bold text-white shadow-md shadow-sky-500/20 transition-transform active:scale-[0.98] disabled:opacity-75 dark:bg-sky-400 dark:text-slate-950"
-                    >
-                        {isApplying ? (
-                            <div className="flex items-center justify-center gap-2">
-                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                <span>جاري تثبيت التحديث...</span>
-                            </div>
-                        ) : (
-                            'تحديث الآن'
-                        )}
-                    </button>
+                {/* النصوص */}
+                <div className="flex flex-col">
+                    <h4 className="text-sm font-bold text-slate-100">
+                        {updateStatus === 'downloading'
+                            ? 'جاري تحسين التطبيق...'
+                            : 'تم التحديث بنجاح!'}
+                    </h4>
+                    <p className="text-[11px] font-medium text-slate-400">
+                        {updateStatus === 'downloading'
+                            ? 'يتم الآن تنزيل أحدث الميزات في الخلفية'
+                            : 'جاري إعادة التهيئة لضمان أفضل تجربة...'}
+                    </p>
                 </div>
             </div>
         </div>
