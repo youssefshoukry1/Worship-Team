@@ -27,9 +27,10 @@ export default function CapgoUpdater() {
                 await CapacitorUpdater.notifyAppReady();
 
                 console.log('🚀 [OTA] 2. Fetching version.json...');
-                const res = await fetch('https://wasla-w.vercel.app/version.json', {
-                    cache: 'no-store',
-                    headers: { 'Cache-Control': 'no-cache' }
+
+                // تعديل سطر الـ fetch لمنع مشاكل الـ Preflight CORS
+                const res = await fetch(`https://wasla-w.vercel.app/version.json?t=${Date.now()}`, {
+                    cache: 'no-store'
                 });
 
                 if (!res.ok) {
@@ -58,7 +59,7 @@ export default function CapgoUpdater() {
 
                     console.log('✅ [OTA] Download successful:', downloadRes);
 
-                    // حفظ بيانات التحديث + הـ ID اللي رجع من التحميل عشان نستخدمه في التثبيت
+                    // حفظ بيانات التحديث + الـ ID اللي رجع من التحميل عشان نستخدمه في التثبيت
                     setUpdateInfo({
                         ...serverData,
                         downloadId: downloadRes.id
