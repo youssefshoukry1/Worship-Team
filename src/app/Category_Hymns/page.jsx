@@ -230,38 +230,17 @@ function bibleTestamentAr(testament) {
 const TRANSLATION_LABELS = {
   AVD: 'فان دايك',
   KEH: 'كتاب الحياة',
-  'ERV-AR': 'الترجمة العربية',
+  ERV_AR: 'الترجمة العربية',
 };
 
-const TRANSLATION_THEME = {
-  AVD: {
-    accent: 'text-amber-400 border-amber-500/30 bg-amber-500/5',
-    header: 'from-amber-900/40 to-transparent border-amber-500/20',
-    badge: 'bg-amber-500 text-black shadow-[0_0_10px_rgba(245,158,11,0.5)]',
-    tab: 'border-b-2 border-amber-400 text-amber-400 bg-amber-500/10',
-    tabInactive: 'text-white/40 border-b-2 border-transparent hover:text-white/70',
-  },
-  KEH: {
-    accent: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/5',
-    header: 'from-emerald-900/40 to-transparent border-emerald-500/20',
-    badge: 'bg-emerald-500 text-black shadow-[0_0_10px_rgba(16,185,129,0.5)]',
-    tab: 'border-b-2 border-emerald-400 text-emerald-400 bg-emerald-500/10',
-    tabInactive: 'text-white/40 border-b-2 border-transparent hover:text-white/70',
-  },
+const UNIFIED_THEME = {
+  accent: 'text-sky-300 border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.05]',
+  header: 'from-sky-500/10 via-sky-500/5 to-transparent border-white/[0.08]',
+  badge: 'bg-sky-500/20 text-sky-300 border border-sky-500/30',
 };
-function getTranslationTheme(code) {
-  return TRANSLATION_THEME[code] || {
-    accent: 'text-sky-400 border-sky-500/30 bg-sky-500/5',
-    header: 'from-sky-900/40 to-transparent border-sky-500/20',
-    badge: 'bg-sky-500 text-white shadow-[0_0_10px_rgba(14,165,233,0.5)]',
-    tab: 'border-b-2 border-sky-400 text-sky-400 bg-sky-500/10',
-    tabInactive: 'text-white/40 border-b-2 border-transparent hover:text-white/70',
-  };
-}
 
 function CompareColumn({ translationCode, verses, isActive = true }) {
   const [copied, setCopied] = useState(false);
-  const theme = getTranslationTheme(translationCode);
   const translationLabel = TRANSLATION_LABELS[translationCode] || translationCode;
 
   const copyAll = () => {
@@ -275,41 +254,41 @@ function CompareColumn({ translationCode, verses, isActive = true }) {
   return (
     <div className={`flex-1 flex flex-col min-h-0 border-b sm:border-b-0 sm:border-r border-white/[0.06] last:border-0 ${isActive ? '' : 'hidden sm:flex'}`}>
       {/* Column Header */}
-      <div className={`shrink-0 px-5 py-3 flex items-center justify-between bg-gradient-to-b ${theme.header} border-b`}>
+      <div className={`shrink-0 px-4 py-3 flex items-center justify-between bg-gradient-to-b ${UNIFIED_THEME.header} border-b`}>
         <div className="flex items-center gap-2">
-          <span className={`text-[11px] font-black tracking-widest px-2.5 py-0.5 rounded-full ${theme.badge}`}>
+          <span className={`text-[10px] font-bold tracking-wider px-2.5 py-0.5 rounded-lg ${UNIFIED_THEME.badge}`}>
             {translationCode}
           </span>
-          <span className={`text-xs font-semibold ${theme.accent.split(' ')[0]}`}>
+          <span className="text-xs font-medium text-white/70">
             {translationLabel}
           </span>
         </div>
         <button
           onClick={copyAll}
-          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all"
-          title="Copy all"
+          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all active:scale-95"
+          title="نسخ النصوص"
         >
-          {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+          {copied ? <Check className="w-3.5 h-3.5 text-sky-400" /> : <Copy className="w-3.5 h-3.5" />}
         </button>
       </div>
 
       {/* Verses scroll area */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar" dir="rtl" data-lenis-prevent-wheel>
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar" dir="rtl" data-lenis-prevent-wheel>
         {verses.map((v, vIdx) => (
-          <div key={v._id || vIdx} className={`p-4 rounded-2xl border ${theme.accent}`}>
+          <div key={v._id || vIdx} className={`p-4 rounded-xl border ${UNIFIED_THEME.accent} transition-all duration-200`}>
             <div className="flex items-start gap-3">
-              <span className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ${theme.badge}`}>
+              <span className="shrink-0 w-6 h-6 rounded-md bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center text-[11px] font-bold">
                 {v.verseNumber}
               </span>
-              <p className="text-white/90 leading-loose text-base font-arabic">
+              <p className="text-white/90 leading-relaxed text-sm sm:text-base font-arabic">
                 {v.text}
               </p>
             </div>
           </div>
         ))}
         {verses.length === 0 && (
-          <div className="py-10 text-center opacity-30">
-            <p className="text-sm">لا توجد آيات</p>
+          <div className="py-12 text-center text-white/30">
+            <p className="text-sm">لا توجد آيات متوفرة لهذه الترجمة</p>
           </div>
         )}
       </div>
@@ -342,7 +321,15 @@ export default function Category_Humns() {
   // Initialize offline caches (Bible + Hymns) on startup
   useEffect(() => {
     // Bible: run on both app and web (app loads from bundled JSON, web downloads from API in background)
-    initLocalBible().catch(() => { });
+    initLocalBible().then((data) => {
+      if (data && data.length > 0) {
+        setDownloadedTranslations(prev => {
+          const next = new Set(prev);
+          next.add('AVD');
+          return next;
+        });
+      }
+    }).catch(() => { });
 
     // Hymns: on native app, pre-load bundled hymns.json into localforage if empty
     if (isApp) {
@@ -594,16 +581,15 @@ export default function Category_Humns() {
   };
 
   // --- Offline Translation Downloads State ---
-  const [downloadedTranslations, setDownloadedTranslations] = useState(new Set(isApp ? ['AVD'] : []));
+  const [downloadedTranslations, setDownloadedTranslations] = useState(new Set());
   const [isDownloadingTranslation, setIsDownloadingTranslation] = useState(null);
 
   // Check which translations are offline when modal opens or available translations change
   useEffect(() => {
     if (!showBibleModal) return;
     const checkOffline = async () => {
-      const active = new Set(isApp ? ['AVD'] : []); // AVD is pre-seeded only on apps
+      const active = new Set();
       for (const tr of availableTranslations) {
-        if (tr === 'AVD') continue;
         const downloaded = await isTranslationDownloaded(tr);
         if (downloaded) {
           active.add(tr);
@@ -615,7 +601,10 @@ export default function Category_Humns() {
   }, [showBibleModal, availableTranslations]);
 
   const toggleDownloadTranslation = async (tr) => {
-    if (tr === 'AVD') return; // AVD is packaged and cannot be deleted
+    if (tr === 'AVD' && isApp) {
+      showToast(language === 'ar' ? 'نسخة فانديك مدمجة مع التطبيق ولا يمكن حذفها.' : 'AVD is packaged and cannot be deleted.');
+      return;
+    }
     const isDownloaded = downloadedTranslations.has(tr);
     if (isDownloaded) {
       if (confirm(language === 'ar' ? `هل أنت متأكد من حذف ترجمة ${tr} من جهازك؟` : `Are you sure you want to delete ${tr} translation from your device?`)) {
@@ -691,12 +680,52 @@ export default function Category_Humns() {
     if (!bibleModalBook?.bookName || bibleModalChapter == null || !verseNumbers?.length) return;
     setIsLoadingCompare(true);
     setCompareData(null);
+
     try {
-      const trsParam = translations && translations.length > 0 ? `&translations=${translations.join(',')}` : '';
-      const { data } = await axios.get(
-        `${BIBLE_API}/compare?bookName=${encodeURIComponent(bibleModalBook.bookName)}&chapter=${bibleModalChapter}&verseNumbers=${verseNumbers.join(',')}${trsParam}`
-      );
-      setCompareData(data);
+      const targetTranslations = translations && translations.length > 0 ? translations : availableTranslations;
+      const finalCompareData = {};
+      const onlineTranslations = [];
+
+      // 1. Fetch downloaded translations locally (Fast & Offline)
+      for (const t of targetTranslations) {
+        const isDownloaded = downloadedTranslations.has(t) || (await isTranslationDownloaded(t));
+        if (isDownloaded) {
+          try {
+            const index = await getLocalBibleIndex(t);
+            if (index && index.versesMap) {
+              const chapterKey = `${bibleModalBook.bookName}_${parseInt(bibleModalChapter)}`;
+              const allVerses = index.versesMap.get(chapterKey) || [];
+              const numsSet = new Set(verseNumbers.map(Number));
+              const matched = allVerses.filter(v => numsSet.has(Number(v.verseNumber)));
+              finalCompareData[t] = matched;
+            } else {
+              onlineTranslations.push(t);
+            }
+          } catch (localErr) {
+            console.warn(`Local fetch failed for ${t}, falling back to online:`, localErr);
+            onlineTranslations.push(t);
+          }
+        } else {
+          onlineTranslations.push(t);
+        }
+      }
+
+      // 2. Fetch the rest online (only if online and there are pending translations)
+      if (onlineTranslations.length > 0 && navigator.onLine) {
+        try {
+          const trsParam = `&translations=${onlineTranslations.join(',')}`;
+          const { data } = await axios.get(
+            `${BIBLE_API}/compare?bookName=${encodeURIComponent(bibleModalBook.bookName)}&chapter=${bibleModalChapter}&verseNumbers=${verseNumbers.join(',')}${trsParam}`
+          );
+          if (data && typeof data === 'object') {
+            Object.assign(finalCompareData, data);
+          }
+        } catch (apiErr) {
+          console.error('Online compare fetch error for', onlineTranslations, apiErr);
+        }
+      }
+
+      setCompareData(finalCompareData);
     } catch (err) {
       console.error('Compare fetch error', err);
       setCompareData({});
@@ -3543,36 +3572,34 @@ export default function Category_Humns() {
                       </div>
 
                       {/* Offline Download Option */}
-                      {bibleTranslation !== 'AVD' && (
-                        <div className="flex items-center gap-1.5 shrink-0" dir="rtl">
-                          <div>
-                            {isDownloadingTranslation === bibleTranslation ? (
-                              <div className="flex items-center gap-1.5 text-[10px] font-bold text-sky-400 bg-sky-500/20 border border-sky-500/30 px-2 py-1 rounded-xl animate-pulse whitespace-nowrap">
-                                <Loader2 className="w-3 h-3 animate-spin shrink-0" />
-                                <span>تحميل...</span>
-                              </div>
-                            ) : downloadedTranslations.has(bibleTranslation) ? (
-                              <button
-                                onClick={() => toggleDownloadTranslation(bibleTranslation)}
-                                className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/20 border border-emerald-500/30 hover:bg-red-500/25 hover:text-red-300 hover:border-red-500/30 px-2 py-1 rounded-xl transition-all duration-300 whitespace-nowrap"
-                                title="حذف الترجمة من الجهاز"
-                              >
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                                <span>محفوظة</span>
-                                <X className="w-2.5 h-2.5 shrink-0 opacity-60" />
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => toggleDownloadTranslation(bibleTranslation)}
-                                className="flex items-center gap-1 text-[10px] font-bold text-sky-300 bg-sky-500/20 border border-sky-500/30 hover:bg-sky-500/35 hover:text-white px-2 py-1 rounded-xl transition-all duration-300 whitespace-nowrap"
-                                title="تنزيل للتشغيل بدون إنترنت"
-                              >
-                                📥 <span className="hidden sm:inline">تنزيل أوفلاين</span>
-                              </button>
-                            )}
-                          </div>
+                      <div className="flex items-center gap-1.5 shrink-0" dir="rtl">
+                        <div className="flex items-center">
+                          {isDownloadingTranslation === bibleTranslation ? (
+                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-sky-400 bg-sky-500/20 border border-sky-500/30 px-2 py-1 rounded-xl animate-pulse whitespace-nowrap">
+                              <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                              <span>تحميل...</span>
+                            </div>
+                          ) : downloadedTranslations.has(bibleTranslation) ? (
+                            <button
+                              onClick={() => toggleDownloadTranslation(bibleTranslation)}
+                              className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/20 border border-emerald-500/30 hover:bg-red-500/25 hover:text-red-300 hover:border-red-500/30 px-2 py-1 rounded-xl transition-all duration-300 whitespace-nowrap"
+                              title="حذف الترجمة من الجهاز"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                              <span>محفوظة</span>
+                              <X className="w-2.5 h-2.5 shrink-0 opacity-60" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => toggleDownloadTranslation(bibleTranslation)}
+                              className="flex items-center gap-1 text-[10px] font-bold text-sky-300 bg-sky-500/20 border border-sky-500/30 hover:bg-sky-500/35 hover:text-white px-2 py-1 rounded-xl transition-all duration-300 whitespace-nowrap"
+                              title="تنزيل للتشغيل بدون إنترنت"
+                            >
+                              📥 <span className="hidden sm:inline">تنزيل أوفلاين</span>
+                            </button>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
 
                     {/* Close Button - Guaranteed to Stay Visible */}
@@ -3754,26 +3781,26 @@ export default function Category_Humns() {
 
                           {/* The Reading Experience - Optimized for performance */}
                           <div className="space-y-6 pb-20">
-                            {/* Global Controls Panel (Block Positioned) */}
+                            {/* Global Controls Panel (Block Positioned - Ultra-Compact Mobile UI) */}
                             {bibleModalVerses.length > 0 && (
-                              <div className="relative flex flex-col gap-3.5 p-4 bg-slate-950/50 border border-white/10 rounded-3xl shadow-xl mb-6" dir="rtl">
-                                <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div className="relative flex flex-col gap-2 p-2 sm:p-3.5 bg-slate-950/60 border border-white/10 rounded-2xl sm:rounded-3xl shadow-xl mb-3 sm:mb-6" dir="rtl">
+                                <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-3">
                                   {/* Typography & Spacing controls */}
-                                  <div className="flex items-center gap-3.5 flex-wrap text-white text-xs">
+                                  <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap text-white text-xs">
                                     {/* Font Size Control */}
-                                    <div className="flex items-center gap-2 bg-white/5 border border-white/[0.07] rounded-2xl px-3 py-2">
-                                      <span className="text-white/40 font-bold">حجم الخط:</span>
+                                    <div className="flex items-center gap-1 sm:gap-2 bg-white/5 border border-white/[0.07] rounded-xl px-2 sm:px-3 py-1 sm:py-1.5">
+                                      <span className="text-white/40 font-bold text-[10px] sm:text-xs">الخط:</span>
                                       <button
                                         onClick={() => setBibleVerseFontSize(prev => Math.max(16, prev - 2))}
-                                        className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-90"
+                                        className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-md sm:rounded-lg bg-white/5 hover:bg-white/10 text-white font-bold text-[11px] sm:text-xs transition-all active:scale-90"
                                         title="Decrease font size"
                                       >
                                         -A
                                       </button>
-                                      <span className="font-bold min-w-[20px] text-center">{bibleVerseFontSize}</span>
+                                      <span className="font-bold min-w-[16px] text-center text-[11px] sm:text-xs">{bibleVerseFontSize}</span>
                                       <button
                                         onClick={() => setBibleVerseFontSize(prev => Math.min(44, prev + 2))}
-                                        className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-90"
+                                        className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-md sm:rounded-lg bg-white/5 hover:bg-white/10 text-white font-bold text-[11px] sm:text-xs transition-all active:scale-90"
                                         title="Increase font size"
                                       >
                                         +A
@@ -3781,19 +3808,19 @@ export default function Category_Humns() {
                                     </div>
 
                                     {/* Spacing Control */}
-                                    <div className="flex items-center gap-2 bg-white/5 border border-white/[0.07] rounded-2xl px-3 py-2">
-                                      <span className="text-white/40 font-bold">المسافة:</span>
+                                    <div className="flex items-center gap-1 sm:gap-2 bg-white/5 border border-white/[0.07] rounded-xl px-2 sm:px-3 py-1 sm:py-1.5">
+                                      <span className="text-white/40 font-bold text-[10px] sm:text-xs">المسافة:</span>
                                       <button
-                                        onClick={() => handleSetBibleVerseSpacing(Math.max(8, bibleVerseSpacing - 4))}
-                                        className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-90"
+                                        onClick={() => handleSetBibleVerseSpacing(Math.max(2, bibleVerseSpacing - 2))}
+                                        className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-md sm:rounded-lg bg-white/5 hover:bg-white/10 text-white font-bold text-[11px] sm:text-xs transition-all active:scale-90"
                                         title="Decrease spacing"
                                       >
                                         -
                                       </button>
-                                      <span className="font-bold min-w-[24px] text-center">{bibleVerseSpacing}px</span>
+                                      <span className="font-bold min-w-[20px] text-center text-[11px] sm:text-xs">{bibleVerseSpacing}px</span>
                                       <button
-                                        onClick={() => handleSetBibleVerseSpacing(Math.min(80, bibleVerseSpacing + 4))}
-                                        className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-90"
+                                        onClick={() => handleSetBibleVerseSpacing(Math.min(36, bibleVerseSpacing + 2))}
+                                        className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-md sm:rounded-lg bg-white/5 hover:bg-white/10 text-white font-bold text-[11px] sm:text-xs transition-all active:scale-90"
                                         title="Increase spacing"
                                       >
                                         +
@@ -3802,16 +3829,16 @@ export default function Category_Humns() {
                                   </div>
 
                                   {/* Selection quick actions */}
-                                  <div className="flex items-center gap-2 flex-wrap">
+                                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                                     <button
                                       onClick={() => setBibleSelectedVerseIds(new Set(bibleModalVerses.map(v => v._id)))}
-                                      className="px-3.5 py-2 text-xs font-bold rounded-2xl bg-white/5 hover:bg-white/10 border border-white/[0.07] text-slate-200 transition-all active:scale-95"
+                                      className="px-2.5 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-bold rounded-xl bg-white/5 hover:bg-white/10 border border-white/[0.07] text-slate-200 transition-all active:scale-95"
                                     >
                                       تحديد الكل
                                     </button>
                                     <button
                                       onClick={() => setBibleSelectedVerseIds(new Set())}
-                                      className="px-3.5 py-2 text-xs font-bold rounded-2xl bg-white/5 hover:bg-white/10 border border-white/[0.07] text-slate-300 transition-all active:scale-95"
+                                      className="px-2.5 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-bold rounded-xl bg-white/5 hover:bg-white/10 border border-white/[0.07] text-slate-300 transition-all active:scale-95"
                                     >
                                       إلغاء التحديد
                                     </button>
@@ -3821,18 +3848,18 @@ export default function Category_Humns() {
                                       <button
                                         onClick={saveBibleToWorkspace}
                                         disabled={isSavingBible || bibleAddedSuccess}
-                                        className={`px-4 py-2 text-xs font-black rounded-2xl transition-all shadow-md active:scale-95 whitespace-nowrap flex items-center gap-1.5
+                                        className={`px-2.5 py-1 sm:px-3.5 sm:py-1.5 text-[10px] sm:text-xs font-black rounded-xl transition-all shadow-md active:scale-95 whitespace-nowrap flex items-center gap-1
                                           ${bibleAddedSuccess ? 'bg-green-500 text-white' : 'bg-sky-500 hover:bg-sky-400 text-white'}
                                           disabled:opacity-50`}
                                       >
                                         {isSavingBible ? (
-                                          <><Loader2 className="w-3.5 h-3.5 animate-spin" /> ...</>
+                                          <><Loader2 className="w-3 h-3 animate-spin" /> ...</>
                                         ) : bibleAddedSuccess ? (
-                                          <><Check className="w-3.5 h-3.5" /> تم الحفظ</>
+                                          <><Check className="w-3 h-3" /> تم الحفظ</>
                                         ) : (
                                           <>
-                                            <FolderPlus className="w-3.5 h-3.5" />
-                                            حفظ للمساحة ({bibleSelectedVerseIds.size})
+                                            <FolderPlus className="w-3 h-3" />
+                                            حفظ ({bibleSelectedVerseIds.size})
                                           </>
                                         )}
                                       </button>
@@ -4289,9 +4316,7 @@ export default function Category_Humns() {
                                 <span className="text-lg drop-shadow-md">⚖️</span>
                               </div>
                               <div>
-                                <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-sky-400/90 mb-0.5">
-                                  مقارنة التراجم
-                                </p>
+
                                 <p className="text-sm sm:text-base font-bold text-white/95 tracking-wide" dir="rtl">
                                   {bibleModalBook?.bookName} {bibleModalChapter}
                                   {compareVerseNums.length > 0 && (
