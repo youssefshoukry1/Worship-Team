@@ -7,7 +7,6 @@ import { useRouter, usePathname } from "next/navigation";
 import { Menu, X, Globe, ChevronDown, Mic, Music, User, LogOut, LogIn, UserPlus, ShieldAlert } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 // Adjust import according to your file structure
-import { translations } from "../i18n/translations";
 import { UserContext } from "../context/User_Context";
 import Image from "next/image";
 

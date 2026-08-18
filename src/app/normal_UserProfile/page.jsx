@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
 import { getApiBaseUrl } from '../utils/apiBase';
+import { useLanguage } from "../context/LanguageContext";
 
 const API_URL = getApiBaseUrl();
 
@@ -58,7 +59,7 @@ const getFeelingLabel = (value) => PRAY_FEELINGS.find((item) => item.id === valu
 
 const PRAY_TYPES = [
     { id: 'general', label: 'General Prayer' },
-    { id: 'prayer for me', label: 'Prayer For Me' },
+    { id: 'prayer for me', label: "Pray for me" },
     { id: 'prayer for other', label: 'Prayer For Others' },
     // { id: 'chapter', label: 'Chapter Reflection' },
 ];
@@ -254,7 +255,7 @@ const groupHighlights = (highlights) => {
     const sorted = [...highlights].sort((a, b) => new Date(a.date) - new Date(b.date));
     const groups = [];
     sorted.forEach((item) => {
-        const match = groups.find(g => 
+        const match = groups.find(g =>
             g.bookName === item.bookName &&
             g.chapter === item.chapter &&
             g.color === item.color &&
