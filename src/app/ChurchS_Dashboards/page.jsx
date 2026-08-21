@@ -1322,13 +1322,7 @@ export default function ChurchS_Dashboards() {
             Church Dashboard
           </h1>
 
-          <button
-            onClick={() => { setChurchName(""); setIsAddModalOpen(true); }}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-linear-to-r from-sky-500 to-blue-600 font-bold hover:shadow-[0_0_20px_rgba(14,165,233,0.3)] hover:-translate-y-1 transition-all"
-          >
-            <Plus className="w-5 h-5" />
-            Add Church
-          </button>
+
         </div>
 
         <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

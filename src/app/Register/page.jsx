@@ -30,8 +30,6 @@ export default function Register() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [churchName, setChurchName] = useState("");
-    const [accountType, setAccountType] = useState("normal");
 
     // Debounced backend email check
     const checkEmailDomain = useCallback(async (emailVal) => {
@@ -101,8 +99,6 @@ export default function Register() {
             Name: name,
             email,
             password,
-            accountType,
-            ChurchName: accountType === "church" ? churchName : "",
         };
         axios
             .post(`${process.env.NEXT_PUBLIC_API_URL}/users/register`, formsData)
@@ -164,26 +160,7 @@ export default function Register() {
                 )}
 
                 <form onSubmit={handleSubmit} className="reg-form">
-                    {/* Account Type Tabs */}
-                    <div className="reg-tabs">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setAccountType("normal");
-                                setChurchName("");
-                            }}
-                            className={`reg-tab ${accountType === "normal" ? "reg-tab-active" : ""}`}
-                        >
-                            👤 Normal User
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setAccountType("church")}
-                            className={`reg-tab ${accountType === "church" ? "reg-tab-active" : ""}`}
-                        >
-                            ⛪ Church User
-                        </button>
-                    </div>
+
 
                     {/* Name */}
                     <div className="reg-field">
@@ -306,25 +283,7 @@ export default function Register() {
                         )}
                     </div>
 
-                    {/* Church Name (conditional) */}
-                    {accountType === "church" && (
-                        <div className="reg-field">
-                            <label htmlFor="ChurchName" className="reg-label">Church Name</label>
-                            <div className="reg-input-wrap">
-                                <span className="reg-icon">⛪</span>
-                                <input
-                                    onChange={(e) => setChurchName(e.target.value)}
-                                    value={churchName}
-                                    name="ChurchName"
-                                    id="ChurchName"
-                                    type="text"
-                                    required={accountType === "church"}
-                                    className="reg-input"
-                                    placeholder="Enter your church name"
-                                />
-                            </div>
-                        </div>
-                    )}
+
 
                     {/* Submit */}
                     <button
