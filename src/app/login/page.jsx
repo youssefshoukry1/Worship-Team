@@ -7,7 +7,7 @@ import { useLanguage } from '../context/LanguageContext';
 
 export default function Login() {
     const { t } = useLanguage();
-    const { setLogin } = useContext(UserContext);
+    const { setLogin, setTeams } = useContext(UserContext);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [apiError, setError] = useState('');
@@ -29,8 +29,11 @@ export default function Login() {
                     localStorage.setItem('user_Taspe7_ChurchId', response?.data?.user?.churchId);
                     localStorage.setItem('user_Taspe7_Status', response?.data?.user?.status);
                     localStorage.setItem('user_Taspe7_Email', response?.data?.user?.email);
+                    const teams = response?.data?.user?.teams || [];
+                    localStorage.setItem('user_Taspe7_Teams', JSON.stringify(teams));
 
                     setLogin(response?.data?.token);
+                    if (setTeams) setTeams(teams);
                     setLoading(false);
                     window.location.href = "/";
                 }

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
 import { getApiBaseUrl } from '../utils/apiBase';
+import TeamSwitcher from '../components/TeamSwitcher';
 
 const API_URL = getApiBaseUrl();
 const UNKNOWN_EVENT = 'Unknown Event';
@@ -1056,6 +1057,8 @@ export default function Church_UserProfile() {
                         </div>
                     </div>
                 </div>
+
+                <TeamSwitcher />
 
                 {/* --- SMART TABS NAVIGATION & FILTER --- */}
                 <div className="sticky top-4 z-40 mb-6 sm:mb-8 flex flex-col lg:flex-row gap-3 items-center justify-between">

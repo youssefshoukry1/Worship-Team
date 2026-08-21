@@ -23,6 +23,7 @@ import {
 import { UserContext } from '../context/User_Context';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { useLanguage } from "../context/LanguageContext";
+import TeamSwitcher from '../components/TeamSwitcher';
 
 const API_URL = getApiBaseUrl();
 
@@ -758,6 +759,8 @@ export default function normal_UserProfile() {
                         </div>
                     </div>
                 </div>
+
+                <TeamSwitcher />
 
                 {/* --- SMART TABS NAVIGATION --- */}
                 <div className="sticky top-4 z-40 mb-6 sm:mb-8">

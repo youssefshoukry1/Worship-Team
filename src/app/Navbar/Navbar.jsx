@@ -19,7 +19,8 @@ export default function Navbar() {
         user_id, setUser_id,
         churchId, setChurchId,
         HymnIds, setHymnIds,
-        vocalsMode, setVocalsMode
+        vocalsMode, setVocalsMode,
+        teams, setTeams
     } = useContext(UserContext);
     const canUseMusicMode = ["MUSIC_ADMIN", "PROGRAMER"].includes(UserRole);
     const [langMenuOpen, setLangMenuOpen] = useState(false);
@@ -52,10 +53,17 @@ export default function Navbar() {
         if (!teamNameInput) return;
         setTeamActionLoading(true);
         try {
-            const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/church/createChurch`, { name: teamNameInput }, {
+            await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/church/createChurch`, { name: teamNameInput }, {
                 headers: { Authorization: `Bearer ${isLogin}` }
             });
-            alert("Team created successfully! You are now the manager. Re-login to apply changes.");
+            // Refresh teams list from backend
+            const teamsRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/users/my-teams`, {
+                headers: { Authorization: `Bearer ${isLogin}` }
+            });
+            const newTeams = teamsRes.data || [];
+            setTeams(newTeams);
+            localStorage.setItem('user_Taspe7_Teams', JSON.stringify(newTeams));
+            alert("Team created successfully! You are now the manager.");
             setCreateTeamModalOpen(false);
             setTeamNameInput("");
         } catch (err) {
