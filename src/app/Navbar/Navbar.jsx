@@ -9,6 +9,7 @@ import { useLanguage } from "../context/LanguageContext";
 // Adjust import according to your file structure
 import { UserContext } from "../context/User_Context";
 import Image from "next/image";
+import axios from 'axios';
 
 export default function Navbar() {
     const { t, language, setLanguage } = useLanguage();
@@ -120,7 +121,7 @@ export default function Navbar() {
     }
 
     return (
-       <nav className="sticky top-0 z-50 h-20 px-2 flex items-center justify-between bg-[#0b0f19]/60 backdrop-blur-md border-b border-white/10">
+        <nav className="sticky top-0 z-50 h-20 px-2 flex items-center justify-between bg-[#0b0f19]/60 backdrop-blur-md border-b border-white/10">
             {/* Responsive & Fast Logo */}
             <Link
                 href="/"
