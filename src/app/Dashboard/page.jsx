@@ -416,8 +416,8 @@ export default function Dashboard() {
     <section className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
       <div className="max-w-7xl mx-auto relative z-10">
 
+
         <h1 className="text-3xl sm:text-5xl font-extrabold mb-6 text-center bg-linear-to-br from-sky-300 via-blue-400 to-indigo-500 text-transparent bg-clip-text flex items-center justify-center gap-4">
-          <ShieldAlert className="w-10 h-10 text-sky-400" /> Admin Dashboard
         </h1>
 
         <TeamSwitcher />
