@@ -114,7 +114,7 @@ export default function Dashboard() {
   };
 
   const fetchAll_ChurchID_Users = async () => {
-    const res = await axios.get(`${API_URL}/users/my-church`, {
+    const res = await axios.get(`${API_URL}/users/my-team`, {
       headers: { Authorization: `Bearer ${isLogin}` },
     });
     return res.data;
@@ -268,10 +268,10 @@ export default function Dashboard() {
     } finally { setProcessingId(null); }
   };
 
-  const toggleUserAttendance = async (userId, eventId) => {
-    setProcessingId(`attend-${userId}-${eventId}`);
+  const toggleUserAttendance = async (userId) => {
+    setProcessingId(`attend-${userId}`);
     try {
-      await axios.patch(`${API_URL}/events/attend/${userId}/${eventId}`, {}, {
+      await axios.patch(`${API_URL}/users/attend/${userId}`, {}, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
       queryClient.invalidateQueries({ queryKey: ['data', isLogin] });
@@ -357,11 +357,11 @@ export default function Dashboard() {
 
   // frontend.js
 
-  const handleAddReport = async (userid, reportText, eventId, date) => {
+  const handleAddReport = async (userid, reportText, date) => {
     setProcessingId(userid);
     try {
       await axios.post(`${API_URL}/users/report`,
-        { userid: userid, text: reportText, eventId, date },
+        { userid: userid, text: reportText, date },
         { headers: { Authorization: `Bearer ${isLogin}` } }
       );
       queryClient.invalidateQueries({ queryKey: ['data', isLogin] });
@@ -410,38 +410,7 @@ export default function Dashboard() {
     enabled: !!isLogin,
   });
 
-  const { data: churchEvents = [], isLoading: isLoadingEvents } = useQuery({
-    queryKey: ['churchEvents', isLogin],
-    queryFn: fetchChurchEvents,
-    enabled: !!isLogin,
-  });
-
-  const latestEvent = churchEvents.length > 0 
-      ? [...churchEvents].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] 
-      : null;
-
-  const handleToggleCancelEvent = async () => {
-    if (!latestEvent) return;
-    const isNowCanceled = latestEvent.isCanceled || false;
-    const action = isNowCanceled ? "UNCANCEL" : "CANCEL";
-    if (!window.confirm(`Are you sure you want to ${action} this week's training (${latestEvent.eventName})?`)) return;
-
-    setProcessingId("CANCEL_EVENT");
-    try {
-      await axios.patch(`${API_URL}/events/edit/${latestEvent._id}`, { isCanceled: !isNowCanceled }, {
-        headers: { Authorization: `Bearer ${isLogin}` }
-      });
-      queryClient.invalidateQueries({ queryKey: ['churchEvents'] });
-      queryClient.invalidateQueries({ queryKey: ['data'] });
-    } catch (err) {
-      console.error(err);
-      alert("Failed to update event state");
-    } finally {
-      setProcessingId(null);
-    }
-  }
-
-  if (isLoadingPending || isLoadingChurch || isLoadingEvents) return <Loading />;
+  if (isLoadingPending || isLoadingChurch) return <Loading />;
 
   return (
     <section className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
@@ -453,169 +422,7 @@ export default function Dashboard() {
 
         <TeamSwitcher />
 
-        {/* ---------------- 1. EVENT MANAGEMENT SECTION ---------------- */}
-        <div className="mb-12 p-6 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-md">
-          <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <Calendar className="text-sky-400 w-6 h-6" /> Quick Event Setup (إنشاء حفلة)
-            </h2>
-            {latestEvent && (
-              <button
-                 onClick={handleToggleCancelEvent}
-                 disabled={processingId === "CANCEL_EVENT"}
-                 className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50
-                      ${latestEvent.isCanceled 
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30' 
-                        : 'bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30'}`}
-               >
-                 {latestEvent.isCanceled ? 'Restore Current Training' : 'Cancel Current Training'}
-               </button>
-            )}
-           </div>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <input
-              type="text"
-              value={newEventName}
-              onChange={(e) => setNewEventName(e.target.value)}
-              placeholder="اسم الحفلة (مثلاً: حفلة القيامة 2026)"
-              className="flex-1 bg-black/20 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-sky-500 transition-all text-sm"
-            />
-            <button
-              onClick={handleCreateEvent}
-              disabled={processingId === "CREATE_EVENT"}
-              className="bg-sky-500 hover:bg-sky-600 px-8 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-            >
-              {processingId === "CREATE_EVENT" ? <RefreshCw className="animate-spin w-4 h-4" /> : <PlusCircle className="w-5 h-5" />}
-              Create Event
-            </button>
-          </div>
-
-          <div className="mt-6 border-t border-white/10 pt-6">
-            <button
-              onClick={() => setShowEventsList(!showEventsList)}
-              className="flex items-center gap-2 text-sky-400 font-bold hover:text-sky-300 transition-colors"
-            >
-              <Settings className="w-5 h-5" /> Events Management
-            </button>
-
-            <AnimatePresence>
-              {showEventsList && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="grid gap-3 mt-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {churchEvents.map(event => (
-                      <div key={event._id} className="bg-white/5 border border-white/10 p-4 rounded-xl hover:bg-white/10 transition-colors">
-
-                        {editingEventId === event._id ? (
-                          <div className="flex gap-2">
-                            <input
-                              value={editEventName}
-                              onChange={(e) => setEditEventName(e.target.value)}
-                              className="flex-1 bg-black/20 border border-white/10 rounded px-2 py-1 text-sm outline-none focus:border-sky-500"
-                            />
-                            <button onClick={() => handleUpdateEvent(event._id)} disabled={processingId === `UPDATE_${event._id}`} className="text-emerald-400 p-1 hover:bg-emerald-500/10 rounded">
-                              {processingId === `UPDATE_${event._id}` ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                            </button>
-                            <button onClick={() => setEditingEventId(null)} className="text-red-400 p-1 hover:bg-red-500/10 rounded">
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <>
-                            <div
-                              onClick={() => setSelectedEventId(selectedEventId === event._id ? null : event._id)}
-                              className="font-bold text-lg cursor-pointer flex justify-between items-center"
-                            >
-                              {event.eventName}
-                              <Calendar className="w-4 h-4 text-gray-500" />
-                            </div>
-
-                            <AnimatePresence>
-                              {selectedEventId === event._id && (
-                                <motion.div
-                                  initial={{ opacity: 0, y: -10 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  exit={{ opacity: 0, y: -10 }}
-                                  className="flex gap-2 mt-3 pt-3 border-t border-white/10"
-                                >
-                                  <button
-                                    onClick={() => downloadEventPDF(event)}
-                                    disabled={processingId === `PDF_${event._id}`}
-                                    className="flex-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
-                                  >
-                                    {processingId === `PDF_${event._id}` ? <RefreshCw className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
-                                    PDF Summary
-                                  </button>
-                                  <button
-                                    onClick={() => startEditing(event)}
-                                    className="flex-1 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
-                                  >
-                                    <Edit className="w-3 h-3" /> Edit
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteEvent(event._id)}
-                                    disabled={processingId === `DELETE_${event._id}`}
-                                    className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
-                                  >
-                                    {processingId === `DELETE_${event._id}` ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                    Delete
-                                  </button>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-
-                            {/* Show hymns in this event */}
-                            {selectedEventId === event._id && event.hymns?.length > 0 && (
-                              <div className="mt-4 space-y-2 border-t border-white/10 pt-4">
-                                <div className="flex justify-between items-center mb-1">
-                                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1">
-                                    <Music className="w-3 h-3" /> Recorded Hymns:
-                                  </p>
-                                  <button
-                                    onClick={() => handleClearHymns(event._id)}
-                                    disabled={processingId === `CLEAR_${event._id}`}
-                                    className={`text-[10px] font-bold px-2 py-0.5 rounded transition-all flex items-center gap-1 ${clearingEventId === event._id
-                                      ? 'bg-red-500 text-white animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]'
-                                      : 'bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-500/10'
-                                      }`}
-                                  >
-                                    {processingId === `CLEAR_${event._id}` ? (
-                                      <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="w-2.5 h-2.5" />
-                                    )}
-                                    {clearingEventId === event._id ? 'Tap to Confirm' : 'Clear'}
-                                  </button>
-                                </div>
-                                {event.hymns.map((h, hIdx) => (
-                                  <div key={hIdx} className="flex justify-between items-center bg-black/20 p-2 rounded-lg text-xs">
-                                    <span className="font-medium text-gray-300">
-                                      {hIdx + 1}. {h.title}
-                                    </span>
-                                    <span className="text-sky-400 font-bold bg-sky-500/10 px-2 py-0.5 rounded text-[10px]">
-                                      {h.scale}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    ))}
-                    {churchEvents.length === 0 && <p className="text-gray-400 text-sm">No events found.</p>}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* ---------------- 2. PENDING APPROVALS ---------------- */}
+        {/* ---------------- 1. PENDING APPROVALS ---------------- */}
         <div className="mb-16">
           <h2 className="text-2xl font-bold text-white mb-6 pl-2 border-l-4 border-sky-500 flex items-center justify-between">
             <div className="flex items-center">
@@ -660,7 +467,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* ---------------- 3. CHURCH MEMBERS & EVENT ASSIGNMENT ---------------- */}
+        {/* ---------------- 2. CHURCH MEMBERS & ATTENDANCE ---------------- */}
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 border-l-4 border-indigo-500 pl-4">
             <h2 className="text-2xl font-bold text-white flex items-center gap-2">
@@ -677,165 +484,115 @@ export default function Dashboard() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {UsersChurch.map((user) => (
-              <motion.div
-                key={user._id}
-                layout
-                className="relative p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md"
-              >
-                <div className="flex items-start justify-between gap-4 mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center border-2 border-indigo-400/30 bg-indigo-400/10">
-                      <User className="w-6 h-6 text-indigo-300" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-lg leading-tight">{user.Name}</h3>
-                      <select
-                        value={user.role}
-                        onChange={(e) => handleRoleChange(user._id, e.target.value)}
-                        className="bg-transparent text-xs text-indigo-400 outline-none cursor-pointer mt-1"
-                      >
-                        <option className="bg-slate-900" value="USER">USER</option>
-                        <option className="bg-slate-900" value="ADMIN">ADMIN</option>
-                        <option className="bg-slate-900" value="MANEGER">MANAGER</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1 text-center">
-                    <span className="text-[10px] font-bold text-gray-500 uppercase">In Training</span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={user.isInTraining}
-                        onChange={() => handleTrainingToggle(user._id)}
-                        className="sr-only peer"
-                        disabled={processingId === user._id}
-                      />
-                      <div className="w-9 h-5 bg-gray-600 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
-                    </label>
-                  </div>
-                </div>
+            {UsersChurch.map((user) => {
+              const attendCount = user.attends?.length || 0;
+              const isAttendProcessing = processingId === `attend-${user._id}`;
 
-                {/* Event Tags Selection */}
-                <div className="space-y-3">
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1">
-                    <Music className="w-3 h-3" /> Assign vs. Mark Attended Events
-                  </p>
-
-                  <div className="flex flex-col gap-2">
-                    {churchEvents.length === 0 && <span className="text-xs text-gray-600">No events created yet.</span>}
-                    {churchEvents.map((event) => {
-                      const isActive = user.trainingEvents?.some(e => e._id === event._id || e === event._id);
-                      // Calculate how many times this user has attended this event
-                      const attendCount = user.attends?.filter(a => a.eventId === event._id || a.eventId?._id === event._id || a.eventId === event._id.toString()).length || 0;
-
-                      const isLocalProcessing = processingId === `${user._id}-${event._id}`;
-                      const isAttendProcessing = processingId === `attend-${user._id}-${event._id}`;
-
-                      return (
-                        <div key={event._id} className="flex items-center gap-2 justify-between bg-white/5 border border-white/10 p-2 rounded-lg">
-                          <span className="text-xs font-bold truncate max-w-[120px]">{event.eventName}</span>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => toggleUserInEvent(user._id, event._id)}
-                              disabled={isLocalProcessing}
-                              className={`px-2 py-1 flex-1 rounded-md text-[10px] font-bold border transition-all flex items-center justify-center gap-1.5 ${isActive
-                                ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300 shadow-lg shadow-indigo-500/10'
-                                : 'bg-transparent border-white/10 text-gray-500 hover:border-white/30'
-                                }`}
-                              title="Assign to Training"
-                            >
-                              {isLocalProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Calendar className="w-3 h-3" />}
-                              Assign
-                            </button>
-                            <button
-                              onClick={() => toggleUserAttendance(user._id, event._id)}
-                              disabled={isAttendProcessing}
-                              className={`px-2 py-1 flex-1 rounded-md text-[10px] font-bold border transition-all flex items-center justify-center gap-1.5 ${attendCount > 0
-                                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-lg shadow-emerald-500/10 hover:bg-emerald-500/30'
-                                : 'bg-transparent border-white/10 text-gray-500 hover:border-white/30'
-                                }`}
-                              title="Add Attendance"
-                            >
-                              {isAttendProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                              Attend {attendCount > 0 ? `(${attendCount})` : ''}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Reports Section */}
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1 mb-3">
-                    <FileText className="w-3 h-3" /> Reports
-                  </h4>
-
-                  <div className="flex flex-col gap-2 mb-3">
-                    <div className="flex gap-2">
-                      {/* Event Selection */}
-                      {user.trainingEvents?.length > 0 && (
+              return (
+                <motion.div
+                  key={user._id}
+                  layout
+                  className="relative p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md"
+                >
+                  <div className="flex items-start justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center border-2 border-indigo-400/30 bg-indigo-400/10">
+                        <User className="w-6 h-6 text-indigo-300" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-lg leading-tight">{user.Name}</h3>
                         <select
-                          value={reportEventInputs[user._id] || ""}
-                          onChange={(e) => setReportEventInputs(prev => ({ ...prev, [user._id]: e.target.value }))}
-                          className="w-1/3 bg-black/20 border border-white/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-sky-500 text-gray-300"
+                          value={user.role}
+                          onChange={(e) => handleRoleChange(user._id, e.target.value)}
+                          className="bg-transparent text-xs text-indigo-400 outline-none cursor-pointer mt-1"
                         >
-                          <option value="" className="bg-[#0f172a] text-gray-400">Event (Optional)</option>
-                          {user.trainingEvents.map((ev) => (
-                            <option key={ev._id || ev} value={ev._id || ev} className="bg-[#0f172a] text-white">
-                              {ev.eventName || 'Unnamed Event'}
-                            </option>
-                          ))}
+                          <option className="bg-slate-900" value="USER">USER</option>
+                          <option className="bg-slate-900" value="ADMIN">ADMIN</option>
+                          <option className="bg-slate-900" value="MANEGER">MANAGER</option>
                         </select>
-                      )}
-                      {/* Date Selection */}
-                      <input
-                        type="date"
-                        value={reportDateInputs[user._id] || ""}
-                        onChange={(e) => setReportDateInputs(prev => ({ ...prev, [user._id]: e.target.value }))}
-                        className="w-1/3 bg-black/20 border border-white/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-sky-500 text-gray-300"
-                      />
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Add a report..."
-                        value={reportInputs[user._id] || ""}
-                        onChange={(e) => setReportInputs(prev => ({ ...prev, [user._id]: e.target.value }))}
-                        className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-sky-500 text-gray-300"
-                      />
+                    <div className="flex flex-col items-end gap-1 text-center">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase">In Training</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={user.isInTraining}
+                          onChange={() => handleTrainingToggle(user._id)}
+                          className="sr-only peer"
+                          disabled={processingId === user._id}
+                        />
+                        <div className="w-9 h-5 bg-gray-600 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Direct Attendance Action */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between bg-white/5 border border-white/10 p-3 rounded-xl">
+                      <span className="text-xs font-bold text-gray-300">Team Attendance</span>
                       <button
-                        onClick={async () => {
-                          const text = reportInputs[user._id];
-                          const eventId = reportEventInputs[user._id];
-                          const date = reportDateInputs[user._id];
-                          if (!text) return;
-                          await handleAddReport(user._id, text, eventId, date);
-                          setReportInputs(prev => ({ ...prev, [user._id]: "" }));
-                          setReportEventInputs(prev => ({ ...prev, [user._id]: "" }));
-                          setReportDateInputs(prev => ({ ...prev, [user._id]: "" }));
-                        }}
-                        disabled={processingId === user._id}
-                        className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 p-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        onClick={() => toggleUserAttendance(user._id)}
+                        disabled={isAttendProcessing}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 ${attendCount > 0
+                          ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 hover:bg-emerald-500/30'
+                          : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/30'
+                          }`}
                       >
-                        {processingId === user._id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <PlusCircle className="w-3 h-3" />}
+                        {isAttendProcessing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                        {attendCount > 0 ? `Attended (${attendCount})` : 'Mark Attendance'}
                       </button>
                     </div>
                   </div>
 
+                  {/* Reports Section */}
+                  <div className="mt-4 pt-4 border-t border-white/10">
+                    <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1 mb-3">
+                      <FileText className="w-3 h-3" /> Reports
+                    </h4>
 
-                </div>
-
-                {/* Loading Overlay for Global Card actions */}
-                {processingId === user._id && (
-                  <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center z-20 rounded-2xl">
-                    <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="flex flex-col gap-2 mb-3">
+                      <input
+                        type="date"
+                        value={reportDateInputs[user._id] || ""}
+                        onChange={(e) => setReportDateInputs(prev => ({ ...prev, [user._id]: e.target.value }))}
+                        className="w-full bg-black/20 border border-white/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-sky-500 text-gray-300"
+                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Add a report..."
+                          value={reportInputs[user._id] || ""}
+                          onChange={(e) => setReportInputs(prev => ({ ...prev, [user._id]: e.target.value }))}
+                          className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-sky-500 text-gray-300"
+                        />
+                        <button
+                          onClick={async () => {
+                            const text = reportInputs[user._id];
+                            const date = reportDateInputs[user._id];
+                            if (!text) return;
+                            await handleAddReport(user._id, text, date);
+                            setReportInputs(prev => ({ ...prev, [user._id]: "" }));
+                            setReportDateInputs(prev => ({ ...prev, [user._id]: "" }));
+                          }}
+                          disabled={processingId === user._id}
+                          className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 p-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {processingId === user._id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <PlusCircle className="w-3 h-3" />}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </motion.div>
-            ))}
+
+                  {/* Loading Overlay */}
+                  {processingId === user._id && (
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center z-20 rounded-2xl">
+                      <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
         </div>
 

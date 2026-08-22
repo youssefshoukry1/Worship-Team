@@ -442,7 +442,7 @@ export default function Trainings() {
   const get_All_Users = () => {
     if (!isLogin) return [];
     return axios
-      .get(`https://worship-team-api.onrender.com/api/users/my-church`, {
+      .get(`https://worship-team-api.onrender.com/api/users/my-team`, {
         headers: { Authorization: `Bearer ${isLogin}` },
       })
       .then((res) => res.data)
@@ -505,26 +505,8 @@ export default function Trainings() {
 
   if (isLoading) return <Loading />;
 
-  // --- منطق الفلترة المتوافق مع الـ Populated Backend ---
   const filteredData = data.filter((user) => {
-    // 1. استثناء: يجب أن يكون المستخدم مفعّل عنده الـ Training
-    if (!user.isInTraining) return false;
-
-    // 2. الرتب العالية ترى الجميع (Admin, MANEGER, PROGRAMER)
-    const upperRoles = ["Admin", "MANEGER", "PROGRAMER", "ADMIN"]; // أضفت ADMIN احتياطاً لحالة الحروف
-    if (upperRoles.includes(UserRole)) return true;
-
-    // 3. للمستخدم العادي: نرى أنفسنا ومن معنا في نفس الـ Event
-    if (user._id === user_id) return true;
-
-    const myData = data.find(u => u._id === user_id);
-    if (!myData || !myData.trainingEvents) return false;
-
-    // استخراج الـ IDs من الـ Populated Objects ومقارنتها كـ Strings
-    const myEventIds = myData.trainingEvents.map(ev => (ev._id || ev).toString());
-    const theirEventIds = (user.trainingEvents || []).map(ev => (ev._id || ev).toString());
-
-    return theirEventIds.some(id => myEventIds.includes(id));
+    return !!user.isInTraining;
   });
 
   const openModal = (type, user, songObj = null) => {
@@ -598,12 +580,6 @@ export default function Trainings() {
                                     bg-sky-500/10 text-sky-300 border border-sky-500/20">
                         <Mic className="w-3 h-3" /> Vocal
                       </span>
-                      {m.trainingEvents?.map((event, idx) => event?.eventName && (
-                        <span key={event._id || idx} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
-                                      bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                          {event.eventName}
-                        </span>
-                      ))}
                     </div>
                     <h2 className="text-2xl font-bold text-white tracking-tight">
                       {m.Name}

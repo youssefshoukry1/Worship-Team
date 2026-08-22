@@ -1060,7 +1060,7 @@ export default function Church_UserProfile() {
 
                 <TeamSwitcher />
 
-                {/* --- SMART TABS NAVIGATION & FILTER --- */}
+                {/* --- SMART TABS NAVIGATION --- */}
                 <div className="sticky top-4 z-40 mb-6 sm:mb-8 flex flex-col lg:flex-row gap-3 items-center justify-between">
                     <div className="flex gap-1.5 p-1.5 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 overflow-x-auto shadow-2xl shadow-black/50 custom-scrollbar-hide w-full lg:w-auto">
                         {tabs.map(tab => (
@@ -1076,24 +1076,6 @@ export default function Church_UserProfile() {
                                 {tab.label}
                             </button>
                         ))}
-                    </div>
-
-                    <div className="w-full lg:w-auto flex items-center bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 p-1 shadow-2xl shadow-black/50 overflow-hidden relative group">
-                        <select
-                            value={selectedEventKey}
-                            onChange={(e) => setSelectedEventKey(e.target.value)}
-                            className="bg-transparent text-slate-200 text-xs sm:text-sm font-bold appearance-none outline-none py-2.5 pl-4 pr-10 w-full lg:w-56 cursor-pointer hover:bg-white/5 transition-colors z-10 rounded-xl"
-                        >
-                            <option value="all" className="bg-slate-900 text-white font-bold">All Events</option>
-                            {allEventOptions.map(opt => (
-                                <option key={opt.key} value={opt.key} className="bg-slate-900 text-white font-medium">
-                                    {opt.name.length > 25 ? opt.name.substring(0, 25) + '...' : opt.name}
-                                </option>
-                            ))}
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover:text-white transition-colors z-0">
-                            <ChevronDown className="w-4 h-4" />
-                        </div>
                     </div>
                 </div>
 

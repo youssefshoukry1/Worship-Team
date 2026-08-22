@@ -65,18 +65,22 @@ export default function UserContextProvider({ children }) {
     setUserStatus(activeTeam.status);
   };
 
-  return (
-    <UserContext.Provider value={{
-      isLogin, setLogin,
-      UserRole, setUserRole,
-      user_id, setUser_id,
-      churchId, setChurchId,
-      HymnIds, setHymnIds,
-      vocalsMode, setVocalsMode,
-      UserStatus, setUserStatus,
-      teams, setTeams,
-      switchTeam
-    }}>
+    const teamId = churchId;
+    const setTeamId = setChurchId;
+
+    return (
+      <UserContext.Provider value={{
+        isLogin, setLogin,
+        UserRole, setUserRole,
+        user_id, setUser_id,
+        churchId, setChurchId,
+        teamId, setTeamId,
+        HymnIds, setHymnIds,
+        vocalsMode, setVocalsMode,
+        UserStatus, setUserStatus,
+        teams, setTeams,
+        switchTeam
+      }}>
       {children}
     </UserContext.Provider>
   );
