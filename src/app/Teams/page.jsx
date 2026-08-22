@@ -12,16 +12,17 @@ export default function TeamsPage() {
     const { t } = useLanguage();
     const router = useRouter();
     const {
-        isLogin,
-        UserRole,
-        UserStatus,
-        churchId,
+        isLogin, setLogin,
+        UserRole, setUserRole,
+        UserStatus, setUserStatus,
+        churchId, setChurchId,
         teams, setTeams
     } = useContext(UserContext);
 
     const [modalType, setModalType] = useState(null); // "join" | "create" | null
     const [teamNameInput, setTeamNameInput] = useState("");
     const [loading, setLoading] = useState(false);
+    const [justUnlocked, setJustUnlocked] = useState(false);
 
     const hasTeam = UserStatus === "approved";
     const isManager = UserRole && ["ADMIN", "MANEGER", "PROGRAMER"].includes(UserRole);
@@ -48,18 +49,40 @@ export default function TeamsPage() {
         if (!teamNameInput) return;
         setLoading(true);
         try {
-            await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/team/createTeam`, { name: teamNameInput }, {
+            const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/team/createTeam`, { name: teamNameInput }, {
                 headers: { Authorization: `Bearer ${isLogin}` }
             });
+
+            const { token, role, churchId: newChurchId, status } = res.data || {};
+            if (token) {
+                localStorage.setItem("user_Taspe7_Token", token);
+                setLogin(token);
+            }
+            if (role) {
+                localStorage.setItem("user_Taspe7_Role", role);
+                setUserRole(role);
+            }
+            if (newChurchId) {
+                localStorage.setItem("user_Taspe7_ChurchId", newChurchId);
+                setChurchId(newChurchId);
+            }
+            if (status) {
+                localStorage.setItem("user_Taspe7_Status", status);
+                setUserStatus(status);
+            }
+
+            const activeToken = token || isLogin;
             const teamsRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/users/my-teams`, {
-                headers: { Authorization: `Bearer ${isLogin}` }
+                headers: { Authorization: `Bearer ${activeToken}` }
             });
             const newTeams = teamsRes.data || [];
             setTeams(newTeams);
             localStorage.setItem("user_Taspe7_Teams", JSON.stringify(newTeams));
-            alert("Team created successfully! You are now the manager.");
+
             setModalType(null);
             setTeamNameInput("");
+            setJustUnlocked(true);
+            setTimeout(() => setJustUnlocked(false), 1500);
         } catch (err) {
             alert(err.response?.data?.message || "Error creating team");
         } finally {
@@ -186,15 +209,23 @@ export default function TeamsPage() {
                             <motion.button
                                 key={card.id}
                                 initial={{ opacity: 0, y: 15 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.08 }}
+                                animate={{ opacity: 1, y: 0, scale: justUnlocked && !disabled ? [1, 1.03, 1] : 1 }}
+                                transition={{ delay: i * 0.08, scale: { duration: 0.5 } }}
                                 onClick={disabled ? undefined : card.action}
-                                className={`relative flex flex-col items-start gap-3 p-5 rounded-xl border text-left transition-all
+                                className={`relative flex flex-col items-start gap-3 p-5 rounded-xl border text-left transition-all overflow-hidden
                                     ${disabled
                                         ? "border-white/5 bg-white/[0.02] cursor-not-allowed opacity-50"
                                         : `${c.border} ${c.bg} ${c.hover} cursor-pointer shadow-lg ${c.shadow}`
                                     }`}
                             >
+                                {justUnlocked && !disabled && (
+                                    <motion.div
+                                        initial={{ x: "-100%", opacity: 0.8 }}
+                                        animate={{ x: "200%", opacity: 0 }}
+                                        transition={{ duration: 0.8, ease: "easeInOut" }}
+                                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none rounded-xl"
+                                    />
+                                )}
                                 <div className={`${disabled ? "text-gray-600" : c.text}`}>
                                     {card.icon}
                                 </div>
