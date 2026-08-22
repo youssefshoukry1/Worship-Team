@@ -551,8 +551,8 @@ export default function Trainings() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_70%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.15),transparent_70%)]" />
 
-      <h1 className="text-3xl sm:text-5xl font-extrabold mb-6 text-center bg-linear-to-br from-sky-300 via-blue-400 to-indigo-500 text-transparent bg-clip-text drop-shadow-lg">
-        🎶 Training Schedule
+      <h1 className="text-3xl sm:text-5xl font-bold mb-6 text-center text-white ">
+         Training Schedule
       </h1>
 
       <div className="max-w-7xl mx-auto px-0 relative z-10 mb-6">

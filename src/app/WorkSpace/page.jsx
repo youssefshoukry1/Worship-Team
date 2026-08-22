@@ -1754,7 +1754,7 @@ export default function WorkSpace() {
                 {/* Header */}
                 <div className="text-center mb-10">
 
-                    <h1 className="text-3xl sm:text-5xl font-extrabold bg-linear-to-br from-sky-300 via-blue-400 to-indigo-500 text-transparent bg-clip-text drop-shadow-lg">
+                    <h1 className="text-2xl sm:text-5xl font-bold text-white">
                         {t('myWorkspace')}
                     </h1>
                     <p className="mt-2 text-gray-400">{t('manageSetlist')}</p>
