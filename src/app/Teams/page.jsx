@@ -147,6 +147,8 @@ export default function TeamsPage() {
         },
     ];
 
+    const visibleCards = hasTeam ? cards : cards.filter(c => c.id === "create-join");
+
     const colorMap = {
         sky: { border: "border-sky-500/30", bg: "bg-sky-500/10", text: "text-sky-400", hover: "hover:border-sky-500/50 hover:bg-sky-500/15", shadow: "shadow-sky-500/5" },
         emerald: { border: "border-emerald-500/30", bg: "bg-emerald-500/10", text: "text-emerald-400", hover: "hover:border-emerald-500/50 hover:bg-emerald-500/15", shadow: "shadow-emerald-500/5" },
@@ -167,7 +169,8 @@ export default function TeamsPage() {
                 </motion.div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {cards.map((card, i) => {
+                    <AnimatePresence>
+                        {visibleCards.map((card, i) => {
                         const c = colorMap[card.color];
                         const disabled = !card.available;
 
@@ -243,6 +246,7 @@ export default function TeamsPage() {
                             </motion.button>
                         );
                     })}
+                    </AnimatePresence>
                 </div>
             </div>
 
