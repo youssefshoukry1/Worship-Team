@@ -138,12 +138,12 @@ export default function TeamsPage() {
         },
         {
             id: "profile",
-            title: hasChurch ? t("church_profile") : t("userProfile"),
+            title: t("church_profile") ,
             description: hasTeam ? "View your team profile" : "Create or join a team to unlock",
             icon: <User size={28} />,
             color: "amber",
-            available: hasTeam,
-            action: () => router.push(hasChurch ? "/Church_UserProfile" : "/normal_UserProfile"),
+            available: hasTeam || isManager,
+            action: () => router.push("/Church_UserProfile"),
         },
     ];
 
