@@ -7,12 +7,11 @@ export default function ChatSidebar({ teams, activeTeamId, onSelectTeam }) {
     const approvedTeams = teams.filter(t => t.status === 'approved');
 
     return (
-        <div className="w-full md:w-[350px] lg:w-[400px] h-full bg-[#111827] border-r border-white/10 flex flex-col shrink-0 z-10">
+        <div className="w-full md:w-[350px] lg:w-[400px] flex-1 min-h-0 bg-[#111827] border-r border-white/10 flex flex-col shrink-0 z-10">
             {/* Header */}
             <div className="px-4 py-3 bg-[#0f172a] flex items-center justify-between shrink-0">
                 <h1 className="text-xl font-bold text-white tracking-tight">Chats</h1>
                 <div className="flex items-center gap-4 text-gray-400">
-                    <button className="hover:text-white transition"><Search size={20} /></button>
                     <button className="hover:text-white transition"><MoreVertical size={20} /></button>
                 </div>
             </div>

@@ -53,14 +53,13 @@ export default function AudioMessage({ mediaUrl }) {
 
     return (
         <div className="flex items-center gap-3 w-48 md:w-56 mt-1">
-            <button 
+            <button
                 onClick={togglePlay}
                 disabled={!isReady}
                 className="w-10 h-10 shrink-0 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors disabled:opacity-50"
             >
                 {isPlaying ? <Pause size={18} className="text-white" /> : <Play size={18} className="text-white ml-1" />}
             </button>
-            <div className="flex-1 w-full" ref={waveformRef}></div>
-        </div>
+            <div className="flex-1 min-w-[120px] max-w-[200px]" ref={waveformRef}></div>        </div>
     );
 }

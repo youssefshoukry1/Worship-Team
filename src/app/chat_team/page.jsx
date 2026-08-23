@@ -8,7 +8,7 @@ import ChatInput from '../components/chat/ChatInput';
 import MainSidebar from '../components/chat/MainSidebar';
 import BottomNav from '../components/chat/BottomNav';
 import { useChatSocket } from '../hooks/useChatSocket';
-import { Loader2, ArrowLeft, MoreVertical, Search, Phone, Video } from 'lucide-react';
+import { Loader2, ArrowLeft, MoreVertical, Phone, Video } from 'lucide-react';
 import axios from 'axios';
 import { getApiBaseUrl } from '../utils/apiBase';
 
@@ -49,8 +49,6 @@ export default function ChatTeamPage() {
 
     const handleBackToList = () => {
         setIsMobileChatOpen(false);
-        // Optional: clear activeTeamId if you want it unselected on desktop too
-        // setActiveTeamId(null); 
     };
 
     const { messages, sendMessage, isConnected, loading } = useChatSocket(
@@ -66,7 +64,7 @@ export default function ChatTeamPage() {
 
     return (
         <div className="h-[100dvh] w-full bg-[#0b0f19] flex overflow-hidden">
-            {/* Desktop Navigation Sidebar (New) */}
+            {/* Desktop Navigation Sidebar */}
             <div className="hidden md:block">
                 <MainSidebar />
             </div>
@@ -74,6 +72,18 @@ export default function ChatTeamPage() {
             {/* Chats List Sidebar */}
             <div className={`md:block h-full ${isMobileChatOpen ? 'hidden' : 'w-full'}`}>
                 <div className="flex flex-col h-full">
+
+                    {/* Back to /Teams header */}
+                    <div className="flex items-center gap-2 px-3 py-3 bg-[#0f172a] border-b border-white/10 shrink-0">
+                        <button
+                            onClick={() => router.push('/Teams')}
+                            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition"
+                        >
+                            <ArrowLeft size={20} />
+                        </button>
+                        <span className="text-sm font-semibold text-gray-300">Team Chats</span>
+                    </div>
+
                     <ChatSidebar
                         teams={teams || []}
                         activeTeamId={activeTeamId}
@@ -114,7 +124,6 @@ export default function ChatTeamPage() {
                         <div className="flex items-center gap-1 sm:gap-3 text-gray-400">
                             <button className="p-2 hover:bg-white/10 rounded-full transition hidden sm:block"><Video size={20} /></button>
                             <button className="p-2 hover:bg-white/10 rounded-full transition hidden sm:block"><Phone size={20} /></button>
-                            <button className="p-2 hover:bg-white/10 rounded-full transition"><Search size={20} /></button>
                             <button className="p-2 hover:bg-white/10 rounded-full transition"><MoreVertical size={20} /></button>
                         </div>
                     </div>
