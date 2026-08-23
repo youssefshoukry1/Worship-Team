@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Mic, Square, Trash2, Loader2 } from 'lucide-react';
 import axios from 'axios';
-import { getApiBaseUrl } from '../utils/apiBase';
+import { getApiBaseUrl } from '../../utils/apiBase';
 
 export default function ChatInput({ onSendMessage, disabled, token }) {
     const [text, setText] = useState('');
