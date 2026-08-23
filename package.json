@@ -31,6 +31,7 @@
     "react-dom": "^19.1.0",
     "react-virtuoso": "^4.18.1",
     "socket.io-client": "^4.8.3",
+    "wavesurfer.js": "^7.12.11",
     "yup": "^1.7.1"
   },
   "devDependencies": {

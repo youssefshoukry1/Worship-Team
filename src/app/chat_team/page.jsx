@@ -106,6 +106,7 @@ export default function ChatTeamPage() {
                         <ChatInput 
                             onSendMessage={sendMessage} 
                             disabled={!isConnected} 
+                            token={isLogin}
                         />
                     </>
                 ) : (

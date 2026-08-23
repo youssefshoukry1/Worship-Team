@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useRef } from 'react';
+import AudioMessage from './AudioMessage';
 
 export default function ChatArea({ messages, currentUserId, loading }) {
     const messagesEndRef = useRef(null);
@@ -50,7 +51,11 @@ export default function ChatArea({ messages, currentUserId, loading }) {
                                 ? 'bg-sky-600 text-white rounded-tr-sm' 
                                 : 'bg-[#1e293b] text-gray-200 rounded-tl-sm border border-white/5'
                         }`}>
-                            <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
+                            {msg.type === 'audio' && msg.mediaUrl ? (
+                                <AudioMessage mediaUrl={msg.mediaUrl} />
+                            ) : (
+                                <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
+                            )}
                             <div className={`text-[10px] mt-1 text-right ${isMe ? 'text-sky-200' : 'text-gray-500'}`}>
                                 {formatTime(msg.createdAt)}
                             </div>

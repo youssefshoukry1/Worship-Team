@@ -69,14 +69,20 @@ export function useChatSocket(teamId, user_id, user_name, token) {
         };
     }, [teamId, user_id]);
 
-    const sendMessage = (text) => {
-        if (!socketRef.current || !isConnected || !text.trim() || !teamId || !user_id || !user_name) return;
+    const sendMessage = (text, type = 'text', mediaUrl = null) => {
+        if (!socketRef.current || !isConnected || !teamId || !user_id || !user_name) return;
+        
+        // Basic validation
+        if (type === 'text' && !text.trim()) return;
+        if (type === 'audio' && !mediaUrl) return;
 
         socketRef.current.emit('send-message', {
             teamId,
             senderId: user_id,
             senderName: user_name,
-            text
+            text,
+            type,
+            mediaUrl
         });
     };
 
