@@ -152,13 +152,13 @@ export default function TeamsPage() {
             isDouble: true,
         },
         {
-            id: "training",
+            id: "chat_team",
             title: t("training"),
             description: hasTeam ? "Access your training sessions" : "Create or join a team to unlock",
             icon: <Dumbbell size={28} />,
             color: "emerald",
             available: hasTeam,
-            action: () => router.push("/Trainings"),
+            action: () => router.push("/chat_team"),
         },
         {
             id: "dashboard",

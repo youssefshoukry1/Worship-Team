@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Mic, Square, Trash2, Loader2 } from 'lucide-react';
+import { Send, Mic, Square, Trash2, Loader2, Pause, Play } from 'lucide-react';
 import axios from 'axios';
 import { getApiBaseUrl } from '../../utils/apiBase';
 
@@ -9,18 +9,21 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
     
     // Voice Recording State
     const [isRecording, setIsRecording] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
     const [isUploading, setIsUploading] = useState(false);
     
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
     const timerRef = useRef(null);
+    const audioPreviewRef = useRef(null);
+    const cancelRecordingRef = useRef(false);
 
     // Cleanup timer on unmount
     useEffect(() => {
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
-            if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
                 mediaRecorderRef.current.stop();
             }
         };
@@ -59,14 +62,13 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                      await handleUploadAudio(audioBlob);
                 }
                 
-                setIsRecording(false);
-                setRecordingTime(0);
-                if (timerRef.current) clearInterval(timerRef.current);
+                resetRecordingState();
             };
 
             cancelRecordingRef.current = false;
             mediaRecorder.start();
             setIsRecording(true);
+            setIsPaused(false);
             
             // Start timer
             setRecordingTime(0);
@@ -80,18 +82,52 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
         }
     };
 
-    const cancelRecordingRef = useRef(false);
+    const resetRecordingState = () => {
+        setIsRecording(false);
+        setIsPaused(false);
+        setRecordingTime(0);
+        if (timerRef.current) clearInterval(timerRef.current);
+    };
 
     const cancelRecording = () => {
         if (mediaRecorderRef.current && isRecording) {
             cancelRecordingRef.current = true;
             mediaRecorderRef.current.stop();
         }
+        resetRecordingState();
     };
 
     const stopAndSendRecording = () => {
         if (mediaRecorderRef.current && isRecording) {
             mediaRecorderRef.current.stop();
+        }
+    };
+
+    const togglePauseResume = () => {
+        if (!mediaRecorderRef.current) return;
+        
+        if (isPaused) {
+            mediaRecorderRef.current.resume();
+            setIsPaused(false);
+            timerRef.current = setInterval(() => {
+                setRecordingTime(prev => prev + 1);
+            }, 1000);
+        } else {
+            mediaRecorderRef.current.pause();
+            setIsPaused(true);
+            clearInterval(timerRef.current);
+            mediaRecorderRef.current.requestData(); // Get chunks so far for preview
+        }
+    };
+
+    const playPreview = () => {
+        if (audioChunksRef.current.length > 0) {
+            const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+            const url = URL.createObjectURL(blob);
+            if (audioPreviewRef.current) {
+                audioPreviewRef.current.src = url;
+                audioPreviewRef.current.play();
+            }
         }
     };
 
@@ -127,8 +163,6 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
             }
         } finally {
             setIsUploading(false);
-            setIsRecording(false);
-            setRecordingTime(0);
         }
     };
 
@@ -140,20 +174,61 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
 
     return (
         <div className="bg-[#0f172a] p-3 md:p-4 border-t border-white/10 shrink-0">
+            <audio ref={audioPreviewRef} className="hidden" />
+            
             <div className="max-w-4xl mx-auto flex items-end gap-2">
-                
                 {isRecording ? (
-                    <div className="flex-1 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-center justify-between px-4 py-2 animate-pulse">
-                        <div className="flex items-center gap-3">
-                            <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-bounce" />
-                            <span className="text-red-400 font-mono text-sm">{formatTime(recordingTime)}</span>
-                        </div>
+                    <div className="flex-1 bg-[#1e293b] rounded-3xl flex items-center justify-between px-2 sm:px-4 py-2 border border-white/5 transition-all">
+                        {/* Delete Button */}
                         <button 
-                            onClick={cancelRecording}
-                            className="text-gray-400 hover:text-red-400 text-sm font-medium transition-colors"
+                            type="button" 
+                            onClick={cancelRecording} 
+                            className="text-gray-400 hover:text-red-400 p-2 transition-colors rounded-full hover:bg-white/5"
+                            title="Cancel recording"
                         >
-                            Cancel
+                            <Trash2 size={20} />
                         </button>
+
+                        {/* Timer & Status */}
+                        <div className="flex items-center gap-3">
+                            <div className={`w-2.5 h-2.5 rounded-full ${!isPaused ? 'bg-red-500 animate-pulse' : 'bg-gray-500'}`} />
+                            <span className="text-white font-mono text-sm">{formatTime(recordingTime)}</span>
+                        </div>
+
+                        {/* Controls */}
+                        <div className="flex items-center gap-1 sm:gap-2">
+                            {/* Play Preview (only when paused) */}
+                            {isPaused && (
+                                <button 
+                                    type="button"
+                                    onClick={playPreview}
+                                    title="Play preview"
+                                    className="w-10 h-10 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 flex items-center justify-center text-emerald-400 transition-colors"
+                                >
+                                    <Play size={18} fill="currentColor" className="ml-1" />
+                                </button>
+                            )}
+
+                            {/* Pause/Resume Toggle */}
+                            <button 
+                                type="button"
+                                onClick={togglePauseResume}
+                                title={isPaused ? "Resume recording" : "Pause recording"}
+                                className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-sky-400 transition-colors"
+                            >
+                                {isPaused ? <Mic size={18} /> : <Pause size={18} fill="currentColor" />}
+                            </button>
+                            
+                            {/* Send Button */}
+                            <button
+                                type="button"
+                                onClick={stopAndSendRecording}
+                                title="Send voice message"
+                                className="w-10 h-10 bg-sky-500 text-white rounded-full flex items-center justify-center hover:bg-sky-600 shadow-lg transition-transform hover:scale-105"
+                            >
+                                <Send size={18} className="ml-1" />
+                            </button>
+                        </div>
                     </div>
                 ) : (
                     <>
@@ -186,16 +261,8 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                     </>
                 )}
 
-                {/* Send/Stop Button */}
-                {isRecording ? (
-                    <button
-                        type="button"
-                        onClick={stopAndSendRecording}
-                        className="p-3 bg-red-500 text-white rounded-full shrink-0 flex items-center justify-center hover:bg-red-600 shadow-lg transition-all"
-                    >
-                        <Square size={20} fill="currentColor" />
-                    </button>
-                ) : (
+                {/* Send Button (Text) */}
+                {!isRecording && (
                     <button
                         type="button"
                         onClick={handleSubmit}
