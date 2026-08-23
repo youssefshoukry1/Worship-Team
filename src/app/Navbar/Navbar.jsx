@@ -116,7 +116,7 @@ export default function Navbar() {
         },
     };
 
-    if (pathname?.startsWith('/presentation')) {
+    if (pathname?.startsWith('/presentation') || pathname?.startsWith('/chat_team')) {
         return null;
     }
 
