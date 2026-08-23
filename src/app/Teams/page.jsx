@@ -1,5 +1,5 @@
 "use client";
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -23,6 +23,39 @@ export default function TeamsPage() {
     const [teamNameInput, setTeamNameInput] = useState("");
     const [loading, setLoading] = useState(false);
     const [justUnlocked, setJustUnlocked] = useState(false);
+
+    // Poll backend every 8s while pending to detect manager approval
+    const pollRef = useRef(null);
+    useEffect(() => {
+        if (!isLogin || UserStatus === "approved") return;
+        const API = process.env.NEXT_PUBLIC_API_URL;
+        const check = async () => {
+            try {
+                const res = await axios.get(`${API}/users/my-profile`, {
+                    headers: { Authorization: `Bearer ${isLogin}` }
+                });
+                const data = res.data;
+                // Find the team entry matching current churchId or take first approved
+                const approvedTeam = (data.teams || []).find(t => t.status === "approved");
+                if (approvedTeam) {
+                    const newChurchId = approvedTeam.churchId;
+                    const newRole = approvedTeam.role || "USER";
+                    localStorage.setItem("user_Taspe7_Status", "approved");
+                    localStorage.setItem("user_Taspe7_ChurchId", newChurchId);
+                    localStorage.setItem("user_Taspe7_Role", newRole);
+                    localStorage.setItem("user_Taspe7_Teams", JSON.stringify(data.teams));
+                    setUserStatus("approved");
+                    setChurchId(newChurchId);
+                    setUserRole(newRole);
+                    setTeams(data.teams);
+                    setJustUnlocked(true);
+                    clearInterval(pollRef.current);
+                }
+            } catch { /* silent */ }
+        };
+        pollRef.current = setInterval(check, 8000);
+        return () => clearInterval(pollRef.current);
+    }, [isLogin, UserStatus]);
 
     const hasTeam = UserStatus === "approved";
     const isManager = UserRole && ["ADMIN", "MANEGER", "PROGRAMER"].includes(UserRole);

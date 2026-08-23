@@ -109,7 +109,7 @@ export default function Register() {
                     localStorage.setItem("user_Taspe7_ID", response?.data?.user?._id);
                     setLogin(response.data.token);
                     setLoading(false);
-                    router.push("/login");
+                    router.push("/");
                 }
             })
             .catch((error) => {
