@@ -80,7 +80,7 @@ export function useChatSocket(teamId, user_id, user_name, token) {
 
         // Basic validation
         if (type === 'text' && !text.trim()) return;
-        if (type === 'audio' && !mediaUrl) return;
+        if ((type === 'audio' || type === 'image') && !mediaUrl) return;
         if (type === 'poll' && !pollData) return;
 
         socketRef.current.emit('send-message', {

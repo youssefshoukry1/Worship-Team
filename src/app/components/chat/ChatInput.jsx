@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Mic, Square, Trash2, Loader2, Pause, Play, Plus, BarChart2, X, CheckSquare } from 'lucide-react';
+import { Send, Mic, Square, Trash2, Loader2, Pause, Play, Plus, BarChart2, X, CheckSquare, Image as ImageIcon } from 'lucide-react';
 import axios from 'axios';
 import { getApiBaseUrl } from '../../utils/apiBase';
 
@@ -147,7 +147,7 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
         try {
             setIsUploading(true);
             const res = await axios.post(`${getApiBaseUrl()}/chat/upload-url`, 
-                { fileSize: blob.size },
+                { fileSize: blob.size, type: 'audio' },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             const { uploadUrl, fileUrl } = res.data;
@@ -157,6 +157,74 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
             console.error("Audio upload failed:", err);
             alert("Failed to upload audio message.");
         } finally {
+            setIsUploading(false);
+        }
+    };
+
+    // --- Image Compression and Upload ---
+    const imageInputRef = useRef(null);
+    
+    const triggerImageUpload = () => {
+        if (imageInputRef.current) {
+            imageInputRef.current.click();
+        }
+        setShowAttachMenu(false);
+    };
+
+    const handleImageSelect = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file || !token) return;
+        
+        try {
+            setIsUploading(true);
+            
+            // Client-Side Canvas Compression to WebP
+            const imageBitmap = await createImageBitmap(file);
+            const canvas = document.createElement('canvas');
+            
+            // Max dimensions to avoid massive files even in WebP
+            const MAX_WIDTH = 1200;
+            const MAX_HEIGHT = 1200;
+            let width = imageBitmap.width;
+            let height = imageBitmap.height;
+            
+            if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+                const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
+                width *= ratio;
+                height *= ratio;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(imageBitmap, 0, 0, width, height);
+            
+            canvas.toBlob(async (blob) => {
+                if (!blob) {
+                    setIsUploading(false);
+                    return alert("Failed to compress image");
+                }
+                
+                try {
+                    const res = await axios.post(`${getApiBaseUrl()}/chat/upload-url`, 
+                        { fileSize: blob.size, type: 'image' },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    );
+                    const { uploadUrl, fileUrl } = res.data;
+                    await axios.put(uploadUrl, blob, { headers: { 'Content-Type': blob.type } });
+                    onSendMessage('', 'image', fileUrl);
+                } catch (uploadErr) {
+                    console.error("Image upload failed:", uploadErr);
+                    alert("Failed to upload image.");
+                } finally {
+                    setIsUploading(false);
+                    e.target.value = ''; // Reset input
+                }
+            }, 'image/webp', 0.8);
+            
+        } catch (err) {
+            console.error("Error processing image:", err);
+            alert("Failed to process image.");
             setIsUploading(false);
         }
     };
@@ -247,8 +315,26 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                                         </div>
                                         <span className="text-xs text-gray-300 group-hover:text-white transition-colors">Poll</span>
                                     </div>
+                                    <div 
+                                        onClick={triggerImageUpload}
+                                        className="flex flex-col items-center gap-2 cursor-pointer group"
+                                    >
+                                        <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                                            <ImageIcon size={24} />
+                                        </div>
+                                        <span className="text-xs text-gray-300 group-hover:text-white transition-colors">Image</span>
+                                    </div>
                                 </div>
                             )}
+                            
+                            {/* Hidden Image Input */}
+                            <input 
+                                type="file" 
+                                ref={imageInputRef} 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={handleImageSelect} 
+                            />
                         </div>
 
                         <form onSubmit={handleSubmit} className="flex-1 bg-[#1e293b] rounded-3xl border border-white/5 focus-within:border-sky-500/50 transition-colors flex items-center px-4 py-1">

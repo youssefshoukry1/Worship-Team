@@ -7,6 +7,7 @@ import ChatArea from '../components/chat/ChatArea';
 import ChatInput from '../components/chat/ChatInput';
 import MainSidebar from '../components/chat/MainSidebar';
 import BottomNav from '../components/chat/BottomNav';
+import BackupModal from '../components/chat/BackupModal';
 import { useChatSocket } from '../hooks/useChatSocket';
 import { Loader2, ArrowLeft, MoreVertical, Phone, Video } from 'lucide-react';
 import axios from 'axios';
@@ -20,6 +21,8 @@ export default function ChatTeamPage() {
 
     // UI State for mobile master-detail view
     const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
+    const [showBackupModal, setShowBackupModal] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
 
     // Require auth
     useEffect(() => {
@@ -121,10 +124,29 @@ export default function ChatTeamPage() {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-1 sm:gap-3 text-gray-400">
+                        <div className="flex items-center gap-1 sm:gap-3 text-gray-400 relative">
                             <button className="p-2 hover:bg-white/10 rounded-full transition hidden sm:block"><Video size={20} /></button>
                             <button className="p-2 hover:bg-white/10 rounded-full transition hidden sm:block"><Phone size={20} /></button>
-                            <button className="p-2 hover:bg-white/10 rounded-full transition"><MoreVertical size={20} /></button>
+                            <button 
+                                onClick={() => setShowDropdown(!showDropdown)}
+                                className="p-2 hover:bg-white/10 rounded-full transition"
+                            >
+                                <MoreVertical size={20} />
+                            </button>
+                            
+                            {showDropdown && (
+                                <div className="absolute right-0 top-full mt-2 w-48 bg-[#1e293b] border border-white/10 rounded-xl shadow-xl overflow-hidden z-50">
+                                    <button 
+                                        onClick={() => {
+                                            setShowBackupModal(true);
+                                            setShowDropdown(false);
+                                        }}
+                                        className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
+                                    >
+                                        Backup & Restore
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ) : (
@@ -164,6 +186,15 @@ export default function ChatTeamPage() {
                         </div>
                     </div>
                 )}
+                
+                <BackupModal 
+                    isOpen={showBackupModal} 
+                    onClose={() => setShowBackupModal(false)} 
+                    token={isLogin} 
+                    userId={user_id} 
+                    activeTeamId={activeTeamId} 
+                    socket={socket?.current} 
+                />
             </div>
 
             <style jsx global>{`
