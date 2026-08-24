@@ -32,19 +32,24 @@ export default function ChatArea({ messages, currentUserId, loading }) {
         if (!pollData || !pollData.options) return null;
 
         const totalVotes = pollData.options.reduce((acc, opt) => acc + (opt.votes?.length || 0), 0);
-        
+
+
+
         // استخراج أعلى خيارين بناءً على عدد المصوتين (لعمل الـ Div الأفقي)
         const topOptions = [...pollData.options]
             .filter(opt => opt.votes?.length > 0)
             .sort((a, b) => b.votes?.length - a.votes?.length)
             .slice(0, 2); // يمكنك تغيير الرقم 2 لعرض أكثر إن أردت
 
-        const handleVote = (optionId) => {
-            // هنا سيتم استدعاء السوكيت الخاص بك لإرسال التصويت
-            // مثال: socket.emit('vote_poll', { messageId: msg._id, optionId, userId: currentUserId });
-            console.log("Voted for option:", optionId);
+        // حط دي في الكومبوننت اللي بتعرض فيه الرسائل
+        const handleVote = (messageId, optionId) => {
+            socket.emit('vote-poll', {
+                teamId: currentTeamId, // الـ ID بتاع التيم الحالي
+                messageId: messageId,
+                optionId: optionId,
+                userId: currentUser._id // الـ ID بتاع اليوزر اللي فاتح دلوقتي
+            });
         };
-
         return (
             <div className="flex flex-col min-w-[240px]">
                 {/* رأس الـ Poll */}
@@ -65,35 +70,37 @@ export default function ChatArea({ messages, currentUserId, loading }) {
                         return (
                             <button
                                 key={option.id}
-                                onClick={() => handleVote(option.id)}
-                                className={`relative w-full text-left overflow-hidden rounded-lg p-2.5 text-sm transition-colors border ${
-                                    hasMyVote 
-                                        ? 'border-sky-400/50 bg-sky-500/10' 
+                                // التعديل هنا: باصينا الـ message._id مع الـ option.id
+                                onClick={() => handleVote(message._id, option.id)}
+                                className={`relative w-full text-left overflow-hidden rounded-lg p-2.5 text-sm transition-colors border ${hasMyVote
+                                        ? 'border-sky-400/50 bg-sky-500/10'
                                         : 'border-white/5 bg-black/20 hover:bg-black/40'
-                                }`}
+                                    }`}
                             >
                                 {/* شريط التقدم الخلفي */}
                                 {votesCount > 0 && (
-                                    <div 
-                                        className="absolute left-0 top-0 bottom-0 bg-sky-500/20 transition-all duration-500" 
+                                    <div
+                                        className="absolute left-0 top-0 bottom-0 bg-sky-500/20 transition-all duration-500"
                                         style={{ width: `${percentage}%` }}
                                     />
                                 )}
-                                
-                                <div className="relative z-10 flex items-center justify-between gap-2">
-                                    <span className="flex items-center gap-2">
-                                        {hasMyVote && <CheckCircle2 size={14} className="text-sky-400 shrink-0" />}
-                                        <span className="break-words">{option.text}</span>
+
+                                {/* المحتوى اللي فوق الشريط (نص الاختيار والنسبة) */}
+                                <div className="relative z-10 flex justify-between items-center">
+                                    <span className={hasMyVote ? 'text-sky-400 font-medium' : 'text-gray-200'}>
+                                        {option.text}
                                     </span>
                                     {votesCount > 0 && (
-                                        <span className="text-xs opacity-70 shrink-0">{votesCount}</span>
+                                        <span className="text-xs text-gray-400">
+                                            {Math.round(percentage)}%
+                                        </span>
                                     )}
                                 </div>
                             </button>
                         );
                     })}
                 </div>
-                
+
                 {/* الديف الصغير الذي طلبته (بالعرض للأعلى تقييماً) */}
                 {topOptions.length > 0 && (
                     <div className="mt-3 pt-2 border-t border-white/10 flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
@@ -119,7 +126,7 @@ export default function ChatArea({ messages, currentUserId, loading }) {
                     <span className="text-gray-500 text-sm">Loading messages...</span>
                 </div>
             )}
-            
+
             {messages.length === 0 && !loading && (
                 <div className="flex-1 flex items-center justify-center">
                     <p className="text-gray-500 text-sm bg-white/5 px-4 py-2 rounded-full">
@@ -131,8 +138,8 @@ export default function ChatArea({ messages, currentUserId, loading }) {
             {messages.map((msg) => {
                 const isMe = msg.senderId === currentUserId;
                 return (
-                    <div 
-                        key={msg._id || msg.createdAt} 
+                    <div
+                        key={msg._id || msg.createdAt}
                         className={`flex flex-col max-w-[85%] md:max-w-[70%] ${isMe ? 'self-end' : 'self-start'}`}
                     >
                         {!isMe && (
@@ -140,11 +147,10 @@ export default function ChatArea({ messages, currentUserId, loading }) {
                                 {msg.senderName}
                             </span>
                         )}
-                        <div className={`relative px-4 py-2.5 rounded-2xl ${
-                            isMe 
-                                ? 'bg-sky-600 text-white rounded-tr-sm' 
-                                : 'bg-[#1e293b] text-gray-200 rounded-tl-sm border border-white/5'
-                        }`}>
+                        <div className={`relative px-4 py-2.5 rounded-2xl ${isMe
+                            ? 'bg-sky-600 text-white rounded-tr-sm'
+                            : 'bg-[#1e293b] text-gray-200 rounded-tl-sm border border-white/5'
+                            }`}>
                             {/* فلترة نوع الرسالة */}
                             {msg.type === 'poll' ? (
                                 <PollMessageBubble msg={msg} isMe={isMe} />
@@ -161,7 +167,7 @@ export default function ChatArea({ messages, currentUserId, loading }) {
                     </div>
                 );
             })}
-            
+
             <div ref={messagesEndRef} />
         </div>
     );
