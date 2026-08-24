@@ -51,7 +51,7 @@ export default function ChatTeamPage() {
         setIsMobileChatOpen(false);
     };
 
-    const { messages, sendMessage, isConnected, loading } = useChatSocket(
+    const { messages, sendMessage, isConnected, loading, socket } = useChatSocket(
         activeTeamId,
         user_id,
         userName,
@@ -138,6 +138,8 @@ export default function ChatTeamPage() {
                             messages={messages}
                             currentUserId={user_id}
                             loading={loading}
+                            socket={socket}
+                            activeTeamId={activeTeamId}
                         />
                         <ChatInput
                             onSendMessage={sendMessage}

@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import AudioMessage from './AudioMessage';
 import { BarChart2, CheckCircle2 } from 'lucide-react';
 
-export default function ChatArea({ messages, currentUserId, loading }) {
+export default function ChatArea({ messages, currentUserId, loading, socket, activeTeamId }) {
     const messagesEndRef = useRef(null);
 
     const scrollToBottom = () => {
@@ -43,11 +43,11 @@ export default function ChatArea({ messages, currentUserId, loading }) {
 
         // حط دي في الكومبوننت اللي بتعرض فيه الرسائل
         const handleVote = (messageId, optionId) => {
-            socket.emit('vote-poll', {
-                teamId: currentTeamId, // الـ ID بتاع التيم الحالي
-                messageId: messageId,
-                optionId: optionId,
-                userId: currentUser._id // الـ ID بتاع اليوزر اللي فاتح دلوقتي
+            socket.current?.emit('vote-poll', {
+                teamId: activeTeamId,
+                messageId,
+                optionId,
+                userId: currentUserId
             });
         };
         return (
@@ -71,10 +71,10 @@ export default function ChatArea({ messages, currentUserId, loading }) {
                             <button
                                 key={option.id}
                                 // التعديل هنا: باصينا الـ message._id مع الـ option.id
-                                onClick={() => handleVote(message._id, option.id)}
+                                onClick={() => handleVote(msg._id, option.id)}
                                 className={`relative w-full text-left overflow-hidden rounded-lg p-2.5 text-sm transition-colors border ${hasMyVote
-                                        ? 'border-sky-400/50 bg-sky-500/10'
-                                        : 'border-white/5 bg-black/20 hover:bg-black/40'
+                                    ? 'border-sky-400/50 bg-sky-500/10'
+                                    : 'border-white/5 bg-black/20 hover:bg-black/40'
                                     }`}
                             >
                                 {/* شريط التقدم الخلفي */}
