@@ -23,8 +23,16 @@ export default function BackupModal({ isOpen, onClose, token, userId, activeTeam
             setProgress(0);
             setStatusText('');
             setIsBackingUp(false);
+        } else if (token) {
+            axios.get(`${getApiBaseUrl()}/users/my-profile`, {
+                headers: { Authorization: `Bearer ${token}` }
+            }).then(res => {
+                if (res.data?.googleDriveTokens?.access_token) {
+                    setIsLinked(true);
+                }
+            }).catch(() => {});
         }
-    }, [isOpen]);
+    }, [isOpen, token]);
 
     useEffect(() => {
         if (!socket || !userId) return;
