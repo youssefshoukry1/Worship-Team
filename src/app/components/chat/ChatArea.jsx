@@ -1,7 +1,8 @@
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
 import AudioMessage from './AudioMessage';
-import { BarChart2, CheckCircle2, Download } from 'lucide-react';
+import ImageMessage from './ImageMessage';
+import { BarChart2, CheckCircle2 } from 'lucide-react';
 
 export default function ChatArea({ messages, currentUserId, loading, socket, activeTeamId }) {
     const messagesEndRef = useRef(null);
@@ -17,24 +18,6 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     const formatTime = (dateString) => {
         const d = new Date(dateString);
         return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    };
-
-    const handleDownloadImage = async (url) => {
-        try {
-            const response = await fetch(url);
-            const blob = await response.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = `chat-image-${Date.now()}.webp`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(blobUrl);
-        } catch (err) {
-            console.error("Download failed:", err);
-            alert("Failed to download image.");
-        }
     };
 
     // هذا الـ Component الداخلي لتشغيل شكل الـ Poll وعرض الديف الأفقي
@@ -180,20 +163,9 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                             {msg.type === 'poll' ? (
                                 <PollMessageBubble msg={msg} isMe={isMe} />
                             ) : msg.type === 'audio' && msg.mediaUrl ? (
-                                <AudioMessage mediaUrl={msg.mediaUrl} />
+                                <AudioMessage mediaUrl={msg.mediaUrl} messageId={msg._id || msg.createdAt} />
                             ) : msg.type === 'image' && msg.mediaUrl ? (
-                                <div className="relative group overflow-hidden rounded-lg mt-1">
-                                    <img src={msg.mediaUrl} alt="Chat image" className="max-w-[200px] sm:max-w-[250px] max-h-[300px] object-cover rounded-lg" loading="lazy" />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                                        <button 
-                                            onClick={() => handleDownloadImage(msg.mediaUrl)} 
-                                            className="bg-sky-500 hover:bg-sky-600 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-105"
-                                            title="Download Image"
-                                        >
-                                            <Download size={20} />
-                                        </button>
-                                    </div>
-                                </div>
+                                <ImageMessage msg={msg} />
                             ) : (
                                 <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
                             )}
