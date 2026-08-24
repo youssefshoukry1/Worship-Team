@@ -21,11 +21,16 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
 
     // هذا الـ Component الداخلي لتشغيل شكل الـ Poll وعرض الديف الأفقي
     const PollMessageBubble = ({ msg, isMe }) => {
-        // فك تشفير البيانات التي أرسلناها كـ JSON string
-        let pollData = null;
-        try {
-            pollData = typeof msg.text === 'string' ? JSON.parse(msg.text) : msg.text;
-        } catch (e) {
+        // Prefer pollData field; fall back to legacy JSON stored in text
+        let pollData = msg.pollData || null;
+        if (!pollData && msg.text) {
+            try {
+                pollData = typeof msg.text === 'string' ? JSON.parse(msg.text) : msg.text;
+            } catch (e) {
+                return <p className="text-sm">Invalid Poll Data</p>;
+            }
+        }
+        if (!pollData) {
             return <p className="text-sm">Invalid Poll Data</p>;
         }
 
@@ -65,7 +70,9 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                     {pollData.options.map((option) => {
                         const votesCount = option.votes?.length || 0;
                         const percentage = totalVotes > 0 ? Math.round((votesCount / totalVotes) * 100) : 0;
-                        const hasMyVote = option.votes?.includes(currentUserId);
+                        const hasMyVote = option.votes?.some(
+                            (voteId) => String(voteId) === String(currentUserId)
+                        );
 
                         return (
                             <button

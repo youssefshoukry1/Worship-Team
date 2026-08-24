@@ -182,7 +182,7 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                 allowMultipleAnswers: allowMultipleAnswers, // ضفنا الداتا دي عشان تتبعت
                 options: validOptions.map((opt, index) => ({ id: index, text: opt, votes: [] }))
             };
-            onSendMessage(JSON.stringify(pollData), 'poll');
+            onSendMessage('', 'poll', null, pollData);
             // تصفير القيم بعد الإرسال
             setShowPollModal(false);
             setPollQuestion('');

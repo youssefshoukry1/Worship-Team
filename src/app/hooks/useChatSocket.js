@@ -75,20 +75,22 @@ export function useChatSocket(teamId, user_id, user_name, token) {
         };
     }, [teamId, user_id]);
 
-    const sendMessage = (text, type = 'text', mediaUrl = null) => {
+    const sendMessage = (text, type = 'text', mediaUrl = null, pollData = null) => {
         if (!socketRef.current || !isConnected || !teamId || !user_id || !user_name) return;
 
         // Basic validation
         if (type === 'text' && !text.trim()) return;
         if (type === 'audio' && !mediaUrl) return;
+        if (type === 'poll' && !pollData) return;
 
         socketRef.current.emit('send-message', {
             teamId,
             senderId: user_id,
             senderName: user_name,
-            text,
+            text: type === 'poll' ? (pollData.question || '') : text,
             type,
-            mediaUrl
+            mediaUrl,
+            pollData: type === 'poll' ? pollData : null
         });
     };
 
