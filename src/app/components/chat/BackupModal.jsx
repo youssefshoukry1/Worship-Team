@@ -45,6 +45,16 @@ export default function BackupModal({ isOpen, onClose, token, userId, activeTeam
         };
     }, [socket, userId]);
 
+    useEffect(() => {
+        const handleMessage = (e) => {
+            if (e.data && e.data.type === 'GOOGLE_DRIVE_LINKED') {
+                setIsLinked(true);
+            }
+        };
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
+
     const handleLinkDrive = async () => {
         try {
             setIsLinking(true);
@@ -53,12 +63,7 @@ export default function BackupModal({ isOpen, onClose, token, userId, activeTeam
             });
             
             if (res.data.url) {
-                // In a real app, you might want to open this in a popup or redirect
-                // For MVP, we redirect and they will come back, or open in new tab and poll.
-                // Opening in a new tab is safer to not lose chat state.
                 window.open(res.data.url, '_blank');
-                // Assume they linked it successfully for the sake of MVP UI demo
-                setIsLinked(true);
             }
         } catch (err) {
             console.error("Failed to get Google Auth URL", err);
