@@ -1,8 +1,8 @@
 'use client';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import AudioMessage from './AudioMessage';
 import ImageMessage from './ImageMessage';
-import { BarChart2, CheckCircle2 } from 'lucide-react';
+import { BarChart2 } from 'lucide-react';
 
 export default function ChatArea({ messages, currentUserId, loading, socket, activeTeamId }) {
     const messagesEndRef = useRef(null);
@@ -20,34 +20,24 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
         return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
-    // هذا الـ Component الداخلي لتشغيل شكل الـ Poll وعرض الديف الأفقي
     const PollMessageBubble = ({ msg, isMe }) => {
-        // Prefer pollData field; fall back to legacy JSON stored in text
         let pollData = msg.pollData || null;
         if (!pollData && msg.text) {
             try {
                 pollData = typeof msg.text === 'string' ? JSON.parse(msg.text) : msg.text;
             } catch (e) {
-                return <p className="text-sm">Invalid Poll Data</p>;
+                return <p className="text-[13px] text-red-400">Invalid Poll Data</p>;
             }
         }
-        if (!pollData) {
-            return <p className="text-sm">Invalid Poll Data</p>;
-        }
-
         if (!pollData || !pollData.options) return null;
 
         const totalVotes = pollData.options.reduce((acc, opt) => acc + (opt.votes?.length || 0), 0);
 
-
-
-        // استخراج أعلى خيارين بناءً على عدد المصوتين (لعمل الـ Div الأفقي)
         const topOptions = [...pollData.options]
             .filter(opt => opt.votes?.length > 0)
             .sort((a, b) => b.votes?.length - a.votes?.length)
-            .slice(0, 2); // يمكنك تغيير الرقم 2 لعرض أكثر إن أردت
+            .slice(0, 2);
 
-        // حط دي في الكومبوننت اللي بتعرض فيه الرسائل
         const handleVote = (messageId, optionId) => {
             socket.current?.emit('vote-poll', {
                 teamId: activeTeamId,
@@ -56,14 +46,20 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                 userId: currentUserId
             });
         };
+
         return (
-            <div className="flex flex-col min-w-[240px]">
+            // تم تصغير العرض ليكون ملموم أكثر
+            <div className="flex flex-col min-w-[200px] sm:min-w-[240px]">
                 {/* رأس الـ Poll */}
-                <div className="flex items-start gap-2 mb-3">
-                    <div className="mt-1 bg-white/10 p-1.5 rounded-full shrink-0">
-                        <BarChart2 size={16} className={isMe ? "text-sky-200" : "text-sky-400"} />
+                <div className="flex items-start gap-2 mb-2.5">
+                    <div className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${isMe ? 'bg-indigo-500/20 text-indigo-100' : 'bg-slate-700/50 text-indigo-400'}`}>
+                        {/* تصغير حجم الأيقونة */}
+                        <BarChart2 size={16} />
                     </div>
-                    <span className="font-semibold text-[15px]">{pollData.question}</span>
+                    {/* تصغير حجم الخط */}
+                    <span className="font-semibold text-[14px] leading-snug">
+                        {pollData.question}
+                    </span>
                 </div>
 
                 {/* خيارات التصويت */}
@@ -78,28 +74,33 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                         return (
                             <button
                                 key={option.id}
-                                // التعديل هنا: باصينا الـ message._id مع الـ option.id
                                 onClick={() => handleVote(msg._id, option.id)}
-                                className={`relative w-full text-left overflow-hidden rounded-lg p-2.5 text-sm transition-colors border ${hasMyVote
-                                    ? 'border-sky-400/50 bg-sky-500/10'
-                                    : 'border-white/5 bg-black/20 hover:bg-black/40'
-                                    }`}
+                                // تقليل الـ Padding الداخلي للخيارات (p-2 بدل p-3)
+                                className={`group relative w-full text-left overflow-hidden rounded-xl px-2.5 py-1.5 text-[13px] transition-all duration-300 ease-out active:scale-[0.98] border ${
+                                    hasMyVote
+                                        ? 'border-indigo-500/40 bg-indigo-500/15 shadow-[0_0_15px_rgba(99,102,241,0.05)]'
+                                        : 'border-slate-700/50 bg-slate-800/40 hover:bg-slate-700/60 hover:border-slate-600'
+                                }`}
                             >
-                                {/* شريط التقدم الخلفي */}
                                 {votesCount > 0 && (
                                     <div
-                                        className="absolute left-0 top-0 bottom-0 bg-sky-500/20 transition-all duration-500"
+                                        className={`absolute left-0 top-0 bottom-0 transition-all duration-700 ease-out ${
+                                            hasMyVote ? 'bg-indigo-500/20' : 'bg-slate-600/20'
+                                        }`}
                                         style={{ width: `${percentage}%` }}
                                     />
                                 )}
 
-                                {/* المحتوى اللي فوق الشريط (نص الاختيار والنسبة) */}
-                                <div className="relative z-10 flex justify-between items-center">
-                                    <span className={hasMyVote ? 'text-sky-400 font-medium' : 'text-gray-200'}>
+                                <div className="relative z-10 flex justify-between items-center gap-2">
+                                    <span className={`font-medium transition-colors duration-300 ${
+                                        hasMyVote ? 'text-indigo-300' : 'text-slate-200 group-hover:text-white'
+                                    }`}>
                                         {option.text}
                                     </span>
                                     {votesCount > 0 && (
-                                        <span className="text-xs text-gray-400">
+                                        <span className={`text-[11px] font-medium ${
+                                            hasMyVote ? 'text-indigo-300' : 'text-slate-400'
+                                        }`}>
                                             {Math.round(percentage)}%
                                         </span>
                                     )}
@@ -109,15 +110,19 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                     })}
                 </div>
 
-                {/* الديف الصغير الذي طلبته (بالعرض للأعلى تقييماً) */}
+                {/* الديف الصغير */}
                 {topOptions.length > 0 && (
-                    <div className="mt-3 pt-2 border-t border-white/10 flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
-                        <span className="text-[10px] text-gray-400 uppercase tracking-wider shrink-0">Top Rated:</span>
+                    // تقليل الـ Margin والـ Padding للـ Top Rated
+                    <div className="mt-2.5 pt-2 border-t border-slate-700/50 flex items-center gap-2 overflow-x-auto custom-scrollbar pb-0.5">
+                        <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider shrink-0">
+                            Top
+                        </span>
                         <div className="flex gap-1.5">
                             {topOptions.map((opt, idx) => (
-                                <div key={idx} className="flex items-center gap-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-md text-[11px] whitespace-nowrap">
+                                <div key={idx} className="flex items-center gap-1 bg-slate-800/80 text-slate-300 border border-slate-700 px-2 py-0.5 rounded-md text-[10px] whitespace-nowrap shadow-sm">
                                     <span className="truncate max-w-[80px]" title={opt.text}>{opt.text}</span>
-                                    <span className="font-bold">({opt.votes?.length})</span>
+                                    <span className="text-slate-500 font-medium">•</span>
+                                    <span className="font-bold text-indigo-400">{opt.votes?.length}</span>
                                 </div>
                             ))}
                         </div>
@@ -128,16 +133,19 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     };
 
     return (
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#0b0f19] custom-scrollbar flex flex-col gap-3">
+        /* تقليل الـ padding العام والـ gap بين الرسايل */
+        <div className="flex-1 overflow-y-auto p-3 md:p-4 bg-slate-950 custom-scrollbar flex flex-col gap-3">
             {loading && (
-                <div className="flex justify-center my-4">
-                    <span className="text-gray-500 text-sm">Loading messages...</span>
+                <div className="flex justify-center my-2">
+                    <div className="bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-800">
+                        <span className="text-slate-400 text-xs animate-pulse">Loading messages...</span>
+                    </div>
                 </div>
             )}
 
             {messages.length === 0 && !loading && (
                 <div className="flex-1 flex items-center justify-center">
-                    <p className="text-gray-500 text-sm bg-white/5 px-4 py-2 rounded-full">
+                    <p className="text-slate-400 text-xs bg-slate-900/50 border border-slate-800 px-4 py-2 rounded-full shadow-sm">
                         No messages yet. Say hi!
                     </p>
                 </div>
@@ -148,18 +156,21 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                 return (
                     <div
                         key={msg._id || msg.createdAt}
-                        className={`flex flex-col max-w-[85%] md:max-w-[70%] ${isMe ? 'self-end' : 'self-start'}`}
+                        // تقليل أقصى عرض للرسالة لـ 75% عالموبايل و 55% عالديسك توب
+                        className={`flex flex-col max-w-[75%] md:max-w-[55%] ${isMe ? 'self-end' : 'self-start'}`}
                     >
                         {!isMe && (
-                            <span className="text-xs text-sky-400 ml-1 mb-1 font-medium">
+                            <span className="text-[10px] text-slate-400 ml-1.5 mb-1 font-medium tracking-wide">
                                 {msg.senderName}
                             </span>
                         )}
-                        <div className={`relative px-4 py-2.5 rounded-2xl ${isMe
-                            ? 'bg-sky-600 text-white rounded-tr-sm'
-                            : 'bg-[#1e293b] text-gray-200 rounded-tl-sm border border-white/5'
-                            }`}>
-                            {/* فلترة نوع الرسالة */}
+                        {/* تقليل الـ Padding الداخلي للرسالة نفسها */}
+                        <div className={`relative px-3 py-2 shadow-sm ${
+                            isMe
+                                ? 'bg-indigo-600 text-indigo-50 rounded-2xl rounded-tr-sm'
+                                : 'bg-slate-800/90 text-slate-200 rounded-2xl rounded-tl-sm border border-slate-700/50'
+                        }`}>
+                            
                             {msg.type === 'poll' ? (
                                 <PollMessageBubble msg={msg} isMe={isMe} />
                             ) : msg.type === 'audio' && msg.mediaUrl ? (
@@ -167,10 +178,15 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                             ) : msg.type === 'image' && msg.mediaUrl ? (
                                 <ImageMessage msg={msg} />
                             ) : (
-                                <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
+                                // تصغير حجم خط النص العادي ليكون متناسق ومريح
+                                <p className="text-[14px] leading-snug whitespace-pre-wrap break-words">
+                                    {msg.text}
+                                </p>
                             )}
 
-                            <div className={`text-[10px] mt-1.5 text-right ${isMe ? 'text-sky-200' : 'text-gray-500'}`}>
+                            <div className={`text-[9px] mt-1 text-right font-medium ${
+                                isMe ? 'text-indigo-200/70' : 'text-slate-500'
+                            }`}>
                                 {formatTime(msg.createdAt)}
                             </div>
                         </div>
@@ -178,7 +194,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                 );
             })}
 
-            <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} className="h-1" />
         </div>
     );
 }

@@ -15,22 +15,20 @@ export default function AudioMessage({ mediaUrl, messageId }) {
     useEffect(() => {
         if (!waveformRef.current || !localUrl) return;
 
-        // Initialize wavesurfer
+        // تعديل الألوان لتناسب الـ Theme الجديد وتقليل الارتفاع (height)
         const wavesurfer = WaveSurfer.create({
             container: waveformRef.current,
-            waveColor: '#38bdf8', // sky-400
-            progressColor: '#0284c7', // sky-600
-            cursorColor: '#0284c7',
+            waveColor: '#64748b',      // slate-500
+            progressColor: '#818cf8',  // indigo-400
+            cursorColor: '#6366f1',    // indigo-500
             barWidth: 2,
             barGap: 2,
             barRadius: 2,
-            height: 30,
+            height: 24,                // تم تصغير الارتفاع من 30 لـ 24
             normalize: true,
         });
 
         wavesurferRef.current = wavesurfer;
-
-        // Load the audio file from local storage object URL
         wavesurfer.load(localUrl);
 
         wavesurfer.on('ready', () => {
@@ -54,31 +52,35 @@ export default function AudioMessage({ mediaUrl, messageId }) {
         }
     };
 
+    // تصغير رسالة الخطأ
     if (error) {
         return (
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-black/20 border border-white/5 text-gray-400 mt-1 max-w-[200px]">
-                <CloudOff size={20} className="shrink-0" />
-                <span className="text-[10px] leading-tight">Audio expired or deleted. Restore from backup.</span>
+            <div className="flex items-center gap-2 p-1.5 px-2.5 rounded-lg bg-slate-800/40 border border-slate-700/50 text-slate-400 mt-1 max-w-[180px]">
+                <CloudOff size={16} className="shrink-0" />
+                <span className="text-[10px] leading-tight">Audio expired.</span>
             </div>
         );
     }
 
     return (
-        <div className="flex items-center gap-3 w-48 md:w-56 mt-1 relative">
+        // تقليل الـ width العام للعنصر
+        <div className="flex items-center gap-2.5 w-40 md:w-48 mt-1 relative">
             <button
                 onClick={togglePlay}
                 disabled={!isReady || loading}
-                className="w-10 h-10 shrink-0 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 relative"
+                // تصغير الزرار من w-10 h-10 لـ w-8 h-8 وجعله أنعم
+                className="w-8 h-8 shrink-0 bg-indigo-500/20 hover:bg-indigo-500/30 rounded-full flex items-center justify-center transition-all duration-300 ease-out active:scale-95 disabled:opacity-50 relative"
             >
                 {loading ? (
-                    <Loader2 size={18} className="text-white animate-spin" />
+                    <Loader2 size={14} className="text-indigo-200 animate-spin" />
                 ) : isPlaying ? (
-                    <Pause size={18} className="text-white" />
+                    <Pause size={14} className="text-indigo-200" />
                 ) : (
-                    <Play size={18} className="text-white ml-1" />
+                    <Play size={14} className="text-indigo-200 ml-0.5" />
                 )}
             </button>
-            <div className="flex-1 min-w-[120px] max-w-[200px]" ref={waveformRef}></div>
+            {/* تقليل مساحة الـ waveform */}
+            <div className="flex-1 min-w-[100px] max-w-[150px]" ref={waveformRef}></div>
         </div>
     );
 }

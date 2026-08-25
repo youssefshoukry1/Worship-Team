@@ -61,6 +61,15 @@ export function useChatSocket(teamId, user_id, user_name, token) {
     const [isConnected, setIsConnected] = useState(false);
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [prevTeamId, setPrevTeamId] = useState(teamId);
+
+    // Reset state immediately on team switch to avoid showing previous team's data
+    if (teamId !== prevTeamId) {
+        setPrevTeamId(teamId);
+        setMessages([]);
+        setLoading(true);
+        setIsConnected(false);
+    }
 
     // Initial fetch of messages with offline-first support
     useEffect(() => {

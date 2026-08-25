@@ -1,24 +1,34 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Mic, Square, Trash2, Loader2, Pause, Play, Plus, BarChart2, X, CheckSquare, Image as ImageIcon } from 'lucide-react';
+import { 
+    Send, Mic, Square, Trash2, Loader2, Pause, Play, Plus, 
+    BarChart2, X, CheckSquare, Image as ImageIcon, Lock, 
+    ChevronUp, ChevronLeft 
+} from 'lucide-react';
 import axios from 'axios';
 import { getApiBaseUrl } from '../../utils/apiBase';
 
 export default function ChatInput({ onSendMessage, disabled, token }) {
     const [text, setText] = useState('');
     
-    // Voice Recording State
+    // Voice Recording & Drag States
     const [isRecording, setIsRecording] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
     const [isUploading, setIsUploading] = useState(false);
+    
+    // UI/UX States for WhatsApp feel
+    const [isLocked, setIsLocked] = useState(false);
+    const [isPressing, setIsPressing] = useState(false);
+    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+    const startPos = useRef({ x: 0, y: 0 });
+    const pressTimer = useRef(null);
     
     // Attach Menu & Poll State
     const [showAttachMenu, setShowAttachMenu] = useState(false);
     const [showPollModal, setShowPollModal] = useState(false);
     const [pollQuestion, setPollQuestion] = useState('');
     const [pollOptions, setPollOptions] = useState(['', '']);
-    // الاستيت الجديدة بتاعة الاختيار المتعدد (الـ default فولس)
     const [allowMultipleAnswers, setAllowMultipleAnswers] = useState(false);
 
     const mediaRecorderRef = useRef(null);
@@ -27,6 +37,7 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
     const audioPreviewRef = useRef(null);
     const cancelRecordingRef = useRef(false);
     const attachMenuRef = useRef(null);
+    const imageInputRef = useRef(null);
 
     // Close attach menu when clicking outside
     useEffect(() => {
@@ -58,7 +69,7 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
         }
     };
 
-    // --- Audio Functions ---
+    // --- Audio Logic ---
     const startRecording = async () => { 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -100,6 +111,9 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
         setIsRecording(false);
         setIsPaused(false);
         setRecordingTime(0);
+        setIsLocked(false);
+        setIsPressing(false);
+        setDragOffset({ x: 0, y: 0 });
         if (timerRef.current) clearInterval(timerRef.current);
     };
 
@@ -161,9 +175,68 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
         }
     };
 
-    // --- Image Compression and Upload ---
-    const imageInputRef = useRef(null);
-    
+    // --- Pointer Events (Drag & Lock UX) ---
+    const handlePointerDown = (e) => {
+        if (disabled || isUploading) return;
+        
+        if (e.currentTarget.setPointerCapture) {
+            e.currentTarget.setPointerCapture(e.pointerId);
+        }
+        
+        startPos.current = { x: e.clientX, y: e.clientY };
+        setIsPressing(true);
+        setIsLocked(false);
+        setDragOffset({ x: 0, y: 0 });
+        pressTimer.current = Date.now();
+        startRecording();
+    };
+
+    const handlePointerMove = (e) => {
+        if (!isPressing || isLocked) return;
+        
+        const deltaX = e.clientX - startPos.current.x;
+        const deltaY = e.clientY - startPos.current.y;
+        
+        setDragOffset({ x: deltaX, y: deltaY });
+
+        // Slide up to lock
+        if (deltaY < -60) {
+            setIsLocked(true);
+            setIsPressing(false);
+            setDragOffset({ x: 0, y: 0 });
+            if (e.currentTarget.releasePointerCapture) {
+                e.currentTarget.releasePointerCapture(e.pointerId);
+            }
+        } 
+        // Slide left to cancel
+        else if (deltaX < -100) {
+            cancelRecording();
+            if (e.currentTarget.releasePointerCapture) {
+                e.currentTarget.releasePointerCapture(e.pointerId);
+            }
+        }
+    };
+
+    const handlePointerUp = (e) => {
+        if (!isPressing) return;
+        
+        if (e.currentTarget.releasePointerCapture) {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+        }
+        
+        const pressDuration = Date.now() - (pressTimer.current || 0);
+        
+        if (pressDuration < 300) {
+            // Single quick tap => lock and show controls
+            setIsLocked(true);
+            setIsPressing(false);
+        } else {
+            // Held and released without locking => send automatic
+            stopAndSendRecording();
+        }
+    };
+
+    // --- Image Processing ---
     const triggerImageUpload = () => {
         if (imageInputRef.current) {
             imageInputRef.current.click();
@@ -177,12 +250,9 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
         
         try {
             setIsUploading(true);
-            
-            // Client-Side Canvas Compression to WebP
             const imageBitmap = await createImageBitmap(file);
             const canvas = document.createElement('canvas');
             
-            // Max dimensions to avoid massive files even in WebP
             const MAX_WIDTH = 1200;
             const MAX_HEIGHT = 1200;
             let width = imageBitmap.width;
@@ -204,7 +274,6 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                     setIsUploading(false);
                     return alert("Failed to compress image");
                 }
-                
                 try {
                     const res = await axios.post(`${getApiBaseUrl()}/chat/upload-url`, 
                         { fileSize: blob.size, type: 'image' },
@@ -218,7 +287,7 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                     alert("Failed to upload image.");
                 } finally {
                     setIsUploading(false);
-                    e.target.value = ''; // Reset input
+                    e.target.value = ''; 
                 }
             }, 'image/webp', 0.8);
             
@@ -247,11 +316,10 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
         if (pollQuestion.trim() && validOptions.length >= 2) {
             const pollData = {
                 question: pollQuestion,
-                allowMultipleAnswers: allowMultipleAnswers, // ضفنا الداتا دي عشان تتبعت
+                allowMultipleAnswers: allowMultipleAnswers,
                 options: validOptions.map((opt, index) => ({ id: index, text: opt, votes: [] }))
             };
             onSendMessage('', 'poll', null, pollData);
-            // تصفير القيم بعد الإرسال
             setShowPollModal(false);
             setPollQuestion('');
             setPollOptions(['', '']);
@@ -263,16 +331,26 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
         <div className="bg-[#0f172a] p-3 md:p-4 border-t border-white/10 shrink-0 relative">
             <audio ref={audioPreviewRef} className="hidden" />
             
-            <div className="max-w-4xl mx-auto flex items-end gap-2">
-                {isRecording ? (
-                    <div className="flex-1 bg-[#1e293b] rounded-3xl flex items-center justify-between px-2 sm:px-4 py-2 border border-white/5 transition-all">
-                        <button type="button" onClick={cancelRecording} className="text-gray-400 hover:text-red-400 p-2 transition-colors rounded-full hover:bg-white/5" title="Cancel recording">
+            <div className="max-w-4xl mx-auto flex items-end gap-2 relative">
+                
+                {isLocked ? (
+                    /* Locked UI (WhatsApp Style) */
+                    <div className="flex-1 bg-[#1e293b] rounded-3xl flex items-center justify-between px-2 sm:px-4 py-2 border border-white/5 transition-all animate-in fade-in zoom-in duration-200">
+                        <button type="button" onClick={cancelRecording} className="text-gray-400 hover:text-red-400 p-2 transition-colors rounded-full hover:bg-white/5" title="Delete recording">
                             <Trash2 size={20} />
                         </button>
-                        <div className="flex items-center gap-3">
+                        
+                        <div className="flex-1 flex items-center justify-center gap-3">
                             <div className={`w-2.5 h-2.5 rounded-full ${!isPaused ? 'bg-red-500 animate-pulse' : 'bg-gray-500'}`} />
                             <span className="text-white font-mono text-sm">{formatTime(recordingTime)}</span>
+                            {/* Dummy waveform for aesthetics */}
+                            <div className="hidden sm:flex items-center gap-1 opacity-60">
+                                {[1,2,3,4,3,2,1,2,3,2,1].map((h, i) => (
+                                    <div key={i} className="w-1 bg-sky-400 rounded-full" style={{ height: `${h * 4}px` }} />
+                                ))}
+                            </div>
                         </div>
+
                         <div className="flex items-center gap-1 sm:gap-2">
                             {isPaused && (
                                 <button type="button" onClick={playPreview} className="w-10 h-10 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 flex items-center justify-center text-emerald-400 transition-colors">
@@ -289,36 +367,26 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                     </div>
                 ) : (
                     <>
-                        {/* 1. زر الـ Attach (علامة +) */}
+                        {/* Attach Menu */}
                         <div className="relative shrink-0" ref={attachMenuRef}>
                             <button
                                 type="button"
                                 onClick={() => setShowAttachMenu(!showAttachMenu)}
                                 className={`p-3 rounded-full transition-all duration-300 ${showAttachMenu ? 'bg-white/10 text-white rotate-45' : 'text-gray-400 hover:text-sky-400 hover:bg-white/5'}`}
-                                disabled={disabled || isUploading}
+                                disabled={disabled || isUploading || isPressing}
                             >
                                 <Plus size={22} />
                             </button>
 
-                            {/* 2. الـ Panel السريعة */}
                             {showAttachMenu && (
                                 <div className="absolute bottom-14 left-0 bg-[#1e293b] border border-white/10 rounded-2xl p-3 shadow-xl flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-200 z-40">
-                                    <div 
-                                        onClick={() => {
-                                            setShowPollModal(true);
-                                            setShowAttachMenu(false);
-                                        }}
-                                        className="flex flex-col items-center gap-2 cursor-pointer group"
-                                    >
+                                    <div onClick={() => { setShowPollModal(true); setShowAttachMenu(false); }} className="flex flex-col items-center gap-2 cursor-pointer group">
                                         <div className="w-12 h-12 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center group-hover:bg-sky-500 group-hover:text-white transition-all">
                                             <BarChart2 size={24} />
                                         </div>
                                         <span className="text-xs text-gray-300 group-hover:text-white transition-colors">Poll</span>
                                     </div>
-                                    <div 
-                                        onClick={triggerImageUpload}
-                                        className="flex flex-col items-center gap-2 cursor-pointer group"
-                                    >
+                                    <div onClick={triggerImageUpload} className="flex flex-col items-center gap-2 cursor-pointer group">
                                         <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all">
                                             <ImageIcon size={24} />
                                         </div>
@@ -327,17 +395,11 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                                 </div>
                             )}
                             
-                            {/* Hidden Image Input */}
-                            <input 
-                                type="file" 
-                                ref={imageInputRef} 
-                                accept="image/*" 
-                                className="hidden" 
-                                onChange={handleImageSelect} 
-                            />
+                            <input type="file" ref={imageInputRef} accept="image/*" className="hidden" onChange={handleImageSelect} />
                         </div>
 
-                        <form onSubmit={handleSubmit} className="flex-1 bg-[#1e293b] rounded-3xl border border-white/5 focus-within:border-sky-500/50 transition-colors flex items-center px-4 py-1">
+                        {/* Main Text Input area */}
+                        <form onSubmit={handleSubmit} className="flex-1 relative bg-[#1e293b] rounded-3xl border border-white/5 focus-within:border-sky-500/50 transition-colors flex items-center px-4 py-1">
                             <textarea
                                 value={text}
                                 onChange={(e) => setText(e.target.value)}
@@ -350,39 +412,81 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                                 placeholder="Type a message..."
                                 className="w-full bg-transparent text-white text-sm py-3 focus:outline-none resize-none max-h-32 custom-scrollbar"
                                 rows={1}
-                                disabled={disabled || isUploading}
+                                disabled={disabled || isUploading || isPressing}
                             />
-                        </form>
 
-                        <button
-                            type="button"
-                            onClick={startRecording}
-                            title="Record voice message"
-                            className="p-3 text-gray-400 hover:text-sky-400 hover:bg-white/5 rounded-full transition-colors shrink-0"
-                            disabled={disabled || isUploading}
-                        >
-                            <Mic size={22} />
-                        </button>
+                            {/* Dragging Overlay (Slide to Cancel) covering input */}
+                            {isPressing && (
+                                <div className="absolute inset-0 bg-[#1e293b] rounded-3xl flex items-center justify-between px-4 z-10 pointer-events-none overflow-hidden">
+                                    <div 
+                                        className="flex items-center text-gray-400 gap-2 whitespace-nowrap"
+                                        style={{ transform: `translateX(${Math.min(0, dragOffset.x)}px)`, opacity: 1 - Math.abs(dragOffset.x)/100 }}
+                                    >
+                                        <ChevronLeft size={20} className="animate-pulse" />
+                                        <span className="text-sm font-medium">Slide to cancel</span>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2 mr-6">
+                                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                        <span className="text-white font-mono">{formatTime(recordingTime)}</span>
+                                    </div>
+                                </div>
+                            )}
+                        </form>
                     </>
                 )}
 
-                {!isRecording && (
-                    <button
-                        type="button"
-                        onClick={handleSubmit}
-                        disabled={(!text.trim() && !isRecording) || disabled || isUploading}
-                        className={`p-3 rounded-full shrink-0 flex items-center justify-center transition-all ${
-                            text.trim() && !disabled && !isUploading
-                                ? 'bg-sky-500 text-white hover:bg-sky-600 shadow-lg' 
-                                : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                        }`}
-                    >
-                        {isUploading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className="ml-1" />}
-                    </button>
+                {/* Right Action Area: Text Send Button or Audio Mic Button */}
+                {!isLocked && (
+                    <div className="relative shrink-0">
+                        {text.trim() && !isRecording ? (
+                            <button
+                                type="button"
+                                onClick={handleSubmit}
+                                disabled={disabled || isUploading}
+                                className="p-3 rounded-full flex items-center justify-center transition-all bg-sky-500 text-white hover:bg-sky-600 shadow-lg"
+                            >
+                                {isUploading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className="ml-1" />}
+                            </button>
+                        ) : (
+                            <div className="relative flex items-center justify-center">
+                                {/* Slide up to lock indicator */}
+                                {isPressing && (
+                                    <div 
+                                        className="absolute -top-20 flex flex-col items-center gap-2 transition-transform duration-75 pointer-events-none"
+                                        style={{ transform: `translateY(${Math.min(0, dragOffset.y)}px)`, opacity: 1 - Math.abs(dragOffset.y)/60 }}
+                                    >
+                                        <div className="bg-[#1e293b] p-3 rounded-full border border-white/10 shadow-lg animate-bounce">
+                                            <Lock size={16} className="text-gray-400" />
+                                        </div>
+                                        <ChevronUp size={16} className="text-gray-500 animate-pulse" />
+                                    </div>
+                                )}
+                                
+                                <button
+                                    type="button"
+                                    onPointerDown={handlePointerDown}
+                                    onPointerMove={handlePointerMove}
+                                    onPointerUp={handlePointerUp}
+                                    onPointerCancel={handlePointerUp}
+                                    title="Record voice message"
+                                    className={`p-3 rounded-full transition-all duration-200 shrink-0 select-none ${
+                                        isPressing 
+                                            ? 'bg-sky-500 text-white scale-125 shadow-xl shadow-sky-500/20 z-20' 
+                                            : 'text-gray-400 hover:text-sky-400 hover:bg-white/5'
+                                    }`}
+                                    disabled={disabled || isUploading}
+                                    style={{ touchAction: 'none' }} 
+                                >
+                                    <Mic size={isPressing ? 24 : 22} />
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
 
-            {/* 3. نافذة الـ Poll Modal */}
+            {/* Poll Modal remains strictly unchanged */}
             {showPollModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
                     <div className="bg-[#1e293b] rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-white/10 animate-in zoom-in-95 duration-200">
@@ -432,7 +536,6 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                                 )}
                             </div>
 
-                            {/* التبديل بتاع الاختيار المتعدد ضفناه هنا */}
                             <div className="pt-2 border-t border-white/5 mt-2">
                                 <label className="flex items-center gap-2 cursor-pointer group">
                                     <div className="relative flex items-center justify-center">
