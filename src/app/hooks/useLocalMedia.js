@@ -86,7 +86,7 @@ export function useLocalMedia(mediaUrl, messageId) {
                                 directory: Directory.Data,
                                 recursive: true
                             });
-                        } catch (e) {}
+                        } catch (e) { }
 
                         // Save permanently to native disk
                         await Filesystem.writeFile({

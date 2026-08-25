@@ -23,7 +23,7 @@ const saveLocalMessages = async (teamId, messages) => {
                     directory: Directory.Data,
                     recursive: true
                 });
-            } catch (e) {}
+            } catch (e) { }
 
             await Filesystem.writeFile({
                 path: `wasla_chats/${getCacheFilename(teamId)}`,
@@ -87,7 +87,7 @@ export function useChatSocket(teamId, user_id, user_name, token) {
                 const res = await axios.get(`${API_URL}/chat/messages?teamId=${teamId}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                
+
                 const remoteMsgs = res.data.messages || [];
 
                 if (isMounted) {
