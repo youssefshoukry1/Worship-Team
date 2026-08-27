@@ -12,7 +12,7 @@ export default function PageTransition({ children }) {
                 initial={{ opacity: 0, filter: "blur(12px)" }}
                 animate={{ opacity: 1, filter: "blur(0px)" }}
                 transition={{ duration: 0.5, ease: "easeInOut" }}
-                className="min-h-screen w-full"
+                className="h-full w-full"
             >
                 {children}
             </motion.div>

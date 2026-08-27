@@ -1,19 +1,80 @@
 'use client';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import AudioMessage from './AudioMessage';
 import ImageMessage from './ImageMessage';
-import { BarChart2 } from 'lucide-react';
+import { BarChart2, ChevronDown, Clock, Check } from 'lucide-react';
 
 export default function ChatArea({ messages, currentUserId, loading, socket, activeTeamId }) {
+    const scrollRef = useRef(null);
     const messagesEndRef = useRef(null);
+    const isAtBottomRef = useRef(true);
+    const prevMsgCountRef = useRef(0);
+    const initialLoadDoneRef = useRef(false);
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [showScrollBtn, setShowScrollBtn] = useState(false);
 
+    // Check if user is near the bottom (within 100px)
+    const checkIfAtBottom = useCallback(() => {
+        const el = scrollRef.current;
+        if (!el) return true;
+        return el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    }, []);
+
+    const scrollToBottom = useCallback((instant = false) => {
+        messagesEndRef.current?.scrollIntoView({ behavior: instant ? 'instant' : 'smooth' });
+        setUnreadCount(0);
+        setShowScrollBtn(false);
+        isAtBottomRef.current = true;
+    }, []);
+
+    // On scroll: update isAtBottom and clear badge when user scrolls to bottom
+    const handleScroll = useCallback(() => {
+        const atBottom = checkIfAtBottom();
+        isAtBottomRef.current = atBottom;
+        if (atBottom) {
+            setUnreadCount(0);
+            setShowScrollBtn(false);
+        }
+    }, [checkIfAtBottom]);
+
+    // Initial load: scroll to bottom instantly (no animation)
     useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+        if (!loading && messages.length > 0 && !initialLoadDoneRef.current) {
+            initialLoadDoneRef.current = true;
+            prevMsgCountRef.current = messages.length;
+            scrollToBottom(true);
+        }
+    }, [loading, messages.length, scrollToBottom]);
+
+    // Reset when team changes (messages go from non-zero back to loading)
+    useEffect(() => {
+        if (loading) {
+            initialLoadDoneRef.current = false;
+            prevMsgCountRef.current = 0;
+            setUnreadCount(0);
+            setShowScrollBtn(false);
+            isAtBottomRef.current = true;
+        }
+    }, [loading]);
+
+    // New messages while chat is open
+    useEffect(() => {
+        if (!initialLoadDoneRef.current) return;
+        const newCount = messages.length - prevMsgCountRef.current;
+        if (newCount <= 0) return;
+
+        prevMsgCountRef.current = messages.length;
+
+        if (isAtBottomRef.current) {
+            // User is at bottom → scroll down instantly to latest
+            scrollToBottom(true);
+        } else {
+            // User scrolled up → show badge
+            setUnreadCount(c => c + newCount);
+            setShowScrollBtn(true);
+        }
+    }, [messages.length, scrollToBottom]);
 
     const formatTime = (dateString) => {
         const d = new Date(dateString);
@@ -48,21 +109,16 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
         };
 
         return (
-            // تم تصغير العرض ليكون ملموم أكثر
             <div className="flex flex-col min-w-[200px] sm:min-w-[240px]">
-                {/* رأس الـ Poll */}
                 <div className="flex items-start gap-2 mb-2.5">
                     <div className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${isMe ? 'bg-indigo-500/20 text-indigo-100' : 'bg-slate-700/50 text-indigo-400'}`}>
-                        {/* تصغير حجم الأيقونة */}
                         <BarChart2 size={16} />
                     </div>
-                    {/* تصغير حجم الخط */}
                     <span className="font-semibold text-[14px] leading-snug">
                         {pollData.question}
                     </span>
                 </div>
 
-                {/* خيارات التصويت */}
                 <div className="space-y-1.5">
                     {pollData.options.map((option) => {
                         const votesCount = option.votes?.length || 0;
@@ -75,7 +131,6 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                             <button
                                 key={option.id}
                                 onClick={() => handleVote(msg._id, option.id)}
-                                // تقليل الـ Padding الداخلي للخيارات (p-2 بدل p-3)
                                 className={`group relative w-full text-left overflow-hidden rounded-xl px-2.5 py-1.5 text-[13px] transition-all duration-300 ease-out active:scale-[0.98] border ${
                                     hasMyVote
                                         ? 'border-indigo-500/40 bg-indigo-500/15 shadow-[0_0_15px_rgba(99,102,241,0.05)]'
@@ -110,9 +165,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                     })}
                 </div>
 
-                {/* الديف الصغير */}
                 {topOptions.length > 0 && (
-                    // تقليل الـ Margin والـ Padding للـ Top Rated
                     <div className="mt-2.5 pt-2 border-t border-slate-700/50 flex items-center gap-2 overflow-x-auto custom-scrollbar pb-0.5">
                         <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider shrink-0">
                             Top
@@ -133,68 +186,90 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     };
 
     return (
-        /* تقليل الـ padding العام والـ gap بين الرسايل */
-        <div className="flex-1 overflow-y-auto p-3 md:p-4 bg-slate-950 custom-scrollbar flex flex-col gap-3">
-            {loading && (
-                <div className="flex justify-center my-2">
-                    <div className="bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-800">
-                        <span className="text-slate-400 text-xs animate-pulse">Loading messages...</span>
-                    </div>
-                </div>
-            )}
-
-            {messages.length === 0 && !loading && (
-                <div className="flex-1 flex items-center justify-center">
-                    <p className="text-slate-400 text-xs bg-slate-900/50 border border-slate-800 px-4 py-2 rounded-full shadow-sm">
-                        No messages yet. Say hi!
-                    </p>
-                </div>
-            )}
-
-            {messages.map((msg) => {
-                const isMe = msg.senderId === currentUserId;
-                return (
-                    <div
-                        key={msg._id || msg.createdAt}
-                        // تقليل أقصى عرض للرسالة لـ 75% عالموبايل و 55% عالديسك توب
-                        className={`flex flex-col max-w-[75%] md:max-w-[55%] ${isMe ? 'self-end' : 'self-start'}`}
-                    >
-                        {!isMe && (
-                            <span className="text-[10px] text-slate-400 ml-1.5 mb-1 font-medium tracking-wide">
-                                {msg.senderName}
-                            </span>
-                        )}
-                        {/* تقليل الـ Padding الداخلي للرسالة نفسها */}
-                        <div className={`relative px-3 py-2 shadow-sm ${
-                            isMe
-                                ? 'bg-indigo-600 text-indigo-50 rounded-2xl rounded-tr-sm'
-                                : 'bg-slate-800/90 text-slate-200 rounded-2xl rounded-tl-sm border border-slate-700/50'
-                        }`}>
-                            
-                            {msg.type === 'poll' ? (
-                                <PollMessageBubble msg={msg} isMe={isMe} />
-                            ) : msg.type === 'audio' && msg.mediaUrl ? (
-                                <AudioMessage mediaUrl={msg.mediaUrl} messageId={msg._id || msg.createdAt} />
-                            ) : msg.type === 'image' && msg.mediaUrl ? (
-                                <ImageMessage msg={msg} />
-                            ) : (
-                                // تصغير حجم خط النص العادي ليكون متناسق ومريح
-                                <p className="text-[14px] leading-snug whitespace-pre-wrap break-words">
-                                    {msg.text}
-                                </p>
-                            )}
-
-                            <div className={`text-[9px] mt-1 text-right font-medium ${
-                                isMe ? 'text-indigo-200/70' : 'text-slate-500'
-                            }`}>
-                                {formatTime(msg.createdAt)}
-                            </div>
+        <div className="flex-1 relative min-h-0 flex flex-col">
+            <div
+                ref={scrollRef}
+                onScroll={handleScroll}
+                data-lenis-prevent
+                className="flex-1 overflow-y-auto p-3 md:p-4 bg-slate-950 custom-scrollbar flex flex-col gap-3"
+            >
+                {loading && (
+                    <div className="flex justify-center my-2">
+                        <div className="bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-800">
+                            <span className="text-slate-400 text-xs animate-pulse">Loading messages...</span>
                         </div>
                     </div>
-                );
-            })}
+                )}
 
-            <div ref={messagesEndRef} className="h-1" />
+                {messages.length === 0 && !loading && (
+                    <div className="flex-1 flex items-center justify-center">
+                        <p className="text-slate-400 text-xs bg-slate-900/50 border border-slate-800 px-4 py-2 rounded-full shadow-sm">
+                            No messages yet. Say hi!
+                        </p>
+                    </div>
+                )}
+
+                {messages.map((msg) => {
+                    const isMe = msg.senderId === currentUserId;
+                    return (
+                        <div
+                            key={msg._id || msg._tempId || msg.createdAt}
+                            className={`flex flex-col max-w-[75%] md:max-w-[55%] ${isMe ? 'self-end' : 'self-start'} ${
+                                msg.status === 'pending' ? 'opacity-80' : ''
+                            }`}
+                        >
+                            {!isMe && (
+                                <span className="text-[10px] text-slate-400 ml-1.5 mb-1 font-medium tracking-wide">
+                                    {msg.senderName}
+                                </span>
+                            )}
+                            <div className={`relative px-3 py-2 shadow-sm ${
+                                isMe
+                                    ? 'bg-indigo-600 text-indigo-50 rounded-2xl rounded-tr-sm'
+                                    : 'bg-slate-800/90 text-slate-200 rounded-2xl rounded-tl-sm border border-slate-700/50'
+                            }`}>
+                                {msg.type === 'poll' ? (
+                                    <PollMessageBubble msg={msg} isMe={isMe} />
+                                ) : msg.type === 'audio' && msg.mediaUrl ? (
+                                    <AudioMessage mediaUrl={msg.mediaUrl} messageId={msg._id || msg.createdAt} />
+                                ) : msg.type === 'image' && msg.mediaUrl ? (
+                                    <ImageMessage msg={msg} />
+                                ) : (
+                                    <p className="text-[14px] leading-snug whitespace-pre-wrap break-words">
+                                        {msg.text}
+                                    </p>
+                                )}
+
+                                <div className={`flex items-center justify-end gap-1 mt-1 ${
+                                    isMe ? 'text-indigo-200/70' : 'text-slate-500'
+                                }`}>
+                                    {isMe && msg.status === 'pending' ? (
+                                        <Clock size={9} className="opacity-60" />
+                                    ) : (
+                                        <>
+                                            <span className="text-[9px] font-medium">{formatTime(msg.createdAt)}</span>
+                                            {isMe && <Check size={10} className="opacity-70" />}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+
+                <div ref={messagesEndRef} className="h-1" />
+            </div>
+
+            {/* Floating new messages button */}
+            {showScrollBtn && (
+                <button
+                    onClick={() => scrollToBottom(false)}
+                    className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg transition-all active:scale-95"
+                >
+                    <ChevronDown size={14} />
+                    <span>{unreadCount} new message{unreadCount !== 1 ? 's' : ''}</span>
+                </button>
+            )}
         </div>
     );
 }

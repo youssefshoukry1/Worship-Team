@@ -97,7 +97,7 @@ export default function ChatTeamPage() {
             </div>
 
             {/* Main Chat Area */}
-            <div className={`flex-1 flex-col h-full min-w-0 bg-chat-pattern relative ${!isMobileChatOpen ? 'hidden md:flex' : 'flex'
+            <div className={`flex-1 h-full min-w-0 bg-chat-pattern relative overflow-hidden ${!isMobileChatOpen ? 'hidden md:flex md:flex-col' : 'flex flex-col'
                 }`}>
                 {/* Active Chat Header */}
                 {activeTeamId ? (
@@ -125,8 +125,7 @@ export default function ChatTeamPage() {
                         </div>
 
                         <div className="flex items-center gap-1 sm:gap-3 text-gray-400 relative">
-                            <button className="p-2 hover:bg-white/10 rounded-full transition hidden sm:block"><Video size={20} /></button>
-                            <button className="p-2 hover:bg-white/10 rounded-full transition hidden sm:block"><Phone size={20} /></button>
+                           
                             <button 
                                 onClick={() => setShowDropdown(!showDropdown)}
                                 className="p-2 hover:bg-white/10 rounded-full transition"
@@ -155,7 +154,7 @@ export default function ChatTeamPage() {
 
                 {/* Messages Area */}
                 {activeTeamId ? (
-                    <>
+                    <div className="flex flex-col flex-1 min-h-0">
                         <ChatArea
                             messages={messages}
                             currentUserId={user_id}
@@ -168,7 +167,7 @@ export default function ChatTeamPage() {
                             disabled={!isConnected}
                             token={isLogin}
                         />
-                    </>
+                    </div>
                 ) : (
                     <div className="hidden md:flex flex-1 flex-col items-center justify-center p-6 text-center">
                         <div className="w-24 h-24 mb-6 opacity-20">

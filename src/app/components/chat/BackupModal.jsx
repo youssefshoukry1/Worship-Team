@@ -4,7 +4,10 @@ import axios from 'axios';
 import { getApiBaseUrl } from '../../utils/apiBase';
 
 export default function BackupModal({ isOpen, onClose, token, userId, activeTeamId, socket }) {
-    const [isLinked, setIsLinked] = useState(false);
+    const LINKED_KEY = `gdrive_linked_${userId}`;
+    const [isLinked, setIsLinked] = useState(() => {
+        try { return localStorage.getItem(LINKED_KEY) === 'true'; } catch { return false; }
+    });
     const [isLinking, setIsLinking] = useState(false);
     
     const [backupOptions, setBackupOptions] = useState({
@@ -18,20 +21,50 @@ export default function BackupModal({ isOpen, onClose, token, userId, activeTeam
     const [progress, setProgress] = useState(0);
     const [statusText, setStatusText] = useState('');
 
+    // Persist linked status
+    const markLinked = (linked) => {
+        setIsLinked(linked);
+        try { localStorage.setItem(LINKED_KEY, String(linked)); } catch {}
+    };
+
+    // Check profile for Drive tokens on modal open (covers native app return)
     useEffect(() => {
         if (!isOpen) {
             setProgress(0);
             setStatusText('');
             setIsBackingUp(false);
-        } else if (token) {
-            axios.get(`${getApiBaseUrl()}/users/my-profile`, {
-                headers: { Authorization: `Bearer ${token}` }
-            }).then(res => {
-                if (res.data?.googleDriveTokens?.access_token) {
-                    setIsLinked(true);
-                }
-            }).catch(() => {});
+            return;
         }
+
+        if (!token) return;
+
+        let cancelled = false;
+        let pollTimer = null;
+
+        const checkLinked = async () => {
+            try {
+                const res = await axios.get(`${getApiBaseUrl()}/users/my-profile`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (!cancelled && res.data?.googleDriveTokens?.access_token) {
+                    markLinked(true);
+                    // Stop polling once linked
+                    if (pollTimer) clearInterval(pollTimer);
+                }
+            } catch {}
+        };
+
+        checkLinked();
+
+        // If not linked yet, poll every 3s to detect OAuth completion (for native app)
+        if (!isLinked) {
+            pollTimer = setInterval(checkLinked, 3000);
+        }
+
+        return () => {
+            cancelled = true;
+            if (pollTimer) clearInterval(pollTimer);
+        };
     }, [isOpen, token]);
 
     useEffect(() => {
@@ -43,7 +76,7 @@ export default function BackupModal({ isOpen, onClose, token, userId, activeTeam
             setProgress(data.progress);
             setStatusText(data.status);
             if (data.progress === 100 || data.status.startsWith('Error') || data.status.startsWith('Backup failed')) {
-                setTimeout(() => setIsBackingUp(false), 2000); // Keep loading state for 2 seconds to show completion
+                setTimeout(() => setIsBackingUp(false), 2000);
             }
         };
 
@@ -56,7 +89,7 @@ export default function BackupModal({ isOpen, onClose, token, userId, activeTeam
     useEffect(() => {
         const handleMessage = (e) => {
             if (e.data && e.data.type === 'GOOGLE_DRIVE_LINKED') {
-                setIsLinked(true);
+                markLinked(true);
             }
         };
         window.addEventListener('message', handleMessage);

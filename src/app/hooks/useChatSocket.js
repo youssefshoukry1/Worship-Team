@@ -18,13 +18,8 @@ const saveLocalMessages = async (teamId, messages) => {
     try {
         if (isNative) {
             try {
-                await Filesystem.mkdir({
-                    path: 'wasla_chats',
-                    directory: Directory.Data,
-                    recursive: true
-                });
+                await Filesystem.mkdir({ path: 'wasla_chats', directory: Directory.Data, recursive: true });
             } catch (e) { }
-
             await Filesystem.writeFile({
                 path: `wasla_chats/${getCacheFilename(teamId)}`,
                 directory: Directory.Data,
@@ -35,7 +30,7 @@ const saveLocalMessages = async (teamId, messages) => {
             await localforage.setItem(getCacheKey(teamId), messages);
         }
     } catch (err) {
-        console.error("Failed to save local messages", err);
+        console.error('Failed to save local messages', err);
     }
 };
 
@@ -58,35 +53,35 @@ const loadLocalMessages = async (teamId) => {
 
 export function useChatSocket(teamId, user_id, user_name, token) {
     const socketRef = useRef(null);
+    const isConnectedRef = useRef(false); // Use ref to avoid stale closure in sendMessage
     const [isConnected, setIsConnected] = useState(false);
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [prevTeamId, setPrevTeamId] = useState(teamId);
 
-    // Reset state immediately on team switch to avoid showing previous team's data
+    // Reset immediately on team switch
     if (teamId !== prevTeamId) {
         setPrevTeamId(teamId);
         setMessages([]);
         setLoading(true);
         setIsConnected(false);
+        isConnectedRef.current = false;
     }
 
-    // Initial fetch of messages with offline-first support
+    // Initial fetch: offline-first
     useEffect(() => {
         if (!teamId) return;
-
         let isMounted = true;
 
         const syncMessages = async () => {
-            // 1. Load offline cache first
             setLoading(true);
             const cached = await loadLocalMessages(teamId);
             if (isMounted && cached.length > 0) {
-                setMessages(cached);
-                setLoading(false); // Stop loading spinner if we have cached messages
+                // Filter out any stale pending messages from cache
+                setMessages(cached.filter(m => m.status !== 'pending'));
+                setLoading(false);
             }
 
-            // 2. Fetch fresh updates in the background
             if (!token) {
                 if (isMounted) setLoading(false);
                 return;
@@ -96,49 +91,45 @@ export function useChatSocket(teamId, user_id, user_name, token) {
                 const res = await axios.get(`${API_URL}/chat/messages?teamId=${teamId}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-
                 const remoteMsgs = res.data.messages || [];
 
                 if (isMounted) {
                     setMessages((prev) => {
                         const msgMap = new Map();
-                        // Put cached ones first
+                        // Add confirmed messages first (existing non-pending)
                         prev.forEach(msg => {
-                            if (msg._id) msgMap.set(msg._id, msg);
+                            if (msg._id) msgMap.set(String(msg._id), msg);
                         });
-                        // Override with fresh updates from backend
+                        // Override with fresh server data
                         remoteMsgs.forEach(msg => {
-                            if (msg._id) msgMap.set(msg._id, msg);
+                            if (msg._id) msgMap.set(String(msg._id), msg);
                         });
 
                         const merged = Array.from(msgMap.values());
-                        // Sort chronologically
                         merged.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
-                        // Persist combined list
+                        // Re-attach any still-pending optimistic messages at the end
+                        const pending = prev.filter(m => m.status === 'pending');
+
                         saveLocalMessages(teamId, merged);
-                        return merged;
+                        return [...merged, ...pending];
                     });
                 }
             } catch (err) {
-                console.error("Failed to sync messages with server", err);
+                console.error('Failed to sync messages with server', err);
             } finally {
                 if (isMounted) setLoading(false);
             }
         };
 
         syncMessages();
-
-        return () => {
-            isMounted = false;
-        };
+        return () => { isMounted = false; };
     }, [teamId, token]);
 
-    // Socket Connection
+    // Socket connection
     useEffect(() => {
         if (!teamId || !user_id) return;
 
-        // Connect to the specific /chat namespace
         const socket = io(`${SOCKET_URL}/chat`, {
             transports: ['websocket'],
             autoConnect: true,
@@ -147,17 +138,50 @@ export function useChatSocket(teamId, user_id, user_name, token) {
         socketRef.current = socket;
 
         socket.on('connect', () => {
+            isConnectedRef.current = true;
             setIsConnected(true);
             socket.emit('join-team', { teamId, userId: user_id });
         });
 
         socket.on('disconnect', () => {
+            isConnectedRef.current = false;
             setIsConnected(false);
         });
 
         socket.on('new-message', (msg) => {
             setMessages((prev) => {
-                if (prev.some(m => m._id === msg._id)) return prev;
+                // 1. Try exact tempId match (if server echoes it)
+                if (msg.tempId) {
+                    const idx = prev.findIndex(m => m._tempId === msg.tempId);
+                    if (idx !== -1) {
+                        const updated = [...prev];
+                        updated[idx] = msg;
+                        saveLocalMessages(teamId, updated);
+                        return updated;
+                    }
+                }
+
+                // 2. Replace oldest pending from same sender+type (FIFO)
+                //    Normalize missing type to 'text' (server may omit it for default type)
+                const msgType = msg.type || 'text';
+                const pendingIdx = prev.findIndex(m =>
+                    m.status === 'pending' &&
+                    String(m.senderId) === String(msg.senderId) &&
+                    m.type === msgType
+                );
+                if (pendingIdx !== -1) {
+                    const updated = [...prev];
+                    updated[pendingIdx] = msg;
+                    saveLocalMessages(teamId, updated);
+                    return updated;
+                }
+
+                // 3. Skip exact duplicate by _id
+                if (prev.some(m => m._id && String(m._id) === String(msg._id))) {
+                    return prev;
+                }
+
+                // 4. New message from someone else
                 const updated = [...prev, msg];
                 saveLocalMessages(teamId, updated);
                 return updated;
@@ -166,7 +190,9 @@ export function useChatSocket(teamId, user_id, user_name, token) {
 
         socket.on('message-updated', (updatedMsg) => {
             setMessages((prev) => {
-                const updated = prev.map((m) => (m._id === updatedMsg._id ? updatedMsg : m));
+                const updated = prev.map(m =>
+                    m._id && String(m._id) === String(updatedMsg._id) ? updatedMsg : m
+                );
                 saveLocalMessages(teamId, updated);
                 return updated;
             });
@@ -175,26 +201,57 @@ export function useChatSocket(teamId, user_id, user_name, token) {
         return () => {
             socket.emit('leave-team', { teamId });
             socket.disconnect();
+            socketRef.current = null;
         };
     }, [teamId, user_id]);
 
-    const sendMessage = (text, type = 'text', mediaUrl = null, pollData = null) => {
-        if (!socketRef.current || !isConnected || !teamId || !user_id || !user_name) return;
-
-        // Basic validation
+    const sendMessage = async (text, type = 'text', mediaUrl = null, pollData = null, localPreviewUrl = null, uploadFn = null) => {
+        if (!teamId || !user_id || !user_name) return;
         if (type === 'text' && !text.trim()) return;
-        if ((type === 'audio' || type === 'image') && !mediaUrl) return;
+        if ((type === 'audio' || type === 'image') && !mediaUrl && !uploadFn) return;
         if (type === 'poll' && !pollData) return;
 
-        socketRef.current.emit('send-message', {
+        const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+        const optimisticMsg = {
+            _tempId: tempId,
+            _id: null,
             teamId,
             senderId: user_id,
             senderName: user_name,
-            text: type === 'poll' ? (pollData.question || '') : text,
+            text: type === 'poll' ? (pollData?.question || '') : text,
             type,
-            mediaUrl,
-            pollData: type === 'poll' ? pollData : null
-        });
+            mediaUrl: localPreviewUrl || mediaUrl, // local blob URL for instant 0ms playback on sender UI
+            pollData: type === 'poll' ? pollData : null,
+            createdAt: new Date().toISOString(),
+            status: 'pending',
+        };
+
+        setMessages(prev => [...prev, optimisticMsg]);
+
+        let finalMediaUrl = mediaUrl;
+        if (uploadFn) {
+            try {
+                finalMediaUrl = await uploadFn();
+            } catch (err) {
+                console.error('Upload failed for message:', tempId, err);
+                setMessages(prev => prev.map(m => m._tempId === tempId ? { ...m, status: 'error' } : m));
+                return;
+            }
+        }
+
+        if (socketRef.current && isConnectedRef.current) {
+            socketRef.current.emit('send-message', {
+                tempId,
+                teamId,
+                senderId: user_id,
+                senderName: user_name,
+                text: type === 'poll' ? (pollData.question || '') : text,
+                type,
+                mediaUrl: finalMediaUrl, // send real CDN URL to server
+                pollData: type === 'poll' ? pollData : null
+            });
+        }
     };
 
     return { messages, sendMessage, isConnected, loading, socket: socketRef };

@@ -11,9 +11,7 @@ export default function ChatSidebar({ teams, activeTeamId, onSelectTeam }) {
             {/* Header */}
             <div className="px-4 py-3 bg-[#0f172a] flex items-center justify-between shrink-0">
                 <h1 className="text-xl font-bold text-white tracking-tight">Chats</h1>
-                <div className="flex items-center gap-4 text-gray-400">
-                    <button className="hover:text-white transition"><MoreVertical size={20} /></button>
-                </div>
+           
             </div>
             
             {/* Search Bar (UI only) */}

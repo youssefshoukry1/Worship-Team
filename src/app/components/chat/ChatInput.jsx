@@ -62,7 +62,7 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
 
     const handleSubmit = (e) => {
         e?.preventDefault();
-        if (text.trim() && !disabled && !isUploading && !isRecording) {
+        if (text.trim() && !isUploading && !isRecording) {
             onSendMessage(text, 'text');
             setText('');
             setShowAttachMenu(false);
@@ -156,23 +156,30 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
         }
     };
 
-    const handleUploadAudio = async (blob) => {
+    const handleUploadAudio = (blob) => {
         if (!token) return;
-        try {
+        const localUrl = URL.createObjectURL(blob);
+
+        const uploadFn = async () => {
             setIsUploading(true);
-            const res = await axios.post(`${getApiBaseUrl()}/chat/upload-url`, 
-                { fileSize: blob.size, type: 'audio' },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-            const { uploadUrl, fileUrl } = res.data;
-            await axios.put(uploadUrl, blob, { headers: { 'Content-Type': blob.type } });
-            onSendMessage('', 'audio', fileUrl);
-        } catch (err) {
-            console.error("Audio upload failed:", err);
-            alert("Failed to upload audio message.");
-        } finally {
-            setIsUploading(false);
-        }
+            try {
+                const res = await axios.post(`${getApiBaseUrl()}/chat/upload-url`, 
+                    { fileSize: blob.size, type: 'audio' },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                const { uploadUrl, fileUrl } = res.data;
+                await axios.put(uploadUrl, blob, { headers: { 'Content-Type': blob.type } });
+                return fileUrl;
+            } catch (err) {
+                console.error("Audio upload failed:", err);
+                alert("Failed to upload audio message.");
+                throw err;
+            } finally {
+                setIsUploading(false);
+            }
+        };
+
+        onSendMessage('', 'audio', null, null, localUrl, uploadFn);
     };
 
     // --- Pointer Events (Drag & Lock UX) ---
@@ -269,26 +276,33 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
             const ctx = canvas.getContext('2d');
             ctx.drawImage(imageBitmap, 0, 0, width, height);
             
-            canvas.toBlob(async (blob) => {
+            canvas.toBlob((blob) => {
                 if (!blob) {
                     setIsUploading(false);
                     return alert("Failed to compress image");
                 }
-                try {
-                    const res = await axios.post(`${getApiBaseUrl()}/chat/upload-url`, 
-                        { fileSize: blob.size, type: 'image' },
-                        { headers: { Authorization: `Bearer ${token}` } }
-                    );
-                    const { uploadUrl, fileUrl } = res.data;
-                    await axios.put(uploadUrl, blob, { headers: { 'Content-Type': blob.type } });
-                    onSendMessage('', 'image', fileUrl);
-                } catch (uploadErr) {
-                    console.error("Image upload failed:", uploadErr);
-                    alert("Failed to upload image.");
-                } finally {
-                    setIsUploading(false);
-                    e.target.value = ''; 
-                }
+                const localUrl = URL.createObjectURL(blob);
+
+                const uploadFn = async () => {
+                    try {
+                        const res = await axios.post(`${getApiBaseUrl()}/chat/upload-url`, 
+                            { fileSize: blob.size, type: 'image' },
+                            { headers: { Authorization: `Bearer ${token}` } }
+                        );
+                        const { uploadUrl, fileUrl } = res.data;
+                        await axios.put(uploadUrl, blob, { headers: { 'Content-Type': blob.type } });
+                        return fileUrl;
+                    } catch (uploadErr) {
+                        console.error("Image upload failed:", uploadErr);
+                        alert("Failed to upload image.");
+                        throw uploadErr;
+                    } finally {
+                        setIsUploading(false);
+                        if (e.target) e.target.value = ''; 
+                    }
+                };
+
+                onSendMessage('', 'image', null, null, localUrl, uploadFn);
             }, 'image/webp', 0.8);
             
         } catch (err) {
@@ -373,7 +387,7 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                                 type="button"
                                 onClick={() => setShowAttachMenu(!showAttachMenu)}
                                 className={`p-3 rounded-full transition-all duration-300 ${showAttachMenu ? 'bg-white/10 text-white rotate-45' : 'text-gray-400 hover:text-sky-400 hover:bg-white/5'}`}
-                                disabled={disabled || isUploading || isPressing}
+                                disabled={isUploading || isPressing}
                             >
                                 <Plus size={22} />
                             </button>
@@ -412,7 +426,7 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                                 placeholder="Type a message..."
                                 className="w-full bg-transparent text-white text-sm py-3 focus:outline-none resize-none max-h-32 custom-scrollbar"
                                 rows={1}
-                                disabled={disabled || isUploading || isPressing}
+                                disabled={isUploading || isPressing}
                             />
 
                             {/* Dragging Overlay (Slide to Cancel) covering input */}
@@ -443,7 +457,7 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                             <button
                                 type="button"
                                 onClick={handleSubmit}
-                                disabled={disabled || isUploading}
+                                disabled={isUploading}
                                 className="p-3 rounded-full flex items-center justify-center transition-all bg-sky-500 text-white hover:bg-sky-600 shadow-lg"
                             >
                                 {isUploading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className="ml-1" />}
