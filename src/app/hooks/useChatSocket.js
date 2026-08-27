@@ -198,6 +198,16 @@ export function useChatSocket(teamId, user_id, user_name, token) {
             });
         });
 
+        socket.on('message-deleted', (updatedMsg) => {
+            setMessages((prev) => {
+                const updated = prev.map(m =>
+                    m._id && String(m._id) === String(updatedMsg._id) ? updatedMsg : m
+                );
+                saveLocalMessages(teamId, updated);
+                return updated;
+            });
+        });
+
         return () => {
             socket.emit('leave-team', { teamId });
             socket.disconnect();
