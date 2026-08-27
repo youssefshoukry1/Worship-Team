@@ -27,7 +27,7 @@ export default function TeamsPage() {
     // Poll backend every 8s while pending to detect manager approval
     const pollRef = useRef(null);
     useEffect(() => {
-        if (!isLogin || UserStatus === "approved") return;
+        if (!isLogin || !churchId || UserStatus === "approved") return;
         const API = process.env.NEXT_PUBLIC_API_URL;
         const check = async () => {
             try {
@@ -35,11 +35,13 @@ export default function TeamsPage() {
                     headers: { Authorization: `Bearer ${isLogin}` }
                 });
                 const data = res.data;
-                // Find the team entry matching current churchId or take first approved
-                const approvedTeam = (data.teams || []).find(t => t.status === "approved");
-                if (approvedTeam) {
-                    const newChurchId = approvedTeam.churchId;
-                    const newRole = approvedTeam.role || "USER";
+                // Only react to approval for the currently selected team.
+                const currentTeam = (data.teams || []).find(t =>
+                    (t.churchId || t.teamId)?.toString() === churchId?.toString()
+                );
+                if (currentTeam?.status === "approved") {
+                    const newChurchId = currentTeam.churchId || currentTeam.teamId;
+                    const newRole = currentTeam.role || "USER";
                     localStorage.setItem("user_Taspe7_Status", "approved");
                     localStorage.setItem("user_Taspe7_ChurchId", newChurchId);
                     localStorage.setItem("user_Taspe7_Role", newRole);
@@ -55,7 +57,7 @@ export default function TeamsPage() {
         };
         pollRef.current = setInterval(check, 8000);
         return () => clearInterval(pollRef.current);
-    }, [isLogin, UserStatus]);
+    }, [isLogin, UserStatus, churchId]);
 
     const hasTeam = UserStatus === "approved";
     const isManager = UserRole && ["ADMIN", "MANEGER", "PROGRAMER"].includes(UserRole);

@@ -21,7 +21,8 @@ export default function TeamSwitcher() {
   const [switching, setSwitching] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
-  if (!teams || teams.length === 0) return null;
+  const approvedTeams = (teams || []).filter((team) => team.status === "approved");
+  if (approvedTeams.length === 0) return null;
 
   const handleSwitch = async (team) => {
     if (team.churchId === churchId) return;
@@ -82,7 +83,7 @@ export default function TeamSwitcher() {
   return (
     <div className="flex flex-wrap items-center gap-2 mb-6 p-3 bg-white/3 border border-white/8 rounded-2xl">
       <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider mr-1">Teams:</span>
-      {teams.map((team) => {
+      {approvedTeams.map((team) => {
         const isActive = team.churchId?.toString() === churchId?.toString();
         const isLoading = switching === team.churchId;
         const isTeamManager = team.role === "MANEGER";
