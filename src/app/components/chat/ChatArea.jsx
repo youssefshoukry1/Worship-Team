@@ -2,16 +2,18 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import AudioMessage from './AudioMessage';
 import ImageMessage from './ImageMessage';
+import FileMessage from './FileMessage';
+import { useLocalMedia } from '../../hooks/useLocalMedia';
 import { BarChart2, ChevronDown, Clock, Check, CheckCheck } from 'lucide-react';
 
 const SENDER_NAME_COLORS = [
     'text-sky-400',
     'text-[#38bdf8]',
-    'text-indigo-400',
-    'text-violet-400',
+    'text-cyan-400',
+    'text-teal-400',
     'text-amber-400',
     'text-emerald-400',
-    'text-teal-400',
+    'text-indigo-400',
     'text-rose-400',
 ];
 
@@ -26,6 +28,17 @@ const getSenderColor = (userId) => {
     return SENDER_NAME_COLORS[index];
 };
 
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+function StickerMessage({ msg }) {
+    const { localUrl, loading } = useLocalMedia(msg.mediaUrl, msg._id || msg.createdAt);
+    return loading
+        ? <div className="h-24 w-24 animate-pulse rounded-2xl bg-white/5" />
+        : localUrl
+            ? <img src={localUrl} alt="Sticker" className="h-24 w-24 object-contain drop-shadow-md transition-transform duration-200 hover:scale-105 sm:h-32 sm:w-32" />
+            : null;
+}
+
 export default function ChatArea({ messages, currentUserId, loading, socket, activeTeamId }) {
     const scrollRef = useRef(null);
     const messagesEndRef = useRef(null);
@@ -39,6 +52,18 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     const [contextMenu, setContextMenu] = useState({ x: 0, y: 0, visible: false });
     const [editingMessage, setEditingMessage] = useState(null);
     const [editText, setEditText] = useState('');
+
+    const handleReaction = (msg, emoji) => {
+        if (!socket?.current || !msg._id) return;
+        socket.current.emit('toggle-reaction', {
+            teamId: activeTeamId,
+            messageId: msg._id,
+            userId: currentUserId,
+            emoji
+        });
+        setContextMenu({ ...contextMenu, visible: false });
+        setSelectedMessage(null);
+    };
 
     const checkIfAtBottom = useCallback(() => {
         const el = scrollRef.current;
@@ -215,7 +240,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
         return (
             <div className="flex flex-col min-w-[220px] sm:min-w-[260px] pt-1 pb-3">
                 <div className="flex items-start gap-2 mb-2.5">
-                    <div className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${isMe ? 'bg-indigo-500/20 text-indigo-100' : 'bg-slate-700/50 text-indigo-400'}`}>
+                    <div className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${isMe ? 'bg-cyan-500/20 text-cyan-100' : 'bg-slate-700/50 text-cyan-400'}`}>
                         <BarChart2 size={16} />
                     </div>
                     <span dir="auto" className="font-semibold text-[14px] leading-snug text-slate-100 text-start">
@@ -235,26 +260,26 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                 onClick={() => handleVote(msg._id, option.id)}
                                 className={`group relative w-full text-left overflow-hidden rounded-xl px-2.5 py-1.5 text-[13px] transition-all duration-300 ease-out active:scale-[0.98] border ${
                                     hasMyVote
-                                        ? 'border-indigo-500/50 bg-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
+                                        ? 'border-cyan-500/50 bg-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.15)]'
                                         : 'border-slate-700/50 bg-slate-800/40 hover:bg-slate-700/60 hover:border-slate-600'
                                 }`}
                             >
                                 {votesCount > 0 && (
                                     <div
                                         className={`absolute left-0 top-0 bottom-0 transition-all duration-700 ease-out ${
-                                            hasMyVote ? 'bg-indigo-500/30' : 'bg-slate-600/25'
+                                            hasMyVote ? 'bg-cyan-500/30' : 'bg-slate-600/25'
                                         }`}
                                         style={{ width: `${percentage}%` }}
                                     />
                                 )}
                                 <div className="relative z-10 flex justify-between items-center gap-2">
                                     <span dir="auto" className={`font-medium transition-colors duration-300 text-start ${
-                                        hasMyVote ? 'text-indigo-200' : 'text-slate-200 group-hover:text-white'
+                                        hasMyVote ? 'text-cyan-200' : 'text-slate-200 group-hover:text-white'
                                     }`}>
                                         {option.text}
                                     </span>
                                     {votesCount > 0 && (
-                                        <span className={`text-[11px] font-medium ${hasMyVote ? 'text-indigo-300' : 'text-slate-400'}`}>
+                                        <span className={`text-[11px] font-medium ${hasMyVote ? 'text-cyan-300' : 'text-slate-400'}`}>
                                             {percentage}%
                                         </span>
                                     )}
@@ -272,7 +297,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                 <div key={idx} className="flex items-center gap-1 bg-slate-800/80 text-slate-300 border border-slate-700 px-2 py-0.5 rounded-md text-[10px] whitespace-nowrap shadow-sm">
                                     <span dir="auto" className="truncate max-w-[80px] text-start" title={opt.text}>{opt.text}</span>
                                     <span className="text-slate-500 font-medium">•</span>
-                                    <span className="font-bold text-indigo-400">{opt.votes?.length}</span>
+                                    <span className="font-bold text-cyan-400">{opt.votes?.length}</span>
                                 </div>
                             ))}
                         </div>
@@ -334,13 +359,13 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                             <div
                                 onContextMenu={(e) => {
                                     e.preventDefault();
-                                    if (isMe) handleLongPress(msg, e);
+                                    handleLongPress(msg, e);
                                 }}
                                 onTouchStart={(e) => {
                                     if (e.touches.length === 1) {
                                         const startTime = Date.now();
                                         const touchStart = (e) => {
-                                            if (Date.now() - startTime > 500 && isMe) {
+                                            if (Date.now() - startTime > 500) {
                                                 handleLongPress(msg, e);
                                             }
                                         };
@@ -354,9 +379,9 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                 }}
                                 className={`relative cursor-context-menu ${
                                     isSticker
-                                        ? 'bg-transparent text-slate-100' // No bubble background for stickers
+                                        ? 'bg-transparent text-slate-100'
                                         : isMe
-                                            ? 'px-3 py-2 bg-indigo-600 text-indigo-50 shadow-md rounded-2xl'
+                                            ? 'px-3 py-2 bg-cyan-800 text-cyan-50 shadow-md rounded-2xl'
                                             : 'px-3 py-2 bg-[#1e293b] text-slate-200 shadow-md rounded-2xl border border-slate-700/50'
                                 } ${
                                     isMe && isFirstInGroup && !isSticker ? 'rounded-tr-xs' : ''
@@ -388,7 +413,11 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                     </div>
                                 ) : msg.type === 'sticker' && msg.mediaUrl ? (
                                     <div className="pb-3">
-                                        <img src={msg.mediaUrl} alt="Sticker" className="w-24 h-24 sm:w-32 sm:h-32 object-contain drop-shadow-md" />
+                                        <StickerMessage msg={msg} />
+                                    </div>
+                                ) : ['file', 'document'].includes(msg.type) && msg.mediaUrl ? (
+                                    <div className="pb-3">
+                                       <FileMessage msg={msg} />
                                     </div>
                                 ) : (
                                     <div dir="auto" className="text-[14px] leading-relaxed whitespace-pre-wrap break-words pb-3 min-w-[65px] text-start">
@@ -396,24 +425,35 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                     </div>
                                 )}
 
-                                {/* Absolute Timestamp - Replaces the float to prevent RTL breaks */}
                                 <div className={`absolute bottom-1 right-2 flex items-center justify-end gap-1 select-none pointer-events-none ${isSticker ? 'bg-black/30 px-1.5 py-0.5 rounded-full backdrop-blur-sm' : ''}`}>
                                     {msg.editedAt && (
-                                        <span className={`text-[8px] italic font-normal ${isSticker ? 'text-white' : isMe ? 'text-indigo-200/50' : 'text-slate-500'}`}>
+                                        <span className={`text-[8px] italic font-normal ${isSticker ? 'text-white' : isMe ? 'text-cyan-200/50' : 'text-slate-500'}`}>
                                             edited
                                         </span>
                                     )}
-                                    <span className={`text-[9px] font-normal ${isSticker ? 'text-white' : isMe ? 'text-indigo-200/70' : 'text-slate-400'}`}>
+                                    <span className={`text-[9px] font-normal ${isSticker ? 'text-white' : isMe ? 'text-cyan-200/70' : 'text-slate-400'}`}>
                                         {formatTime(msg.createdAt)}
                                     </span>
                                     {isMe && (
                                         msg.status === 'pending' ? (
-                                            <Clock size={10} className={`${isSticker ? 'text-white' : 'text-indigo-200/70'} animate-pulse`} />
+                                            <Clock size={10} className={`${isSticker ? 'text-white' : 'text-cyan-200/70'} animate-pulse`} />
                                         ) : (
-                                            <CheckCheck size={13} className={isSticker ? 'text-white' : 'text-sky-300'} />
+                                            <CheckCheck size={13} className={isSticker ? 'text-white' : 'text-cyan-300'} />
                                         )
                                     )}
                                 </div>
+                                {msg.reactions?.length > 0 && (
+                                    <div className={`absolute -bottom-3 ${isMe ? 'left-2' : 'right-2'} flex gap-1 rounded-full border border-slate-700/70 bg-[#172033] px-1.5 py-0.5 shadow-lg`}>
+                                        {Object.entries(msg.reactions.reduce((counts, reaction) => {
+                                            counts[reaction.emoji] = (counts[reaction.emoji] || 0) + 1;
+                                            return counts;
+                                        }, {})).map(([emoji, count]) => (
+                                            <button key={emoji} onClick={() => handleReaction(msg, emoji)} className="text-xs transition-transform hover:scale-125">
+                                                {emoji}{count > 1 && <span className="ml-0.5 text-[9px] text-slate-300">{count}</span>}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     );
@@ -421,12 +461,18 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                 <div ref={messagesEndRef} className="h-1" />
             </div>
 
-            {/* Context Menus & Modals remain unchanged below */}
             {showScrollBtn && (
                 <button
                     onClick={() => scrollToBottom(false)}
-                    className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg transition-all active:scale-95"
+                    className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 bg-cyan-700 hover:bg-cyan-600 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg transition-all active:scale-95"
                 >
+                    <div className="flex items-center gap-1 border-b border-slate-700/50 px-2 py-2">
+                        {REACTION_EMOJIS.map((emoji) => (
+                            <button key={emoji} onClick={() => handleReaction(selectedMessage, emoji)} className="rounded-full p-1 text-lg transition-all hover:scale-125 hover:bg-white/10" aria-label={`React ${emoji}`}>
+                                {emoji}
+                            </button>
+                        ))}
+                    </div>
                     <ChevronDown size={14} />
                     <span>{unreadCount} new message{unreadCount !== 1 ? 's' : ''}</span>
                 </button>
@@ -440,7 +486,9 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                         top: `${Math.min(contextMenu.y, window.innerHeight - 150)}px`,
                     }}
                 >
-                    {(!selectedMessage?.type || selectedMessage?.type === 'text') && !isMessageDeleted(selectedMessage) && (
+                    {String(selectedMessage?.senderId) === String(currentUserId) &&
+                        (!selectedMessage?.type || selectedMessage?.type === 'text') &&
+                        !isMessageDeleted(selectedMessage) && (
                         <button
                             onClick={handleEditStart}
                             className="w-full px-4 py-2.5 text-left text-sm text-sky-400 hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 flex items-center gap-2"
@@ -449,20 +497,24 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                             <span>Edit</span>
                         </button>
                     )}
-                    <button
-                        onClick={() => handleDeleteMessage(false)}
-                        className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 flex items-center gap-2"
-                    >
-                        <span>🗑️</span>
-                        <span>Delete for me</span>
-                    </button>
-                    <button
-                        onClick={() => handleDeleteMessage(true)}
-                        className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-slate-700/50 transition-colors flex items-center gap-2"
-                    >
-                        <span>🗑️</span>
-                        <span>Delete for all</span>
-                    </button>
+                    {String(selectedMessage?.senderId) === String(currentUserId) && (
+                        <>
+                            <button
+                                onClick={() => handleDeleteMessage(false)}
+                                className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 flex items-center gap-2"
+                            >
+                                <span>🗑️</span>
+                                <span>Delete for me</span>
+                            </button>
+                            <button
+                                onClick={() => handleDeleteMessage(true)}
+                                className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-slate-700/50 transition-colors flex items-center gap-2"
+                            >
+                                <span>🗑️</span>
+                                <span>Delete for all</span>
+                            </button>
+                        </>
+                    )}
                 </div>
             )}
 
@@ -478,7 +530,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                 onChange={(e) => setEditText(e.target.value)}
                                 placeholder="Edit your message..."
                                 dir="auto"
-                                className="w-full bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 resize-none text-start"
+                                className="w-full bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none text-start"
                                 rows="4"
                                 autoFocus
                             />
@@ -493,7 +545,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                             <button
                                 onClick={handleEditSubmit}
                                 disabled={!editText.trim()}
-                                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-cyan-700 hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                             >
                                 Save
                             </button>
@@ -503,4 +555,4 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
             )}
         </div>
     );
-}
+}     

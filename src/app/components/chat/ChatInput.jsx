@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { 
     Send, Mic, Square, Trash2, Loader2, Pause, Play, Plus, 
     BarChart2, X, CheckSquare, Image as ImageIcon, Lock, 
-    ChevronUp, ChevronLeft, Smile, Sticker, Upload, Search
+    ChevronUp, ChevronLeft, Smile, Sticker, Upload, Search, FileText
 } from 'lucide-react';
 import axios from 'axios';
 import { getApiBaseUrl } from '../../utils/apiBase';
@@ -66,6 +66,7 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
     const emojiMenuRef = useRef(null);
     const imageInputRef = useRef(null);
     const stickerInputRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     // Close menus when clicking outside
     useEffect(() => {
@@ -111,9 +112,9 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
         setShowEmojiPicker(false);
     };
 
-    const handleAddCustomSticker = (e) => {
+    const handleAddCustomSticker = async (e) => {
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file || !token) return;
 
         const stickerUrl = URL.createObjectURL(file);
         const newSticker = {
@@ -122,6 +123,18 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
             url: stickerUrl
         };
         setStickers((prev) => [newSticker, ...prev]);
+        try {
+            const res = await axios.post(`${getApiBaseUrl()}/chat/upload-url`,
+                { fileSize: file.size, type: 'sticker', mimeType: file.type, fileName: file.name },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            await axios.put(res.data.uploadUrl, file, { headers: { 'Content-Type': file.type } });
+            setStickers((prev) => prev.map(sticker => sticker.id === newSticker.id ? { ...sticker, url: res.data.fileUrl } : sticker));
+            URL.revokeObjectURL(stickerUrl);
+        } catch (err) {
+            console.error("Sticker upload failed:", err);
+            setStickers((prev) => prev.filter(sticker => sticker.id !== newSticker.id));
+        }
         if (e.target) e.target.value = '';
     };
 
@@ -288,6 +301,30 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
         setShowAttachMenu(false);
     };
 
+    const handleFileSelect = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file || !token) return;
+        try {
+            setIsUploading(true);
+            const res = await axios.post(`${getApiBaseUrl()}/chat/upload-url`,
+                { fileSize: file.size, type: 'file', mimeType: file.type, fileName: file.name },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            await axios.put(res.data.uploadUrl, file, { headers: { 'Content-Type': file.type || 'application/octet-stream' } });
+            const localUrl = URL.createObjectURL(file);
+            onSendMessage('', 'file', res.data.fileUrl, null, localUrl, null, {
+                fileName: file.name,
+                mimeType: file.type || 'application/octet-stream'
+            });
+        } catch (err) {
+            console.error("File upload failed:", err);
+            alert("Failed to upload file.");
+        } finally {
+            setIsUploading(false);
+            if (e.target) e.target.value = '';
+        }
+    };
+
     const handleImageSelect = async (e) => {
         const file = e.target.files?.[0];
         if (!file || !token) return;
@@ -444,18 +481,25 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                                         </div>
                                         <span className="text-xs font-medium text-gray-300 group-hover:text-white">Image</span>
                                     </div>
+                                    <div onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-white/5 transition-colors">
+                                        <div className="w-11 h-11 rounded-xl bg-violet-500/20 text-violet-400 flex items-center justify-center group-hover:bg-violet-500 group-hover:text-white transition-all shadow-inner">
+                                            <FileText size={22} />
+                                        </div>
+                                        <span className="text-xs font-medium text-gray-300 group-hover:text-white">File</span>
+                                    </div>
                                 </div>
                             )}
                             
                             <input type="file" ref={imageInputRef} accept="image/*" className="hidden" onChange={handleImageSelect} />
+                            <input type="file" ref={fileInputRef} accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx,audio/*" className="hidden" onChange={handleFileSelect} />
                         </div>
 
                         {/* Input Container */}
                         <div className="flex-1 relative flex flex-col" ref={emojiMenuRef}>
                             
-                            {/* Emoji & Sticker Drawer */}
+                            {/* Emoji & Sticker Drawer (Responsive Centering & Sizing) */}
                             {showEmojiPicker && (
-                                <div className="absolute bottom-16 left-0 w-[90vw] sm:w-[350px] h-[430px] bg-[#1e293b]/95 backdrop-blur-md border border-white/15 rounded-3xl shadow-2xl flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-200 z-50 overflow-hidden">
+                                <div className="absolute bottom-16 left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 w-[calc(100vw-2rem)] sm:w-[350px] max-w-[350px] h-[60vh] max-h-[430px] min-h-[300px] bg-[#1e293b]/95 backdrop-blur-md border border-white/15 rounded-3xl shadow-2xl flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-200 z-50 overflow-hidden">
                                     
                                     {/* Tabs */}
                                     <div className="flex border-b border-white/10 bg-[#0f172a]/80 p-1.5 shrink-0 gap-1">
@@ -567,7 +611,7 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                                 </div>
                             )}
 
-                            {/* Textarea Form Box (Supports Arabic & Mixed Text Seamlessly) */}
+                            {/* Textarea Form Box */}
                             <form 
                                 onSubmit={handleSubmit} 
                                 className="flex-1 relative bg-[#1e293b] rounded-3xl border border-white/10 focus-within:border-sky-500/50 focus-within:ring-1 focus-within:ring-sky-500/30 transition-all flex items-center px-3 sm:px-4 py-1.5 shadow-inner"

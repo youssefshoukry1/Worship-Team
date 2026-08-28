@@ -215,10 +215,10 @@ export function useChatSocket(teamId, user_id, user_name, token) {
         };
     }, [teamId, user_id]);
 
-    const sendMessage = async (text, type = 'text', mediaUrl = null, pollData = null, localPreviewUrl = null, uploadFn = null) => {
+    const sendMessage = async (text, type = 'text', mediaUrl = null, pollData = null, localPreviewUrl = null, uploadFn = null, fileMeta = {}) => {
         if (!teamId || !user_id || !user_name) return;
         if (type === 'text' && !text.trim()) return;
-        if ((type === 'audio' || type === 'image') && !mediaUrl && !uploadFn) return;
+        if (['audio', 'image', 'sticker', 'file', 'document'].includes(type) && !mediaUrl && !uploadFn) return;
         if (type === 'poll' && !pollData) return;
 
         const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -232,6 +232,8 @@ export function useChatSocket(teamId, user_id, user_name, token) {
             text: type === 'poll' ? (pollData?.question || '') : text,
             type,
             mediaUrl: localPreviewUrl || mediaUrl, // local blob URL for instant 0ms playback on sender UI
+            fileName: fileMeta.fileName || null,
+            mimeType: fileMeta.mimeType || null,
             pollData: type === 'poll' ? pollData : null,
             createdAt: new Date().toISOString(),
             status: 'pending',
@@ -259,8 +261,11 @@ export function useChatSocket(teamId, user_id, user_name, token) {
                 text: type === 'poll' ? (pollData.question || '') : text,
                 type,
                 mediaUrl: finalMediaUrl, // send real CDN URL to server
-                pollData: type === 'poll' ? pollData : null
+                pollData: type === 'poll' ? pollData : null,
+                fileName: fileMeta.fileName || null,
+                mimeType: fileMeta.mimeType || null
             });
+
         }
     };
 
