@@ -45,18 +45,15 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     const [unreadCount, setUnreadCount] = useState(0);
     const [showScrollBtn, setShowScrollBtn] = useState(false);
     
-    // حالات التحديد المتعدد
     const [selectedMessages, setSelectedMessages] = useState([]); 
     const isSelectionMode = selectedMessages.length > 0;
 
-    // حالات النوافذ (Modals)
     const [editingMessage, setEditingMessage] = useState(null);
     const [editText, setEditText] = useState('');
     const [reactionDetails, setReactionDetails] = useState(null);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     
-    // حالات الموبايل (واتساب 2026)
     const [isTouchDevice, setIsTouchDevice] = useState(false);
     const [mobileActiveMessage, setMobileActiveMessage] = useState(null);
 
@@ -143,6 +140,8 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
 
     const getReactionUserId = (reaction) => reaction.userId?._id || reaction.userId;
     const getReactionUserName = (reaction) => reaction.userId?.Name || reaction.userName || 'Member';
+    
+    // دالة لتجميع الريأكتات المتشابهة مع بعض
     const getReactionGroups = (msg) => Object.entries((msg.reactions || []).reduce((groups, reaction) => {
         const key = reaction.emoji;
         if (!groups[key]) groups[key] = [];
@@ -222,7 +221,6 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     return (
         <div className="flex-1 relative min-h-0 flex flex-col">
             
-            {/* شريط الأدوات العلوي عند التحديد */}
             {isSelectionMode && (
                 <div className="absolute top-0 left-0 right-0 z-[60] bg-[#1e293b] border-b border-slate-700 shadow-lg px-4 py-2 flex items-center justify-between animate-in slide-in-from-top-2">
                     <div className="flex items-center gap-4">
@@ -294,7 +292,6 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                             key={msg._id || msg._tempId || `${msg.createdAt}-${index}`}
                             className={`flex w-full px-2 sm:px-4 py-1 transition-colors duration-200 ${isSelected ? 'bg-cyan-500/10' : 'hover:bg-white/[0.01]'}`}
                         >
-                            {/* Checkbox واتساب (يظهر عند التحديد المتعدد) */}
                             {isSelectionMode && (
                                 <div className="flex items-center justify-center w-10 shrink-0 cursor-pointer" onClick={() => toggleMessageSelection(msg)}>
                                     <div className={`w-5 h-5 rounded-full border-[1.5px] flex items-center justify-center transition-all ${isSelected ? 'bg-cyan-500 border-cyan-500' : 'border-slate-500'}`}>
@@ -311,6 +308,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                     onTouchCancel={cancelLongPress}
                                     onTouchMove={cancelLongPress}
                                     onContextMenu={(e) => { if (isTouchDevice) e.preventDefault(); }}
+                                    style={{ WebkitTouchCallout: 'none', WebkitUserSelect: isTouchDevice ? 'none' : 'auto', userSelect: isTouchDevice ? 'none' : 'auto' }}
                                     className={`group relative ${isSelectionMode ? 'cursor-pointer' : ''} ${
                                         isSticker
                                             ? 'bg-transparent text-slate-100'
@@ -368,21 +366,21 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         {isMe && (msg.status === 'pending' ? <Clock size={11} className="text-cyan-200/70 animate-pulse" /> : <CheckCheck size={14} className="text-cyan-400" />)}
                                     </div>
                                     
+                                    {/* تجميع كل الريأكتات في Div واحد */}
                                     {hasReactions && (
-                                        <div className={`absolute -bottom-3.5 ${isMe ? 'left-2' : 'right-2'} flex gap-0.5 rounded-full border border-slate-700/70 bg-[#172033] px-1.5 py-0.5 shadow-md z-20`}>
-                                            {getReactionGroups(msg).map(([emoji, reactions]) => (
-                                                <button 
-                                                    key={emoji} 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setReactionDetails({ msg, emoji, reactions });
-                                                    }} 
-                                                    className="flex items-center gap-0.5 rounded-full px-1 text-xs transition-colors hover:bg-white/10"
-                                                >
-                                                    <span>{emoji}</span>
-                                                    <span className="text-[10px] font-medium text-slate-300">{reactions.length}</span>
-                                                </button>
-                                            ))}
+                                        <div 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setReactionDetails({ msg, allReactions: msg.reactions });
+                                            }}
+                                            className={`absolute -bottom-3.5 cursor-pointer ${isMe ? 'left-2' : 'right-2'} flex items-center gap-1 rounded-full border border-slate-700/70 bg-[#172033] px-1.5 py-0.5 shadow-md z-20 hover:bg-white/10 transition-colors`}
+                                        >
+                                            <div className="flex -space-x-1">
+                                                {getReactionGroups(msg).map(([emoji, reactions]) => (
+                                                    <span key={emoji} className="text-[11px] drop-shadow-sm">{emoji}</span>
+                                                ))}
+                                            </div>
+                                            <span className="text-[10px] font-semibold text-slate-300 ml-1">{msg.reactions.length}</span>
                                         </div>
                                     )}
                                 </div>
@@ -406,22 +404,25 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                     <div className="w-full max-w-sm rounded-t-xl sm:rounded-xl bg-[#1e293b] p-0 shadow-2xl border border-slate-700 animate-in slide-in-from-bottom-2 sm:slide-in-from-bottom-0 sm:zoom-in-95 overflow-hidden" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between border-b border-slate-700/50 p-4 bg-slate-800/50">
                             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                                <span className="text-2xl">{reactionDetails.emoji}</span> Reactions
+                                Reactions ({reactionDetails.allReactions.length})
                             </h3>
                             <button onClick={() => setReactionDetails(null)} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors">
                                 <X size={18} />
                             </button>
                         </div>
                         <div className="max-h-60 overflow-y-auto p-2 custom-scrollbar">
-                            {reactionDetails.reactions.map((reaction, i) => (
-                                <div key={i} className="flex items-center gap-3 rounded-lg p-3 hover:bg-slate-800/50 transition-colors">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-700 border border-slate-600 text-lg font-bold text-white shadow-sm">
-                                        {getReactionUserName(reaction)[0].toUpperCase()}
+                            {reactionDetails.allReactions.map((reaction, i) => (
+                                <div key={i} className="flex items-center justify-between rounded-lg p-3 hover:bg-slate-800/50 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-700 border border-slate-600 text-lg font-bold text-white shadow-sm">
+                                            {getReactionUserName(reaction)[0].toUpperCase()}
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-medium text-slate-200">{getReactionUserName(reaction)}</span>
+                                            {getReactionUserId(reaction) === currentUserId && <span className="text-[10px] text-cyan-400">You</span>}
+                                        </div>
                                     </div>
-                                    <div className="flex flex-col">
-                                        <span className="text-sm font-medium text-slate-200">{getReactionUserName(reaction)}</span>
-                                        {getReactionUserId(reaction) === currentUserId && <span className="text-[10px] text-cyan-400">You</span>}
-                                    </div>
+                                    <span className="text-2xl drop-shadow-sm">{reaction.emoji}</span>
                                 </div>
                             ))}
                         </div>
@@ -505,13 +506,10 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                 </div>
             )}
 
-            {/* ========================================= */}
-            {/* القائمة المنبثقة الخاصة بالموبايل (بدون Blur وبتوضيح خيار الـ Select) */}
-            {/* ========================================= */}
+            {/* القائمة المنبثقة الخاصة بالموبايل */}
             <AnimatePresence>
                 {mobileActiveMessage && isTouchDevice && (
                     <div className="fixed inset-0 z-[120] flex flex-col items-center justify-center sm:hidden">
-                        {/* خلفية شفافة عادية تماماً بدون Blur أو تعتيم قوي عشان الرسائل تبمى واضحة */}
                         <motion.div 
                             initial={{ opacity: 0 }} 
                             animate={{ opacity: 1 }} 
@@ -522,7 +520,6 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                         
                         <div className="relative z-10 flex flex-col items-center w-full px-4 gap-4">
                             
-                            {/* شريط الريأكتات للموبايل */}
                             <motion.div 
                                 initial={{ scale: 0.8, opacity: 0, y: 20 }}
                                 animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -550,7 +547,6 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                 ))}
                             </motion.div>
 
-                            {/* فقاعة الرسالة واضحة في المنتصف */}
                             <div className={`max-w-[85%] rounded-2xl p-3 shadow-sm ${String(mobileActiveMessage.senderId) === String(currentUserId) ? 'bg-cyan-800 text-cyan-50 rounded-tr-sm' : 'bg-[#1e293b] text-slate-200 rounded-tl-sm border border-slate-700/50'}`}>
                                 {mobileActiveMessage.type === 'audio' && mobileActiveMessage.mediaUrl ? (
                                     <div className="pointer-events-none"><AudioMessage mediaUrl={mobileActiveMessage.mediaUrl} messageId={mobileActiveMessage._id || mobileActiveMessage.createdAt} /></div>
@@ -565,14 +561,12 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                 )}
                             </div>
 
-                            {/* قائمة الخيارات للموبايل مع إبراز زر Select زي واتساب */}
                             <motion.div 
                                 initial={{ scale: 0.8, opacity: 0, y: -20 }}
                                 animate={{ scale: 1, opacity: 1, y: 0 }}
                                 exit={{ scale: 0.8, opacity: 0, y: -20 }}
                                 className="bg-[#1e293b] border border-slate-700 rounded-2xl w-64 flex flex-col shadow-xl overflow-hidden"
                             >
-                                {/* زر تحديد الرسالة (Select Message) وضحناه وعلّمنا جنبه بشعار الـ Checkbox عشان اليوزر يفهم إنه هيقدر يختار كذا رسالة */}
                                 <button 
                                     onClick={() => { toggleMessageSelection(mobileActiveMessage); setMobileActiveMessage(null); }}
                                     className="flex items-center justify-between w-full p-4 hover:bg-slate-800 transition-colors border-b border-slate-700/50 text-cyan-400 font-medium"
