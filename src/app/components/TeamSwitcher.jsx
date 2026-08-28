@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Trash2 } from "lucide-react";
 
-export default function TeamSwitcher() {
+export default function TeamSwitcher({ dashboardOnly = false }) {
   const { 
     teams, 
     churchId, 
@@ -21,7 +21,9 @@ export default function TeamSwitcher() {
   const [switching, setSwitching] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
-  const approvedTeams = (teams || []).filter((team) => team.status === "approved");
+  const approvedTeams = (teams || []).filter((team) =>
+    team.status === "approved" && (!dashboardOnly || team.isCreator)
+  );
   if (approvedTeams.length === 0) return null;
 
   const handleSwitch = async (team) => {
