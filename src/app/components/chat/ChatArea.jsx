@@ -53,6 +53,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     const [editingMessage, setEditingMessage] = useState(null);
     const [editText, setEditText] = useState('');
     const [showMessageActions, setShowMessageActions] = useState(false);
+    const [reactionDetails, setReactionDetails] = useState(null);
     const longPressTimerRef = useRef(null);
 
     const handleReaction = (msg, emoji) => {
@@ -66,6 +67,15 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
         setContextMenu({ ...contextMenu, visible: false });
         setSelectedMessage(null);
     };
+
+    const getReactionUserId = (reaction) => reaction.userId?._id || reaction.userId;
+    const getReactionUserName = (reaction) => reaction.userId?.Name || reaction.userName || 'Member';
+    const getReactionGroups = (msg) => Object.entries((msg.reactions || []).reduce((groups, reaction) => {
+        const key = reaction.emoji;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(reaction);
+        return groups;
+    }, {}));
 
     const checkIfAtBottom = useCallback(() => {
         const el = scrollRef.current;
@@ -380,7 +390,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                 onTouchEnd={cancelLongPress}
                                 onTouchCancel={cancelLongPress}
                                 onTouchMove={cancelLongPress}
-                                className={`relative cursor-context-menu ${
+                                className={`group relative cursor-context-menu ${
                                     isSticker
                                         ? 'bg-transparent text-slate-100'
                                         : isMe
@@ -399,6 +409,18 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         </span>
                                     </div>
                                 )}
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleLongPress(msg, { currentTarget: e.currentTarget.parentElement });
+                                        setShowMessageActions(true);
+                                    }}
+                                    className="absolute right-1 top-1 z-10 rounded-full p-1 text-slate-400 opacity-70 transition-all hover:bg-black/20 hover:text-white sm:opacity-0 sm:group-hover:opacity-100"
+                                    aria-label="Message options"
+                                >
+                                    <MoreVertical size={15} />
+                                </button>
 
                                 {isMessageDeleted(msg) ? (
                                     <p dir="auto" className="text-[13px] italic text-slate-400 pb-2 min-w-[70px] text-start">
@@ -446,13 +468,11 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                     )}
                                 </div>
                                 {msg.reactions?.length > 0 && (
-                                    <div className={`absolute -bottom-3 ${isMe ? 'left-2' : 'right-2'} flex gap-1 rounded-full border border-slate-700/70 bg-[#172033] px-1.5 py-0.5 shadow-lg`}>
-                                        {Object.entries(msg.reactions.reduce((counts, reaction) => {
-                                            counts[reaction.emoji] = (counts[reaction.emoji] || 0) + 1;
-                                            return counts;
-                                        }, {})).map(([emoji, count]) => (
-                                            <button key={emoji} onClick={() => handleReaction(msg, emoji)} className="text-xs transition-transform hover:scale-125">
-                                                {emoji}{count > 1 && <span className="ml-0.5 text-[9px] text-slate-300">{count}</span>}
+                                    <div className={`absolute -bottom-3 ${isMe ? 'left-2' : 'right-2'} flex gap-0.5 rounded-full border border-slate-700/70 bg-[#172033] px-1.5 py-0.5 shadow-lg`}>
+                                        {getReactionGroups(msg).map(([emoji, reactions]) => (
+                                            <button key={emoji} onClick={() => setReactionDetails({ msg, emoji, reactions })} className="flex items-center gap-0.5 rounded-full px-1 text-xs transition-colors hover:bg-white/10">
+                                                <span>{emoji}</span>
+                                                <span className="text-[10px] text-slate-300">{reactions.length}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -509,6 +529,25 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                             <span>✏️</span>
                             <span>Edit</span>
                         </button>
+                    )}
+
+                    {reactionDetails && (
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setReactionDetails(null)}>
+                            <div className="w-full max-w-xs overflow-hidden rounded-2xl border border-slate-700 bg-[#1e293b] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-between border-b border-slate-700 px-4 py-3">
+                                    <span className="text-sm font-semibold text-white">{reactionDetails.emoji} {reactionDetails.reactions.length}</span>
+                                    <button onClick={() => setReactionDetails(null)} className="text-slate-400 hover:text-white">×</button>
+                                </div>
+                                <div className="max-h-64 overflow-y-auto p-2">
+                                    {reactionDetails.reactions.map((reaction) => (
+                                        <div key={String(getReactionUserId(reaction))} className="flex items-center justify-between rounded-xl px-3 py-2 text-sm text-slate-200 hover:bg-white/5">
+                                            <span>{String(getReactionUserId(reaction)) === String(currentUserId) ? 'You' : getReactionUserName(reaction)}</span>
+                                            <span>{reaction.emoji}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
                     )}
                     <button
                         onClick={() => handleDeleteMessage(false)}
