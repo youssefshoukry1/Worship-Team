@@ -23,6 +23,7 @@ export default function ChatTeamPage() {
     const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
     const [showBackupModal, setShowBackupModal] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
+    const [replyingTo, setReplyingTo] = useState(null);
 
     // Require auth
     useEffect(() => {
@@ -90,6 +91,7 @@ export default function ChatTeamPage() {
                     <ChatSidebar
                         teams={teams || []}
                         activeTeamId={activeTeamId}
+                        onReplySelect={setReplyingTo}
                         onSelectTeam={handleSelectTeam}
                     />
                     <BottomNav />
@@ -161,11 +163,16 @@ export default function ChatTeamPage() {
                             loading={loading}
                             socket={socket}
                             activeTeamId={activeTeamId}
+                            onReplySelect={setReplyingTo}
                         />
                         <ChatInput
-                            onSendMessage={sendMessage}
                             disabled={!isConnected}
                             token={isLogin}
+                            replyingTo={replyingTo}
+                            onCancelReply={() => setReplyingTo(null)}
+                            onSendMessage={(text, type, mediaUrl, pollData, localPreviewUrl, uploadFn, fileMeta) =>
+                                sendMessage(text, type, mediaUrl, pollData, localPreviewUrl, uploadFn, fileMeta, replyingTo)
+                            }
                         />
                     </div>
                 ) : (

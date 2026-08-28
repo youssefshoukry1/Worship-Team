@@ -38,6 +38,7 @@ function StickerMessage({ msg }) {
 export default function ChatArea({ messages, currentUserId, loading, socket, activeTeamId, onReplySelect }) {
     const scrollRef = useRef(null);
     const messagesEndRef = useRef(null);
+    const messageRefs = useRef(new Map());
     const isAtBottomRef = useRef(true);
     const prevMsgCountRef = useRef(0);
     const initialLoadDoneRef = useRef(false);
@@ -53,12 +54,15 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     const [reactionDetails, setReactionDetails] = useState(null);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [replyingTo, setReplyingTo] = useState(null);
     
     const [isTouchDevice, setIsTouchDevice] = useState(false);
     const [mobileActiveMessage, setMobileActiveMessage] = useState(null);
+    const [messagePosition, setMessagePosition] = useState(null);
+    const [swipeReply, setSwipeReply] = useState({ id: null, offset: 0 });
 
     const longPressTimerRef = useRef(null);
+    const swipeStartRef = useRef(null);
+    const suppressClickRef = useRef(false);
 
     useEffect(() => {
         const checkTouch = () => setIsTouchDevice(window.matchMedia("(pointer: coarse)").matches);
@@ -140,20 +144,17 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     };
 
     const handleReply = (msg) => {
-        setReplyingTo(msg);
         setMobileActiveMessage(null);
         if (onReplySelect) onReplySelect(msg);
     };
 
     const cancelReply = () => {
-        setReplyingTo(null);
         if (onReplySelect) onReplySelect(null);
     };
 
     const getReactionUserId = (reaction) => reaction.userId?._id || reaction.userId;
     const getReactionUserName = (reaction) => reaction.userId?.Name || reaction.userName || 'Member';
     
-    // دالة لتجميع الريأكتات المتشابهة مع بعض
     const getReactionGroups = (msg) => Object.entries((msg.reactions || []).reduce((groups, reaction) => {
         const key = reaction.emoji;
         if (!groups[key]) groups[key] = [];
@@ -167,6 +168,21 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
         if (replyTo.type === 'image') return '📷 Photo';
         if (['file', 'document'].includes(replyTo.type)) return '📎 File';
         return replyTo.text || '';
+    };
+
+    const getReplyMessageId = (replyTo) => {
+        if (!replyTo) return null;
+        return replyTo._id || replyTo.id || replyTo.messageId || null;
+    };
+
+    const scrollToReply = (replyTo) => {
+        const targetId = getReplyMessageId(replyTo);
+        if (!targetId) return;
+        const target = messageRefs.current.get(String(targetId));
+        if (!target) return;
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.add('ring-2', 'ring-cyan-400/80');
+        window.setTimeout(() => target.classList.remove('ring-2', 'ring-cyan-400/80'), 1400);
     };
 
     const checkIfAtBottom = useCallback(() => {
@@ -207,10 +223,25 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
 
     const startLongPress = (msg, event) => {
         if (event.touches.length !== 1) return;
+        const targetElement = event.currentTarget;
+        swipeStartRef.current = { x: event.touches[0].clientX, y: event.touches[0].clientY, msg };
+        suppressClickRef.current = false;
+        
         longPressTimerRef.current = window.setTimeout(() => {
             if (isTouchDevice) {
                 if (navigator.vibrate) navigator.vibrate(50);
-                if (!isSelectionMode) setMobileActiveMessage(msg);
+                if (!isSelectionMode) {
+                    const rect = targetElement.getBoundingClientRect();
+                    setMessagePosition({
+                        top: rect.top,
+                        bottom: rect.bottom,
+                        left: rect.left,
+                        right: rect.right,
+                        width: rect.width,
+                        isMe: String(msg.senderId) === String(currentUserId)
+                    });
+                    setMobileActiveMessage(msg);
+                }
             } else {
                 if (!isSelectionMode) toggleMessageSelection(msg);
             }
@@ -224,7 +255,42 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
         }
     };
 
+    const handleMessageTouchMove = (event) => {
+        if (!swipeStartRef.current || event.touches.length !== 1) return;
+        const deltaX = event.touches[0].clientX - swipeStartRef.current.x;
+        const deltaY = Math.abs(event.touches[0].clientY - swipeStartRef.current.y);
+        if (deltaY > 24 || Math.abs(deltaX) > 8) cancelLongPress();
+        if (deltaY > 24) return;
+
+        const msg = swipeStartRef.current.msg;
+        // WhatsApp-style gesture: own messages reveal reply by swiping left;
+        // incoming messages reveal it by swiping right.
+        const isOwnMessage = String(msg.senderId) === String(currentUserId);
+        const intendedDirection = isOwnMessage ? -1 : 1;
+        const progress = Math.max(0, Math.min(88, deltaX * intendedDirection));
+        // Keep the visual translation in the actual swipe direction. Own
+        // messages must move left; incoming messages must move right.
+        const offset = progress * intendedDirection;
+        setSwipeReply({ id: msg._id, offset });
+    };
+
+    const finishMessageTouch = () => {
+        const swipe = swipeReply;
+        const msg = swipeStartRef.current?.msg;
+        cancelLongPress();
+        if (msg && swipe.id === msg._id && Math.abs(swipe.offset) >= 64) {
+            suppressClickRef.current = true;
+            handleReply(msg);
+        }
+        swipeStartRef.current = null;
+        setSwipeReply({ id: null, offset: 0 });
+    };
+
     const handleMessageClick = (msg) => {
+        if (suppressClickRef.current) {
+            suppressClickRef.current = false;
+            return;
+        }
         if (isSelectionMode) {
             toggleMessageSelection(msg);
         }
@@ -322,14 +388,27 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
 
                             <div className={`flex flex-col relative max-w-[85%] sm:max-w-[70%] md:max-w-[55%] ${isMe ? 'ml-auto' : 'mr-auto'} ${hasReactions ? 'mb-4 mt-1' : 'mb-0.5'}`}>
                                 <div
+                                    ref={(element) => {
+                                        const messageId = msg._id || msg._tempId;
+                                        if (messageId) {
+                                            if (element) messageRefs.current.set(String(messageId), element);
+                                            else messageRefs.current.delete(String(messageId));
+                                        }
+                                    }}
                                     onClick={() => handleMessageClick(msg)}
                                     onTouchStart={(e) => startLongPress(msg, e)}
-                                    onTouchEnd={cancelLongPress}
-                                    onTouchCancel={cancelLongPress}
-                                    onTouchMove={cancelLongPress}
+                                    onTouchEnd={finishMessageTouch}
+                                    onTouchCancel={finishMessageTouch}
+                                    onTouchMove={handleMessageTouchMove}
                                     onContextMenu={(e) => { if (isTouchDevice) e.preventDefault(); }}
-                                    style={{ WebkitTouchCallout: 'none', WebkitUserSelect: isTouchDevice ? 'none' : 'auto', userSelect: isTouchDevice ? 'none' : 'auto' }}
-                                    className={`group relative ${isSelectionMode ? 'cursor-pointer' : ''} ${
+                                    style={{
+                                        WebkitTouchCallout: 'none',
+                                        WebkitUserSelect: isTouchDevice ? 'none' : 'auto',
+                                        userSelect: isTouchDevice ? 'none' : 'auto',
+                                        touchAction: 'pan-y',
+                                        transform: swipeReply.id === msg._id ? `translateX(${swipeReply.offset}px)` : undefined
+                                    }}
+                                    className={`group relative rounded-2xl transition-[transform,box-shadow] duration-150 ${isSelectionMode ? 'cursor-pointer' : ''} ${
                                         isSticker
                                             ? 'bg-transparent text-slate-100'
                                             : isMe
@@ -345,10 +424,13 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         </div>
                                     )}
 
-                                    {/* Reply preview inside bubble - WhatsApp style */}
                                     {msg.replyTo && !isMessageDeleted(msg) && !isSticker && (
                                         <div
-                                            className={`mb-2 rounded-lg px-2.5 py-1.5 border-l-[3px] cursor-default select-none ${
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                scrollToReply(msg.replyTo);
+                                            }}
+                                            className={`mb-2 rounded-lg px-2.5 py-1.5 border-l-[3px] cursor-pointer select-none transition-colors hover:bg-white/10 ${
                                                 isMe
                                                     ? 'bg-cyan-900/50 border-l-cyan-300'
                                                     : 'bg-slate-800/70 border-l-slate-400'
@@ -371,13 +453,6 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                                 title="React"
                                             >
                                                 <Smile size={14} />
-                                            </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleReply(msg); }}
-                                                className="p-1 text-slate-200 hover:text-emerald-400 hover:bg-white/20 rounded-md transition-colors"
-                                                title="Reply"
-                                            >
-                                                <CornerUpLeft size={14} />
                                             </button>
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); toggleMessageSelection(msg); }}
@@ -411,7 +486,6 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         {isMe && (msg.status === 'pending' ? <Clock size={11} className="text-cyan-200/70 animate-pulse" /> : <CheckCheck size={14} className="text-cyan-400" />)}
                                     </div>
                                     
-                                    {/* تجميع كل الريأكتات في Div واحد */}
                                     {hasReactions && (
                                         <div 
                                             onClick={(e) => {
@@ -551,147 +625,126 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                 </div>
             )}
 
-            {/* حالة الرد */}
-            {replyingTo && !editingMessage && (
-                <div className="absolute bottom-full left-0 right-0 z-50 bg-[#1e293b] border-t border-slate-700 p-3 shadow-lg animate-in slide-in-from-bottom-2">
-                    <div className="flex items-center justify-between mb-2 px-1">
-                        <div className="flex items-center gap-2 text-emerald-400">
-                            <CornerUpLeft size={16} />
-                            <span className="text-xs font-semibold uppercase tracking-wider">
-                                Reply to {replyingTo.senderName || 'Member'}
-                            </span>
-                        </div>
-                        <button onClick={cancelReply} className="text-slate-400 hover:text-white p-1 rounded-full hover:bg-slate-700 transition-colors">
-                            <X size={16} />
-                        </button>
-                    </div>
-                    <div
-                        className="bg-[#0f172a] rounded-xl px-3 py-2 border border-slate-700/50"
-                        style={{ borderLeft: '3px solid #34d399' }}
-                    >
-                        <p className="text-[12px] text-slate-300 truncate">
-                            {getReplyPreviewText(replyingTo)}
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            {/* القائمة المنبثقة الخاصة بالموبايل */}
+            {/* القائمة المنبثقة الخاصة بالموبايل - مطابقة لـ WhatsApp */}
             <AnimatePresence>
-                {mobileActiveMessage && isTouchDevice && (
-                    <div className="fixed inset-0 z-[120] flex flex-col items-center justify-center sm:hidden">
+                {mobileActiveMessage && isTouchDevice && messagePosition && (
+                    <div className="fixed inset-0 z-[120] flex flex-col sm:hidden">
                         <motion.div 
                             initial={{ opacity: 0 }} 
                             animate={{ opacity: 1 }} 
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-black/40"
+                            className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
                             onClick={() => setMobileActiveMessage(null)}
                         />
                         
-                        <div className="relative z-10 flex flex-col items-center w-full px-4 gap-4">
-                            
-                            <motion.div 
-                                initial={{ scale: 0.8, opacity: 0, y: 20 }}
-                                animate={{ scale: 1, opacity: 1, y: 0 }}
-                                exit={{ scale: 0.8, opacity: 0, y: 20 }}
-                                className="bg-[#1e293b] border border-slate-700 rounded-full px-4 py-2 flex gap-3 shadow-xl"
+                        <div className="absolute inset-0 pointer-events-none p-3 flex flex-col justify-between overflow-hidden">
+                            {/* رسالة المستخدم اللي اتعمل عليها لونج بريس (تظهر في مكانها الطبيعي بالضبط) */}
+                            <div 
+                                className="absolute pointer-events-auto"
+                                style={{
+                                    top: `${Math.max(10, messagePosition.top > window.innerHeight / 2 ? messagePosition.top - 120 : messagePosition.top)}px`,
+                                    [messagePosition.isMe ? 'right' : 'left']: `${Math.max(12, window.innerWidth - messagePosition.right)}px`,
+                                    maxWidth: '85%'
+                                }}
                             >
-                                {REACTION_EMOJIS.map((emoji) => (
-                                    <button 
-                                        key={emoji} 
-                                        className="text-2xl hover:scale-125 transition-transform" 
-                                        onClick={() => {
-                                            if (socket?.current && mobileActiveMessage._id) {
-                                                socket.current.emit('toggle-reaction', {
-                                                    teamId: activeTeamId,
-                                                    messageId: mobileActiveMessage._id,
-                                                    userId: currentUserId,
-                                                    emoji
-                                                });
-                                            }
-                                            setMobileActiveMessage(null);
-                                        }}
+                                <div className={`flex flex-col relative ${messagePosition.isMe ? 'items-end' : 'items-start'}`}>
+                                    {/* شريط الإيموجيز السريع فوق الرسالة مباشرة */}
+                                    <motion.div 
+                                        initial={{ scale: 0.8, opacity: 0, y: 10 }}
+                                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                                        exit={{ scale: 0.8, opacity: 0, y: 10 }}
+                                        className="mb-2 bg-[#1e293b] border border-slate-700 rounded-full px-3 py-1.5 flex gap-2.5 shadow-2xl"
                                     >
-                                        {emoji}
-                                    </button>
-                                ))}
-                            </motion.div>
+                                        {REACTION_EMOJIS.map((emoji) => (
+                                            <button 
+                                                key={emoji} 
+                                                className="text-xl hover:scale-125 transition-transform" 
+                                                onClick={() => {
+                                                    if (socket?.current && mobileActiveMessage._id) {
+                                                        socket.current.emit('toggle-reaction', {
+                                                            teamId: activeTeamId,
+                                                            messageId: mobileActiveMessage._id,
+                                                            userId: currentUserId,
+                                                            emoji
+                                                        });
+                                                    }
+                                                    setMobileActiveMessage(null);
+                                                }}
+                                            >
+                                                {emoji}
+                                            </button>
+                                        ))}
+                                    </motion.div>
 
-                            <div className={`max-w-[85%] rounded-2xl p-3 shadow-sm ${String(mobileActiveMessage.senderId) === String(currentUserId) ? 'bg-cyan-800 text-cyan-50 rounded-tr-sm' : 'bg-[#1e293b] text-slate-200 rounded-tl-sm border border-slate-700/50'}`}>
-                                {mobileActiveMessage.type === 'audio' && mobileActiveMessage.mediaUrl ? (
-                                    <div className="pointer-events-none"><AudioMessage mediaUrl={mobileActiveMessage.mediaUrl} messageId={mobileActiveMessage._id || mobileActiveMessage.createdAt} /></div>
-                                ) : mobileActiveMessage.type === 'image' && mobileActiveMessage.mediaUrl ? (
-                                    <div className="pointer-events-none"><ImageMessage msg={mobileActiveMessage} /></div>
-                                ) : ['file', 'document'].includes(mobileActiveMessage.type) && mobileActiveMessage.mediaUrl ? (
-                                    <div className="pointer-events-none"><FileMessage msg={mobileActiveMessage} /></div>
-                                ) : (
-                                    <div dir="auto" className="text-[14px] leading-relaxed whitespace-pre-wrap break-words min-w-[70px] text-start">
-                                        {mobileActiveMessage.text}
+                                    {/* نسخة طبق الأصل من بوكس الرسالة عشان تفضل واضحة وبارزة */}
+                                    <div className={`rounded-2xl p-3 shadow-2xl ${messagePosition.isMe ? 'bg-cyan-800 text-cyan-50 rounded-tr-sm' : 'bg-[#1e293b] text-slate-200 rounded-tl-sm border border-slate-700/50'}`}>
+                                        {mobileActiveMessage.type === 'audio' && mobileActiveMessage.mediaUrl ? (
+                                            <div className="pointer-events-none"><AudioMessage mediaUrl={mobileActiveMessage.mediaUrl} messageId={mobileActiveMessage._id || mobileActiveMessage.createdAt} /></div>
+                                        ) : mobileActiveMessage.type === 'image' && mobileActiveMessage.mediaUrl ? (
+                                            <div className="pointer-events-none"><ImageMessage msg={mobileActiveMessage} /></div>
+                                        ) : ['file', 'document'].includes(mobileActiveMessage.type) && mobileActiveMessage.mediaUrl ? (
+                                            <div className="pointer-events-none"><FileMessage msg={mobileActiveMessage} /></div>
+                                        ) : (
+                                            <div dir="auto" className="text-[14px] leading-relaxed whitespace-pre-wrap break-words min-w-[70px] text-start">
+                                                {mobileActiveMessage.text}
+                                            </div>
+                                        )}
                                     </div>
-                                )}
+
+                                    {/* قائمة الخيارات (تظهر تحت الرسالة لو فيه مكان، أو فوقها لو الرسالة تحت خالص) */}
+                                    <motion.div 
+                                        initial={{ scale: 0.8, opacity: 0, y: messagePosition.top > window.innerHeight / 2 ? -10 : 10 }}
+                                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                                        exit={{ scale: 0.8, opacity: 0 }}
+                                        className="mt-2.5 bg-[#1e293b] border border-slate-700 rounded-2xl w-56 flex flex-col shadow-2xl overflow-hidden pointer-events-auto"
+                                    >
+                                        <button 
+                                            onClick={() => { toggleMessageSelection(mobileActiveMessage); setMobileActiveMessage(null); }}
+                                            className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800/80 transition-colors border-b border-slate-700/50 text-cyan-400 font-medium"
+                                        >
+                                            <span className="text-[14px]">Select</span>
+                                            <Check size={16} className="text-cyan-400" />
+                                        </button>
+
+                                        {(!mobileActiveMessage.type || mobileActiveMessage.type === 'text') && (
+                                            <button 
+                                                onClick={() => { navigator.clipboard.writeText(mobileActiveMessage.text); setMobileActiveMessage(null); }}
+                                                className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800/80 transition-colors border-b border-slate-700/50 text-slate-200"
+                                            >
+                                                <span className="text-[14px]">Copy</span>
+                                                <Copy size={16} />
+                                            </button>
+                                        )}
+
+                                        {String(mobileActiveMessage.senderId) === String(currentUserId) && (!mobileActiveMessage.type || mobileActiveMessage.type === 'text') && !isMessageDeleted(mobileActiveMessage) && (
+                                            <button 
+                                                onClick={() => { 
+                                                    setEditingMessage(mobileActiveMessage); 
+                                                    setEditText(mobileActiveMessage.text); 
+                                                    setMobileActiveMessage(null); 
+                                                }}
+                                                className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800/80 transition-colors border-b border-slate-700/50 text-sky-400"
+                                            >
+                                                <span className="text-[14px]">Edit</span>
+                                                <Edit2 size={16} />
+                                            </button>
+                                        )}
+
+                                        <button 
+                                            options-id="delete"
+                                            onClick={() => { 
+                                                setSelectedMessages([mobileActiveMessage]); 
+                                                setMobileActiveMessage(null); 
+                                                setShowDeleteModal(true); 
+                                            }}
+                                            className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800/80 transition-colors text-red-400"
+                                        >
+                                            <span className="text-[14px]">Delete</span>
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </motion.div>
+                                </div>
                             </div>
-
-                            <motion.div 
-                                initial={{ scale: 0.8, opacity: 0, y: -20 }}
-                                animate={{ scale: 1, opacity: 1, y: 0 }}
-                                exit={{ scale: 0.8, opacity: 0, y: -20 }}
-                                className="bg-[#1e293b] border border-slate-700 rounded-2xl w-64 flex flex-col shadow-xl overflow-hidden"
-                            >
-                                {/* Reply - أول عنصر زي واتساب */}
-                                <button 
-                                    onClick={() => handleReply(mobileActiveMessage)}
-                                    className="flex items-center justify-between w-full p-4 hover:bg-slate-800 transition-colors border-b border-slate-700/50 text-emerald-400 font-medium"
-                                >
-                                    <span className="text-[15px]">Reply</span>
-                                    <CornerUpLeft size={18} />
-                                </button>
-
-                                <button 
-                                    onClick={() => { toggleMessageSelection(mobileActiveMessage); setMobileActiveMessage(null); }}
-                                    className="flex items-center justify-between w-full p-4 hover:bg-slate-800 transition-colors border-b border-slate-700/50 text-cyan-400 font-medium"
-                                >
-                                    <span className="text-[15px]">Select Messages</span>
-                                    <div className="w-5 h-5 rounded-full border-[1.5px] border-cyan-400 flex items-center justify-center bg-cyan-400/10">
-                                        <Check size={12} className="text-cyan-400" strokeWidth={3} />
-                                    </div>
-                                </button>
-
-                                {(!mobileActiveMessage.type || mobileActiveMessage.type === 'text') && (
-                                    <button 
-                                        onClick={() => { navigator.clipboard.writeText(mobileActiveMessage.text); setMobileActiveMessage(null); }}
-                                        className="flex items-center justify-between w-full p-4 hover:bg-slate-800 transition-colors border-b border-slate-700/50 text-slate-200"
-                                    >
-                                        <span className="text-[15px]">Copy</span>
-                                        <Copy size={18} />
-                                    </button>
-                                )}
-
-                                {String(mobileActiveMessage.senderId) === String(currentUserId) && (!mobileActiveMessage.type || mobileActiveMessage.type === 'text') && !isMessageDeleted(mobileActiveMessage) && (
-                                    <button 
-                                        onClick={() => { 
-                                            setEditingMessage(mobileActiveMessage); 
-                                            setEditText(mobileActiveMessage.text); 
-                                            setMobileActiveMessage(null); 
-                                        }}
-                                        className="flex items-center justify-between w-full p-4 hover:bg-slate-800 transition-colors border-b border-slate-700/50 text-sky-400"
-                                    >
-                                        <span className="text-[15px]">Edit</span>
-                                        <Edit2 size={18} />
-                                    </button>
-                                )}
-
-                                <button 
-                                    onClick={() => { 
-                                        setSelectedMessages([mobileActiveMessage]); 
-                                        setMobileActiveMessage(null); 
-                                        setShowDeleteModal(true); 
-                                    }}
-                                    className="flex items-center justify-between w-full p-4 hover:bg-slate-800 transition-colors text-red-400"
-                                >
-                                    <span className="text-[15px]">Delete</span>
-                                    <Trash2 size={18} />
-                                </button>
-                            </motion.div>
                         </div>
                     </div>
                 )}

@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { 
     Send, Mic, Square, Trash2, Loader2, Pause, Play, Plus, 
     BarChart2, X, CheckSquare, Image as ImageIcon, Lock, 
-    ChevronUp, ChevronLeft, Smile, Sticker, Upload, Search, FileText
+    ChevronUp, ChevronLeft, Smile, Sticker, Upload, Search, FileText, CornerUpLeft
 } from 'lucide-react';
 import axios from 'axios';
 import { getApiBaseUrl } from '../../utils/apiBase';
@@ -28,7 +28,7 @@ const DEFAULT_STICKERS = [
     { id: '5', name: 'Mind Blown', url: 'https://cdn-icons-png.flaticon.com/512/4712/4712038.png' },
 ];
 
-export default function ChatInput({ onSendMessage, disabled, token }) {
+export default function ChatInput({ onSendMessage, disabled, token, replyingTo, onCancelReply }) {
     const [text, setText] = useState('');
     
     // Voice Recording & Drag States
@@ -97,6 +97,7 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
         if (text.trim() && !isUploading && !isRecording) {
             onSendMessage(text, 'text');
             setText('');
+            onCancelReply?.();
             setShowAttachMenu(false);
             setShowEmojiPicker(false);
         }
@@ -417,6 +418,32 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
     return (
         <div className="bg-[#0f172a] p-3 md:p-4 border-t border-white/10 shrink-0 relative">
             <audio ref={audioPreviewRef} className="hidden" />
+
+            {replyingTo && (
+                <div className="mx-auto mb-2 flex max-w-4xl items-center gap-2 rounded-xl border border-emerald-400/20 bg-[#1e293b] px-3 py-2 shadow-sm">
+                    <div className="flex h-8 w-1 shrink-0 rounded-full bg-emerald-400" />
+                    <CornerUpLeft size={16} className="shrink-0 text-emerald-400" />
+                    <div className="min-w-0 flex-1">
+                        <p className="truncate text-[11px] font-semibold text-emerald-400">
+                            Replying to {replyingTo.senderName || 'Member'}
+                        </p>
+                        <p className="truncate text-xs text-slate-300">
+                            {replyingTo.type === 'audio' ? 'Audio message' :
+                                replyingTo.type === 'image' ? 'Photo' :
+                                    ['file', 'document'].includes(replyingTo.type) ? 'File' :
+                                        replyingTo.text || 'Message'}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onCancelReply}
+                        className="rounded-full p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+                        aria-label="Cancel reply"
+                    >
+                        <X size={17} />
+                    </button>
+                </div>
+            )}
             
             <div className="max-w-4xl mx-auto flex items-end gap-2 relative">
                 
