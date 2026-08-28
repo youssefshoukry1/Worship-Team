@@ -23,7 +23,7 @@ export default function TeamSwitcher({ dashboardOnly = false }) {
 
   const approvedTeams = (teams || []).filter((team) =>
     team.status === "approved" &&
-    (!dashboardOnly || team.isCreator === true || team.role === "MANEGER")
+    (!dashboardOnly || team.isCreator === true)
   );
   if (approvedTeams.length === 0) return null;
 

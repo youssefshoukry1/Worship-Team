@@ -31,8 +31,9 @@ import TeamSwitcher from '../components/TeamSwitcher';
 const API_URL = "https://worship-team-api.onrender.com/api";
 
 export default function Dashboard() {
-  const { isLogin, UserRole, churchId } = useContext(UserContext);
+  const { isLogin, UserRole, churchId, teams, switchTeam } = useContext(UserContext);
   const queryClient = useQueryClient();
+  const [switchingToOwnedTeam, setSwitchingToOwnedTeam] = useState(false);
   const [processingId, setProcessingId] = useState(null);
   const [newEventName, setNewEventName] = useState("");
   const [showEventsList, setShowEventsList] = useState(false);
@@ -46,6 +47,30 @@ export default function Dashboard() {
   const [editingReport, setEditingReport] = useState(null);
   const [showManageReports, setShowManageReports] = useState(false);
   const [activeUserSections, setActiveUserSections] = useState({});
+
+  const ownedTeam = (teams || []).find((team) =>
+    team.status === 'approved' && team.isCreator === true
+  );
+
+  useEffect(() => {
+    if (!isLogin || !ownedTeam || ownedTeam.churchId?.toString() === churchId?.toString()) {
+      return;
+    }
+
+    let cancelled = false;
+    setSwitchingToOwnedTeam(true);
+    switchTeam(ownedTeam)
+      .catch((error) => {
+        console.error('Failed to switch to owned team for dashboard:', error);
+      })
+      .finally(() => {
+        if (!cancelled) setSwitchingToOwnedTeam(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLogin, churchId, ownedTeam?.churchId]);
 
 
   const toggleUserSection = (userId, section) => {
@@ -374,18 +399,18 @@ export default function Dashboard() {
   const { data: pendingUsers = [], isLoading: isLoadingPending } = useQuery({
     queryKey: ['pendingUsers', isLogin, churchId],
     queryFn: fetchPendingUsers,
-    enabled: !!isLogin && !!churchId,
+    enabled: !!isLogin && !!churchId && !!ownedTeam && !switchingToOwnedTeam,
   });
 
   const { data: UsersChurch = [], isLoading: isLoadingChurch } = useQuery({
     queryKey: ['data', isLogin, churchId],
     queryFn: fetchAll_ChurchID_Users,
-    enabled: !!isLogin && !!churchId,
+    enabled: !!isLogin && !!churchId && !!ownedTeam && !switchingToOwnedTeam,
   });
 
-  if (isLoadingPending || isLoadingChurch) return <Loading />;
+  if (switchingToOwnedTeam || isLoadingPending || isLoadingChurch) return <Loading />;
 
-  if (isLogin && UserRole === 'USER') {
+  if (isLogin && !ownedTeam) {
     return (
       <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center text-white p-6">
         <motion.div
