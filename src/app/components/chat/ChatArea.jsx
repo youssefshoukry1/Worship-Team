@@ -4,17 +4,12 @@ import AudioMessage from './AudioMessage';
 import ImageMessage from './ImageMessage';
 import FileMessage from './FileMessage';
 import { useLocalMedia } from '../../hooks/useLocalMedia';
-import { BarChart2, ChevronDown, Clock, Check, CheckCheck, MoreVertical } from 'lucide-react';
+import { BarChart2, ChevronDown, Clock, Check, CheckCheck, Smile, Edit2, Trash2, X, Plus, Copy } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const SENDER_NAME_COLORS = [
-    'text-sky-400',
-    'text-[#38bdf8]',
-    'text-cyan-400',
-    'text-teal-400',
-    'text-amber-400',
-    'text-emerald-400',
-    'text-indigo-400',
-    'text-rose-400',
+    'text-sky-400', 'text-[#38bdf8]', 'text-cyan-400', 'text-teal-400',
+    'text-amber-400', 'text-emerald-400', 'text-indigo-400', 'text-rose-400',
 ];
 
 const getSenderColor = (userId) => {
@@ -29,6 +24,7 @@ const getSenderColor = (userId) => {
 };
 
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+const EXTENDED_EMOJIS = ['😀','😂','🤣','❤️','😍','🙏','😮','😢','😭','😡','👍','👎','🔥','🎉','💯','👀','🤔','🙌'];
 
 function StickerMessage({ msg }) {
     const { localUrl, loading } = useLocalMedia(msg.mediaUrl, msg._id || msg.createdAt);
@@ -48,24 +44,101 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
 
     const [unreadCount, setUnreadCount] = useState(0);
     const [showScrollBtn, setShowScrollBtn] = useState(false);
-    const [selectedMessage, setSelectedMessage] = useState(null);
-    const [contextMenu, setContextMenu] = useState({ x: 0, y: 0, visible: false });
+    
+    // حالات التحديد المتعدد
+    const [selectedMessages, setSelectedMessages] = useState([]); 
+    const isSelectionMode = selectedMessages.length > 0;
+
+    // حالات النوافذ (Modals)
     const [editingMessage, setEditingMessage] = useState(null);
     const [editText, setEditText] = useState('');
-    const [showMessageActions, setShowMessageActions] = useState(false);
     const [reactionDetails, setReactionDetails] = useState(null);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    
+    // حالات الموبايل (واتساب 2026)
+    const [isTouchDevice, setIsTouchDevice] = useState(false);
+    const [mobileActiveMessage, setMobileActiveMessage] = useState(null);
+
     const longPressTimerRef = useRef(null);
 
-    const handleReaction = (msg, emoji) => {
-        if (!socket?.current || !msg._id) return;
-        socket.current.emit('toggle-reaction', {
-            teamId: activeTeamId,
-            messageId: msg._id,
-            userId: currentUserId,
-            emoji
+    useEffect(() => {
+        const checkTouch = () => setIsTouchDevice(window.matchMedia("(pointer: coarse)").matches);
+        checkTouch();
+        window.addEventListener('resize', checkTouch);
+        return () => window.removeEventListener('resize', checkTouch);
+    }, []);
+
+    const toggleMessageSelection = (msg) => {
+        setSelectedMessages(prev => {
+            const isSelected = prev.some(m => m._id === msg._id);
+            if (isSelected) {
+                return prev.filter(m => m._id !== msg._id);
+            } else {
+                return [...prev, msg];
+            }
         });
-        setContextMenu({ ...contextMenu, visible: false });
-        setSelectedMessage(null);
+    };
+
+    const handleBulkReaction = (emoji) => {
+        if (!socket?.current) return;
+        selectedMessages.forEach(msg => {
+            if (msg._id) {
+                socket.current.emit('toggle-reaction', {
+                    teamId: activeTeamId,
+                    messageId: msg._id,
+                    userId: currentUserId,
+                    emoji
+                });
+            }
+        });
+        setSelectedMessages([]);
+        setShowEmojiPicker(false);
+    };
+
+    const handleBulkDelete = (deleteForAll) => {
+        if (!socket?.current) return;
+        selectedMessages.forEach(msg => {
+            if (msg._id && (String(msg.senderId) === String(currentUserId) || !deleteForAll)) {
+                socket.current.emit('delete-message', {
+                    teamId: activeTeamId,
+                    messageId: msg._id,
+                    deleteForAll,
+                    userId: currentUserId
+                });
+            }
+        });
+        setSelectedMessages([]);
+        setShowDeleteModal(false);
+    };
+
+    const handleEditStart = () => {
+        if (selectedMessages.length === 1) {
+            const msgToEdit = selectedMessages[0];
+            if ((msgToEdit.type === 'text' || !msgToEdit.type) && !isMessageDeleted(msgToEdit) && String(msgToEdit.senderId) === String(currentUserId)) {
+                setEditingMessage(msgToEdit);
+                setEditText(msgToEdit.text);
+                setSelectedMessages([]);
+            }
+        }
+    };
+
+    const handleEditSubmit = () => {
+        if (!editingMessage || !editText.trim() || !socket?.current) {
+            setEditingMessage(null);
+            setEditText('');
+            return;
+        }
+        if (editText.trim() !== editingMessage.text.trim()) {
+            socket.current.emit('edit-message', {
+                teamId: activeTeamId,
+                messageId: editingMessage._id,
+                newText: editText.trim(),
+                userId: currentUserId
+            });
+        }
+        setEditingMessage(null);
+        setEditText('');
     };
 
     const getReactionUserId = (reaction) => reaction.userId?._id || reaction.userId;
@@ -107,92 +180,35 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
         }
     }, [loading, messages.length, scrollToBottom]);
 
-    useEffect(() => {
-        if (loading) {
-            initialLoadDoneRef.current = false;
-            prevMsgCountRef.current = 0;
-            setUnreadCount(0);
-            setShowScrollBtn(false);
-            isAtBottomRef.current = true;
-        }
-    }, [loading]);
-
-    useEffect(() => {
-        if (!initialLoadDoneRef.current) return;
-        const newCount = messages.length - prevMsgCountRef.current;
-        if (newCount <= 0) return;
-
-        prevMsgCountRef.current = messages.length;
-
-        if (isAtBottomRef.current) {
-            scrollToBottom(true);
-        } else {
-            setUnreadCount(c => c + newCount);
-            setShowScrollBtn(true);
-        }
-    }, [messages.length, scrollToBottom]);
-
-    useEffect(() => {
-        if (!socket?.current) return;
-        const handleMessageDeleted = (updatedMsg) => {};
-        socket.current.on('message-deleted', handleMessageDeleted);
-        return () => {
-            socket.current?.off('message-deleted', handleMessageDeleted);
-        };
-    }, [socket]);
-
-    useEffect(() => {
-        const handleClickOutside = () => {
-            if (contextMenu.visible) {
-                setContextMenu({ ...contextMenu, visible: false });
-            }
-        };
-        document.addEventListener('click', handleClickOutside);
-        return () => document.removeEventListener('click', handleClickOutside);
-    }, [contextMenu.visible]);
-
     const formatTime = (dateString) => {
         if (!dateString) return '';
         const d = new Date(dateString);
         return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
-    const handleLongPress = (msg, e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        setSelectedMessage(msg);
-        setShowMessageActions(false);
-        setContextMenu({
-            x: Math.min(rect.left, window.innerWidth - 300),
-            y: Math.max(12, rect.top - 62),
-            visible: true
-        });
-    };
-
     const startLongPress = (msg, event) => {
         if (event.touches.length !== 1) return;
         longPressTimerRef.current = window.setTimeout(() => {
-            handleLongPress(msg, { currentTarget: event.currentTarget });
-        }, 500);
+            if (isTouchDevice) {
+                if (navigator.vibrate) navigator.vibrate(50);
+                if (!isSelectionMode) setMobileActiveMessage(msg);
+            } else {
+                if (!isSelectionMode) toggleMessageSelection(msg);
+            }
+        }, 400);
     };
 
     const cancelLongPress = () => {
-        window.clearTimeout(longPressTimerRef.current);
-        longPressTimerRef.current = null;
+        if (longPressTimerRef.current) {
+            window.clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
     };
 
-    const handleDeleteMessage = (deleteForAll) => {
-        if (!selectedMessage || !socket?.current) {
-            setContextMenu({ ...contextMenu, visible: false });
-            return;
+    const handleMessageClick = (msg) => {
+        if (isSelectionMode) {
+            toggleMessageSelection(msg);
         }
-        socket.current.emit('delete-message', {
-            teamId: activeTeamId,
-            messageId: selectedMessage._id,
-            deleteForAll,
-            userId: currentUserId
-        });
-        setContextMenu({ ...contextMenu, visible: false });
-        setSelectedMessage(null);
     };
 
     const isMessageDeleted = (msg) => {
@@ -201,144 +217,51 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
         return false;
     };
 
-    const handleEditStart = () => {
-        if (selectedMessage && (selectedMessage.type === 'text' || !selectedMessage.type) && !isMessageDeleted(selectedMessage)) {
-            setEditingMessage(selectedMessage);
-            setEditText(selectedMessage.text);
-            setContextMenu({ ...contextMenu, visible: false });
-        }
-    };
-
-    const handleEditSubmit = () => {
-        if (!editingMessage || !editText.trim() || !socket?.current) {
-            setEditingMessage(null);
-            setEditText('');
-            return;
-        }
-        if (editText.trim() === editingMessage.text.trim()) {
-            setEditingMessage(null);
-            setEditText('');
-            return;
-        }
-        socket.current.emit('edit-message', {
-            teamId: activeTeamId,
-            messageId: editingMessage._id,
-            newText: editText.trim(),
-            userId: currentUserId
-        });
-        setEditingMessage(null);
-        setEditText('');
-    };
-
-    const handleEditCancel = () => {
-        setEditingMessage(null);
-        setEditText('');
-    };
-
-    const PollMessageBubble = ({ msg, isMe }) => {
-        let pollData = msg.pollData || null;
-        if (!pollData && msg.text) {
-            try {
-                pollData = typeof msg.text === 'string' ? JSON.parse(msg.text) : msg.text;
-            } catch (e) {
-                return <p className="text-[13px] text-red-400">Invalid Poll Data</p>;
-            }
-        }
-        if (!pollData || !pollData.options) return null;
-
-        const totalVotes = pollData.options.reduce((acc, opt) => acc + (opt.votes?.length || 0), 0);
-        const topOptions = [...pollData.options]
-            .filter(opt => opt.votes?.length > 0)
-            .sort((a, b) => b.votes?.length - a.votes?.length)
-            .slice(0, 2);
-
-        const handleVote = (messageId, optionId) => {
-            if (!socket?.current) return;
-            socket.current.emit('vote-poll', {
-                teamId: activeTeamId,
-                messageId,
-                optionId,
-                userId: currentUserId
-            });
-        };
-
-        return (
-            <div className="flex flex-col min-w-[220px] sm:min-w-[260px] pt-1 pb-3">
-                <div className="flex items-start gap-2 mb-2.5">
-                    <div className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${isMe ? 'bg-cyan-500/20 text-cyan-100' : 'bg-slate-700/50 text-cyan-400'}`}>
-                        <BarChart2 size={16} />
-                    </div>
-                    <span dir="auto" className="font-semibold text-[14px] leading-snug text-slate-100 text-start">
-                        {pollData.question}
-                    </span>
-                </div>
-
-                <div className="space-y-1.5">
-                    {pollData.options.map((option) => {
-                        const votesCount = option.votes?.length || 0;
-                        const percentage = totalVotes > 0 ? Math.round((votesCount / totalVotes) * 100) : 0;
-                        const hasMyVote = option.votes?.some((voteId) => String(voteId) === String(currentUserId));
-
-                        return (
-                            <button
-                                key={option.id}
-                                onClick={() => handleVote(msg._id, option.id)}
-                                className={`group relative w-full text-left overflow-hidden rounded-xl px-2.5 py-1.5 text-[13px] transition-all duration-300 ease-out active:scale-[0.98] border ${
-                                    hasMyVote
-                                        ? 'border-cyan-500/50 bg-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.15)]'
-                                        : 'border-slate-700/50 bg-slate-800/40 hover:bg-slate-700/60 hover:border-slate-600'
-                                }`}
-                            >
-                                {votesCount > 0 && (
-                                    <div
-                                        className={`absolute left-0 top-0 bottom-0 transition-all duration-700 ease-out ${
-                                            hasMyVote ? 'bg-cyan-500/30' : 'bg-slate-600/25'
-                                        }`}
-                                        style={{ width: `${percentage}%` }}
-                                    />
-                                )}
-                                <div className="relative z-10 flex justify-between items-center gap-2">
-                                    <span dir="auto" className={`font-medium transition-colors duration-300 text-start ${
-                                        hasMyVote ? 'text-cyan-200' : 'text-slate-200 group-hover:text-white'
-                                    }`}>
-                                        {option.text}
-                                    </span>
-                                    {votesCount > 0 && (
-                                        <span className={`text-[11px] font-medium ${hasMyVote ? 'text-cyan-300' : 'text-slate-400'}`}>
-                                            {percentage}%
-                                        </span>
-                                    )}
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {topOptions.length > 0 && (
-                    <div className="mt-2.5 pt-2 border-t border-slate-700/50 flex items-center gap-2 overflow-x-auto custom-scrollbar pb-0.5">
-                        <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider shrink-0">Top</span>
-                        <div className="flex gap-1.5">
-                            {topOptions.map((opt, idx) => (
-                                <div key={idx} className="flex items-center gap-1 bg-slate-800/80 text-slate-300 border border-slate-700 px-2 py-0.5 rounded-md text-[10px] whitespace-nowrap shadow-sm">
-                                    <span dir="auto" className="truncate max-w-[80px] text-start" title={opt.text}>{opt.text}</span>
-                                    <span className="text-slate-500 font-medium">•</span>
-                                    <span className="font-bold text-cyan-400">{opt.votes?.length}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
-    };
+    const canDeleteForAll = selectedMessages.every(msg => String(msg.senderId) === String(currentUserId));
 
     return (
         <div className="flex-1 relative min-h-0 flex flex-col">
+            
+            {/* شريط الأدوات العلوي عند التحديد */}
+            {isSelectionMode && (
+                <div className="absolute top-0 left-0 right-0 z-[60] bg-[#1e293b] border-b border-slate-700 shadow-lg px-4 py-2 flex items-center justify-between animate-in slide-in-from-top-2">
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setSelectedMessages([])} className="p-2 hover:bg-slate-700 rounded-full text-slate-300 transition-colors">
+                            <X size={20} />
+                        </button>
+                        <span className="text-white font-medium">{selectedMessages.length} Selected</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-1 sm:gap-2">
+                        <div className="hidden sm:flex items-center gap-1 bg-slate-800 rounded-full px-2 py-1 mr-2 border border-slate-700">
+                            {REACTION_EMOJIS.slice(0, 5).map(emoji => (
+                                <button key={emoji} onClick={() => handleBulkReaction(emoji)} className="hover:scale-125 transition-transform p-1 text-lg">
+                                    {emoji}
+                                </button>
+                            ))}
+                            <button onClick={() => setShowEmojiPicker(true)} className="p-1.5 text-slate-400 hover:text-white transition-colors hover:bg-slate-700 rounded-full">
+                                <Plus size={18} />
+                            </button>
+                        </div>
+
+                        {selectedMessages.length === 1 && String(selectedMessages[0].senderId) === String(currentUserId) && (!selectedMessages[0].type || selectedMessages[0].type === 'text') && !isMessageDeleted(selectedMessages[0]) && (
+                            <button onClick={handleEditStart} className="p-2 hover:bg-slate-700 rounded-full text-sky-400 transition-colors" title="Edit">
+                                <Edit2 size={18} />
+                            </button>
+                        )}
+                        
+                        <button onClick={() => setShowDeleteModal(true)} className="p-2 hover:bg-slate-700 rounded-full text-slate-300 transition-colors" title="Delete">
+                            <Trash2 size={18} />
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div
                 ref={scrollRef}
                 onScroll={handleScroll}
                 data-lenis-prevent
-                className="flex-1 overflow-y-auto p-3 md:p-4 bg-[#0b0f19] custom-scrollbar flex flex-col gap-1.5"
+                className="flex-1 overflow-y-auto pt-4 pb-2 bg-[#0b0f19] custom-scrollbar flex flex-col z-10"
             >
                 {loading && (
                     <div className="flex justify-center my-2">
@@ -358,255 +281,348 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
 
                 {messages.map((msg, index) => {
                     const isMe = String(msg.senderId) === String(currentUserId);
-                    const prevMsg = messages[index - 1];
-                    const nextMsg = messages[index + 1];
-
-                    const isFirstInGroup = !prevMsg || String(prevMsg.senderId) !== String(msg.senderId);
+                    const isSelected = selectedMessages.some(m => m._id === msg._id);
                     const isSticker = msg.type === 'sticker';
-
+                    const hasReactions = msg.reactions?.length > 0;
+                    
                     const displayName = msg.senderName && msg.senderName !== 'User'
-                        ? msg.senderName
-                        : (typeof msg.senderId === 'object' && msg.senderId?.Name)
-                            ? msg.senderId.Name
-                            : 'Member';
-
+                        ? msg.senderName : (typeof msg.senderId === 'object' && msg.senderId?.Name) ? msg.senderId.Name : 'Member';
                     const nameColorClass = getSenderColor(msg.senderId);
 
                     return (
-                        <div
+                        <div 
                             key={msg._id || msg._tempId || `${msg.createdAt}-${index}`}
-                            className={`flex flex-col max-w-[85%] sm:max-w-[70%] md:max-w-[55%] ${
-                                isMe ? 'self-end' : 'self-start'
-                            } ${isFirstInGroup ? 'mt-2.5' : 'mt-0.5'} ${
-                                msg.status === 'pending' ? 'opacity-80' : ''
-                            }`}
+                            className={`flex w-full px-2 sm:px-4 py-1 transition-colors duration-200 ${isSelected ? 'bg-cyan-500/10' : 'hover:bg-white/[0.01]'}`}
                         >
-                            <div
-                                onContextMenu={(e) => {
-                                    e.preventDefault();
-                                    handleLongPress(msg, e);
-                                }}
-                                onTouchStart={(e) => startLongPress(msg, e)}
-                                onTouchEnd={cancelLongPress}
-                                onTouchCancel={cancelLongPress}
-                                onTouchMove={cancelLongPress}
-                                className={`group relative cursor-context-menu ${
-                                    isSticker
-                                        ? 'bg-transparent text-slate-100'
-                                        : isMe
-                                            ? 'px-3 py-2 bg-cyan-800 text-cyan-50 shadow-md rounded-2xl'
-                                            : 'px-3 py-2 bg-[#1e293b] text-slate-200 shadow-md rounded-2xl border border-slate-700/50'
-                                } ${
-                                    isMe && isFirstInGroup && !isSticker ? 'rounded-tr-xs' : ''
-                                } ${
-                                    !isMe && isFirstInGroup && !isSticker ? 'rounded-tl-xs' : ''
-                                } ${isMessageDeleted(msg) ? 'opacity-50' : ''}`}
-                            >
-                                {!isMe && !isSticker && (
-                                    <div className="flex items-center gap-1.5 mb-1 select-none">
-                                        <span className={`text-[12px] font-bold ${nameColorClass} truncate max-w-[200px]`}>
-                                            {displayName}
-                                        </span>
+                            {/* Checkbox واتساب (يظهر عند التحديد المتعدد) */}
+                            {isSelectionMode && (
+                                <div className="flex items-center justify-center w-10 shrink-0 cursor-pointer" onClick={() => toggleMessageSelection(msg)}>
+                                    <div className={`w-5 h-5 rounded-full border-[1.5px] flex items-center justify-center transition-all ${isSelected ? 'bg-cyan-500 border-cyan-500' : 'border-slate-500'}`}>
+                                        {isSelected && <Check size={14} className="text-white" strokeWidth={3} />}
                                     </div>
-                                )}
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleLongPress(msg, { currentTarget: e.currentTarget.parentElement });
-                                        setShowMessageActions(true);
-                                    }}
-                                    className="absolute right-1 top-1 z-10 rounded-full p-1 text-slate-400 opacity-70 transition-all hover:bg-black/20 hover:text-white sm:opacity-0 sm:group-hover:opacity-100"
-                                    aria-label="Message options"
+                                </div>
+                            )}
+
+                            <div className={`flex flex-col relative max-w-[85%] sm:max-w-[70%] md:max-w-[55%] ${isMe ? 'ml-auto' : 'mr-auto'} ${hasReactions ? 'mb-4 mt-1' : 'mb-0.5'}`}>
+                                <div
+                                    onClick={() => handleMessageClick(msg)}
+                                    onTouchStart={(e) => startLongPress(msg, e)}
+                                    onTouchEnd={cancelLongPress}
+                                    onTouchCancel={cancelLongPress}
+                                    onTouchMove={cancelLongPress}
+                                    onContextMenu={(e) => { if (isTouchDevice) e.preventDefault(); }}
+                                    className={`group relative ${isSelectionMode ? 'cursor-pointer' : ''} ${
+                                        isSticker
+                                            ? 'bg-transparent text-slate-100'
+                                            : isMe
+                                                ? 'px-3 py-2 bg-cyan-800 text-cyan-50 shadow-sm rounded-2xl rounded-tr-sm'
+                                                : 'px-3 py-2 bg-[#1e293b] text-slate-200 shadow-sm rounded-2xl rounded-tl-sm border border-slate-700/50'
+                                    } ${msg.status === 'pending' ? 'opacity-80' : ''}`}
                                 >
-                                    <MoreVertical size={15} />
-                                </button>
-
-                                {isMessageDeleted(msg) ? (
-                                    <p dir="auto" className="text-[13px] italic text-slate-400 pb-2 min-w-[70px] text-start">
-                                        {msg.isDeletedForAll ? 'This message was deleted' : 'You deleted this message'}
-                                    </p>
-                                ) : msg.type === 'poll' ? (
-                                    <PollMessageBubble msg={msg} isMe={isMe} />
-                                ) : msg.type === 'audio' && msg.mediaUrl ? (
-                                    <div className="pb-3">
-                                        <AudioMessage mediaUrl={msg.mediaUrl} messageId={msg._id || msg.createdAt} />
-                                    </div>
-                                ) : msg.type === 'image' && msg.mediaUrl ? (
-                                    <div className="pb-3">
-                                        <ImageMessage msg={msg} />
-                                    </div>
-                                ) : msg.type === 'sticker' && msg.mediaUrl ? (
-                                    <div className="pb-3">
-                                        <StickerMessage msg={msg} />
-                                    </div>
-                                ) : ['file', 'document'].includes(msg.type) && msg.mediaUrl ? (
-                                    <div className="pb-3">
-                                       <FileMessage msg={msg} />
-                                    </div>
-                                ) : (
-                                    <div dir="auto" className="text-[14px] leading-relaxed whitespace-pre-wrap break-words pb-3 min-w-[65px] text-start">
-                                        {msg.text}
-                                    </div>
-                                )}
-
-                                <div className={`absolute bottom-1 right-2 flex items-center justify-end gap-1 select-none pointer-events-none ${isSticker ? 'bg-black/30 px-1.5 py-0.5 rounded-full backdrop-blur-sm' : ''}`}>
-                                    {msg.editedAt && (
-                                        <span className={`text-[8px] italic font-normal ${isSticker ? 'text-white' : isMe ? 'text-cyan-200/50' : 'text-slate-500'}`}>
-                                            edited
-                                        </span>
+                                    {!isMe && !isSticker && (
+                                        <div className="flex items-center gap-1.5 mb-1 select-none">
+                                            <span className={`text-[12px] font-bold ${nameColorClass} truncate max-w-[200px]`}>
+                                                {displayName}
+                                            </span>
+                                        </div>
                                     )}
-                                    <span className={`text-[9px] font-normal ${isSticker ? 'text-white' : isMe ? 'text-cyan-200/70' : 'text-slate-400'}`}>
-                                        {formatTime(msg.createdAt)}
-                                    </span>
-                                    {isMe && (
-                                        msg.status === 'pending' ? (
-                                            <Clock size={10} className={`${isSticker ? 'text-white' : 'text-cyan-200/70'} animate-pulse`} />
-                                        ) : (
-                                            <CheckCheck size={13} className={isSticker ? 'text-white' : 'text-cyan-300'} />
-                                        )
+
+                                    {!isSelectionMode && (
+                                        <div className="absolute right-1 top-1 z-20 hidden md:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 backdrop-blur-md rounded-lg p-0.5">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); toggleMessageSelection(msg); setShowEmojiPicker(true); }}
+                                                className="p-1 text-slate-200 hover:text-white hover:bg-white/20 rounded-md transition-colors"
+                                                title="React"
+                                            >
+                                                <Smile size={14} />
+                                            </button>
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); toggleMessageSelection(msg); }}
+                                                className="p-1 text-slate-200 hover:text-white hover:bg-white/20 rounded-md transition-colors"
+                                                title="Options"
+                                            >
+                                                <ChevronDown size={14} />
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {isMessageDeleted(msg) ? (
+                                        <p dir="auto" className="text-[13px] italic text-slate-400 pb-4 min-w-[70px] text-start">
+                                            {msg.isDeletedForAll ? 'This message was deleted' : 'You deleted this message'}
+                                        </p>
+                                    ) : msg.type === 'audio' && msg.mediaUrl ? (
+                                        <div className="pb-4"><AudioMessage mediaUrl={msg.mediaUrl} messageId={msg._id || msg.createdAt} /></div>
+                                    ) : msg.type === 'image' && msg.mediaUrl ? (
+                                        <div className="pb-4"><ImageMessage msg={msg} /></div>
+                                    ) : ['file', 'document'].includes(msg.type) && msg.mediaUrl ? (
+                                        <div className="pb-4"><FileMessage msg={msg} /></div>
+                                    ) : (
+                                        <div dir="auto" className="text-[14px] leading-relaxed whitespace-pre-wrap break-words pb-4 min-w-[70px] text-start">
+                                            {msg.text}
+                                        </div>
+                                    )}
+
+                                    <div className={`absolute bottom-1 right-2 flex items-center justify-end gap-1 select-none pointer-events-none`}>
+                                        {msg.editedAt && <span className={`text-[9px] italic font-normal ${isMe ? 'text-cyan-200/50' : 'text-slate-500'}`}>edited</span>}
+                                        <span className={`text-[10px] font-medium ${isMe ? 'text-cyan-200/80' : 'text-slate-400'}`}>{formatTime(msg.createdAt)}</span>
+                                        {isMe && (msg.status === 'pending' ? <Clock size={11} className="text-cyan-200/70 animate-pulse" /> : <CheckCheck size={14} className="text-cyan-400" />)}
+                                    </div>
+                                    
+                                    {hasReactions && (
+                                        <div className={`absolute -bottom-3.5 ${isMe ? 'left-2' : 'right-2'} flex gap-0.5 rounded-full border border-slate-700/70 bg-[#172033] px-1.5 py-0.5 shadow-md z-20`}>
+                                            {getReactionGroups(msg).map(([emoji, reactions]) => (
+                                                <button 
+                                                    key={emoji} 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setReactionDetails({ msg, emoji, reactions });
+                                                    }} 
+                                                    className="flex items-center gap-0.5 rounded-full px-1 text-xs transition-colors hover:bg-white/10"
+                                                >
+                                                    <span>{emoji}</span>
+                                                    <span className="text-[10px] font-medium text-slate-300">{reactions.length}</span>
+                                                </button>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
-                                {msg.reactions?.length > 0 && (
-                                    <div className={`absolute -bottom-3 ${isMe ? 'left-2' : 'right-2'} flex gap-0.5 rounded-full border border-slate-700/70 bg-[#172033] px-1.5 py-0.5 shadow-lg`}>
-                                        {getReactionGroups(msg).map(([emoji, reactions]) => (
-                                            <button key={emoji} onClick={() => setReactionDetails({ msg, emoji, reactions })} className="flex items-center gap-0.5 rounded-full px-1 text-xs transition-colors hover:bg-white/10">
-                                                <span>{emoji}</span>
-                                                <span className="text-[10px] text-slate-300">{reactions.length}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
                         </div>
                     );
                 })}
-                <div ref={messagesEndRef} className="h-1" />
+                <div ref={messagesEndRef} className="h-2" />
             </div>
 
             {showScrollBtn && (
-                <button
-                    onClick={() => scrollToBottom(false)}
-                    className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 bg-cyan-700 hover:bg-cyan-600 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg transition-all active:scale-95"
-                >
-                    <ChevronDown size={14} />
-                    <span>{unreadCount} new message{unreadCount !== 1 ? 's' : ''}</span>
+                <button onClick={() => scrollToBottom(false)} className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 bg-[#1e293b] border border-slate-700/50 text-sky-400 p-2.5 pr-4 rounded-full shadow-xl hover:bg-slate-800 transition-all active:scale-95 animate-in slide-in-from-bottom-2">
+                    <ChevronDown size={20} />
+                    {unreadCount > 0 && <span className="font-semibold text-sm">{unreadCount}</span>}
                 </button>
             )}
 
-            {contextMenu.visible && (
-                <div
-                    className="fixed bg-[#1e293b] border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden"
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                        left: `${contextMenu.x}px`,
-                        top: `${contextMenu.y}px`,
-                    }}
-                >
-                    <div className="flex items-center gap-1 border-b border-slate-700/50 px-2 py-2" onClick={(e) => e.stopPropagation()}>
-                        {REACTION_EMOJIS.map((emoji) => (
-                            <button key={emoji} onClick={() => handleReaction(selectedMessage, emoji)} className="rounded-full p-1 text-lg transition-all hover:scale-125 hover:bg-white/10" aria-label={`React ${emoji}`}>
-                                {emoji}
+            {/* Modal: تفاصيل الريأكت */}
+            {reactionDetails && (
+                <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 sm:p-4 backdrop-blur-sm" onClick={() => setReactionDetails(null)}>
+                    <div className="w-full max-w-sm rounded-t-xl sm:rounded-xl bg-[#1e293b] p-0 shadow-2xl border border-slate-700 animate-in slide-in-from-bottom-2 sm:slide-in-from-bottom-0 sm:zoom-in-95 overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between border-b border-slate-700/50 p-4 bg-slate-800/50">
+                            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                                <span className="text-2xl">{reactionDetails.emoji}</span> Reactions
+                            </h3>
+                            <button onClick={() => setReactionDetails(null)} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors">
+                                <X size={18} />
                             </button>
-                        ))}
-                        <button
-                            onClick={() => setShowMessageActions((visible) => !visible)}
-                            className="ml-1 rounded-full p-2 text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
-                            aria-label="Message actions"
-                        >
-                            <MoreVertical size={18} />
-                        </button>
+                        </div>
+                        <div className="max-h-60 overflow-y-auto p-2 custom-scrollbar">
+                            {reactionDetails.reactions.map((reaction, i) => (
+                                <div key={i} className="flex items-center gap-3 rounded-lg p-3 hover:bg-slate-800/50 transition-colors">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-700 border border-slate-600 text-lg font-bold text-white shadow-sm">
+                                        {getReactionUserName(reaction)[0].toUpperCase()}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-medium text-slate-200">{getReactionUserName(reaction)}</span>
+                                        {getReactionUserId(reaction) === currentUserId && <span className="text-[10px] text-cyan-400">You</span>}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    {!showMessageActions ? null : (
-                        <div onClick={(e) => e.stopPropagation()}>
-                    {String(selectedMessage?.senderId) === String(currentUserId) &&
-                        (!selectedMessage?.type || selectedMessage?.type === 'text') &&
-                        !isMessageDeleted(selectedMessage) && (
-                        <button
-                            onClick={handleEditStart}
-                            className="w-full px-4 py-2.5 text-left text-sm text-sky-400 hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 flex items-center gap-2"
-                        >
-                            <span>✏️</span>
-                            <span>Edit</span>
-                        </button>
-                    )}
-
-                    {reactionDetails && (
-                        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setReactionDetails(null)}>
-                            <div className="w-full max-w-xs overflow-hidden rounded-2xl border border-slate-700 bg-[#1e293b] shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center justify-between border-b border-slate-700 px-4 py-3">
-                                    <span className="text-sm font-semibold text-white">{reactionDetails.emoji} {reactionDetails.reactions.length}</span>
-                                    <button onClick={() => setReactionDetails(null)} className="text-slate-400 hover:text-white">×</button>
-                                </div>
-                                <div className="max-h-64 overflow-y-auto p-2">
-                                    {reactionDetails.reactions.map((reaction) => (
-                                        <div key={String(getReactionUserId(reaction))} className="flex items-center justify-between rounded-xl px-3 py-2 text-sm text-slate-200 hover:bg-white/5">
-                                            <span>{String(getReactionUserId(reaction)) === String(currentUserId) ? 'You' : getReactionUserName(reaction)}</span>
-                                            <span>{reaction.emoji}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    <button
-                        onClick={() => handleDeleteMessage(false)}
-                        className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 flex items-center gap-2"
-                    >
-                        <span>🗑️</span>
-                        <span>Delete for me</span>
-                    </button>
-                    {String(selectedMessage?.senderId) === String(currentUserId) && (
-                        <>
-                            <button
-                                onClick={() => handleDeleteMessage(true)}
-                                className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-slate-700/50 transition-colors flex items-center gap-2"
-                            >
-                                <span>🗑️</span>
-                                <span>Delete for all</span>
-                            </button>
-                        </>
-                    )}
-                        </div>
-                    )}
                 </div>
             )}
 
-            {editingMessage && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
-                    <div className="bg-[#1e293b] border border-slate-700 rounded-lg sm:rounded-xl w-full sm:w-96 shadow-xl">
-                        <div className="border-b border-slate-700 px-4 py-3">
-                            <h3 className="text-sm font-semibold text-slate-200">Edit Message</h3>
+            {/* Modal: الـ Emoji Picker */}
+            {showEmojiPicker && (
+                <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/40 sm:p-4 transition-opacity" onClick={() => setShowEmojiPicker(false)}>
+                    <div className="w-full max-w-sm rounded-t-xl sm:rounded-xl bg-[#1e293b] p-4 shadow-2xl border border-slate-700 animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-slate-300 text-sm mb-4 font-medium px-1">Choose Reaction</h3>
+                        <div className="grid grid-cols-6 gap-3">
+                            {EXTENDED_EMOJIS.map(emoji => (
+                                <button 
+                                    key={emoji} 
+                                    onClick={() => handleBulkReaction(emoji)} 
+                                    className="text-2xl hover:scale-125 transition-transform p-2 flex items-center justify-center hover:bg-slate-700 rounded-lg"
+                                >
+                                    {emoji}
+                                </button>
+                            ))}
                         </div>
-                        <div className="p-4">
-                            <textarea
-                                value={editText}
-                                onChange={(e) => setEditText(e.target.value)}
-                                placeholder="Edit your message..."
-                                dir="auto"
-                                className="w-full bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none text-start"
-                                rows="4"
-                                autoFocus
-                            />
-                        </div>
-                        <div className="border-t border-slate-700 flex gap-2 p-4">
-                            <button
-                                onClick={handleEditCancel}
-                                className="flex-1 px-4 py-2 text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
-                            >
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: المسح */}
+            {showDeleteModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 transition-opacity" onClick={() => setShowDeleteModal(false)}>
+                    <div className="w-full max-w-sm bg-[#1e293b] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+                        <div className="p-2 flex flex-col gap-1">
+                            {canDeleteForAll && (
+                                <button onClick={() => handleBulkDelete(true)} className="w-full text-center py-3.5 text-red-400 font-medium hover:bg-slate-800 rounded-xl transition-colors">
+                                    Delete for everyone
+                                </button>
+                            )}
+                            <button onClick={() => handleBulkDelete(false)} className="w-full text-center py-3.5 text-slate-200 font-medium hover:bg-slate-800 rounded-xl transition-colors">
+                                Delete for me
+                            </button>
+                            <div className="h-px bg-slate-700/50 my-1"></div>
+                            <button onClick={() => setShowDeleteModal(false)} className="w-full text-center py-3.5 text-slate-400 font-medium hover:bg-slate-800 rounded-xl transition-colors">
                                 Cancel
                             </button>
-                            <button
-                                onClick={handleEditSubmit}
-                                disabled={!editText.trim()}
-                                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-cyan-700 hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
-                            >
-                                Save
-                            </button>
                         </div>
                     </div>
                 </div>
             )}
+
+            {/* حالة التعديل */}
+            {editingMessage && (
+                <div className="absolute bottom-full left-0 right-0 z-50 bg-[#1e293b] border-t border-slate-700 p-3 shadow-lg animate-in slide-in-from-bottom-2">
+                    <div className="flex items-center justify-between mb-2 px-1">
+                        <div className="flex items-center gap-2 text-sky-400">
+                            <Edit2 size={16} />
+                            <span className="text-xs font-semibold uppercase tracking-wider">Edit Message</span>
+                        </div>
+                        <button onClick={() => { setEditingMessage(null); setEditText(''); }} className="text-slate-400 hover:text-white p-1 rounded-full hover:bg-slate-700 transition-colors">
+                            <X size={16} />
+                        </button>
+                    </div>
+                    <div className="flex items-end gap-2 bg-[#0f172a] rounded-xl p-2 border border-slate-700/50">
+                        <textarea
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleEditSubmit();
+                                }
+                            }}
+                            autoFocus
+                            className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-500 focus:outline-none resize-none max-h-32 min-h-[40px] px-2 py-1 custom-scrollbar"
+                            placeholder="Edit your message..."
+                            dir="auto"
+                        />
+                        <button onClick={handleEditSubmit} disabled={!editText.trim() || editText.trim() === editingMessage.text.trim()} className="bg-sky-500 hover:bg-sky-400 text-white rounded-lg p-2.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                            <Check size={18} />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================= */}
+            {/* القائمة المنبثقة الخاصة بالموبايل (بدون Blur وبتوضيح خيار الـ Select) */}
+            {/* ========================================= */}
+            <AnimatePresence>
+                {mobileActiveMessage && isTouchDevice && (
+                    <div className="fixed inset-0 z-[120] flex flex-col items-center justify-center sm:hidden">
+                        {/* خلفية شفافة عادية تماماً بدون Blur أو تعتيم قوي عشان الرسائل تبمى واضحة */}
+                        <motion.div 
+                            initial={{ opacity: 0 }} 
+                            animate={{ opacity: 1 }} 
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/40"
+                            onClick={() => setMobileActiveMessage(null)}
+                        />
+                        
+                        <div className="relative z-10 flex flex-col items-center w-full px-4 gap-4">
+                            
+                            {/* شريط الريأكتات للموبايل */}
+                            <motion.div 
+                                initial={{ scale: 0.8, opacity: 0, y: 20 }}
+                                animate={{ scale: 1, opacity: 1, y: 0 }}
+                                exit={{ scale: 0.8, opacity: 0, y: 20 }}
+                                className="bg-[#1e293b] border border-slate-700 rounded-full px-4 py-2 flex gap-3 shadow-xl"
+                            >
+                                {REACTION_EMOJIS.map((emoji) => (
+                                    <button 
+                                        key={emoji} 
+                                        className="text-2xl hover:scale-125 transition-transform" 
+                                        onClick={() => {
+                                            if (socket?.current && mobileActiveMessage._id) {
+                                                socket.current.emit('toggle-reaction', {
+                                                    teamId: activeTeamId,
+                                                    messageId: mobileActiveMessage._id,
+                                                    userId: currentUserId,
+                                                    emoji
+                                                });
+                                            }
+                                            setMobileActiveMessage(null);
+                                        }}
+                                    >
+                                        {emoji}
+                                    </button>
+                                ))}
+                            </motion.div>
+
+                            {/* فقاعة الرسالة واضحة في المنتصف */}
+                            <div className={`max-w-[85%] rounded-2xl p-3 shadow-sm ${String(mobileActiveMessage.senderId) === String(currentUserId) ? 'bg-cyan-800 text-cyan-50 rounded-tr-sm' : 'bg-[#1e293b] text-slate-200 rounded-tl-sm border border-slate-700/50'}`}>
+                                {mobileActiveMessage.type === 'audio' && mobileActiveMessage.mediaUrl ? (
+                                    <div className="pointer-events-none"><AudioMessage mediaUrl={mobileActiveMessage.mediaUrl} messageId={mobileActiveMessage._id || mobileActiveMessage.createdAt} /></div>
+                                ) : mobileActiveMessage.type === 'image' && mobileActiveMessage.mediaUrl ? (
+                                    <div className="pointer-events-none"><ImageMessage msg={mobileActiveMessage} /></div>
+                                ) : ['file', 'document'].includes(mobileActiveMessage.type) && mobileActiveMessage.mediaUrl ? (
+                                    <div className="pointer-events-none"><FileMessage msg={mobileActiveMessage} /></div>
+                                ) : (
+                                    <div dir="auto" className="text-[14px] leading-relaxed whitespace-pre-wrap break-words min-w-[70px] text-start">
+                                        {mobileActiveMessage.text}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* قائمة الخيارات للموبايل مع إبراز زر Select زي واتساب */}
+                            <motion.div 
+                                initial={{ scale: 0.8, opacity: 0, y: -20 }}
+                                animate={{ scale: 1, opacity: 1, y: 0 }}
+                                exit={{ scale: 0.8, opacity: 0, y: -20 }}
+                                className="bg-[#1e293b] border border-slate-700 rounded-2xl w-64 flex flex-col shadow-xl overflow-hidden"
+                            >
+                                {/* زر تحديد الرسالة (Select Message) وضحناه وعلّمنا جنبه بشعار الـ Checkbox عشان اليوزر يفهم إنه هيقدر يختار كذا رسالة */}
+                                <button 
+                                    onClick={() => { toggleMessageSelection(mobileActiveMessage); setMobileActiveMessage(null); }}
+                                    className="flex items-center justify-between w-full p-4 hover:bg-slate-800 transition-colors border-b border-slate-700/50 text-cyan-400 font-medium"
+                                >
+                                    <span className="text-[15px]">Select Messages</span>
+                                    <div className="w-5 h-5 rounded-full border-[1.5px] border-cyan-400 flex items-center justify-center bg-cyan-400/10">
+                                        <Check size={12} className="text-cyan-400" strokeWidth={3} />
+                                    </div>
+                                </button>
+
+                                {(!mobileActiveMessage.type || mobileActiveMessage.type === 'text') && (
+                                    <button 
+                                        onClick={() => { navigator.clipboard.writeText(mobileActiveMessage.text); setMobileActiveMessage(null); }}
+                                        className="flex items-center justify-between w-full p-4 hover:bg-slate-800 transition-colors border-b border-slate-700/50 text-slate-200"
+                                    >
+                                        <span className="text-[15px]">Copy</span>
+                                        <Copy size={18} />
+                                    </button>
+                                )}
+
+                                {String(mobileActiveMessage.senderId) === String(currentUserId) && (!mobileActiveMessage.type || mobileActiveMessage.type === 'text') && !isMessageDeleted(mobileActiveMessage) && (
+                                    <button 
+                                        onClick={() => { 
+                                            setEditingMessage(mobileActiveMessage); 
+                                            setEditText(mobileActiveMessage.text); 
+                                            setMobileActiveMessage(null); 
+                                        }}
+                                        className="flex items-center justify-between w-full p-4 hover:bg-slate-800 transition-colors border-b border-slate-700/50 text-sky-400"
+                                    >
+                                        <span className="text-[15px]">Edit</span>
+                                        <Edit2 size={18} />
+                                    </button>
+                                )}
+
+                                <button 
+                                    onClick={() => { 
+                                        setSelectedMessages([mobileActiveMessage]); 
+                                        setMobileActiveMessage(null); 
+                                        setShowDeleteModal(true); 
+                                    }}
+                                    className="flex items-center justify-between w-full p-4 hover:bg-slate-800 transition-colors text-red-400"
+                                >
+                                    <span className="text-[15px]">Delete</span>
+                                    <Trash2 size={18} />
+                                </button>
+                            </motion.div>
+                        </div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
-}     
+}
