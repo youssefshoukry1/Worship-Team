@@ -4,7 +4,7 @@ import AudioMessage from './AudioMessage';
 import ImageMessage from './ImageMessage';
 import FileMessage from './FileMessage';
 import { useLocalMedia } from '../../hooks/useLocalMedia';
-import { BarChart2, ChevronDown, Clock, Check, CheckCheck, Smile, Edit2, Trash2, X, Plus, Copy } from 'lucide-react';
+import { BarChart2, ChevronDown, Clock, Check, CheckCheck, Smile, Edit2, Trash2, X, Plus, Copy, CornerUpLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const SENDER_NAME_COLORS = [
@@ -35,7 +35,7 @@ function StickerMessage({ msg }) {
             : null;
 }
 
-export default function ChatArea({ messages, currentUserId, loading, socket, activeTeamId }) {
+export default function ChatArea({ messages, currentUserId, loading, socket, activeTeamId, onReplySelect }) {
     const scrollRef = useRef(null);
     const messagesEndRef = useRef(null);
     const isAtBottomRef = useRef(true);
@@ -53,6 +53,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     const [reactionDetails, setReactionDetails] = useState(null);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [replyingTo, setReplyingTo] = useState(null);
     
     const [isTouchDevice, setIsTouchDevice] = useState(false);
     const [mobileActiveMessage, setMobileActiveMessage] = useState(null);
@@ -138,6 +139,17 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
         setEditText('');
     };
 
+    const handleReply = (msg) => {
+        setReplyingTo(msg);
+        setMobileActiveMessage(null);
+        if (onReplySelect) onReplySelect(msg);
+    };
+
+    const cancelReply = () => {
+        setReplyingTo(null);
+        if (onReplySelect) onReplySelect(null);
+    };
+
     const getReactionUserId = (reaction) => reaction.userId?._id || reaction.userId;
     const getReactionUserName = (reaction) => reaction.userId?.Name || reaction.userName || 'Member';
     
@@ -148,6 +160,14 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
         groups[key].push(reaction);
         return groups;
     }, {}));
+
+    const getReplyPreviewText = (replyTo) => {
+        if (!replyTo) return '';
+        if (replyTo.type === 'audio') return '🎵 Audio message';
+        if (replyTo.type === 'image') return '📷 Photo';
+        if (['file', 'document'].includes(replyTo.type)) return '📎 File';
+        return replyTo.text || '';
+    };
 
     const checkIfAtBottom = useCallback(() => {
         const el = scrollRef.current;
@@ -322,6 +342,24 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                             <span className={`text-[12px] font-bold ${nameColorClass} truncate max-w-[200px]`}>
                                                 {displayName}
                                             </span>
+                                        </div>
+                                    )}
+
+                                    {/* Reply preview inside bubble - WhatsApp style */}
+                                    {msg.replyTo && !isMessageDeleted(msg) && !isSticker && (
+                                        <div
+                                            className={`mb-2 rounded-lg px-2.5 py-1.5 border-l-[3px] cursor-default select-none ${
+                                                isMe
+                                                    ? 'bg-cyan-900/50 border-l-cyan-300'
+                                                    : 'bg-slate-800/70 border-l-slate-400'
+                                            }`}
+                                        >
+                                            <p className={`text-[11px] font-bold mb-0.5 truncate ${isMe ? 'text-cyan-300' : 'text-sky-400'}`}>
+                                                {msg.replyTo.senderName || 'Member'}
+                                            </p>
+                                            <p className={`text-[12px] truncate ${isMe ? 'text-cyan-100/70' : 'text-slate-400'}`}>
+                                                {getReplyPreviewText(msg.replyTo)}
+                                            </p>
                                         </div>
                                     )}
 
@@ -506,6 +544,31 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                 </div>
             )}
 
+            {/* حالة الرد */}
+            {replyingTo && !editingMessage && (
+                <div className="absolute bottom-full left-0 right-0 z-50 bg-[#1e293b] border-t border-slate-700 p-3 shadow-lg animate-in slide-in-from-bottom-2">
+                    <div className="flex items-center justify-between mb-2 px-1">
+                        <div className="flex items-center gap-2 text-emerald-400">
+                            <CornerUpLeft size={16} />
+                            <span className="text-xs font-semibold uppercase tracking-wider">
+                                Reply to {replyingTo.senderName || 'Member'}
+                            </span>
+                        </div>
+                        <button onClick={cancelReply} className="text-slate-400 hover:text-white p-1 rounded-full hover:bg-slate-700 transition-colors">
+                            <X size={16} />
+                        </button>
+                    </div>
+                    <div
+                        className="bg-[#0f172a] rounded-xl px-3 py-2 border border-slate-700/50"
+                        style={{ borderLeft: '3px solid #34d399' }}
+                    >
+                        <p className="text-[12px] text-slate-300 truncate">
+                            {getReplyPreviewText(replyingTo)}
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* القائمة المنبثقة الخاصة بالموبايل */}
             <AnimatePresence>
                 {mobileActiveMessage && isTouchDevice && (
@@ -567,6 +630,15 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                 exit={{ scale: 0.8, opacity: 0, y: -20 }}
                                 className="bg-[#1e293b] border border-slate-700 rounded-2xl w-64 flex flex-col shadow-xl overflow-hidden"
                             >
+                                {/* Reply - أول عنصر زي واتساب */}
+                                <button 
+                                    onClick={() => handleReply(mobileActiveMessage)}
+                                    className="flex items-center justify-between w-full p-4 hover:bg-slate-800 transition-colors border-b border-slate-700/50 text-emerald-400 font-medium"
+                                >
+                                    <span className="text-[15px]">Reply</span>
+                                    <CornerUpLeft size={18} />
+                                </button>
+
                                 <button 
                                     onClick={() => { toggleMessageSelection(mobileActiveMessage); setMobileActiveMessage(null); }}
                                     className="flex items-center justify-between w-full p-4 hover:bg-slate-800 transition-colors border-b border-slate-700/50 text-cyan-400 font-medium"
