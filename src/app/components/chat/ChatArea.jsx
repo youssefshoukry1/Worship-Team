@@ -215,6 +215,25 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
         }
     }, [loading, messages.length, scrollToBottom]);
 
+    useEffect(() => {
+        if (!initialLoadDoneRef.current || messages.length <= prevMsgCountRef.current) return;
+
+        const newCount = messages.length - prevMsgCountRef.current;
+        const newestMessage = messages[messages.length - 1];
+        const sentByCurrentUser = newestMessage &&
+            String(newestMessage.senderId) === String(currentUserId);
+
+        prevMsgCountRef.current = messages.length;
+
+        if (isAtBottomRef.current || sentByCurrentUser) {
+            scrollToBottom(true);
+            return;
+        }
+
+        setUnreadCount(count => count + newCount);
+        setShowScrollBtn(true);
+    }, [messages, currentUserId, scrollToBottom]);
+
     const formatTime = (dateString) => {
         if (!dateString) return '';
         const d = new Date(dateString);
@@ -400,15 +419,15 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                     onTouchEnd={finishMessageTouch}
                                     onTouchCancel={finishMessageTouch}
                                     onTouchMove={handleMessageTouchMove}
-                                    onContextMenu={(e) => { if (isTouchDevice) e.preventDefault(); }}
+                                    onContextMenu={(e) => { e.preventDefault(); }}
                                     style={{
                                         WebkitTouchCallout: 'none',
-                                        WebkitUserSelect: isTouchDevice ? 'none' : 'auto',
-                                        userSelect: isTouchDevice ? 'none' : 'auto',
+                                        WebkitUserSelect: 'none',
+                                        userSelect: 'none',
                                         touchAction: 'pan-y',
                                         transform: swipeReply.id === msg._id ? `translateX(${swipeReply.offset}px)` : undefined
                                     }}
-                                    className={`group relative rounded-2xl transition-[transform,box-shadow] duration-150 ${isSelectionMode ? 'cursor-pointer' : ''} ${
+                                    className={`group relative select-none rounded-2xl transition-[transform,box-shadow] duration-150 ${isSelectionMode ? 'cursor-pointer' : ''} ${
                                         isSticker
                                             ? 'bg-transparent text-slate-100'
                                             : isMe
@@ -511,9 +530,17 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
             </div>
 
             {showScrollBtn && (
-                <button onClick={() => scrollToBottom(false)} className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 bg-[#1e293b] border border-slate-700/50 text-sky-400 p-2.5 pr-4 rounded-full shadow-xl hover:bg-slate-800 transition-all active:scale-95 animate-in slide-in-from-bottom-2">
+                <button
+                    onClick={() => scrollToBottom(false)}
+                    aria-label={`Scroll to latest messages${unreadCount ? ` (${unreadCount} unread)` : ''}`}
+                    className="absolute bottom-5 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-700/70 bg-[#1e293b] text-sky-400 shadow-xl transition-all hover:bg-slate-800 active:scale-95 animate-in slide-in-from-bottom-2"
+                >
                     <ChevronDown size={20} />
-                    {unreadCount > 0 && <span className="font-semibold text-sm">{unreadCount}</span>}
+                    {unreadCount > 0 && (
+                        <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-cyan-500 px-1 text-[10px] font-bold text-white">
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                    )}
                 </button>
             )}
 
@@ -640,20 +667,26 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                         <div className="absolute inset-0 pointer-events-none p-3 flex flex-col justify-between overflow-hidden">
                             {/* رسالة المستخدم اللي اتعمل عليها لونج بريس (تظهر في مكانها الطبيعي بالضبط) */}
                             <div 
-                                className="absolute pointer-events-auto"
+                                className="absolute left-3 right-3 pointer-events-auto"
                                 style={{
-                                    top: `${Math.max(10, messagePosition.top > window.innerHeight / 2 ? messagePosition.top - 120 : messagePosition.top)}px`,
-                                    [messagePosition.isMe ? 'right' : 'left']: `${Math.max(12, window.innerWidth - messagePosition.right)}px`,
-                                    maxWidth: '85%'
+                                    top: `${Math.max(
+                                        12,
+                                        Math.min(
+                                            messagePosition.top > window.innerHeight / 2
+                                                ? messagePosition.top - 230
+                                                : messagePosition.top,
+                                            window.innerHeight - 300
+                                        )
+                                    )}px`
                                 }}
                             >
-                                <div className={`flex flex-col relative ${messagePosition.isMe ? 'items-end' : 'items-start'}`}>
+                                <div className={`flex w-full flex-col relative ${messagePosition.isMe ? 'items-end' : 'items-start'}`}>
                                     {/* شريط الإيموجيز السريع فوق الرسالة مباشرة */}
                                     <motion.div 
                                         initial={{ scale: 0.8, opacity: 0, y: 10 }}
                                         animate={{ scale: 1, opacity: 1, y: 0 }}
                                         exit={{ scale: 0.8, opacity: 0, y: 10 }}
-                                        className="mb-2 bg-[#1e293b] border border-slate-700 rounded-full px-3 py-1.5 flex gap-2.5 shadow-2xl"
+                                        className="mb-2 flex max-w-full gap-2.5 overflow-x-auto rounded-full border border-slate-700 bg-[#1e293b] px-3 py-1.5 shadow-2xl"
                                     >
                                         {REACTION_EMOJIS.map((emoji) => (
                                             <button 
@@ -677,7 +710,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                     </motion.div>
 
                                     {/* نسخة طبق الأصل من بوكس الرسالة عشان تفضل واضحة وبارزة */}
-                                    <div className={`rounded-2xl p-3 shadow-2xl ${messagePosition.isMe ? 'bg-cyan-800 text-cyan-50 rounded-tr-sm' : 'bg-[#1e293b] text-slate-200 rounded-tl-sm border border-slate-700/50'}`}>
+                                    <div className={`max-w-[min(85vw,32rem)] rounded-2xl p-3 shadow-2xl ${messagePosition.isMe ? 'bg-cyan-800 text-cyan-50 rounded-tr-sm' : 'bg-[#1e293b] text-slate-200 rounded-tl-sm border border-slate-700/50'}`}>
                                         {mobileActiveMessage.type === 'audio' && mobileActiveMessage.mediaUrl ? (
                                             <div className="pointer-events-none"><AudioMessage mediaUrl={mobileActiveMessage.mediaUrl} messageId={mobileActiveMessage._id || mobileActiveMessage.createdAt} /></div>
                                         ) : mobileActiveMessage.type === 'image' && mobileActiveMessage.mediaUrl ? (
@@ -696,7 +729,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         initial={{ scale: 0.8, opacity: 0, y: messagePosition.top > window.innerHeight / 2 ? -10 : 10 }}
                                         animate={{ scale: 1, opacity: 1, y: 0 }}
                                         exit={{ scale: 0.8, opacity: 0 }}
-                                        className="mt-2.5 bg-[#1e293b] border border-slate-700 rounded-2xl w-56 flex flex-col shadow-2xl overflow-hidden pointer-events-auto"
+                                        className="mt-2.5 w-56 max-w-[calc(100vw-24px)] flex max-h-[min(42vh,18rem)] flex-col overflow-y-auto overflow-x-hidden rounded-2xl border border-slate-700 bg-[#1e293b] shadow-2xl pointer-events-auto"
                                     >
                                         <button 
                                             onClick={() => { toggleMessageSelection(mobileActiveMessage); setMobileActiveMessage(null); }}
