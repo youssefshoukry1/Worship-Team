@@ -4,7 +4,7 @@ import AudioMessage from './AudioMessage';
 import ImageMessage from './ImageMessage';
 import FileMessage from './FileMessage';
 import { useLocalMedia } from '../../hooks/useLocalMedia';
-import { BarChart2, ChevronDown, Clock, Check, CheckCheck } from 'lucide-react';
+import { BarChart2, ChevronDown, Clock, Check, CheckCheck, MoreVertical } from 'lucide-react';
 
 const SENDER_NAME_COLORS = [
     'text-sky-400',
@@ -52,6 +52,8 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     const [contextMenu, setContextMenu] = useState({ x: 0, y: 0, visible: false });
     const [editingMessage, setEditingMessage] = useState(null);
     const [editText, setEditText] = useState('');
+    const [showMessageActions, setShowMessageActions] = useState(false);
+    const longPressTimerRef = useRef(null);
 
     const handleReaction = (msg, emoji) => {
         if (!socket?.current || !msg._id) return;
@@ -148,11 +150,24 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     const handleLongPress = (msg, e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         setSelectedMessage(msg);
+        setShowMessageActions(false);
         setContextMenu({
-            x: rect.right,
-            y: rect.top,
+            x: Math.min(rect.left, window.innerWidth - 300),
+            y: Math.max(12, rect.top - 62),
             visible: true
         });
+    };
+
+    const startLongPress = (msg, event) => {
+        if (event.touches.length !== 1) return;
+        longPressTimerRef.current = window.setTimeout(() => {
+            handleLongPress(msg, { currentTarget: event.currentTarget });
+        }, 500);
+    };
+
+    const cancelLongPress = () => {
+        window.clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
     };
 
     const handleDeleteMessage = (deleteForAll) => {
@@ -361,22 +376,10 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                     e.preventDefault();
                                     handleLongPress(msg, e);
                                 }}
-                                onTouchStart={(e) => {
-                                    if (e.touches.length === 1) {
-                                        const startTime = Date.now();
-                                        const touchStart = (e) => {
-                                            if (Date.now() - startTime > 500) {
-                                                handleLongPress(msg, e);
-                                            }
-                                        };
-                                        const cleanup = () => {
-                                            document.removeEventListener('touchmove', touchStart);
-                                            document.removeEventListener('touchend', cleanup);
-                                        };
-                                        document.addEventListener('touchmove', touchStart);
-                                        document.addEventListener('touchend', cleanup);
-                                    }
-                                }}
+                                onTouchStart={(e) => startLongPress(msg, e)}
+                                onTouchEnd={cancelLongPress}
+                                onTouchCancel={cancelLongPress}
+                                onTouchMove={cancelLongPress}
                                 className={`relative cursor-context-menu ${
                                     isSticker
                                         ? 'bg-transparent text-slate-100'
@@ -466,13 +469,6 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                     onClick={() => scrollToBottom(false)}
                     className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 bg-cyan-700 hover:bg-cyan-600 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg transition-all active:scale-95"
                 >
-                    <div className="flex items-center gap-1 border-b border-slate-700/50 px-2 py-2">
-                        {REACTION_EMOJIS.map((emoji) => (
-                            <button key={emoji} onClick={() => handleReaction(selectedMessage, emoji)} className="rounded-full p-1 text-lg transition-all hover:scale-125 hover:bg-white/10" aria-label={`React ${emoji}`}>
-                                {emoji}
-                            </button>
-                        ))}
-                    </div>
                     <ChevronDown size={14} />
                     <span>{unreadCount} new message{unreadCount !== 1 ? 's' : ''}</span>
                 </button>
@@ -481,11 +477,28 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
             {contextMenu.visible && (
                 <div
                     className="fixed bg-[#1e293b] border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
                     style={{
-                        left: `${Math.min(contextMenu.x, window.innerWidth - 200)}px`,
-                        top: `${Math.min(contextMenu.y, window.innerHeight - 150)}px`,
+                        left: `${contextMenu.x}px`,
+                        top: `${contextMenu.y}px`,
                     }}
                 >
+                    <div className="flex items-center gap-1 border-b border-slate-700/50 px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                        {REACTION_EMOJIS.map((emoji) => (
+                            <button key={emoji} onClick={() => handleReaction(selectedMessage, emoji)} className="rounded-full p-1 text-lg transition-all hover:scale-125 hover:bg-white/10" aria-label={`React ${emoji}`}>
+                                {emoji}
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => setShowMessageActions((visible) => !visible)}
+                            className="ml-1 rounded-full p-2 text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+                            aria-label="Message actions"
+                        >
+                            <MoreVertical size={18} />
+                        </button>
+                    </div>
+                    {!showMessageActions ? null : (
+                        <div onClick={(e) => e.stopPropagation()}>
                     {String(selectedMessage?.senderId) === String(currentUserId) &&
                         (!selectedMessage?.type || selectedMessage?.type === 'text') &&
                         !isMessageDeleted(selectedMessage) && (
@@ -497,15 +510,15 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                             <span>Edit</span>
                         </button>
                     )}
+                    <button
+                        onClick={() => handleDeleteMessage(false)}
+                        className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 flex items-center gap-2"
+                    >
+                        <span>🗑️</span>
+                        <span>Delete for me</span>
+                    </button>
                     {String(selectedMessage?.senderId) === String(currentUserId) && (
                         <>
-                            <button
-                                onClick={() => handleDeleteMessage(false)}
-                                className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 flex items-center gap-2"
-                            >
-                                <span>🗑️</span>
-                                <span>Delete for me</span>
-                            </button>
                             <button
                                 onClick={() => handleDeleteMessage(true)}
                                 className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-slate-700/50 transition-colors flex items-center gap-2"
@@ -514,6 +527,8 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                 <span>Delete for all</span>
                             </button>
                         </>
+                    )}
+                        </div>
                     )}
                 </div>
             )}
