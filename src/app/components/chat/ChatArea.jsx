@@ -4,7 +4,6 @@ import AudioMessage from './AudioMessage';
 import ImageMessage from './ImageMessage';
 import { BarChart2, ChevronDown, Clock, Check, CheckCheck } from 'lucide-react';
 
-// ألوان هادئة ومتناسقة مع الـ Dark Mode الخاص بـ Wasla لأسماء الأعضاء
 const SENDER_NAME_COLORS = [
     'text-sky-400',
     'text-[#38bdf8]',
@@ -98,30 +97,21 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
 
     useEffect(() => {
         if (!socket?.current) return;
-
-        const handleMessageDeleted = (updatedMsg) => {
-            // Message deletion is handled by socket update, UI will re-render
-        };
-
+        const handleMessageDeleted = (updatedMsg) => {};
         socket.current.on('message-deleted', handleMessageDeleted);
-
         return () => {
             socket.current?.off('message-deleted', handleMessageDeleted);
         };
     }, [socket]);
 
-    // Close context menu when clicking outside
     useEffect(() => {
         const handleClickOutside = () => {
             if (contextMenu.visible) {
                 setContextMenu({ ...contextMenu, visible: false });
             }
         };
-
         document.addEventListener('click', handleClickOutside);
-        return () => {
-            document.removeEventListener('click', handleClickOutside);
-        };
+        return () => document.removeEventListener('click', handleClickOutside);
     }, [contextMenu.visible]);
 
     const formatTime = (dateString) => {
@@ -145,14 +135,12 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
             setContextMenu({ ...contextMenu, visible: false });
             return;
         }
-
         socket.current.emit('delete-message', {
             teamId: activeTeamId,
             messageId: selectedMessage._id,
             deleteForAll,
             userId: currentUserId
         });
-
         setContextMenu({ ...contextMenu, visible: false });
         setSelectedMessage(null);
     };
@@ -164,7 +152,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     };
 
     const handleEditStart = () => {
-        if (selectedMessage && selectedMessage.type === 'text' && !isMessageDeleted(selectedMessage)) {
+        if (selectedMessage && (selectedMessage.type === 'text' || !selectedMessage.type) && !isMessageDeleted(selectedMessage)) {
             setEditingMessage(selectedMessage);
             setEditText(selectedMessage.text);
             setContextMenu({ ...contextMenu, visible: false });
@@ -177,20 +165,17 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
             setEditText('');
             return;
         }
-
         if (editText.trim() === editingMessage.text.trim()) {
             setEditingMessage(null);
             setEditText('');
             return;
         }
-
         socket.current.emit('edit-message', {
             teamId: activeTeamId,
             messageId: editingMessage._id,
             newText: editText.trim(),
             userId: currentUserId
         });
-
         setEditingMessage(null);
         setEditText('');
     };
@@ -212,7 +197,6 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
         if (!pollData || !pollData.options) return null;
 
         const totalVotes = pollData.options.reduce((acc, opt) => acc + (opt.votes?.length || 0), 0);
-
         const topOptions = [...pollData.options]
             .filter(opt => opt.votes?.length > 0)
             .sort((a, b) => b.votes?.length - a.votes?.length)
@@ -229,12 +213,12 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
         };
 
         return (
-            <div className="flex flex-col min-w-[220px] sm:min-w-[260px] pt-1">
+            <div className="flex flex-col min-w-[220px] sm:min-w-[260px] pt-1 pb-3">
                 <div className="flex items-start gap-2 mb-2.5">
                     <div className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${isMe ? 'bg-indigo-500/20 text-indigo-100' : 'bg-slate-700/50 text-indigo-400'}`}>
                         <BarChart2 size={16} />
                     </div>
-                    <span className="font-semibold text-[14px] leading-snug text-slate-100">
+                    <span dir="auto" className="font-semibold text-[14px] leading-snug text-slate-100 text-start">
                         {pollData.question}
                     </span>
                 </div>
@@ -243,9 +227,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                     {pollData.options.map((option) => {
                         const votesCount = option.votes?.length || 0;
                         const percentage = totalVotes > 0 ? Math.round((votesCount / totalVotes) * 100) : 0;
-                        const hasMyVote = option.votes?.some(
-                            (voteId) => String(voteId) === String(currentUserId)
-                        );
+                        const hasMyVote = option.votes?.some((voteId) => String(voteId) === String(currentUserId));
 
                         return (
                             <button
@@ -265,17 +247,14 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         style={{ width: `${percentage}%` }}
                                     />
                                 )}
-
                                 <div className="relative z-10 flex justify-between items-center gap-2">
-                                    <span className={`font-medium transition-colors duration-300 ${
+                                    <span dir="auto" className={`font-medium transition-colors duration-300 text-start ${
                                         hasMyVote ? 'text-indigo-200' : 'text-slate-200 group-hover:text-white'
                                     }`}>
                                         {option.text}
                                     </span>
                                     {votesCount > 0 && (
-                                        <span className={`text-[11px] font-medium ${
-                                            hasMyVote ? 'text-indigo-300' : 'text-slate-400'
-                                        }`}>
+                                        <span className={`text-[11px] font-medium ${hasMyVote ? 'text-indigo-300' : 'text-slate-400'}`}>
                                             {percentage}%
                                         </span>
                                     )}
@@ -287,13 +266,11 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
 
                 {topOptions.length > 0 && (
                     <div className="mt-2.5 pt-2 border-t border-slate-700/50 flex items-center gap-2 overflow-x-auto custom-scrollbar pb-0.5">
-                        <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider shrink-0">
-                            Top
-                        </span>
+                        <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider shrink-0">Top</span>
                         <div className="flex gap-1.5">
                             {topOptions.map((opt, idx) => (
                                 <div key={idx} className="flex items-center gap-1 bg-slate-800/80 text-slate-300 border border-slate-700 px-2 py-0.5 rounded-md text-[10px] whitespace-nowrap shadow-sm">
-                                    <span className="truncate max-w-[80px]" title={opt.text}>{opt.text}</span>
+                                    <span dir="auto" className="truncate max-w-[80px] text-start" title={opt.text}>{opt.text}</span>
                                     <span className="text-slate-500 font-medium">•</span>
                                     <span className="font-bold text-indigo-400">{opt.votes?.length}</span>
                                 </div>
@@ -335,13 +312,12 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                     const nextMsg = messages[index + 1];
 
                     const isFirstInGroup = !prevMsg || String(prevMsg.senderId) !== String(msg.senderId);
-                    const isLastInGroup = !nextMsg || String(nextMsg.senderId) !== String(msg.senderId);
+                    const isSticker = msg.type === 'sticker';
 
-                    // استخراج اسم المرسل بدون الاعتماد الحصري على كلمة User
                     const displayName = msg.senderName && msg.senderName !== 'User'
                         ? msg.senderName
-                        : (typeof msg.senderId === 'object' && msg.senderId?.Name) 
-                            ? msg.senderId.Name 
+                        : (typeof msg.senderId === 'object' && msg.senderId?.Name)
+                            ? msg.senderId.Name
                             : 'Member';
 
                     const nameColorClass = getSenderColor(msg.senderId);
@@ -376,18 +352,19 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         document.addEventListener('touchend', cleanup);
                                     }
                                 }}
-                                className={`relative px-3 py-2 shadow-md text-slate-100 cursor-context-menu ${
-                                    isMe
-                                        ? 'bg-indigo-600 text-indigo-50 rounded-2xl'
-                                        : 'bg-[#1e293b] text-slate-200 rounded-2xl border border-slate-700/50'
+                                className={`relative cursor-context-menu ${
+                                    isSticker
+                                        ? 'bg-transparent text-slate-100' // No bubble background for stickers
+                                        : isMe
+                                            ? 'px-3 py-2 bg-indigo-600 text-indigo-50 shadow-md rounded-2xl'
+                                            : 'px-3 py-2 bg-[#1e293b] text-slate-200 shadow-md rounded-2xl border border-slate-700/50'
                                 } ${
-                                    isMe && isFirstInGroup ? 'rounded-tr-xs' : ''
+                                    isMe && isFirstInGroup && !isSticker ? 'rounded-tr-xs' : ''
                                 } ${
-                                    !isMe && isFirstInGroup ? 'rounded-tl-xs' : ''
+                                    !isMe && isFirstInGroup && !isSticker ? 'rounded-tl-xs' : ''
                                 } ${isMessageDeleted(msg) ? 'opacity-50' : ''}`}
                             >
-                                {/* Show sender name for all messages from other users (like WhatsApp) */}
-                                {!isMe && (
+                                {!isMe && !isSticker && (
                                     <div className="flex items-center gap-1.5 mb-1 select-none">
                                         <span className={`text-[12px] font-bold ${nameColorClass} truncate max-w-[200px]`}>
                                             {displayName}
@@ -395,38 +372,45 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                     </div>
                                 )}
 
-                                {/* Handle deleted messages */}
                                 {isMessageDeleted(msg) ? (
-                                    <p className="text-[13px] italic text-slate-400">
+                                    <p dir="auto" className="text-[13px] italic text-slate-400 pb-2 min-w-[70px] text-start">
                                         {msg.isDeletedForAll ? 'This message was deleted' : 'You deleted this message'}
                                     </p>
                                 ) : msg.type === 'poll' ? (
                                     <PollMessageBubble msg={msg} isMe={isMe} />
                                 ) : msg.type === 'audio' && msg.mediaUrl ? (
-                                    <AudioMessage mediaUrl={msg.mediaUrl} messageId={msg._id || msg.createdAt} />
+                                    <div className="pb-3">
+                                        <AudioMessage mediaUrl={msg.mediaUrl} messageId={msg._id || msg.createdAt} />
+                                    </div>
                                 ) : msg.type === 'image' && msg.mediaUrl ? (
-                                    <ImageMessage msg={msg} />
+                                    <div className="pb-3">
+                                        <ImageMessage msg={msg} />
+                                    </div>
+                                ) : msg.type === 'sticker' && msg.mediaUrl ? (
+                                    <div className="pb-3">
+                                        <img src={msg.mediaUrl} alt="Sticker" className="w-24 h-24 sm:w-32 sm:h-32 object-contain drop-shadow-md" />
+                                    </div>
                                 ) : (
-                                    <p className="text-[14px] leading-relaxed whitespace-pre-wrap break-words pr-10">
+                                    <div dir="auto" className="text-[14px] leading-relaxed whitespace-pre-wrap break-words pb-3 min-w-[65px] text-start">
                                         {msg.text}
-                                    </p>
+                                    </div>
                                 )}
 
-                                {/* وقت وتفاصيل الرسالة */}
-                                <div className="float-right -mt-2 ml-2 flex items-center justify-end gap-1 select-none pointer-events-none">
+                                {/* Absolute Timestamp - Replaces the float to prevent RTL breaks */}
+                                <div className={`absolute bottom-1 right-2 flex items-center justify-end gap-1 select-none pointer-events-none ${isSticker ? 'bg-black/30 px-1.5 py-0.5 rounded-full backdrop-blur-sm' : ''}`}>
                                     {msg.editedAt && (
-                                        <span className={`text-[8px] italic font-normal ${isMe ? 'text-indigo-200/50' : 'text-slate-500'}`}>
+                                        <span className={`text-[8px] italic font-normal ${isSticker ? 'text-white' : isMe ? 'text-indigo-200/50' : 'text-slate-500'}`}>
                                             edited
                                         </span>
                                     )}
-                                    <span className={`text-[9px] font-normal ${isMe ? 'text-indigo-200/70' : 'text-slate-400'}`}>
+                                    <span className={`text-[9px] font-normal ${isSticker ? 'text-white' : isMe ? 'text-indigo-200/70' : 'text-slate-400'}`}>
                                         {formatTime(msg.createdAt)}
                                     </span>
                                     {isMe && (
                                         msg.status === 'pending' ? (
-                                            <Clock size={10} className="text-indigo-200/70 animate-pulse" />
+                                            <Clock size={10} className={`${isSticker ? 'text-white' : 'text-indigo-200/70'} animate-pulse`} />
                                         ) : (
-                                            <CheckCheck size={13} className="text-sky-300" />
+                                            <CheckCheck size={13} className={isSticker ? 'text-white' : 'text-sky-300'} />
                                         )
                                     )}
                                 </div>
@@ -434,11 +418,10 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                         </div>
                     );
                 })}
-
                 <div ref={messagesEndRef} className="h-1" />
             </div>
 
-            {/* Floating scroll button */}
+            {/* Context Menus & Modals remain unchanged below */}
             {showScrollBtn && (
                 <button
                     onClick={() => scrollToBottom(false)}
@@ -449,7 +432,6 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                 </button>
             )}
 
-            {/* Context menu for options */}
             {contextMenu.visible && (
                 <div
                     className="fixed bg-[#1e293b] border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden"
@@ -458,7 +440,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                         top: `${Math.min(contextMenu.y, window.innerHeight - 150)}px`,
                     }}
                 >
-                    {selectedMessage?.type === 'text' && !isMessageDeleted(selectedMessage) && (
+                    {(!selectedMessage?.type || selectedMessage?.type === 'text') && !isMessageDeleted(selectedMessage) && (
                         <button
                             onClick={handleEditStart}
                             className="w-full px-4 py-2.5 text-left text-sm text-sky-400 hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 flex items-center gap-2"
@@ -484,25 +466,23 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                 </div>
             )}
 
-            {/* Edit modal */}
             {editingMessage && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
                     <div className="bg-[#1e293b] border border-slate-700 rounded-lg sm:rounded-xl w-full sm:w-96 shadow-xl">
                         <div className="border-b border-slate-700 px-4 py-3">
                             <h3 className="text-sm font-semibold text-slate-200">Edit Message</h3>
                         </div>
-                        
                         <div className="p-4">
                             <textarea
                                 value={editText}
                                 onChange={(e) => setEditText(e.target.value)}
                                 placeholder="Edit your message..."
-                                className="w-full bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 resize-none"
+                                dir="auto"
+                                className="w-full bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 resize-none text-start"
                                 rows="4"
                                 autoFocus
                             />
                         </div>
-
                         <div className="border-t border-slate-700 flex gap-2 p-4">
                             <button
                                 onClick={handleEditCancel}

@@ -1,12 +1,32 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { 
     Send, Mic, Square, Trash2, Loader2, Pause, Play, Plus, 
     BarChart2, X, CheckSquare, Image as ImageIcon, Lock, 
-    ChevronUp, ChevronLeft 
+    ChevronUp, ChevronLeft, Smile, Sticker, Upload, Search
 } from 'lucide-react';
 import axios from 'axios';
 import { getApiBaseUrl } from '../../utils/apiBase';
+
+// Dynamically import EmojiPicker to prevent SSR hydration mismatches
+const EmojiPicker = dynamic(() => import('emoji-picker-react'), { 
+    ssr: false,
+    loading: () => (
+        <div className="h-full w-full flex items-center justify-center bg-[#1e293b]/90 text-sky-400">
+            <Loader2 className="animate-spin" size={24} />
+        </div>
+    )
+});
+
+// Default Mock Stickers (Replace image URLs with your CDN links)
+const DEFAULT_STICKERS = [
+    { id: '1', name: 'Pepe Happy', url: 'https://cdn-icons-png.flaticon.com/512/4712/4712035.png' },
+    { id: '2', name: 'Cat Vibe', url: 'https://cdn-icons-png.flaticon.com/512/4712/4712027.png' },
+    { id: '3', name: 'Cool Doge', url: 'https://cdn-icons-png.flaticon.com/512/4712/4712009.png' },
+    { id: '4', name: 'Fire', url: 'https://cdn-icons-png.flaticon.com/512/4712/4712040.png' },
+    { id: '5', name: 'Mind Blown', url: 'https://cdn-icons-png.flaticon.com/512/4712/4712038.png' },
+];
 
 export default function ChatInput({ onSendMessage, disabled, token }) {
     const [text, setText] = useState('');
@@ -17,7 +37,7 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
     const [recordingTime, setRecordingTime] = useState(0);
     const [isUploading, setIsUploading] = useState(false);
     
-    // UI/UX States for WhatsApp feel
+    // UI/UX States
     const [isLocked, setIsLocked] = useState(false);
     const [isPressing, setIsPressing] = useState(false);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -31,19 +51,30 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
     const [pollOptions, setPollOptions] = useState(['', '']);
     const [allowMultipleAnswers, setAllowMultipleAnswers] = useState(false);
 
+    // Emoji & Sticker State
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [pickerTab, setPickerTab] = useState('emoji'); // 'emoji' or 'sticker'
+    const [stickers, setStickers] = useState(DEFAULT_STICKERS);
+    const [stickerSearch, setStickerSearch] = useState('');
+
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
     const timerRef = useRef(null);
     const audioPreviewRef = useRef(null);
     const cancelRecordingRef = useRef(false);
     const attachMenuRef = useRef(null);
+    const emojiMenuRef = useRef(null);
     const imageInputRef = useRef(null);
+    const stickerInputRef = useRef(null);
 
-    // Close attach menu when clicking outside
+    // Close menus when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (attachMenuRef.current && !attachMenuRef.current.contains(event.target)) {
                 setShowAttachMenu(false);
+            }
+            if (emojiMenuRef.current && !emojiMenuRef.current.contains(event.target)) {
+                setShowEmojiPicker(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -66,7 +97,32 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
             onSendMessage(text, 'text');
             setText('');
             setShowAttachMenu(false);
+            setShowEmojiPicker(false);
         }
+    };
+
+    // --- Emoji & Sticker Handlers ---
+    const handleEmojiClick = (emojiData) => {
+        setText((prev) => prev + emojiData.emoji);
+    };
+
+    const handleSendSticker = (stickerUrl) => {
+        onSendMessage('', 'sticker', stickerUrl);
+        setShowEmojiPicker(false);
+    };
+
+    const handleAddCustomSticker = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const stickerUrl = URL.createObjectURL(file);
+        const newSticker = {
+            id: Date.now().toString(),
+            name: file.name,
+            url: stickerUrl
+        };
+        setStickers((prev) => [newSticker, ...prev]);
+        if (e.target) e.target.value = '';
     };
 
     // --- Audio Logic ---
@@ -102,8 +158,8 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                 setRecordingTime(prev => prev + 1);
             }, 1000);
         } catch (err) {
-            console.error("Error accessing microphone:", err);
-            alert("Could not access microphone. Please check permissions.");
+            console.error("Microphone error:", err);
+            alert("Could not access microphone.");
         }
     };
 
@@ -182,14 +238,12 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
         onSendMessage('', 'audio', null, null, localUrl, uploadFn);
     };
 
-    // --- Pointer Events (Drag & Lock UX) ---
+    // --- Pointer Events ---
     const handlePointerDown = (e) => {
         if (disabled || isUploading) return;
-        
         if (e.currentTarget.setPointerCapture) {
             e.currentTarget.setPointerCapture(e.pointerId);
         }
-        
         startPos.current = { x: e.clientX, y: e.clientY };
         setIsPressing(true);
         setIsLocked(false);
@@ -200,54 +254,37 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
 
     const handlePointerMove = (e) => {
         if (!isPressing || isLocked) return;
-        
         const deltaX = e.clientX - startPos.current.x;
         const deltaY = e.clientY - startPos.current.y;
-        
         setDragOffset({ x: deltaX, y: deltaY });
 
-        // Slide up to lock
         if (deltaY < -60) {
             setIsLocked(true);
             setIsPressing(false);
             setDragOffset({ x: 0, y: 0 });
-            if (e.currentTarget.releasePointerCapture) {
-                e.currentTarget.releasePointerCapture(e.pointerId);
-            }
-        } 
-        // Slide left to cancel
-        else if (deltaX < -100) {
+            if (e.currentTarget.releasePointerCapture) e.currentTarget.releasePointerCapture(e.pointerId);
+        } else if (deltaX < -100) {
             cancelRecording();
-            if (e.currentTarget.releasePointerCapture) {
-                e.currentTarget.releasePointerCapture(e.pointerId);
-            }
+            if (e.currentTarget.releasePointerCapture) e.currentTarget.releasePointerCapture(e.pointerId);
         }
     };
 
     const handlePointerUp = (e) => {
         if (!isPressing) return;
-        
-        if (e.currentTarget.releasePointerCapture) {
-            e.currentTarget.releasePointerCapture(e.pointerId);
-        }
-        
+        if (e.currentTarget.releasePointerCapture) e.currentTarget.releasePointerCapture(e.pointerId);
         const pressDuration = Date.now() - (pressTimer.current || 0);
         
         if (pressDuration < 300) {
-            // Single quick tap => lock and show controls
             setIsLocked(true);
             setIsPressing(false);
         } else {
-            // Held and released without locking => send automatic
             stopAndSendRecording();
         }
     };
 
-    // --- Image Processing ---
+    // --- Image Upload ---
     const triggerImageUpload = () => {
-        if (imageInputRef.current) {
-            imageInputRef.current.click();
-        }
+        if (imageInputRef.current) imageInputRef.current.click();
         setShowAttachMenu(false);
     };
 
@@ -306,8 +343,7 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
             }, 'image/webp', 0.8);
             
         } catch (err) {
-            console.error("Error processing image:", err);
-            alert("Failed to process image.");
+            console.error("Image processing error:", err);
             setIsUploading(false);
         }
     };
@@ -320,9 +356,7 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
 
     // --- Poll Functions ---
     const handleAddPollOption = () => {
-        if (pollOptions.length < 6) { 
-            setPollOptions([...pollOptions, '']);
-        }
+        if (pollOptions.length < 6) setPollOptions([...pollOptions, '']);
     };
 
     const handleSendPoll = () => {
@@ -341,6 +375,8 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
         }
     };
 
+    const filteredStickers = stickers.filter(s => s.name.toLowerCase().includes(stickerSearch.toLowerCase()));
+
     return (
         <div className="bg-[#0f172a] p-3 md:p-4 border-t border-white/10 shrink-0 relative">
             <audio ref={audioPreviewRef} className="hidden" />
@@ -348,63 +384,65 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
             <div className="max-w-4xl mx-auto flex items-end gap-2 relative">
                 
                 {isLocked ? (
-                    /* Locked UI (WhatsApp Style) */
-                    <div className="flex-1 bg-[#1e293b] rounded-3xl flex items-center justify-between px-2 sm:px-4 py-2 border border-white/5 transition-all animate-in fade-in zoom-in duration-200">
+                    /* Locked Voice UI */
+                    <div className="flex-1 bg-[#1e293b] rounded-3xl flex items-center justify-between px-3 sm:px-4 py-2 border border-white/10 shadow-lg animate-in fade-in zoom-in duration-200">
                         <button type="button" onClick={cancelRecording} className="text-gray-400 hover:text-red-400 p-2 transition-colors rounded-full hover:bg-white/5" title="Delete recording">
                             <Trash2 size={20} />
                         </button>
                         
                         <div className="flex-1 flex items-center justify-center gap-3">
                             <div className={`w-2.5 h-2.5 rounded-full ${!isPaused ? 'bg-red-500 animate-pulse' : 'bg-gray-500'}`} />
-                            <span className="text-white font-mono text-sm">{formatTime(recordingTime)}</span>
-                            {/* Dummy waveform for aesthetics */}
-                            <div className="hidden sm:flex items-center gap-1 opacity-60">
-                                {[1,2,3,4,3,2,1,2,3,2,1].map((h, i) => (
-                                    <div key={i} className="w-1 bg-sky-400 rounded-full" style={{ height: `${h * 4}px` }} />
+                            <span className="text-white font-mono text-sm font-semibold">{formatTime(recordingTime)}</span>
+                            <div className="hidden sm:flex items-center gap-1 opacity-70">
+                                {[1,3,5,2,4,6,3,5,2,4,1].map((h, i) => (
+                                    <div key={i} className="w-1 bg-sky-400 rounded-full animate-pulse" style={{ height: `${h * 4}px`, animationDelay: `${i * 100}ms` }} />
                                 ))}
                             </div>
                         </div>
 
                         <div className="flex items-center gap-1 sm:gap-2">
                             {isPaused && (
-                                <button type="button" onClick={playPreview} className="w-10 h-10 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 flex items-center justify-center text-emerald-400 transition-colors">
-                                    <Play size={18} fill="currentColor" className="ml-1" />
+                                <button type="button" onClick={playPreview} className="w-10 h-10 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 flex items-center justify-center text-emerald-400 transition-colors">
+                                    <Play size={18} fill="currentColor" className="ml-0.5" />
                                 </button>
                             )}
-                            <button type="button" onClick={togglePauseResume} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-sky-400 transition-colors">
+                            <button type="button" onClick={togglePauseResume} className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/15 flex items-center justify-center text-sky-400 transition-colors">
                                 {isPaused ? <Mic size={18} /> : <Pause size={18} fill="currentColor" />}
                             </button>
-                            <button type="button" onClick={stopAndSendRecording} className="w-10 h-10 bg-sky-500 text-white rounded-full flex items-center justify-center hover:bg-sky-600 shadow-lg transition-transform hover:scale-105">
-                                <Send size={18} className="ml-1" />
+                            <button type="button" onClick={stopAndSendRecording} className="w-10 h-10 bg-sky-500 text-white rounded-full flex items-center justify-center hover:bg-sky-600 shadow-lg shadow-sky-500/25 transition-transform hover:scale-105">
+                                <Send size={18} className="ml-0.5" />
                             </button>
                         </div>
                     </div>
                 ) : (
                     <>
-                        {/* Attach Menu */}
+                        {/* Attach Plus Button & Popup */}
                         <div className="relative shrink-0" ref={attachMenuRef}>
                             <button
                                 type="button"
-                                onClick={() => setShowAttachMenu(!showAttachMenu)}
-                                className={`p-3 rounded-full transition-all duration-300 ${showAttachMenu ? 'bg-white/10 text-white rotate-45' : 'text-gray-400 hover:text-sky-400 hover:bg-white/5'}`}
+                                onClick={() => {
+                                    setShowAttachMenu(!showAttachMenu);
+                                    setShowEmojiPicker(false);
+                                }}
+                                className={`p-3 rounded-full transition-all duration-300 ${showAttachMenu ? 'bg-sky-500 text-white rotate-45 shadow-lg shadow-sky-500/30' : 'text-gray-400 hover:text-sky-400 hover:bg-white/5'}`}
                                 disabled={isUploading || isPressing}
                             >
                                 <Plus size={22} />
                             </button>
 
                             {showAttachMenu && (
-                                <div className="absolute bottom-14 left-0 bg-[#1e293b] border border-white/10 rounded-2xl p-3 shadow-xl flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-200 z-40">
-                                    <div onClick={() => { setShowPollModal(true); setShowAttachMenu(false); }} className="flex flex-col items-center gap-2 cursor-pointer group">
-                                        <div className="w-12 h-12 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center group-hover:bg-sky-500 group-hover:text-white transition-all">
-                                            <BarChart2 size={24} />
+                                <div className="absolute bottom-16 left-0 bg-[#1e293b]/95 backdrop-blur-md border border-white/10 rounded-2xl p-3 shadow-2xl flex gap-4 animate-in fade-in slide-in-from-bottom-3 duration-200 z-50">
+                                    <div onClick={() => { setShowPollModal(true); setShowAttachMenu(false); }} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-white/5 transition-colors">
+                                        <div className="w-11 h-11 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center group-hover:bg-sky-500 group-hover:text-white transition-all shadow-inner">
+                                            <BarChart2 size={22} />
                                         </div>
-                                        <span className="text-xs text-gray-300 group-hover:text-white transition-colors">Poll</span>
+                                        <span className="text-xs font-medium text-gray-300 group-hover:text-white">Poll</span>
                                     </div>
-                                    <div onClick={triggerImageUpload} className="flex flex-col items-center gap-2 cursor-pointer group">
-                                        <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all">
-                                            <ImageIcon size={24} />
+                                    <div onClick={triggerImageUpload} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-white/5 transition-colors">
+                                        <div className="w-11 h-11 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-inner">
+                                            <ImageIcon size={22} />
                                         </div>
-                                        <span className="text-xs text-gray-300 group-hover:text-white transition-colors">Image</span>
+                                        <span className="text-xs font-medium text-gray-300 group-hover:text-white">Image</span>
                                     </div>
                                 </div>
                             )}
@@ -412,45 +450,181 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                             <input type="file" ref={imageInputRef} accept="image/*" className="hidden" onChange={handleImageSelect} />
                         </div>
 
-                        {/* Main Text Input area */}
-                        <form onSubmit={handleSubmit} className="flex-1 relative bg-[#1e293b] rounded-3xl border border-white/5 focus-within:border-sky-500/50 transition-colors flex items-center px-4 py-1">
-                            <textarea
-                                value={text}
-                                onChange={(e) => setText(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                        e.preventDefault();
-                                        handleSubmit(e);
-                                    }
-                                }}
-                                placeholder="Type a message..."
-                                className="w-full bg-transparent text-white text-sm py-3 focus:outline-none resize-none max-h-32 custom-scrollbar"
-                                rows={1}
-                                disabled={isUploading || isPressing}
-                            />
-
-                            {/* Dragging Overlay (Slide to Cancel) covering input */}
-                            {isPressing && (
-                                <div className="absolute inset-0 bg-[#1e293b] rounded-3xl flex items-center justify-between px-4 z-10 pointer-events-none overflow-hidden">
-                                    <div 
-                                        className="flex items-center text-gray-400 gap-2 whitespace-nowrap"
-                                        style={{ transform: `translateX(${Math.min(0, dragOffset.x)}px)`, opacity: 1 - Math.abs(dragOffset.x)/100 }}
-                                    >
-                                        <ChevronLeft size={20} className="animate-pulse" />
-                                        <span className="text-sm font-medium">Slide to cancel</span>
+                        {/* Input Container */}
+                        <div className="flex-1 relative flex flex-col" ref={emojiMenuRef}>
+                            
+                            {/* Emoji & Sticker Drawer */}
+                            {showEmojiPicker && (
+                                <div className="absolute bottom-16 left-0 w-[90vw] sm:w-[350px] h-[430px] bg-[#1e293b]/95 backdrop-blur-md border border-white/15 rounded-3xl shadow-2xl flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-200 z-50 overflow-hidden">
+                                    
+                                    {/* Tabs */}
+                                    <div className="flex border-b border-white/10 bg-[#0f172a]/80 p-1.5 shrink-0 gap-1">
+                                        <button 
+                                            onClick={() => setPickerTab('emoji')} 
+                                            className={`flex-1 py-2 rounded-xl text-xs font-semibold flex justify-center items-center gap-2 transition-all ${pickerTab === 'emoji' ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                        >
+                                            <Smile size={16} /> Emojis
+                                        </button>
+                                        <button 
+                                            onClick={() => setPickerTab('sticker')} 
+                                            className={`flex-1 py-2 rounded-xl text-xs font-semibold flex justify-center items-center gap-2 transition-all ${pickerTab === 'sticker' ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                        >
+                                            <Sticker size={16} /> Stickers
+                                        </button>
                                     </div>
                                     
-                                    <div className="flex items-center gap-2 mr-6">
-                                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                        <span className="text-white font-mono">{formatTime(recordingTime)}</span>
-                                    </div>
+                                    {/* Tab 1: Emoji Picker */}
+                                    {pickerTab === 'emoji' && (
+                                        <div className="flex-1 w-full h-full custom-emoji-picker-container overflow-hidden">
+                                            <style jsx global>{`
+                                                .custom-emoji-picker-container .EmojiPickerReact {
+                                                    --epr-bg-color: transparent !important;
+                                                    --epr-category-label-bg-color: #1e293b !important;
+                                                    --epr-picker-border-color: transparent !important;
+                                                    --epr-[#1e293b]-color: #1e293b !important;
+                                                    --epr-search-input-bg-color: #0f172a !important;
+                                                    --epr-search-input-bg-color-active: #0f172a !important;
+                                                    --epr-search-input-[#1e293b]-color: #ffffff !important;
+                                                    --epr-search-input-border-color: rgba(255, 255, 255, 0.1) !important;
+                                                    --epr-hover-bg-color: rgba(255, 255, 255, 0.08) !important;
+                                                    --epr-focus-bg-color: rgba(255, 255, 255, 0.12) !important;
+                                                    font-family: inherit !important;
+                                                }
+                                                .custom-emoji-picker-container .EmojiPickerReact .epr-search-container input {
+                                                    color: #fff !important;
+                                                    border-radius: 12px !important;
+                                                    font-size: 13px !important;
+                                                }
+                                            `}</style>
+                                            <EmojiPicker 
+                                                onEmojiClick={handleEmojiClick}
+                                                theme="dark"
+                                                width="100%"
+                                                height="100%"
+                                                lazyLoadEmojis={true}
+                                                searchPlaceHolder="Search emoji..."
+                                                previewConfig={{ showPreview: false }}
+                                                skinTonesDisabled={false}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Tab 2: Stickers & Custom Sticker Add */}
+                                    {pickerTab === 'sticker' && (
+                                        <div className="flex-1 flex flex-col p-3 gap-3 overflow-hidden bg-[#1e293b]/60">
+                                            {/* Search & Add Sticker Bar */}
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <div className="flex-1 relative">
+                                                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                                    <input 
+                                                        type="text"
+                                                        value={stickerSearch}
+                                                        onChange={(e) => setStickerSearch(e.target.value)}
+                                                        placeholder="Search stickers..."
+                                                        className="w-full bg-[#0f172a] text-white text-xs pl-9 pr-3 py-2 rounded-xl border border-white/10 focus:outline-none focus:border-sky-500/50"
+                                                    />
+                                                </div>
+                                                <button 
+                                                    onClick={() => stickerInputRef.current?.click()}
+                                                    className="p-2 bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded-xl hover:bg-sky-500 hover:text-white transition-all flex items-center gap-1 text-xs font-medium shrink-0"
+                                                    title="Add custom sticker"
+                                                >
+                                                    <Upload size={14} /> Add
+                                                </button>
+                                                <input 
+                                                    type="file" 
+                                                    ref={stickerInputRef} 
+                                                    accept="image/png, image/webp, image/gif" 
+                                                    className="hidden" 
+                                                    onChange={handleAddCustomSticker} 
+                                                />
+                                            </div>
+
+                                            {/* Sticker Grid */}
+                                            <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-3 pr-1 custom-scrollbar">
+                                                {filteredStickers.map((sticker) => (
+                                                    <button
+                                                        key={sticker.id}
+                                                        onClick={() => handleSendSticker(sticker.url)}
+                                                        className="aspect-square p-2 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-sky-500/40 rounded-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 group"
+                                                    >
+                                                        <img 
+                                                            src={sticker.url} 
+                                                            alt={sticker.name} 
+                                                            className="w-full h-full object-contain drop-shadow-md group-hover:drop-shadow-xl transition-all" 
+                                                        />
+                                                    </button>
+                                                ))}
+                                                {filteredStickers.length === 0 && (
+                                                    <div className="col-span-3 h-full flex items-center justify-center text-gray-400 text-xs">
+                                                        No stickers found.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
                                 </div>
                             )}
-                        </form>
+
+                            {/* Textarea Form Box (Supports Arabic & Mixed Text Seamlessly) */}
+                            <form 
+                                onSubmit={handleSubmit} 
+                                className="flex-1 relative bg-[#1e293b] rounded-3xl border border-white/10 focus-within:border-sky-500/50 focus-within:ring-1 focus-within:ring-sky-500/30 transition-all flex items-center px-3 sm:px-4 py-1.5 shadow-inner"
+                            >
+                                {!isPressing && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowEmojiPicker(!showEmojiPicker);
+                                            setShowAttachMenu(false);
+                                        }}
+                                        className={`p-1.5 shrink-0 transition-all rounded-full mr-1.5 ${showEmojiPicker ? 'text-sky-400 bg-sky-500/10' : 'text-gray-400 hover:text-sky-400 hover:bg-white/5'}`}
+                                    >
+                                        <Smile size={22} />
+                                    </button>
+                                )}
+
+                                <textarea
+                                    value={text}
+                                    onChange={(e) => setText(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSubmit(e);
+                                        }
+                                    }}
+                                    placeholder="Type a message..."
+                                    dir="auto"
+                                    className="w-full bg-transparent text-white text-sm py-2.5 focus:outline-none resize-none max-h-32 custom-scrollbar leading-relaxed placeholder:text-gray-500 tracking-wide"
+                                    rows={1}
+                                    disabled={isUploading || isPressing}
+                                    style={{ direction: 'auto', unicodeBidi: 'plaintext' }}
+                                />
+
+                                {/* Audio Recording Overlay */}
+                                {isPressing && (
+                                    <div className="absolute inset-0 bg-[#1e293b] rounded-3xl flex items-center justify-between px-4 z-10 pointer-events-none overflow-hidden border border-sky-500/30">
+                                        <div 
+                                            className="flex items-center text-gray-400 gap-2 whitespace-nowrap"
+                                            style={{ transform: `translateX(${Math.min(0, dragOffset.x)}px)`, opacity: 1 - Math.abs(dragOffset.x)/100 }}
+                                        >
+                                            <ChevronLeft size={20} className="animate-pulse text-sky-400" />
+                                            <span className="text-xs font-semibold text-gray-300">Slide left to cancel</span>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-2 mr-6">
+                                            <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                                            <span className="text-white font-mono text-sm font-semibold">{formatTime(recordingTime)}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </form>
+                        </div>
                     </>
                 )}
 
-                {/* Right Action Area: Text Send Button or Audio Mic Button */}
+                {/* Right Action Button (Send Text vs Record Mic) */}
                 {!isLocked && (
                     <div className="relative shrink-0">
                         {text.trim() && !isRecording ? (
@@ -458,22 +632,21 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                                 type="button"
                                 onClick={handleSubmit}
                                 disabled={isUploading}
-                                className="p-3 rounded-full flex items-center justify-center transition-all bg-sky-500 text-white hover:bg-sky-600 shadow-lg"
+                                className="p-3 rounded-full flex items-center justify-center transition-all bg-sky-500 text-white hover:bg-sky-600 shadow-lg shadow-sky-500/25 hover:scale-105 active:scale-95"
                             >
-                                {isUploading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className="ml-1" />}
+                                {isUploading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className="ml-0.5" />}
                             </button>
                         ) : (
                             <div className="relative flex items-center justify-center">
-                                {/* Slide up to lock indicator */}
                                 {isPressing && (
                                     <div 
-                                        className="absolute -top-20 flex flex-col items-center gap-2 transition-transform duration-75 pointer-events-none"
+                                        className="absolute -top-20 flex flex-col items-center gap-1 transition-transform duration-75 pointer-events-none"
                                         style={{ transform: `translateY(${Math.min(0, dragOffset.y)}px)`, opacity: 1 - Math.abs(dragOffset.y)/60 }}
                                     >
-                                        <div className="bg-[#1e293b] p-3 rounded-full border border-white/10 shadow-lg animate-bounce">
-                                            <Lock size={16} className="text-gray-400" />
+                                        <div className="bg-[#1e293b] p-2.5 rounded-full border border-sky-500/30 shadow-xl animate-bounce text-sky-400">
+                                            <Lock size={16} />
                                         </div>
-                                        <ChevronUp size={16} className="text-gray-500 animate-pulse" />
+                                        <ChevronUp size={16} className="text-sky-400 animate-pulse" />
                                     </div>
                                 )}
                                 
@@ -483,10 +656,10 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                                     onPointerMove={handlePointerMove}
                                     onPointerUp={handlePointerUp}
                                     onPointerCancel={handlePointerUp}
-                                    title="Record voice message"
+                                    title="Hold to record, tap to lock"
                                     className={`p-3 rounded-full transition-all duration-200 shrink-0 select-none ${
                                         isPressing 
-                                            ? 'bg-sky-500 text-white scale-125 shadow-xl shadow-sky-500/20 z-20' 
+                                            ? 'bg-sky-500 text-white scale-125 shadow-2xl shadow-sky-500/40 z-20' 
                                             : 'text-gray-400 hover:text-sky-400 hover:bg-white/5'
                                     }`}
                                     disabled={disabled || isUploading}
@@ -500,32 +673,33 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                 )}
             </div>
 
-            {/* Poll Modal remains strictly unchanged */}
+            {/* Poll Modal */}
             {showPollModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-                    <div className="bg-[#1e293b] rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-white/10 animate-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between p-4 border-b border-white/5 bg-[#0f172a]">
-                            <h3 className="text-white font-medium">Create Poll</h3>
-                            <button onClick={() => setShowPollModal(false)} className="text-gray-400 hover:text-white transition-colors">
-                                <X size={20} />
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                    <div className="bg-[#1e293b] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-white/10 animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-[#0f172a]">
+                            <h3 className="text-white font-semibold text-sm">Create Poll</h3>
+                            <button onClick={() => setShowPollModal(false)} className="text-gray-400 hover:text-white transition-colors p-1 rounded-full hover:bg-white/5">
+                                <X size={18} />
                             </button>
                         </div>
                         
                         <div className="p-4 space-y-4">
                             <div>
-                                <label className="text-xs text-gray-400 mb-1 block">Question</label>
+                                <label className="text-xs font-medium text-gray-400 mb-1.5 block">Question</label>
                                 <input 
                                     type="text" 
                                     value={pollQuestion}
                                     onChange={(e) => setPollQuestion(e.target.value)}
                                     placeholder="Ask a question..."
-                                    className="w-full bg-[#0f172a] text-white border border-white/10 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-sky-500/50 transition-colors"
+                                    dir="auto"
+                                    className="w-full bg-[#0f172a] text-white border border-white/10 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-sky-500/50 transition-colors"
                                     autoFocus
                                 />
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs text-gray-400 block">Options</label>
+                                <label className="text-xs font-medium text-gray-400 block">Options</label>
                                 {pollOptions.map((opt, i) => (
                                     <input 
                                         key={i}
@@ -537,21 +711,22 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                                             setPollOptions(newOpts);
                                         }}
                                         placeholder={`Option ${i + 1}`}
-                                        className="w-full bg-[#0f172a] text-white border border-white/10 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-sky-500/50 transition-colors"
+                                        dir="auto"
+                                        className="w-full bg-[#0f172a] text-white border border-white/10 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:border-sky-500/50 transition-colors"
                                     />
                                 ))}
                                 {pollOptions.length < 6 && (
                                     <button 
                                         onClick={handleAddPollOption}
-                                        className="text-sky-400 text-sm font-medium hover:text-sky-300 py-1 flex items-center gap-1"
+                                        className="text-sky-400 text-xs font-semibold hover:text-sky-300 py-1 flex items-center gap-1 transition-colors"
                                     >
-                                        <Plus size={16} /> Add Option
+                                        <Plus size={15} /> Add Option
                                     </button>
                                 )}
                             </div>
 
-                            <div className="pt-2 border-t border-white/5 mt-2">
-                                <label className="flex items-center gap-2 cursor-pointer group">
+                            <div className="pt-2 border-t border-white/5">
+                                <label className="flex items-center gap-2.5 cursor-pointer group">
                                     <div className="relative flex items-center justify-center">
                                         <input 
                                             type="checkbox"
@@ -559,32 +734,32 @@ export default function ChatInput({ onSendMessage, disabled, token }) {
                                             onChange={(e) => setAllowMultipleAnswers(e.target.checked)}
                                             className="sr-only"
                                         />
-                                        <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                                        <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
                                             allowMultipleAnswers 
-                                                ? 'bg-sky-500 border-sky-500' 
+                                                ? 'bg-sky-500 border-sky-500 shadow-sm shadow-sky-500/30' 
                                                 : 'border-gray-500 group-hover:border-sky-400 bg-transparent'
                                         }`}>
-                                            {allowMultipleAnswers && <CheckSquare size={14} className="text-white" />}
+                                            {allowMultipleAnswers && <CheckSquare size={13} className="text-white" />}
                                         </div>
                                     </div>
-                                    <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
+                                    <span className="text-xs font-medium text-gray-300 group-hover:text-white transition-colors">
                                         Allow multiple answers
                                     </span>
                                 </label>
                             </div>
                         </div>
 
-                        <div className="p-4 border-t border-white/5 bg-[#0f172a] flex justify-end gap-2">
+                        <div className="p-4 border-t border-white/10 bg-[#0f172a] flex justify-end gap-2">
                             <button 
                                 onClick={() => setShowPollModal(false)}
-                                className="px-4 py-2 text-sm text-gray-300 hover:bg-white/5 rounded-xl transition-colors"
+                                className="px-4 py-2 text-xs font-semibold text-gray-300 hover:bg-white/5 rounded-xl transition-colors"
                             >
                                 Cancel
                             </button>
                             <button 
                                 onClick={handleSendPoll}
                                 disabled={!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2}
-                                className="px-4 py-2 text-sm bg-sky-500 text-white rounded-xl hover:bg-sky-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-4 py-2 text-xs font-semibold bg-sky-500 text-white rounded-xl hover:bg-sky-600 transition-all shadow-md shadow-sky-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Send Poll
                             </button>

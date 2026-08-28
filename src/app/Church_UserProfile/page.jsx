@@ -629,17 +629,14 @@ export default function Church_UserProfile() {
                     Authorization: `Bearer ${isLogin}`,
                 };
 
-                const [membersRes, eventsRes] = await Promise.all([
-                    fetch(`${API_URL}/users/my-church`, { headers }),
-                    fetch(`${API_URL}/events/my-church`, { headers }).catch(() => null),
-                ]);
+                const membersRes = await fetch(`${API_URL}/users/my-church`, { headers });
 
                 if (!membersRes.ok) {
                     throw new Error('Failed to fetch church members');
                 }
 
                 const members = await membersRes.json();
-                const churchEvents = eventsRes?.ok ? await eventsRes.json() : [];
+                const churchEvents = [];
                 const currentUser = (members || []).find((member) => String(member._id) === String(user_id));
 
                 if (!currentUser) {
