@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Trash2 } from "lucide-react";
 
-export default function TeamSwitcher({ dashboardOnly = false }) {
+export default function TeamSwitcher({ dashboardOnly = false, showDelete = false }) {
   const { 
     teams, 
     churchId, 
@@ -123,7 +123,7 @@ export default function TeamSwitcher({ dashboardOnly = false }) {
               </span>
             </button>
 
-            {isTeamManager && (
+            {showDelete && isTeamManager && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();

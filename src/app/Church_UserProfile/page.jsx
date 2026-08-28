@@ -640,7 +640,7 @@ export default function Church_UserProfile() {
 
                 const members = await membersRes.json();
                 const churchEvents = eventsRes?.ok ? await eventsRes.json() : [];
-                const currentUser = (members || []).find((member) => member._id === user_id);
+                const currentUser = (members || []).find((member) => String(member._id) === String(user_id));
 
                 if (!currentUser) {
                     throw new Error('Current user not found in church members');

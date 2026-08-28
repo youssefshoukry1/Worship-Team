@@ -446,7 +446,7 @@ export default function Dashboard() {
         <h1 className="text-3xl sm:text-5xl font-extrabold mb-6 text-center bg-linear-to-br from-sky-300 via-blue-400 to-indigo-500 text-transparent bg-clip-text flex items-center justify-center gap-4">
         </h1>
 
-        <TeamSwitcher dashboardOnly />
+        <TeamSwitcher dashboardOnly showDelete />
 
         {/* ---------------- 1. PENDING APPROVALS ---------------- */}
         <div className="mb-16">
