@@ -372,6 +372,13 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                             >
                                                 <Smile size={14} />
                                             </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleReply(msg); }}
+                                                className="p-1 text-slate-200 hover:text-emerald-400 hover:bg-white/20 rounded-md transition-colors"
+                                                title="Reply"
+                                            >
+                                                <CornerUpLeft size={14} />
+                                            </button>
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); toggleMessageSelection(msg); }}
                                                 className="p-1 text-slate-200 hover:text-white hover:bg-white/20 rounded-md transition-colors"
