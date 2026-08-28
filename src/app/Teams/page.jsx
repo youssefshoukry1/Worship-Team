@@ -16,40 +16,41 @@ export default function TeamsPage() {
         UserRole, setUserRole,
         UserStatus, setUserStatus,
         churchId, setChurchId,
-        teams, setTeams
+        teams, setTeams,
+        switchTeam
     } = useContext(UserContext);
 
     const [modalType, setModalType] = useState(null); // "join" | "create" | null
     const [teamNameInput, setTeamNameInput] = useState("");
     const [loading, setLoading] = useState(false);
     const [justUnlocked, setJustUnlocked] = useState(false);
+    const [pendingTeamId, setPendingTeamId] = useState(() => (
+        typeof window === "undefined" ? null : localStorage.getItem("user_Taspe7_PendingTeamId")
+    ));
 
     // Poll backend every 8s while pending to detect manager approval
     const pollRef = useRef(null);
     useEffect(() => {
-        if (!isLogin || !churchId || UserStatus === "approved") return;
+        if (!isLogin || !pendingTeamId) return;
         const API = process.env.NEXT_PUBLIC_API_URL;
         const check = async () => {
             try {
                 const res = await axios.get(`${API}/users/my-profile`, {
                     headers: { Authorization: `Bearer ${isLogin}` }
                 });
-                const data = res.data;
+                const data = res.data?.user || res.data;
                 // Only react to approval for the currently selected team.
                 const currentTeam = (data.teams || []).find(t =>
-                    (t.churchId || t.teamId)?.toString() === churchId?.toString()
+                    (t.churchId || t.teamId)?.toString() === pendingTeamId?.toString()
                 );
                 if (currentTeam?.status === "approved") {
                     const newChurchId = currentTeam.churchId || currentTeam.teamId;
                     const newRole = currentTeam.role || "USER";
-                    localStorage.setItem("user_Taspe7_Status", "approved");
-                    localStorage.setItem("user_Taspe7_ChurchId", newChurchId);
-                    localStorage.setItem("user_Taspe7_Role", newRole);
                     localStorage.setItem("user_Taspe7_Teams", JSON.stringify(data.teams));
-                    setUserStatus("approved");
-                    setChurchId(newChurchId);
-                    setUserRole(newRole);
                     setTeams(data.teams);
+                    localStorage.removeItem("user_Taspe7_PendingTeamId");
+                    setPendingTeamId(null);
+                    await switchTeam({ churchId: newChurchId, role: newRole });
                     setJustUnlocked(true);
                     clearInterval(pollRef.current);
                 }
@@ -57,7 +58,7 @@ export default function TeamsPage() {
         };
         pollRef.current = setInterval(check, 8000);
         return () => clearInterval(pollRef.current);
-    }, [isLogin, UserStatus, churchId]);
+    }, [isLogin, pendingTeamId, switchTeam]);
 
     const hasTeam = UserStatus === "approved";
     const isManager = UserRole && ["ADMIN", "MANEGER", "PROGRAMER"].includes(UserRole);
@@ -70,6 +71,23 @@ export default function TeamsPage() {
             const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/users/join-team`, { churchName: teamNameInput }, {
                 headers: { Authorization: `Bearer ${isLogin}` }
             });
+            const joinedTeam = res.data.team;
+            if (joinedTeam?.churchId) {
+                localStorage.setItem("user_Taspe7_PendingTeamId", joinedTeam.churchId);
+                setPendingTeamId(joinedTeam.churchId);
+                // Preserve the current approved team when joining an additional team.
+                if (UserStatus !== "approved") {
+                    localStorage.setItem("user_Taspe7_ChurchId", joinedTeam.churchId);
+                    localStorage.setItem("user_Taspe7_Status", "pending");
+                    setChurchId(joinedTeam.churchId);
+                    setUserStatus("pending");
+                }
+                const teamsRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/users/my-teams`, {
+                    headers: { Authorization: `Bearer ${isLogin}` }
+                });
+                setTeams(teamsRes.data || []);
+                localStorage.setItem("user_Taspe7_Teams", JSON.stringify(teamsRes.data || []));
+            }
             alert(res.data.msg);
             setModalType(null);
             setTeamNameInput("");

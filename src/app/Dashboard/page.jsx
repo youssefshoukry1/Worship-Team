@@ -372,15 +372,15 @@ export default function Dashboard() {
   // --- 3. React Query Hooks ---
 
   const { data: pendingUsers = [], isLoading: isLoadingPending } = useQuery({
-    queryKey: ['pendingUsers', isLogin],
+    queryKey: ['pendingUsers', isLogin, churchId],
     queryFn: fetchPendingUsers,
-    enabled: !!isLogin,
+    enabled: !!isLogin && !!churchId,
   });
 
   const { data: UsersChurch = [], isLoading: isLoadingChurch } = useQuery({
-    queryKey: ['data', isLogin],
+    queryKey: ['data', isLogin, churchId],
     queryFn: fetchAll_ChurchID_Users,
-    enabled: !!isLogin,
+    enabled: !!isLogin && !!churchId,
   });
 
   if (isLoadingPending || isLoadingChurch) return <Loading />;
