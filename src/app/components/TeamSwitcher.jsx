@@ -22,7 +22,8 @@ export default function TeamSwitcher({ dashboardOnly = false }) {
   const [deletingId, setDeletingId] = useState(null);
 
   const approvedTeams = (teams || []).filter((team) =>
-    team.status === "approved" && (!dashboardOnly || team.isCreator)
+    team.status === "approved" &&
+    (!dashboardOnly || team.isCreator === true || team.role === "MANEGER")
   );
   if (approvedTeams.length === 0) return null;
 
