@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import axios from 'axios';
 import { getApiBaseUrl } from '../utils/apiBase';
@@ -57,6 +57,7 @@ export function useChatSocket(teamId, user_id, user_name, token) {
     const [isConnected, setIsConnected] = useState(false);
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [typingUsers, setTypingUsers] = useState([]);
     const [prevTeamId, setPrevTeamId] = useState(teamId);
 
     // Reset immediately on team switch
@@ -148,6 +149,14 @@ export function useChatSocket(teamId, user_id, user_name, token) {
             setIsConnected(false);
         });
 
+        socket.on('user-typing', ({ userId, userName, isTyping }) => {
+            if (!userId || String(userId) === String(user_id)) return;
+            setTypingUsers(prev => {
+                const withoutUser = prev.filter(user => String(user.userId) !== String(userId));
+                return isTyping ? [...withoutUser, { userId, userName: userName || 'Someone' }] : withoutUser;
+            });
+        });
+
         socket.on('new-message', (msg) => {
             setMessages((prev) => {
                 // 1. Try exact tempId match (if server echoes it)
@@ -212,6 +221,7 @@ export function useChatSocket(teamId, user_id, user_name, token) {
             socket.emit('leave-team', { teamId });
             socket.disconnect();
             socketRef.current = null;
+            setTypingUsers([]);
         };
     }, [teamId, user_id]);
 
@@ -271,5 +281,11 @@ export function useChatSocket(teamId, user_id, user_name, token) {
         }
     };
 
-    return { messages, sendMessage, isConnected, loading, socket: socketRef };
+    const setTyping = useCallback((isTyping) => {
+        if (socketRef.current && isConnectedRef.current && teamId && user_id) {
+            socketRef.current.emit('typing', { teamId, userId: user_id, userName: user_name, isTyping });
+        }
+    }, [teamId, user_id, user_name]);
+
+    return { messages, sendMessage, isConnected, loading, socket: socketRef, typingUsers, setTyping };
 }

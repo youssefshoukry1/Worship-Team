@@ -55,7 +55,7 @@ export default function ChatTeamPage() {
         setIsMobileChatOpen(false);
     };
 
-    const { messages, sendMessage, isConnected, loading, socket } = useChatSocket(
+    const { messages, sendMessage, isConnected, loading, socket, typingUsers, setTyping } = useChatSocket(
         activeTeamId,
         user_id,
         userName,
@@ -92,6 +92,7 @@ export default function ChatTeamPage() {
                         teams={teams || []}
                         activeTeamId={activeTeamId}
                         onReplySelect={setReplyingTo}
+                        typingUsers={typingUsers}
                         onSelectTeam={handleSelectTeam}
                     />
                     <BottomNav />
@@ -170,6 +171,7 @@ export default function ChatTeamPage() {
                             token={isLogin}
                             replyingTo={replyingTo}
                             onCancelReply={() => setReplyingTo(null)}
+                            onTyping={setTyping}
                             onSendMessage={(text, type, mediaUrl, pollData, localPreviewUrl, uploadFn, fileMeta) =>
                                 sendMessage(text, type, mediaUrl, pollData, localPreviewUrl, uploadFn, fileMeta, replyingTo)
                             }

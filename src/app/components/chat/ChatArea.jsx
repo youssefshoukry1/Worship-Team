@@ -35,7 +35,7 @@ function StickerMessage({ msg }) {
             : null;
 }
 
-export default function ChatArea({ messages, currentUserId, loading, socket, activeTeamId, onReplySelect }) {
+export default function ChatArea({ messages, currentUserId, loading, socket, activeTeamId, onReplySelect, typingUsers = [] }) {
     const scrollRef = useRef(null);
     const messagesEndRef = useRef(null);
     const messageRefs = useRef(new Map());
@@ -54,6 +54,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     const [reactionDetails, setReactionDetails] = useState(null);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [votingPoll, setVotingPoll] = useState(null);
     
     const [isTouchDevice, setIsTouchDevice] = useState(false);
     const [mobileActiveMessage, setMobileActiveMessage] = useState(null);
@@ -238,6 +239,31 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
         if (!dateString) return '';
         const d = new Date(dateString);
         return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const getPollData = (msg) => {
+        if (msg.pollData && typeof msg.pollData === 'object') return msg.pollData;
+        if (msg.type !== 'poll' || typeof msg.text !== 'string') return null;
+        try {
+            return JSON.parse(msg.text);
+        } catch {
+            return null;
+        }
+    };
+
+    const handlePollVote = (msg, optionId) => {
+        const messageId = msg._id;
+        if (!socket?.current || !messageId || votingPoll === String(messageId)) return;
+        setVotingPoll(String(messageId));
+        socket.current.emit('vote-poll', {
+            teamId: activeTeamId,
+            messageId,
+            optionId,
+            userId: currentUserId
+        });
+        window.setTimeout(() => setVotingPoll(current => (
+            current === String(messageId) ? null : current
+        )), 500);
     };
 
     const startLongPress = (msg, event) => {
@@ -487,6 +513,78 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         <p dir="auto" className="text-[13px] italic text-slate-400 pb-4 min-w-[70px] text-start">
                                             {msg.isDeletedForAll ? 'This message was deleted' : 'You deleted this message'}
                                         </p>
+                                    ) : msg.type === 'poll' ? (
+                                        (() => {
+                                            const poll = getPollData(msg);
+                                            if (!poll?.options?.length) {
+                                                return <p className="pb-4 text-[13px] text-slate-400">Poll unavailable</p>;
+                                            }
+                                            const totalVotes = poll.options.reduce(
+                                                (total, option) => total + (Array.isArray(option.votes) ? option.votes.length : 0),
+                                                0
+                                            );
+                                            const topVoteCount = Math.max(...poll.options.map(option =>
+                                                Array.isArray(option.votes) ? option.votes.length : 0
+                                            ));
+                                            const topOptions = poll.options.filter(option =>
+                                                (Array.isArray(option.votes) ? option.votes.length : 0) === topVoteCount
+                                            );
+                                            return (
+                                                <div className="min-w-[220px] max-w-[min(72vw,360px)] space-y-3 pb-4">
+                                                    <div>
+                                                        <p dir="auto" className="text-[14px] font-semibold leading-relaxed break-words">{poll.question || msg.text}</p>
+                                                        <p className={`mt-1 text-[11px] ${isMe ? 'text-cyan-200/70' : 'text-slate-400'}`}>
+                                                            {poll.allowMultipleAnswers ? 'Select one or more' : 'Select one'} · {totalVotes} vote{totalVotes === 1 ? '' : 's'}
+                                                        </p>
+                                                    </div>
+                                                    {totalVotes > 0 && topVoteCount > 0 && (
+                                                        <div className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] ${
+                                                            isMe
+                                                                ? 'border-cyan-200/30 bg-cyan-900/40 text-cyan-100'
+                                                                : 'border-slate-600/80 bg-slate-800/80 text-slate-300'
+                                                        }`}>
+                                                            <span className="flex min-w-0 items-center gap-1.5">
+                                                                <BarChart2 size={13} className="shrink-0 text-amber-400" />
+                                                                <span className="truncate">
+                                                                    Top voted: 
+                                                                    {topOptions.map(option => option.text).join(' · ')}
+                                                                </span>
+                                                            </span>
+                                                            <span className="shrink-0 font-semibold">{topVoteCount}</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="space-y-2">
+                                                        {poll.options.map((option) => {
+                                                            const votes = Array.isArray(option.votes) ? option.votes : [];
+                                                            const selected = votes.some(id => String(id?._id || id) === String(currentUserId));
+                                                            const percentage = totalVotes ? Math.round((votes.length / totalVotes) * 100) : 0;
+                                                            return (
+                                                                <button
+                                                                    key={String(option.id)}
+                                                                    type="button"
+                                                                    disabled={votingPoll === String(msg._id)}
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation();
+                                                                        handlePollVote(msg, option.id);
+                                                                    }}
+                                                                    className={`relative w-full overflow-hidden rounded-lg border px-3 py-2 text-left text-[13px] transition-colors disabled:cursor-wait disabled:opacity-70 ${
+                                                                        selected
+                                                                            ? (isMe ? 'border-cyan-300/70 bg-cyan-700/70' : 'border-sky-400/70 bg-sky-500/20')
+                                                                            : (isMe ? 'border-cyan-200/30 bg-cyan-900/30 hover:bg-cyan-700/50' : 'border-slate-600 bg-slate-800/70 hover:bg-slate-700')
+                                                                    }`}
+                                                                >
+                                                                    <span className="absolute inset-y-0 left-0 bg-white/10 transition-all" style={{ width: `${percentage}%` }} />
+                                                                    <span className="relative flex items-center justify-between gap-3">
+                                                                        <span className="break-words">{option.text}</span>
+                                                                        <span className="shrink-0 text-[11px] text-slate-300">{percentage}%</span>
+                                                                    </span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()
                                     ) : msg.type === 'audio' && msg.mediaUrl ? (
                                         <div className="pb-4"><AudioMessage mediaUrl={msg.mediaUrl} messageId={msg._id || msg.createdAt} /></div>
                                     ) : msg.type === 'image' && msg.mediaUrl ? (
@@ -540,6 +638,20 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                         <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-cyan-500 px-1 text-[10px] font-bold text-white">
                             {unreadCount > 99 ? '99+' : unreadCount}
                         </span>
+                    )}
+
+                    {typingUsers.length > 0 && (
+                        <div className="pointer-events-none absolute bottom-1 left-3 z-30 flex max-w-[calc(100%-6rem)] items-center gap-2 rounded-full border border-slate-700/70 bg-[#1e293b]/95 px-3 py-1.5 text-[11px] text-slate-300 shadow-lg backdrop-blur-sm">
+                            <span className="truncate">
+                                {typingUsers.slice(0, 2).map(user => user.userName).join(', ')}
+                                {typingUsers.length > 2 ? ` +${typingUsers.length - 2}` : ''} typing
+                            </span>
+                            <span className="flex gap-0.5">
+                                <i className="h-1 w-1 animate-bounce rounded-full bg-sky-400" />
+                                <i className="h-1 w-1 animate-bounce rounded-full bg-sky-400 [animation-delay:120ms]" />
+                                <i className="h-1 w-1 animate-bounce rounded-full bg-sky-400 [animation-delay:240ms]" />
+                            </span>
+                        </div>
                     )}
                 </button>
             )}

@@ -28,7 +28,7 @@ const DEFAULT_STICKERS = [
     { id: '5', name: 'Mind Blown', url: 'https://cdn-icons-png.flaticon.com/512/4712/4712038.png' },
 ];
 
-export default function ChatInput({ onSendMessage, disabled, token, replyingTo, onCancelReply }) {
+export default function ChatInput({ onSendMessage, disabled, token, replyingTo, onCancelReply, onTyping }) {
     const [text, setText] = useState('');
     
     // Voice Recording & Drag States
@@ -67,6 +67,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
     const imageInputRef = useRef(null);
     const stickerInputRef = useRef(null);
     const fileInputRef = useRef(null);
+    const typingTimerRef = useRef(null);
 
     // Close menus when clicking outside
     useEffect(() => {
@@ -81,6 +82,20 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    useEffect(() => () => {
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+        onTyping?.(false);
+    }, [onTyping]);
+
+    const handleTextChange = (event) => {
+        setText(event.target.value);
+        onTyping?.(Boolean(event.target.value.trim()));
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+        if (event.target.value.trim()) {
+            typingTimerRef.current = setTimeout(() => onTyping?.(false), 1800);
+        }
+    };
 
     // Cleanup timer on unmount
     useEffect(() => {
@@ -658,7 +673,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
 
                                 <textarea
                                     value={text}
-                                    onChange={(e) => setText(e.target.value)}
+                                    onChange={handleTextChange}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && !e.shiftKey) {
                                             e.preventDefault();
