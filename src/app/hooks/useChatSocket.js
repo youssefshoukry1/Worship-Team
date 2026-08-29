@@ -158,6 +158,9 @@ export function useChatSocket(teamId, user_id, user_name, token) {
         });
 
         socket.on('new-message', (msg) => {
+            if (msg.senderId && String(msg.senderId) !== String(user_id) && msg._id) {
+                socket.emit('mark-message-seen', { teamId, messageId: msg._id, userId: user_id });
+            }
             setMessages((prev) => {
                 // 1. Try exact tempId match (if server echoes it)
                 if (msg.tempId) {
@@ -194,6 +197,18 @@ export function useChatSocket(teamId, user_id, user_name, token) {
                 const updated = [...prev, msg];
                 saveLocalMessages(teamId, updated);
                 return updated;
+            });
+
+            socket.on('message-status-updated', ({ messageId, deliveredTo, seenBy }) => {
+                setMessages(prev => {
+                    const updated = prev.map(message =>
+                        message._id && String(message._id) === String(messageId)
+                            ? { ...message, deliveredTo: deliveredTo || [], seenBy: seenBy || [] }
+                            : message
+                    );
+                    saveLocalMessages(teamId, updated);
+                    return updated;
+                });
             });
         });
 

@@ -4,7 +4,7 @@ import AudioMessage from './AudioMessage';
 import ImageMessage from './ImageMessage';
 import FileMessage from './FileMessage';
 import { useLocalMedia } from '../../hooks/useLocalMedia';
-import { BarChart2, ChevronDown, Clock, Check, CheckCheck, Smile, Edit2, Trash2, X, Plus, Copy, CornerUpLeft } from 'lucide-react';
+import { BarChart2, ChevronDown, Clock, Check, CheckCheck, Smile, Edit2, Trash2, X, Plus, Copy, CornerUpLeft, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const SENDER_NAME_COLORS = [
@@ -55,6 +55,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [votingPoll, setVotingPoll] = useState(null);
+    const [deliveryInfoMessage, setDeliveryInfoMessage] = useState(null);
     
     const [isTouchDevice, setIsTouchDevice] = useState(false);
     const [mobileActiveMessage, setMobileActiveMessage] = useState(null);
@@ -357,6 +358,19 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
             typingUser.userName;
         return name && name !== 'User' ? name : 'Member';
     };
+    const getMessageReceipt = (msg) => {
+        if (msg.status === 'pending') return 'pending';
+        if (Array.isArray(msg.seenBy) && msg.seenBy.length > 0) return 'seen';
+        if (Array.isArray(msg.deliveredTo) && msg.deliveredTo.length > 0) return 'delivered';
+        return 'sent';
+    };
+    const getReceiptUserName = (user) => {
+        if (typeof user === 'object') return user.Name || user.name || 'Member';
+        const matchingMessage = messages.find(message =>
+            String(message.senderId?._id || message.senderId) === String(user)
+        );
+        return matchingMessage?.senderName || 'Member';
+    };
 
     return (
         <div className="flex-1 relative min-h-0 flex flex-col">
@@ -515,6 +529,16 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                             >
                                                 <ChevronDown size={14} />
                                             </button>
+                                            {isMe && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setDeliveryInfoMessage(msg); }}
+                                                    className="p-1 text-slate-200 hover:text-white hover:bg-white/20 rounded-md transition-colors"
+                                                    title="Message info"
+                                                    aria-label="Message info"
+                                                >
+                                                    <Info size={14} />
+                                                </button>
+                                            )}
                                         </div>
                                     )}
 
@@ -609,7 +633,10 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                     <div className={`absolute bottom-1 right-2 flex items-center justify-end gap-1 select-none pointer-events-none`}>
                                         {msg.editedAt && <span className={`text-[9px] italic font-normal ${isMe ? 'text-cyan-200/50' : 'text-slate-500'}`}>edited</span>}
                                         <span className={`text-[10px] font-medium ${isMe ? 'text-cyan-200/80' : 'text-slate-400'}`}>{formatTime(msg.createdAt)}</span>
-                                        {isMe && (msg.status === 'pending' ? <Clock size={11} className="text-cyan-200/70 animate-pulse" /> : <CheckCheck size={14} className="text-cyan-400" />)}
+                                        {isMe && getMessageReceipt(msg) === 'pending' && <Clock size={11} className="text-cyan-200/70 animate-pulse" />}
+                                        {isMe && getMessageReceipt(msg) === 'sent' && <Check size={13} className="text-cyan-200/80" strokeWidth={2.5} />}
+                                        {isMe && getMessageReceipt(msg) === 'delivered' && <CheckCheck size={14} className="text-cyan-200/80" />}
+                                        {isMe && getMessageReceipt(msg) === 'seen' && <CheckCheck size={14} className="text-sky-300" />}
                                     </div>
                                     
                                     {hasReactions && (
@@ -703,6 +730,52 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                     <span className="text-2xl drop-shadow-sm">{reaction.emoji}</span>
                                 </div>
                             ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {deliveryInfoMessage && (
+                <div
+                    className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+                    onClick={() => setDeliveryInfoMessage(null)}
+                >
+                    <div
+                        className="w-full max-w-sm overflow-hidden rounded-t-2xl border border-slate-700 bg-[#1e293b] shadow-2xl sm:rounded-2xl"
+                        onClick={event => event.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between border-b border-slate-700/70 bg-slate-800/50 p-4">
+                            <div>
+                                <h3 className="text-sm font-semibold text-white">Message info</h3>
+                                <p className="mt-0.5 text-[11px] text-slate-400">{formatTime(deliveryInfoMessage.createdAt)}</p>
+                            </div>
+                            <button onClick={() => setDeliveryInfoMessage(null)} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="max-h-72 space-y-4 overflow-y-auto p-4">
+                            <div>
+                                <p className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-300">
+                                    <CheckCheck size={16} className="text-slate-300" /> Delivered
+                                </p>
+                                {deliveryInfoMessage.deliveredTo?.length ? deliveryInfoMessage.deliveredTo.map((user, index) => (
+                                    <div key={`delivered-${index}`} className="flex items-center justify-between px-2 py-1.5 text-sm text-slate-200">
+                                        <span>{getReceiptUserName(user)}</span>
+                                        <span className="text-[11px] text-slate-500">Delivered</span>
+                                    </div>
+                                )) : <p className="px-2 text-xs text-slate-500">Not delivered yet</p>}
+                            </div>
+                            <div>
+                                <p className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-300">
+                                    <CheckCheck size={16} className="text-sky-300" /> Seen
+                                </p>
+                                {deliveryInfoMessage.seenBy?.length ? deliveryInfoMessage.seenBy.map((user, index) => (
+                                    <div key={`seen-${index}`} className="flex items-center justify-between px-2 py-1.5 text-sm text-slate-200">
+                                        <span>{getReceiptUserName(user)}</span>
+                                        <span className="text-[11px] text-sky-300">Seen</span>
+                                    </div>
+                                )) : <p className="px-2 text-xs text-slate-500">Not seen yet</p>}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -870,6 +943,16 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                             <span className="text-[14px]">Select</span>
                                             <Check size={16} className="text-cyan-400" />
                                         </button>
+
+                                        {String(mobileActiveMessage.senderId) === String(currentUserId) && (
+                                            <button
+                                                onClick={() => { setDeliveryInfoMessage(mobileActiveMessage); setMobileActiveMessage(null); }}
+                                                className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800/80 transition-colors border-b border-slate-700/50 text-slate-200"
+                                            >
+                                                <span className="text-[14px]">Info</span>
+                                                <Info size={16} />
+                                            </button>
+                                        )}
 
                                         {(!mobileActiveMessage.type || mobileActiveMessage.type === 'text') && (
                                             <button 
