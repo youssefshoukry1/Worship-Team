@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { getApiBaseUrl } from '../../utils/apiBase';
-import { motion, AnimatePresence } from 'framer-motion';
 
 // Dynamically import EmojiPicker to prevent SSR hydration mismatches
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { 
@@ -29,7 +28,7 @@ const DEFAULT_STICKERS = [
     { id: '5', name: 'Mind Blown', url: 'https://cdn-icons-png.flaticon.com/512/4712/4712038.png' },
 ];
 
-export default function ChatInput({ onSendMessage, disabled, token, replyingTo, onCancelReply, onTyping, typingUsers = [] }) {
+export default function ChatInput({ onSendMessage, disabled, token, replyingTo, onCancelReply, onTyping }) {
     const [text, setText] = useState('');
     
     // Voice Recording & Drag States
@@ -439,27 +438,6 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
     return (
         <div className="bg-[#0f172a] p-3 md:p-4 border-t border-white/10 shrink-0 relative">
             <audio ref={audioPreviewRef} className="hidden" />
-
-            <AnimatePresence>
-                {typingUsers.length > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 6 }}
-                        className="mx-auto mb-2 flex max-w-4xl items-center gap-2 px-1 text-[11px] text-slate-400"
-                    >
-                        <span className="truncate">
-                            {typingUsers.slice(0, 2).map(user => user.userName).join(', ')}
-                            {typingUsers.length > 2 ? ` +${typingUsers.length - 2}` : ''} is typing
-                        </span>
-                        <span className="flex gap-0.5" aria-hidden="true">
-                            <i className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400" />
-                            <i className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400 [animation-delay:120ms]" />
-                            <i className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400 [animation-delay:240ms]" />
-                        </span>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             {replyingTo && (
                 <div className="mx-auto mb-2 flex max-w-4xl items-center gap-2 rounded-xl border border-emerald-400/20 bg-[#1e293b] px-3 py-2 shadow-sm">

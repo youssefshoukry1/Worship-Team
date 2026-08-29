@@ -172,7 +172,6 @@ export default function ChatTeamPage() {
                             replyingTo={replyingTo}
                             onCancelReply={() => setReplyingTo(null)}
                             onTyping={setTyping}
-                            typingUsers={typingUsers}
                             onSendMessage={(text, type, mediaUrl, pollData, localPreviewUrl, uploadFn, fileMeta) =>
                                 sendMessage(text, type, mediaUrl, pollData, localPreviewUrl, uploadFn, fileMeta, replyingTo)
                             }

@@ -35,7 +35,7 @@ function StickerMessage({ msg }) {
             : null;
 }
 
-export default function ChatArea({ messages, currentUserId, loading, socket, activeTeamId, onReplySelect }) {
+export default function ChatArea({ messages, currentUserId, loading, socket, activeTeamId, onReplySelect, typingUsers = [] }) {
     const scrollRef = useRef(null);
     const messagesEndRef = useRef(null);
     const messageRefs = useRef(new Map());
@@ -348,6 +348,15 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     };
 
     const canDeleteForAll = selectedMessages.every(msg => String(msg.senderId) === String(currentUserId));
+    const getTypingName = (typingUser) => {
+        const matchingMessage = [...messages].reverse().find(message =>
+            String(message.senderId?._id || message.senderId) === String(typingUser.userId)
+        );
+        return matchingMessage?.senderName ||
+            matchingMessage?.senderId?.Name ||
+            typingUser.userName ||
+            'Member';
+    };
 
     return (
         <div className="flex-1 relative min-h-0 flex flex-col">
@@ -626,6 +635,20 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                 })}
                 <div ref={messagesEndRef} className="h-2" />
             </div>
+
+            {typingUsers.length > 0 && (
+                <div className="pointer-events-none absolute bottom-1 left-3 z-30 flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-full border border-slate-700/70 bg-[#1e293b]/95 px-3 py-1.5 text-[11px] text-slate-300 shadow-lg backdrop-blur-sm">
+                    <span className="truncate">
+                        {typingUsers.slice(0, 2).map(getTypingName).join(', ')}
+                        {typingUsers.length > 2 ? ` +${typingUsers.length - 2}` : ''} typing
+                    </span>
+                    <span className="flex gap-0.5" aria-hidden="true">
+                        <i className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400" />
+                        <i className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400 [animation-delay:120ms]" />
+                        <i className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400 [animation-delay:240ms]" />
+                    </span>
+                </div>
+            )}
 
             {showScrollBtn && (
                 <button
