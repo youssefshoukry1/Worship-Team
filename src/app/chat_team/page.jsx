@@ -92,7 +92,6 @@ export default function ChatTeamPage() {
                         teams={teams || []}
                         activeTeamId={activeTeamId}
                         onReplySelect={setReplyingTo}
-                        typingUsers={typingUsers}
                         onSelectTeam={handleSelectTeam}
                     />
                     <BottomNav />
@@ -165,6 +164,7 @@ export default function ChatTeamPage() {
                             socket={socket}
                             activeTeamId={activeTeamId}
                             onReplySelect={setReplyingTo}
+                            typingUsers={typingUsers}
                         />
                         <ChatInput
                             disabled={!isConnected}

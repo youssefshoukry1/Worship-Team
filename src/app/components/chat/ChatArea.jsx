@@ -352,10 +352,10 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
         const matchingMessage = [...messages].reverse().find(message =>
             String(message.senderId?._id || message.senderId) === String(typingUser.userId)
         );
-        return matchingMessage?.senderName ||
+        const name = matchingMessage?.senderName ||
             matchingMessage?.senderId?.Name ||
-            typingUser.userName ||
-            'Member';
+            typingUser.userName;
+        return name && name !== 'User' ? name : 'Member';
     };
 
     return (
@@ -633,22 +633,32 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                         </div>
                     );
                 })}
+                {typingUsers.length > 0 && (
+                    <div className="flex w-full px-2 py-1 sm:px-4">
+                        <div className="flex max-w-[85%] items-center gap-2 rounded-2xl rounded-tl-sm border border-slate-700/50 bg-[#1e293b] px-3 py-2 shadow-sm">
+                            <div className="flex items-center gap-1.5">
+                                {typingUsers.slice(0, 2).map(user => (
+                                    <span
+                                        key={String(user.userId)}
+                                        className={`text-[12px] font-bold ${getSenderColor(user.userId)}`}
+                                    >
+                                        {getTypingName(user)}
+                                    </span>
+                                ))}
+                                {typingUsers.length > 2 && (
+                                    <span className="text-[11px] text-slate-400">+{typingUsers.length - 2}</span>
+                                )}
+                            </div>
+                            <span className="flex gap-0.5" aria-hidden="true">
+                                <i className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400" />
+                                <i className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400 [animation-delay:120ms]" />
+                                <i className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400 [animation-delay:240ms]" />
+                            </span>
+                        </div>
+                    </div>
+                )}
                 <div ref={messagesEndRef} className="h-2" />
             </div>
-
-            {typingUsers.length > 0 && (
-                <div className="pointer-events-none absolute bottom-1 left-3 z-30 flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-full border border-slate-700/70 bg-[#1e293b]/95 px-3 py-1.5 text-[11px] text-slate-300 shadow-lg backdrop-blur-sm">
-                    <span className="truncate">
-                        {typingUsers.slice(0, 2).map(getTypingName).join(', ')}
-                        {typingUsers.length > 2 ? ` +${typingUsers.length - 2}` : ''} typing
-                    </span>
-                    <span className="flex gap-0.5" aria-hidden="true">
-                        <i className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400" />
-                        <i className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400 [animation-delay:120ms]" />
-                        <i className="h-1.5 w-1.5 animate-bounce rounded-full bg-sky-400 [animation-delay:240ms]" />
-                    </span>
-                </div>
-            )}
 
             {showScrollBtn && (
                 <button

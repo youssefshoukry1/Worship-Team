@@ -223,7 +223,7 @@ export function useChatSocket(teamId, user_id, user_name, token) {
             socketRef.current = null;
             setTypingUsers([]);
         };
-    }, [teamId, user_id]);
+    }, [teamId, user_id, user_name]);
 
     const sendMessage = async (text, type = 'text', mediaUrl = null, pollData = null, localPreviewUrl = null, uploadFn = null, fileMeta = {}, replyTo = null) => {
         if (!teamId || !user_id || !user_name) return;
