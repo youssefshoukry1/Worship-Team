@@ -52,7 +52,9 @@ function LongPressButton({ onShortPress, onLongPress, className, children, ...pr
             onMouseLeave={stop}
             onTouchCancel={stop}
             onClick={handleClick}
-            className={className}
+            onContextMenu={(e) => e.preventDefault()}
+            className={`select-none ${className || ''}`}
+            style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none', userSelect: 'none', ...props.style }}
             {...props}
         >
             {children}
