@@ -62,7 +62,7 @@ export default function ChatSidebar({ teams, activeTeamId, onSelectTeam }) {
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <p className="text-sm text-gray-400 truncate text-left capitalize">
-                                            {team.role?.toLowerCase() || 'Team Member'}
+                                            {(team.sub_role || team.role || 'Team Member').toLowerCase()}
                                         </p>
                                         {/* Mock Unread Badge */}
                                         {/* <div className="w-5 h-5 rounded-full bg-sky-500 flex items-center justify-center text-[10px] font-bold text-white">3</div> */}

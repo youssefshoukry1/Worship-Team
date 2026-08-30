@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useState } from "react";
+import { createContext, useState, useEffect } from "react";
 import axios from "axios";
 
 export const UserContext = createContext();
@@ -53,6 +53,28 @@ export default function UserContextProvider({ children }) {
 
   const [vocalsMode, setVocalsMode] = useState(true);
 
+  const refreshTeams = async () => {
+    const token = localStorage.getItem("user_Taspe7_Token");
+    if (!token) return;
+    try {
+      const res = await axios.get(`${API_URL}/users/my-teams`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data) {
+        setTeams(res.data);
+        localStorage.setItem("user_Taspe7_Teams", JSON.stringify(res.data));
+      }
+    } catch (err) {
+      console.error("Failed to refresh teams:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (isLogin) {
+      refreshTeams();
+    }
+  }, [isLogin]);
+
   // Switch the active team: calls backend, refreshes JWT + context
   const switchTeam = async (team) => {
     const token = localStorage.getItem("user_Taspe7_Token");
@@ -87,7 +109,8 @@ export default function UserContextProvider({ children }) {
         vocalsMode, setVocalsMode,
         UserStatus, setUserStatus,
         teams, setTeams,
-        switchTeam
+        switchTeam,
+        refreshTeams
       }}>
       {children}
     </UserContext.Provider>

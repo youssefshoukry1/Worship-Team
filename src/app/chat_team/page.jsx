@@ -15,7 +15,7 @@ import { getApiBaseUrl } from '../utils/apiBase';
 
 export default function ChatTeamPage() {
     const router = useRouter();
-    const { isLogin, user_id, teams } = useContext(UserContext);
+    const { isLogin, user_id, teams, refreshTeams } = useContext(UserContext);
     const [activeTeamId, setActiveTeamId] = useState(null);
     const [userName, setUserName] = useState("User");
 
@@ -25,10 +25,12 @@ export default function ChatTeamPage() {
     const [showDropdown, setShowDropdown] = useState(false);
     const [replyingTo, setReplyingTo] = useState(null);
 
-    // Require auth
+    // Require auth and refresh teams list
     useEffect(() => {
         if (!isLogin) {
             router.push('/login');
+        } else if (refreshTeams) {
+            refreshTeams();
         }
     }, [isLogin, router]);
 

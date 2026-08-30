@@ -10,6 +10,7 @@ export default function TeamSwitcher({ dashboardOnly = false, showDelete = false
     teams, 
     churchId, 
     switchTeam, 
+    UserRole,
     subRole,
     setTeams,
     setChurchId,
@@ -23,7 +24,7 @@ export default function TeamSwitcher({ dashboardOnly = false, showDelete = false
 
   const approvedTeams = (teams || []).filter((team) =>
     team.status === "approved" &&
-    (!dashboardOnly || team.isCreator === true)
+    (!dashboardOnly || team.isCreator === true || ["MANAGER", "ADMIN"].includes(team.sub_role || team.role) || UserRole === "PROGRAMER")
   );
   if (approvedTeams.length === 0) return null;
 
