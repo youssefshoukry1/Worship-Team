@@ -4,8 +4,10 @@ import dynamic from 'next/dynamic';
 import { 
     Send, Mic, Square, Trash2, Loader2, Pause, Play, Plus, 
     BarChart2, X, CheckSquare, Image as ImageIcon, Lock, 
-    ChevronUp, ChevronLeft, Smile, Sticker, Upload, Search, FileText, CornerUpLeft
+    ChevronUp, ChevronLeft, Smile, Sticker, Upload, Search, FileText, CornerUpLeft,
+    Music, BookOpen
 } from 'lucide-react';
+import HymnsBiblePicker from './HymnsBiblePicker';
 import axios from 'axios';
 import { getApiBaseUrl } from '../../utils/apiBase';
 
@@ -46,6 +48,8 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
     
     // Attach Menu & Poll State
     const [showAttachMenu, setShowAttachMenu] = useState(false);
+    const [showHymnsBiblePicker, setShowHymnsBiblePicker] = useState(null);
+    const [selectedHymnsBible, setSelectedHymnsBible] = useState([]);
     const [showPollModal, setShowPollModal] = useState(false);
     const [pollQuestion, setPollQuestion] = useState('');
     const [pollOptions, setPollOptions] = useState(['', '']);
@@ -77,6 +81,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
             }
             if (emojiMenuRef.current && !emojiMenuRef.current.contains(event.target)) {
                 setShowEmojiPicker(false);
+                setShowHymnsBiblePicker(null);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -114,7 +119,15 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
 
     const handleSubmit = (e) => {
         e?.preventDefault();
-        if (text.trim() && !isUploading && !isRecording) {
+        if (selectedHymnsBible.length > 0) {
+            onSendMessage(text, 'hymns_bible', null, null, null, null, { items: selectedHymnsBible });
+            setSelectedHymnsBible([]);
+            setText('');
+            onCancelReply?.();
+            setShowAttachMenu(false);
+            setShowEmojiPicker(false);
+            setShowHymnsBiblePicker(null);
+        } else if (text.trim() && !isUploading && !isRecording) {
             onSendMessage(text, 'text');
             setText('');
             onCancelReply?.();
@@ -322,88 +335,79 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
         setShowAttachMenu(false);
     };
 
-    const handleFileSelect = async (e) => {
+    const handleFileSelect = (e) => {
         const file = e.target.files?.[0];
         if (!file || !token) return;
-        try {
-            setIsUploading(true);
-            const res = await axios.post(`${getApiBaseUrl()}/chat/upload-url`,
-                { fileSize: file.size, type: 'file', mimeType: file.type, fileName: file.name },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-            await axios.put(res.data.uploadUrl, file, { headers: { 'Content-Type': file.type || 'application/octet-stream' } });
-            const localUrl = URL.createObjectURL(file);
-            onSendMessage('', 'file', res.data.fileUrl, null, localUrl, null, {
-                fileName: file.name,
-                mimeType: file.type || 'application/octet-stream'
-            });
-        } catch (err) {
-            console.error("File upload failed:", err);
-            alert("Failed to upload file.");
-        } finally {
-            setIsUploading(false);
-            if (e.target) e.target.value = '';
-        }
+        const localUrl = URL.createObjectURL(file);
+        
+        const uploadFn = async () => {
+            try {
+                const res = await axios.post(`${getApiBaseUrl()}/chat/upload-url`,
+                    { fileSize: file.size, type: 'file', mimeType: file.type, fileName: file.name },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                await axios.put(res.data.uploadUrl, file, { headers: { 'Content-Type': file.type || 'application/octet-stream' } });
+                return res.data.fileUrl;
+            } catch (err) {
+                console.error("File upload failed:", err);
+                alert("Failed to upload file.");
+                throw err;
+            }
+        };
+
+        onSendMessage('', 'file', null, null, localUrl, uploadFn, {
+            fileName: file.name,
+            mimeType: file.type || 'application/octet-stream'
+        });
+        if (e.target) e.target.value = '';
     };
 
-    const handleImageSelect = async (e) => {
+    const handleImageSelect = (e) => {
         const file = e.target.files?.[0];
         if (!file || !token) return;
         
-        try {
-            setIsUploading(true);
-            const imageBitmap = await createImageBitmap(file);
-            const canvas = document.createElement('canvas');
-            
-            const MAX_WIDTH = 1200;
-            const MAX_HEIGHT = 1200;
-            let width = imageBitmap.width;
-            let height = imageBitmap.height;
-            
-            if (width > MAX_WIDTH || height > MAX_HEIGHT) {
-                const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
-                width *= ratio;
-                height *= ratio;
-            }
-            
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(imageBitmap, 0, 0, width, height);
-            
-            canvas.toBlob((blob) => {
-                if (!blob) {
-                    setIsUploading(false);
-                    return alert("Failed to compress image");
+        const localUrl = URL.createObjectURL(file);
+
+        const uploadFn = async () => {
+            try {
+                const imageBitmap = await createImageBitmap(file);
+                const canvas = document.createElement('canvas');
+                
+                const MAX_WIDTH = 1200;
+                const MAX_HEIGHT = 1200;
+                let width = imageBitmap.width;
+                let height = imageBitmap.height;
+                
+                if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+                    const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
+                    width *= ratio;
+                    height *= ratio;
                 }
-                const localUrl = URL.createObjectURL(blob);
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(imageBitmap, 0, 0, width, height);
+                
+                const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.8));
+                if (!blob) throw new Error("Image compression failed");
 
-                const uploadFn = async () => {
-                    try {
-                        const res = await axios.post(`${getApiBaseUrl()}/chat/upload-url`, 
-                            { fileSize: blob.size, type: 'image' },
-                            { headers: { Authorization: `Bearer ${token}` } }
-                        );
-                        const { uploadUrl, fileUrl } = res.data;
-                        await axios.put(uploadUrl, blob, { headers: { 'Content-Type': blob.type } });
-                        return fileUrl;
-                    } catch (uploadErr) {
-                        console.error("Image upload failed:", uploadErr);
-                        alert("Failed to upload image.");
-                        throw uploadErr;
-                    } finally {
-                        setIsUploading(false);
-                        if (e.target) e.target.value = ''; 
-                    }
-                };
+                const res = await axios.post(`${getApiBaseUrl()}/chat/upload-url`, 
+                    { fileSize: blob.size, type: 'image' },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                const { uploadUrl, fileUrl } = res.data;
+                await axios.put(uploadUrl, blob, { headers: { 'Content-Type': blob.type } });
+                return fileUrl;
+            } catch (uploadErr) {
+                console.error("Image upload failed:", uploadErr);
+                alert("Failed to upload image.");
+                throw uploadErr;
+            }
+        };
 
-                onSendMessage('', 'image', null, null, localUrl, uploadFn);
-            }, 'image/webp', 0.8);
-            
-        } catch (err) {
-            console.error("Image processing error:", err);
-            setIsUploading(false);
-        }
+        onSendMessage('', 'image', null, null, localUrl, uploadFn);
+        if (e.target) e.target.value = '';
     };
 
     const formatTime = (seconds) => {
@@ -435,16 +439,17 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
 
     const filteredStickers = stickers.filter(s => s.name.toLowerCase().includes(stickerSearch.toLowerCase()));
 
+
     return (
-        <div className="bg-[#0f172a] p-3 md:p-4 border-t border-white/10 shrink-0 relative">
+        <div className="bg-[#0d1322] p-2.5 md:p-3 border-t border-slate-800/80 shrink-0 relative">
             <audio ref={audioPreviewRef} className="hidden" />
 
             {replyingTo && (
-                <div className="mx-auto mb-2 flex max-w-4xl items-center gap-2 rounded-xl border border-emerald-400/20 bg-[#1e293b] px-3 py-2 shadow-sm">
-                    <div className="flex h-8 w-1 shrink-0 rounded-full bg-emerald-400" />
-                    <CornerUpLeft size={16} className="shrink-0 text-emerald-400" />
+                <div className="mx-auto mb-2 flex max-w-4xl items-center gap-2 rounded-xl border border-sky-500/30 bg-[#131b2e] px-3 py-2 shadow-sm">
+                    <div className="flex h-8 w-1 shrink-0 rounded-full bg-sky-400" />
+                    <CornerUpLeft size={16} className="shrink-0 text-sky-400" />
                     <div className="min-w-0 flex-1">
-                        <p className="truncate text-[11px] font-semibold text-emerald-400">
+                        <p className="truncate text-[11px] font-semibold text-sky-400">
                             Replying to {replyingTo.senderName || 'Member'}
                         </p>
                         <p className="truncate text-xs text-slate-300">
@@ -457,10 +462,32 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                     <button
                         type="button"
                         onClick={onCancelReply}
-                        className="rounded-full p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+                        className="rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
                         aria-label="Cancel reply"
                     >
-                        <X size={17} />
+                        <X size={16} />
+                    </button>
+                </div>
+            )}
+
+            {selectedHymnsBible.length > 0 && (
+                <div className="mx-auto mb-2 flex max-w-4xl items-center gap-2 rounded-xl border border-orange-500/30 bg-[#131b2e] px-3 py-2 shadow-sm flex-wrap">
+                    <div className="flex h-8 w-1 shrink-0 rounded-full bg-orange-400" />
+                    <Music size={16} className="shrink-0 text-orange-400" />
+                    <div className="min-w-0 flex-1 flex gap-2 flex-wrap max-h-24 overflow-y-auto custom-scrollbar py-1">
+                        {selectedHymnsBible.map((item, idx) => (
+                            <div key={idx} className="flex items-center gap-1 bg-slate-800 rounded-md px-2 py-1">
+                                <span className="text-[11px] font-semibold text-white">{item.title || item.bookName} {item.chapter || ''}</span>
+                                <X size={12} className="cursor-pointer hover:text-rose-400" onClick={() => setSelectedHymnsBible(prev => prev.filter((_, i) => i !== idx))} />
+                            </div>
+                        ))}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setSelectedHymnsBible([])}
+                        className="rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+                    >
+                        <X size={16} />
                     </button>
                 </div>
             )}
@@ -469,14 +496,14 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                 
                 {isLocked ? (
                     /* Locked Voice UI */
-                    <div className="flex-1 bg-[#1e293b] rounded-3xl flex items-center justify-between px-3 sm:px-4 py-2 border border-white/10 shadow-lg animate-in fade-in zoom-in duration-200">
-                        <button type="button" onClick={cancelRecording} className="text-gray-400 hover:text-red-400 p-2 transition-colors rounded-full hover:bg-white/5" title="Delete recording">
-                            <Trash2 size={20} />
+                    <div className="flex-1 bg-[#131b2e] rounded-2xl flex items-center justify-between px-3 sm:px-4 py-2 border border-slate-700/60 shadow-lg">
+                        <button type="button" onClick={cancelRecording} className="text-slate-400 hover:text-rose-400 p-2 transition-colors rounded-full hover:bg-slate-800" title="Delete recording">
+                            <Trash2 size={18} />
                         </button>
                         
                         <div className="flex-1 flex items-center justify-center gap-3">
-                            <div className={`w-2.5 h-2.5 rounded-full ${!isPaused ? 'bg-red-500 animate-pulse' : 'bg-gray-500'}`} />
-                            <span className="text-white font-mono text-sm font-semibold">{formatTime(recordingTime)}</span>
+                            <div className={`w-2.5 h-2.5 rounded-full ${!isPaused ? 'bg-rose-500 animate-pulse' : 'bg-slate-500'}`} />
+                            <span className="text-white font-mono text-xs font-semibold">{formatTime(recordingTime)}</span>
                             <div className="hidden sm:flex items-center gap-1 opacity-70">
                                 {[1,3,5,2,4,6,3,5,2,4,1].map((h, i) => (
                                     <div key={i} className="w-1 bg-sky-400 rounded-full animate-pulse" style={{ height: `${h * 4}px`, animationDelay: `${i * 100}ms` }} />
@@ -486,15 +513,15 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
 
                         <div className="flex items-center gap-1 sm:gap-2">
                             {isPaused && (
-                                <button type="button" onClick={playPreview} className="w-10 h-10 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 flex items-center justify-center text-emerald-400 transition-colors">
-                                    <Play size={18} fill="currentColor" className="ml-0.5" />
+                                <button type="button" onClick={playPreview} className="w-9 h-9 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 flex items-center justify-center text-emerald-400 transition-colors">
+                                    <Play size={16} fill="currentColor" className="ml-0.5" />
                                 </button>
                             )}
-                            <button type="button" onClick={togglePauseResume} className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/15 flex items-center justify-center text-sky-400 transition-colors">
-                                {isPaused ? <Mic size={18} /> : <Pause size={18} fill="currentColor" />}
+                            <button type="button" onClick={togglePauseResume} className="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-sky-400 transition-colors">
+                                {isPaused ? <Mic size={16} /> : <Pause size={16} fill="currentColor" />}
                             </button>
-                            <button type="button" onClick={stopAndSendRecording} className="w-10 h-10 bg-sky-500 text-white rounded-full flex items-center justify-center hover:bg-sky-600 shadow-lg shadow-sky-500/25 transition-transform hover:scale-105">
-                                <Send size={18} className="ml-0.5" />
+                            <button type="button" onClick={stopAndSendRecording} className="w-9 h-9 bg-sky-600 text-white rounded-full flex items-center justify-center hover:bg-sky-500 shadow-md shadow-sky-600/30 transition-transform active:scale-95">
+                                <Send size={16} className="ml-0.5" />
                             </button>
                         </div>
                     </div>
@@ -507,32 +534,45 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                 onClick={() => {
                                     setShowAttachMenu(!showAttachMenu);
                                     setShowEmojiPicker(false);
+                                    setShowHymnsBiblePicker(null);
                                 }}
-                                className={`p-3 rounded-full transition-all duration-300 ${showAttachMenu ? 'bg-sky-500 text-white rotate-45 shadow-lg shadow-sky-500/30' : 'text-gray-400 hover:text-sky-400 hover:bg-white/5'}`}
+                                className={`p-2.5 rounded-xl transition-colors ${showAttachMenu ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30' : 'text-slate-400 hover:text-sky-400 hover:bg-slate-800'}`}
                                 disabled={isUploading || isPressing}
                             >
-                                <Plus size={22} />
+                                <Plus size={20} />
                             </button>
 
                             {showAttachMenu && (
-                                <div className="absolute bottom-16 left-0 bg-[#1e293b]/95 backdrop-blur-md border border-white/10 rounded-2xl p-3 shadow-2xl flex gap-4 animate-in fade-in slide-in-from-bottom-3 duration-200 z-50">
-                                    <div onClick={() => { setShowPollModal(true); setShowAttachMenu(false); }} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-white/5 transition-colors">
-                                        <div className="w-11 h-11 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center group-hover:bg-sky-500 group-hover:text-white transition-all shadow-inner">
-                                            <BarChart2 size={22} />
+                                <div className="absolute bottom-14 left-0 bg-[#131b2e] border border-slate-700/70 rounded-2xl p-2.5 shadow-2xl flex gap-3 z-50">
+                                    <div onClick={() => { setShowHymnsBiblePicker('hymns'); setShowAttachMenu(false); }} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-slate-800 transition-colors">
+                                        <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-colors">
+                                            <Music size={20} />
                                         </div>
-                                        <span className="text-xs font-medium text-gray-300 group-hover:text-white">Poll</span>
+                                        <span className="text-[11px] font-semibold text-slate-300 group-hover:text-white">Hymns</span>
                                     </div>
-                                    <div onClick={triggerImageUpload} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-white/5 transition-colors">
-                                        <div className="w-11 h-11 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-inner">
-                                            <ImageIcon size={22} />
+                                    <div onClick={() => { setShowHymnsBiblePicker('bible'); setShowAttachMenu(false); }} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-slate-800 transition-colors">
+                                        <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                                            <BookOpen size={20} />
                                         </div>
-                                        <span className="text-xs font-medium text-gray-300 group-hover:text-white">Image</span>
+                                        <span className="text-[11px] font-semibold text-slate-300 group-hover:text-white">Bible</span>
                                     </div>
-                                    <div onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-white/5 transition-colors">
-                                        <div className="w-11 h-11 rounded-xl bg-violet-500/20 text-violet-400 flex items-center justify-center group-hover:bg-violet-500 group-hover:text-white transition-all shadow-inner">
-                                            <FileText size={22} />
+                                    <div onClick={() => { setShowPollModal(true); setShowAttachMenu(false); }} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-slate-800 transition-colors">
+                                        <div className="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center group-hover:bg-sky-600 group-hover:text-white transition-colors">
+                                            <BarChart2 size={20} />
                                         </div>
-                                        <span className="text-xs font-medium text-gray-300 group-hover:text-white">File</span>
+                                        <span className="text-[11px] font-semibold text-slate-300 group-hover:text-white">Poll</span>
+                                    </div>
+                                    <div onClick={triggerImageUpload} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-slate-800 transition-colors">
+                                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                                            <ImageIcon size={20} />
+                                        </div>
+                                        <span className="text-[11px] font-semibold text-slate-300 group-hover:text-white">Image</span>
+                                    </div>
+                                    <div onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-slate-800 transition-colors">
+                                        <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                            <FileText size={20} />
+                                        </div>
+                                        <span className="text-[11px] font-semibold text-slate-300 group-hover:text-white">File</span>
                                     </div>
                                 </div>
                             )}
@@ -544,23 +584,34 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                         {/* Input Container */}
                         <div className="flex-1 relative flex flex-col" ref={emojiMenuRef}>
                             
-                            {/* Emoji & Sticker Drawer (Responsive Centering & Sizing) */}
+                            {/* Hymns & Bible Drawer */}
+                            {showHymnsBiblePicker && (
+                                <HymnsBiblePicker 
+                                    type={showHymnsBiblePicker}
+                                    onSelect={(item) => {
+                                        setSelectedHymnsBible(prev => [...prev, item]);
+                                    }}
+                                    onClose={() => setShowHymnsBiblePicker(null)}
+                                />
+                            )}
+
+                            {/* Emoji & Sticker Drawer */}
                             {showEmojiPicker && (
-                                <div className="absolute bottom-16 left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 w-[calc(100vw-2rem)] sm:w-[350px] max-w-[350px] h-[60vh] max-h-[430px] min-h-[300px] bg-[#1e293b]/95 backdrop-blur-md border border-white/15 rounded-3xl shadow-2xl flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-200 z-50 overflow-hidden">
+                                <div className="absolute bottom-14 left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 w-[calc(100vw-2rem)] sm:w-[350px] max-w-[350px] h-[60vh] max-h-[420px] min-h-[300px] bg-[#131b2e] border border-slate-700/70 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden">
                                     
                                     {/* Tabs */}
-                                    <div className="flex border-b border-white/10 bg-[#0f172a]/80 p-1.5 shrink-0 gap-1">
+                                    <div className="flex border-b border-slate-800 bg-[#0d1322] p-1.5 shrink-0 gap-1">
                                         <button 
                                             onClick={() => setPickerTab('emoji')} 
-                                            className={`flex-1 py-2 rounded-xl text-xs font-semibold flex justify-center items-center gap-2 transition-all ${pickerTab === 'emoji' ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                            className={`flex-1 py-1.5 rounded-xl text-xs font-semibold flex justify-center items-center gap-1.5 transition-colors ${pickerTab === 'emoji' ? 'bg-sky-600/30 text-sky-400 border border-sky-500/40' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
                                         >
-                                            <Smile size={16} /> Emojis
+                                            <Smile size={15} /> Emojis
                                         </button>
                                         <button 
                                             onClick={() => setPickerTab('sticker')} 
-                                            className={`flex-1 py-2 rounded-xl text-xs font-semibold flex justify-center items-center gap-2 transition-all ${pickerTab === 'sticker' ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                            className={`flex-1 py-1.5 rounded-xl text-xs font-semibold flex justify-center items-center gap-1.5 transition-colors ${pickerTab === 'sticker' ? 'bg-sky-600/30 text-sky-400 border border-sky-500/40' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
                                         >
-                                            <Sticker size={16} /> Stickers
+                                            <Sticker size={15} /> Stickers
                                         </button>
                                     </div>
                                     
@@ -570,11 +621,11 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                             <style jsx global>{`
                                                 .custom-emoji-picker-container .EmojiPickerReact {
                                                     --epr-bg-color: transparent !important;
-                                                    --epr-category-label-bg-color: #1e293b !important;
+                                                    --epr-category-label-bg-color: #131b2e !important;
                                                     --epr-picker-border-color: transparent !important;
-                                                    --epr-[#1e293b]-color: #1e293b !important;
-                                                    --epr-search-input-bg-color: #0f172a !important;
-                                                    --epr-search-input-bg-color-active: #0f172a !important;
+                                                    --epr-[#1e293b]-color: #131b2e !important;
+                                                    --epr-search-input-bg-color: #0d1322 !important;
+                                                    --epr-search-input-bg-color-active: #0d1322 !important;
                                                     --epr-search-input-[#1e293b]-color: #ffffff !important;
                                                     --epr-search-input-border-color: rgba(255, 255, 255, 0.1) !important;
                                                     --epr-hover-bg-color: rgba(255, 255, 255, 0.08) !important;
@@ -583,8 +634,8 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                                 }
                                                 .custom-emoji-picker-container .EmojiPickerReact .epr-search-container input {
                                                     color: #fff !important;
-                                                    border-radius: 12px !important;
-                                                    font-size: 13px !important;
+                                                    border-radius: 10px !important;
+                                                    font-size: 12px !important;
                                                 }
                                             `}</style>
                                             <EmojiPicker 
@@ -600,27 +651,27 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                         </div>
                                     )}
 
-                                    {/* Tab 2: Stickers & Custom Sticker Add */}
+                                    {/* Tab 2: Stickers */}
                                     {pickerTab === 'sticker' && (
-                                        <div className="flex-1 flex flex-col p-3 gap-3 overflow-hidden bg-[#1e293b]/60">
+                                        <div className="flex-1 flex flex-col p-3 gap-3 overflow-hidden bg-[#131b2e]">
                                             {/* Search & Add Sticker Bar */}
                                             <div className="flex items-center gap-2 shrink-0">
                                                 <div className="flex-1 relative">
-                                                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                                                     <input 
                                                         type="text"
                                                         value={stickerSearch}
                                                         onChange={(e) => setStickerSearch(e.target.value)}
                                                         placeholder="Search stickers..."
-                                                        className="w-full bg-[#0f172a] text-white text-xs pl-9 pr-3 py-2 rounded-xl border border-white/10 focus:outline-none focus:border-sky-500/50"
+                                                        className="w-full bg-[#0d1322] text-white text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-700/60 focus:outline-none focus:border-sky-500/70"
                                                     />
                                                 </div>
                                                 <button 
                                                     onClick={() => stickerInputRef.current?.click()}
-                                                    className="p-2 bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded-xl hover:bg-sky-500 hover:text-white transition-all flex items-center gap-1 text-xs font-medium shrink-0"
+                                                    className="p-1.5 px-2 bg-sky-600/20 text-sky-400 border border-sky-500/30 rounded-xl hover:bg-sky-600 hover:text-white transition-colors flex items-center gap-1 text-xs font-semibold shrink-0"
                                                     title="Add custom sticker"
                                                 >
-                                                    <Upload size={14} /> Add
+                                                    <Upload size={13} /> Add
                                                 </button>
                                                 <input 
                                                     type="file" 
@@ -632,22 +683,22 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                             </div>
 
                                             {/* Sticker Grid */}
-                                            <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-3 pr-1 custom-scrollbar">
+                                            <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-2.5 pr-1 custom-scrollbar">
                                                 {filteredStickers.map((sticker) => (
                                                     <button
                                                         key={sticker.id}
                                                         onClick={() => handleSendSticker(sticker.url)}
-                                                        className="aspect-square p-2 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-sky-500/40 rounded-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 group"
+                                                        className="aspect-square p-2 bg-slate-800/40 hover:bg-slate-800 border border-slate-700/40 hover:border-sky-500/50 rounded-xl flex items-center justify-center transition-colors group"
                                                     >
                                                         <img 
                                                             src={sticker.url} 
                                                             alt={sticker.name} 
-                                                            className="w-full h-full object-contain drop-shadow-md group-hover:drop-shadow-xl transition-all" 
+                                                            className="w-full h-full object-contain drop-shadow-md" 
                                                         />
                                                     </button>
                                                 ))}
                                                 {filteredStickers.length === 0 && (
-                                                    <div className="col-span-3 h-full flex items-center justify-center text-gray-400 text-xs">
+                                                    <div className="col-span-3 h-full flex items-center justify-center text-slate-500 text-xs">
                                                         No stickers found.
                                                     </div>
                                                 )}
@@ -661,7 +712,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                             {/* Textarea Form Box */}
                             <form 
                                 onSubmit={handleSubmit} 
-                                className="flex-1 relative bg-[#1e293b] rounded-3xl border border-white/10 focus-within:border-sky-500/50 focus-within:ring-1 focus-within:ring-sky-500/30 transition-all flex items-center px-3 sm:px-4 py-1.5 shadow-inner"
+                                className="flex-1 relative bg-[#131b2e] rounded-2xl border border-slate-700/60 focus-within:border-sky-500/70 transition-colors flex items-center px-3 sm:px-4 py-1"
                             >
                                 {!isPressing && (
                                     <button
@@ -669,10 +720,11 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                         onClick={() => {
                                             setShowEmojiPicker(!showEmojiPicker);
                                             setShowAttachMenu(false);
+                                            setShowHymnsBiblePicker(null);
                                         }}
-                                        className={`p-1.5 shrink-0 transition-all rounded-full mr-1.5 ${showEmojiPicker ? 'text-sky-400 bg-sky-500/10' : 'text-gray-400 hover:text-sky-400 hover:bg-white/5'}`}
+                                        className={`p-1.5 shrink-0 transition-colors rounded-lg mr-1 ${showEmojiPicker ? 'text-sky-400 bg-sky-500/10' : 'text-slate-400 hover:text-sky-400 hover:bg-slate-800'}`}
                                     >
-                                        <Smile size={22} />
+                                        <Smile size={20} />
                                     </button>
                                 )}
 
@@ -688,7 +740,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                     }}
                                     placeholder="Type a message..."
                                     dir="auto"
-                                    className="w-full bg-transparent text-white text-sm py-2.5 focus:outline-none resize-none max-h-32 custom-scrollbar leading-relaxed placeholder:text-gray-500 tracking-wide"
+                                    className="w-full bg-transparent text-slate-100 text-xs sm:text-sm py-2 focus:outline-none resize-none max-h-32 custom-scrollbar leading-relaxed placeholder:text-slate-400 tracking-wide"
                                     rows={1}
                                     disabled={isUploading || isPressing}
                                     style={{ direction: 'auto', unicodeBidi: 'plaintext' }}
@@ -696,18 +748,18 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
 
                                 {/* Audio Recording Overlay */}
                                 {isPressing && (
-                                    <div className="absolute inset-0 bg-[#1e293b] rounded-3xl flex items-center justify-between px-4 z-10 pointer-events-none overflow-hidden border border-sky-500/30">
+                                    <div className="absolute inset-0 bg-[#131b2e] rounded-2xl flex items-center justify-between px-4 z-10 pointer-events-none overflow-hidden border border-sky-500/40">
                                         <div 
-                                            className="flex items-center text-gray-400 gap-2 whitespace-nowrap"
+                                            className="flex items-center text-slate-400 gap-2 whitespace-nowrap"
                                             style={{ transform: `translateX(${Math.min(0, dragOffset.x)}px)`, opacity: 1 - Math.abs(dragOffset.x)/100 }}
                                         >
-                                            <ChevronLeft size={20} className="animate-pulse text-sky-400" />
-                                            <span className="text-xs font-semibold text-gray-300">Slide left to cancel</span>
+                                            <ChevronLeft size={18} className="animate-pulse text-sky-400" />
+                                            <span className="text-xs font-semibold text-slate-300">Slide left to cancel</span>
                                         </div>
                                         
                                         <div className="flex items-center gap-2 mr-6">
-                                            <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                                            <span className="text-white font-mono text-sm font-semibold">{formatTime(recordingTime)}</span>
+                                            <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+                                            <span className="text-white font-mono text-xs font-semibold">{formatTime(recordingTime)}</span>
                                         </div>
                                     </div>
                                 )}
@@ -716,29 +768,29 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                     </>
                 )}
 
-                {/* Right Action Button (Send Text vs Record Mic) */}
+                {/* Right Action Button */}
                 {!isLocked && (
                     <div className="relative shrink-0">
-                        {text.trim() && !isRecording ? (
+                        {(text.trim() || selectedHymnsBible.length > 0) && !isRecording ? (
                             <button
                                 type="button"
                                 onClick={handleSubmit}
                                 disabled={isUploading}
-                                className="p-3 rounded-full flex items-center justify-center transition-all bg-sky-500 text-white hover:bg-sky-600 shadow-lg shadow-sky-500/25 hover:scale-105 active:scale-95"
+                                className="p-2.5 rounded-xl flex items-center justify-center transition-colors bg-sky-600 text-white hover:bg-sky-500 shadow-md shadow-sky-600/30 active:scale-95"
                             >
-                                {isUploading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className="ml-0.5" />}
+                                {isUploading ? <Loader2 size={19} className="animate-spin" /> : <Send size={19} className="ml-0.5" />}
                             </button>
                         ) : (
                             <div className="relative flex items-center justify-center">
                                 {isPressing && (
                                     <div 
-                                        className="absolute -top-20 flex flex-col items-center gap-1 transition-transform duration-75 pointer-events-none"
+                                        className="absolute -top-16 flex flex-col items-center gap-1 pointer-events-none"
                                         style={{ transform: `translateY(${Math.min(0, dragOffset.y)}px)`, opacity: 1 - Math.abs(dragOffset.y)/60 }}
                                     >
-                                        <div className="bg-[#1e293b] p-2.5 rounded-full border border-sky-500/30 shadow-xl animate-bounce text-sky-400">
-                                            <Lock size={16} />
+                                        <div className="bg-[#131b2e] p-2 rounded-full border border-sky-500/40 shadow-xl text-sky-400">
+                                            <Lock size={15} />
                                         </div>
-                                        <ChevronUp size={16} className="text-sky-400 animate-pulse" />
+                                        <ChevronUp size={15} className="text-sky-400 animate-pulse" />
                                     </div>
                                 )}
                                 
@@ -749,15 +801,15 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                     onPointerUp={handlePointerUp}
                                     onPointerCancel={handlePointerUp}
                                     title="Hold to record, tap to lock"
-                                    className={`p-3 rounded-full transition-all duration-200 shrink-0 select-none ${
+                                    className={`p-2.5 rounded-xl transition-colors shrink-0 select-none ${
                                         isPressing 
-                                            ? 'bg-sky-500 text-white scale-125 shadow-2xl shadow-sky-500/40 z-20' 
-                                            : 'text-gray-400 hover:text-sky-400 hover:bg-white/5'
+                                            ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/30 z-20' 
+                                            : 'text-slate-400 hover:text-sky-400 hover:bg-slate-800'
                                     }`}
                                     disabled={disabled || isUploading}
                                     style={{ touchAction: 'none' }} 
                                 >
-                                    <Mic size={isPressing ? 24 : 22} />
+                                    <Mic size={20} />
                                 </button>
                             </div>
                         )}
@@ -767,31 +819,31 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
 
             {/* Poll Modal */}
             {showPollModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-                    <div className="bg-[#1e293b] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-white/10 animate-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-[#0f172a]">
-                            <h3 className="text-white font-semibold text-sm">Create Poll</h3>
-                            <button onClick={() => setShowPollModal(false)} className="text-gray-400 hover:text-white transition-colors p-1 rounded-full hover:bg-white/5">
-                                <X size={18} />
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4">
+                    <div className="bg-[#131b2e] rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-700/70">
+                        <div className="flex items-center justify-between p-3.5 border-b border-slate-800 bg-[#0d1322]">
+                            <h3 className="text-slate-100 font-bold text-sm">Create Poll</h3>
+                            <button onClick={() => setShowPollModal(false)} className="text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-slate-800">
+                                <X size={17} />
                             </button>
                         </div>
                         
-                        <div className="p-4 space-y-4">
+                        <div className="p-4 space-y-3.5">
                             <div>
-                                <label className="text-xs font-medium text-gray-400 mb-1.5 block">Question</label>
+                                <label className="text-[11px] font-semibold text-slate-400 mb-1 block">Question</label>
                                 <input 
                                     type="text" 
                                     value={pollQuestion}
                                     onChange={(e) => setPollQuestion(e.target.value)}
                                     placeholder="Ask a question..."
                                     dir="auto"
-                                    className="w-full bg-[#0f172a] text-white border border-white/10 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-sky-500/50 transition-colors"
+                                    className="w-full bg-[#0d1322] text-white border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-sky-500/70 transition-colors"
                                     autoFocus
                                 />
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs font-medium text-gray-400 block">Options</label>
+                                <label className="text-[11px] font-semibold text-slate-400 block">Options</label>
                                 {pollOptions.map((opt, i) => (
                                     <input 
                                         key={i}
@@ -804,7 +856,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                         }}
                                         placeholder={`Option ${i + 1}`}
                                         dir="auto"
-                                        className="w-full bg-[#0f172a] text-white border border-white/10 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:border-sky-500/50 transition-colors"
+                                        className="w-full bg-[#0d1322] text-white border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-sky-500/70 transition-colors"
                                     />
                                 ))}
                                 {pollOptions.length < 6 && (
@@ -812,13 +864,13 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                         onClick={handleAddPollOption}
                                         className="text-sky-400 text-xs font-semibold hover:text-sky-300 py-1 flex items-center gap-1 transition-colors"
                                     >
-                                        <Plus size={15} /> Add Option
+                                        <Plus size={14} /> Add Option
                                     </button>
                                 )}
                             </div>
 
-                            <div className="pt-2 border-t border-white/5">
-                                <label className="flex items-center gap-2.5 cursor-pointer group">
+                            <div className="pt-2 border-t border-slate-800">
+                                <label className="flex items-center gap-2 cursor-pointer group">
                                     <div className="relative flex items-center justify-center">
                                         <input 
                                             type="checkbox"
@@ -826,32 +878,32 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                             onChange={(e) => setAllowMultipleAnswers(e.target.checked)}
                                             className="sr-only"
                                         />
-                                        <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
                                             allowMultipleAnswers 
-                                                ? 'bg-sky-500 border-sky-500 shadow-sm shadow-sky-500/30' 
-                                                : 'border-gray-500 group-hover:border-sky-400 bg-transparent'
+                                                ? 'bg-sky-600 border-sky-600' 
+                                                : 'border-slate-600 group-hover:border-sky-400 bg-transparent'
                                         }`}>
-                                            {allowMultipleAnswers && <CheckSquare size={13} className="text-white" />}
+                                            {allowMultipleAnswers && <CheckSquare size={12} className="text-white" />}
                                         </div>
                                     </div>
-                                    <span className="text-xs font-medium text-gray-300 group-hover:text-white transition-colors">
+                                    <span className="text-xs font-medium text-slate-300 group-hover:text-white transition-colors">
                                         Allow multiple answers
                                     </span>
                                 </label>
                             </div>
                         </div>
 
-                        <div className="p-4 border-t border-white/10 bg-[#0f172a] flex justify-end gap-2">
+                        <div className="p-3 border-t border-slate-800 bg-[#0d1322] flex justify-end gap-2">
                             <button 
                                 onClick={() => setShowPollModal(false)}
-                                className="px-4 py-2 text-xs font-semibold text-gray-300 hover:bg-white/5 rounded-xl transition-colors"
+                                className="px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 rounded-xl transition-colors"
                             >
                                 Cancel
                             </button>
                             <button 
                                 onClick={handleSendPoll}
                                 disabled={!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2}
-                                className="px-4 py-2 text-xs font-semibold bg-sky-500 text-white rounded-xl hover:bg-sky-600 transition-all shadow-md shadow-sky-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-3.5 py-1.5 text-xs font-semibold bg-sky-600 text-white rounded-xl hover:bg-sky-500 transition-colors shadow-md shadow-sky-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Send Poll
                             </button>

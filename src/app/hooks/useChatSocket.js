@@ -261,6 +261,7 @@ export function useChatSocket(teamId, user_id, user_name, token) {
             mimeType: fileMeta.mimeType || null,
             replyTo,
             pollData: type === 'poll' ? pollData : null,
+            items: type === 'hymns_bible' ? fileMeta.items : null,
             createdAt: new Date().toISOString(),
             status: 'pending',
         };
@@ -288,6 +289,7 @@ export function useChatSocket(teamId, user_id, user_name, token) {
                 type,
                 mediaUrl: finalMediaUrl, // send real CDN URL to server
                 pollData: type === 'poll' ? pollData : null,
+                items: type === 'hymns_bible' ? fileMeta.items : null,
                 fileName: fileMeta.fileName || null,
                 mimeType: fileMeta.mimeType || null
                 , replyTo

@@ -8,25 +8,25 @@ export default function BottomNav() {
     const pathname = usePathname();
 
     return (
-        <div className="md:hidden w-full h-16 bg-[#0f172a] border-t border-white/10 flex items-center justify-around shrink-0 pb-safe z-50">
+        <div className="md:hidden w-full h-16 bg-[#0d1322] border-t border-slate-800/80 flex items-center justify-around shrink-0 pb-safe z-50">
             <Link 
                 href="/chat_team" 
                 className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${
-                    pathname?.startsWith('/chat_team') ? 'text-sky-400' : 'text-gray-500'
+                    pathname?.startsWith('/chat_team') ? 'text-sky-400 font-bold' : 'text-slate-400'
                 }`}
             >
-                <MessageSquare size={24} />
-                <span className="text-[10px] font-medium">Chats</span>
+                <MessageSquare size={22} />
+                <span className="text-[10px] font-semibold">Chats</span>
             </Link>
 
             <Link 
                 href="/Trainings" 
                 className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${
-                    pathname?.startsWith('/Trainings') ? 'text-sky-400' : 'text-gray-500'
+                    pathname?.startsWith('/Trainings') ? 'text-sky-400 font-bold' : 'text-slate-400'
                 }`}
             >
-                <GraduationCap size={24} />
-                <span className="text-[10px] font-medium">Trainings</span>
+                <GraduationCap size={22} />
+                <span className="text-[10px] font-semibold">Trainings</span>
             </Link>
         </div>
     );

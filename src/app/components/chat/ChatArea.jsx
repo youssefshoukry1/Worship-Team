@@ -4,8 +4,9 @@ import AudioMessage from './AudioMessage';
 import ImageMessage from './ImageMessage';
 import FileMessage from './FileMessage';
 import { useLocalMedia } from '../../hooks/useLocalMedia';
-import { BarChart2, ChevronDown, Clock, Check, CheckCheck, Smile, Edit2, Trash2, X, Plus, Copy, CornerUpLeft, Info } from 'lucide-react';
+import { BarChart2, ChevronDown, Clock, Check, CheckCheck, Smile, Edit2, Trash2, X, Plus, Copy, CornerUpLeft, Info, BookOpen, Music } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import HymnsBibleLyricsModal from './HymnsBibleLyricsModal';
 
 const SENDER_NAME_COLORS = [
     'text-sky-400', 'text-[#38bdf8]', 'text-cyan-400', 'text-teal-400',
@@ -49,6 +50,8 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     const [selectedMessages, setSelectedMessages] = useState([]); 
     const isSelectionMode = selectedMessages.length > 0;
 
+    const [viewingMedia, setViewingMedia] = useState(null);
+    const [activeLyricsItem, setActiveLyricsItem] = useState(null);
     const [editingMessage, setEditingMessage] = useState(null);
     const [editText, setEditText] = useState('');
     const [reactionDetails, setReactionDetails] = useState(null);
@@ -413,48 +416,49 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                 ref={scrollRef}
                 onScroll={handleScroll}
                 data-lenis-prevent
-                className="flex-1 overflow-y-auto pt-4 pb-2 bg-[#0b0f19] custom-scrollbar flex flex-col z-10"
+                className="flex-1 overflow-y-auto pt-4 pb-2 bg-[#080c14] custom-scrollbar flex flex-col z-10"
             >
                 {loading && (
-                    <div className="flex justify-center my-2">
-                        <div className="bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-800">
-                            <span className="text-slate-400 text-xs animate-pulse">Loading messages...</span>
+                    <div className="flex justify-center py-4">
+                        <div className="bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700/60">
+                            <span className="text-slate-300 text-xs flex items-center gap-2">
+                                <Clock size={12} className="animate-spin text-sky-400" /> Loading messages...
+                            </span>
                         </div>
                     </div>
                 )}
 
                 {messages.length === 0 && !loading && (
-                    <div className="flex-1 flex items-center justify-center">
-                        <p className="text-slate-400 text-xs bg-slate-900/60 border border-slate-800 px-4 py-2 rounded-full shadow-sm">
-                            No messages yet. Say hi!
+                    <div className="flex flex-col items-center justify-center flex-1 my-auto py-10">
+                        <p className="text-slate-400 text-xs bg-slate-900/80 border border-slate-800 px-4 py-2 rounded-full shadow-sm">
+                            No messages yet. Send a message to start the conversation!
                         </p>
                     </div>
                 )}
 
-                {messages.map((msg, index) => {
+                {messages.map((msg, idx) => {
                     const isMe = String(msg.senderId) === String(currentUserId);
                     const isSelected = selectedMessages.some(m => m._id === msg._id);
                     const isSticker = msg.type === 'sticker';
                     const hasReactions = msg.reactions?.length > 0;
                     
-                    const displayName = msg.senderName && msg.senderName !== 'User'
-                        ? msg.senderName : (typeof msg.senderId === 'object' && msg.senderId?.Name) ? msg.senderId.Name : 'Member';
+                    const displayName = msg.senderName || 'Member';
                     const nameColorClass = getSenderColor(msg.senderId);
 
                     return (
                         <div 
-                            key={msg._id || msg._tempId || `${msg.createdAt}-${index}`}
-                            className={`flex w-full px-2 sm:px-4 py-1 transition-colors duration-200 ${isSelected ? 'bg-cyan-500/10' : 'hover:bg-white/[0.01]'}`}
+                            key={msg._id || idx}
+                            className={`flex w-full px-2 sm:px-4 py-1 transition-colors duration-150 ${isSelected ? 'bg-sky-500/10' : 'hover:bg-white/[0.01]'}`}
                         >
                             {isSelectionMode && (
-                                <div className="flex items-center justify-center w-10 shrink-0 cursor-pointer" onClick={() => toggleMessageSelection(msg)}>
-                                    <div className={`w-5 h-5 rounded-full border-[1.5px] flex items-center justify-center transition-all ${isSelected ? 'bg-cyan-500 border-cyan-500' : 'border-slate-500'}`}>
-                                        {isSelected && <Check size={14} className="text-white" strokeWidth={3} />}
+                                <div className="flex items-center justify-center pr-3 cursor-pointer select-none shrink-0" onClick={() => toggleMessageSelection(msg)}>
+                                    <div className={`w-5 h-5 rounded-full border-[1.5px] flex items-center justify-center transition-all ${isSelected ? 'bg-sky-500 border-sky-500' : 'border-slate-500'}`}>
+                                        {isSelected && <Check size={12} className="text-white stroke-[3]" />}
                                     </div>
                                 </div>
                             )}
 
-                            <div className={`flex flex-col relative max-w-[85%] sm:max-w-[70%] md:max-w-[55%] ${isMe ? 'ml-auto' : 'mr-auto'} ${hasReactions ? 'mb-4 mt-1' : 'mb-0.5'}`}>
+                            <div className={`flex flex-col max-w-[85%] sm:max-w-[75%] ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'} ${hasReactions ? 'mb-4 mt-1' : 'mb-0.5'}`}>
                                 <div
                                     ref={(element) => {
                                         const messageId = msg._id || msg._tempId;
@@ -480,8 +484,8 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         isSticker
                                             ? 'bg-transparent text-slate-100'
                                             : isMe
-                                                ? 'px-3 py-2 bg-cyan-800 text-cyan-50 shadow-sm rounded-2xl rounded-tr-sm'
-                                                : 'px-3 py-2 bg-[#1e293b] text-slate-200 shadow-sm rounded-2xl rounded-tl-sm border border-slate-700/50'
+                                                ? 'px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm rounded-2xl rounded-tr-xs border border-blue-500/30'
+                                                : 'px-3.5 py-2 bg-[#131b2e] text-slate-100 shadow-sm rounded-2xl rounded-tl-xs border border-slate-700/60'
                                     } ${msg.status === 'pending' ? 'opacity-80' : ''}`}
                                 >
                                     {!isMe && !isSticker && (
@@ -492,7 +496,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         </div>
                                     )}
 
-                                    {msg.replyTo && !isMessageDeleted(msg) && !isSticker && (
+                                     {msg.replyTo && !isMessageDeleted(msg) && !isSticker && (
                                         <div
                                             onClick={(event) => {
                                                 event.stopPropagation();
@@ -500,21 +504,21 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                             }}
                                             className={`mb-2 rounded-lg px-2.5 py-1.5 border-l-[3px] cursor-pointer select-none transition-colors hover:bg-white/10 ${
                                                 isMe
-                                                    ? 'bg-cyan-900/50 border-l-cyan-300'
-                                                    : 'bg-slate-800/70 border-l-slate-400'
+                                                    ? 'bg-black/20 border-l-sky-300'
+                                                    : 'bg-slate-800/80 border-l-sky-500'
                                             }`}
                                         >
-                                            <p className={`text-[11px] font-bold mb-0.5 truncate ${isMe ? 'text-cyan-300' : 'text-sky-400'}`}>
+                                            <p className={`text-[11px] font-bold mb-0.5 truncate ${isMe ? 'text-sky-200' : 'text-sky-400'}`}>
                                                 {msg.replyTo.senderName || 'Member'}
                                             </p>
-                                            <p className={`text-[12px] truncate ${isMe ? 'text-cyan-100/70' : 'text-slate-400'}`}>
+                                            <p className={`text-[12px] truncate ${isMe ? 'text-white/80' : 'text-slate-300'}`}>
                                                 {getReplyPreviewText(msg.replyTo)}
                                             </p>
                                         </div>
                                     )}
 
                                     {!isSelectionMode && (
-                                        <div className="absolute right-1 top-1 z-20 hidden md:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 backdrop-blur-md rounded-lg p-0.5">
+                                        <div className="absolute right-1 top-1 z-20 hidden md:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-md rounded-lg p-0.5">
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); toggleMessageSelection(msg); setShowEmojiPicker(true); }}
                                                 className="p-1 text-slate-200 hover:text-white hover:bg-white/20 rounded-md transition-colors"
@@ -566,15 +570,15 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                                 <div className="min-w-[220px] max-w-[min(72vw,360px)] space-y-3 pb-4">
                                                     <div>
                                                         <p dir="auto" className="text-[14px] font-semibold leading-relaxed break-words">{poll.question || msg.text}</p>
-                                                        <p className={`mt-1 text-[11px] ${isMe ? 'text-cyan-200/70' : 'text-slate-400'}`}>
+                                                        <p className={`mt-1 text-[11px] ${isMe ? 'text-slate-200' : 'text-slate-400'}`}>
                                                             {poll.allowMultipleAnswers ? 'Select one or more' : 'Select one'} · {totalVotes} vote{totalVotes === 1 ? '' : 's'}
                                                         </p>
                                                     </div>
                                                     {totalVotes > 0 && topVoteCount > 0 && (
                                                         <div className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] ${
                                                             isMe
-                                                                ? 'border-cyan-200/30 bg-cyan-900/40 text-cyan-100'
-                                                                : 'border-slate-600/80 bg-slate-800/80 text-slate-300'
+                                                                ? 'border-white/20 bg-black/20 text-white'
+                                                                : 'border-slate-700/80 bg-slate-800/80 text-slate-200'
                                                         }`}>
                                                             <span className="flex min-w-0 items-center gap-1.5">
                                                                 <BarChart2 size={13} className="shrink-0 text-amber-400" />
@@ -600,16 +604,16 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                                                         event.stopPropagation();
                                                                         handlePollVote(msg, option.id);
                                                                     }}
-                                                                    className={`relative w-full overflow-hidden rounded-lg border px-3 py-2 text-left text-[13px] transition-colors disabled:cursor-wait disabled:opacity-70 ${
+                                                                    className={`relative w-full overflow-hidden rounded-xl border px-3 py-2 text-left text-[13px] transition-colors disabled:cursor-wait disabled:opacity-70 ${
                                                                         selected
-                                                                            ? (isMe ? 'border-cyan-300/70 bg-cyan-700/70' : 'border-sky-400/70 bg-sky-500/20')
-                                                                            : (isMe ? 'border-cyan-200/30 bg-cyan-900/30 hover:bg-cyan-700/50' : 'border-slate-600 bg-slate-800/70 hover:bg-slate-700')
+                                                                            ? (isMe ? 'border-white/40 bg-black/40 text-white font-semibold' : 'border-sky-500/70 bg-sky-600/30 text-sky-200 font-semibold')
+                                                                            : (isMe ? 'border-white/10 bg-black/20 text-slate-100 hover:bg-black/30' : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-800')
                                                                     }`}
                                                                 >
-                                                                    <span className="absolute inset-y-0 left-0 bg-white/10 transition-all" style={{ width: `${percentage}%` }} />
+                                                                    <span className="absolute inset-y-0 left-0 bg-white/15 transition-all" style={{ width: `${percentage}%` }} />
                                                                     <span className="relative flex items-center justify-between gap-3">
                                                                         <span className="break-words">{option.text}</span>
-                                                                        <span className="shrink-0 text-[11px] text-slate-300">{percentage}%</span>
+                                                                        <span className="shrink-0 text-[11px] opacity-90">{percentage}%</span>
                                                                     </span>
                                                                 </button>
                                                             );
@@ -618,6 +622,30 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                                 </div>
                                             );
                                         })()
+                                    ) : msg.type === 'hymns_bible' && msg.items ? (
+                                        <div className="min-w-[220px] max-w-[min(72vw,360px)] space-y-2 pb-4">
+                                            <p dir="auto" className="text-[14px] font-semibold leading-relaxed break-words">
+                                                {msg.text}
+                                            </p>
+                                            <div className="flex flex-col gap-2 mt-2">
+                                                {msg.items.map((item, idx) => (
+                                                    <div key={idx} className="flex flex-col gap-1.5 p-2 rounded-xl bg-slate-800/50 border border-slate-700/50">
+                                                        <div className="flex items-center gap-2">
+                                                            {item.type === 'bible' ? <BookOpen size={16} className="text-purple-400 shrink-0" /> : <Music size={16} className="text-orange-400 shrink-0" />}
+                                                            <span className="text-[12px] font-semibold text-white truncate flex-1">
+                                                                {item.title || item.bookName} {item.chapter || ''}
+                                                            </span>
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setActiveLyricsItem(item); }}
+                                                            className="w-full py-1.5 text-xs font-bold bg-sky-500/20 text-sky-400 hover:bg-sky-500 hover:text-white rounded-lg transition-colors border border-sky-500/30"
+                                                        >
+                                                            Lyrics
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
                                     ) : msg.type === 'audio' && msg.mediaUrl ? (
                                         <div className="pb-4"><AudioMessage mediaUrl={msg.mediaUrl} messageId={msg._id || msg.createdAt} /></div>
                                     ) : msg.type === 'image' && msg.mediaUrl ? (
@@ -631,11 +659,11 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                     )}
 
                                     <div className={`absolute bottom-1 right-2 flex items-center justify-end gap-1 select-none pointer-events-none`}>
-                                        {msg.editedAt && <span className={`text-[9px] italic font-normal ${isMe ? 'text-cyan-200/50' : 'text-slate-500'}`}>edited</span>}
-                                        <span className={`text-[10px] font-medium ${isMe ? 'text-cyan-200/80' : 'text-slate-400'}`}>{formatTime(msg.createdAt)}</span>
-                                        {isMe && getMessageReceipt(msg) === 'pending' && <Clock size={11} className="text-cyan-200/70 animate-pulse" />}
-                                        {isMe && getMessageReceipt(msg) === 'sent' && <Check size={13} className="text-cyan-200/80" strokeWidth={2.5} />}
-                                        {isMe && getMessageReceipt(msg) === 'delivered' && <CheckCheck size={14} className="text-cyan-200/80" />}
+                                        {msg.editedAt && <span className={`text-[9px] italic font-normal ${isMe ? 'text-white/60' : 'text-slate-500'}`}>edited</span>}
+                                        <span className={`text-[10px] font-medium ${isMe ? 'text-white/80' : 'text-slate-400'}`}>{formatTime(msg.createdAt)}</span>
+                                        {isMe && getMessageReceipt(msg) === 'pending' && <Clock size={11} className="text-white/70 animate-pulse" />}
+                                        {isMe && getMessageReceipt(msg) === 'sent' && <Check size={13} className="text-white/80" strokeWidth={2.5} />}
+                                        {isMe && getMessageReceipt(msg) === 'delivered' && <CheckCheck size={14} className="text-white/80" />}
                                         {isMe && getMessageReceipt(msg) === 'seen' && <CheckCheck size={14} className="text-sky-300" />}
                                     </div>
                                     
@@ -823,19 +851,19 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                 </div>
             )}
 
-            {/* حالة التعديل */}
+            {/* Edit Message Bar */}
             {editingMessage && (
-                <div className="absolute bottom-full left-0 right-0 z-50 bg-[#1e293b] border-t border-slate-700 p-3 shadow-lg animate-in slide-in-from-bottom-2">
+                <div className="absolute bottom-full left-0 right-0 z-50 bg-[#131b2e] border-t border-slate-700/80 p-3 shadow-2xl animate-in slide-in-from-bottom-2">
                     <div className="flex items-center justify-between mb-2 px-1">
                         <div className="flex items-center gap-2 text-sky-400">
                             <Edit2 size={16} />
                             <span className="text-xs font-semibold uppercase tracking-wider">Edit Message</span>
                         </div>
-                        <button onClick={() => { setEditingMessage(null); setEditText(''); }} className="text-slate-400 hover:text-white p-1 rounded-full hover:bg-slate-700 transition-colors">
+                        <button onClick={() => { setEditingMessage(null); setEditText(''); }} className="text-slate-400 hover:text-white p-1 rounded-full hover:bg-slate-800 transition-colors">
                             <X size={16} />
                         </button>
                     </div>
-                    <div className="flex items-end gap-2 bg-[#0f172a] rounded-xl p-2 border border-slate-700/50">
+                    <div className="flex items-end gap-2 bg-[#0d1322] rounded-xl p-2 border border-slate-700/60">
                         <textarea
                             value={editText}
                             onChange={(e) => setEditText(e.target.value)}
@@ -846,33 +874,34 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                 }
                             }}
                             autoFocus
-                            className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-500 focus:outline-none resize-none max-h-32 min-h-[40px] px-2 py-1 custom-scrollbar"
+                            className="flex-1 bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none resize-none max-h-32 min-h-[40px] px-2 py-1 custom-scrollbar"
                             placeholder="Edit your message..."
                             dir="auto"
                         />
-                        <button onClick={handleEditSubmit} disabled={!editText.trim() || editText.trim() === editingMessage.text.trim()} className="bg-sky-500 hover:bg-sky-400 text-white rounded-lg p-2.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button onClick={handleEditSubmit} disabled={!editText.trim() || editText.trim() === editingMessage.text.trim()} className="bg-sky-600 hover:bg-sky-500 text-white rounded-lg p-2.5 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
                             <Check size={18} />
                         </button>
                     </div>
                 </div>
             )}
 
-            {/* القائمة المنبثقة الخاصة بالموبايل - مطابقة لـ WhatsApp */}
+            {/* Mobile Long Touch Overlay - WhatsApp Style */}
             <AnimatePresence>
                 {mobileActiveMessage && isTouchDevice && messagePosition && (
-                    <div className="fixed inset-0 z-[120] flex flex-col sm:hidden">
+                    <div className="fixed inset-0 z-[120] flex flex-col sm:hidden" onClick={() => setMobileActiveMessage(null)}>
                         <motion.div 
                             initial={{ opacity: 0 }} 
                             animate={{ opacity: 1 }} 
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+                            className="absolute inset-0 bg-black/70 backdrop-blur-xs"
                             onClick={() => setMobileActiveMessage(null)}
                         />
                         
                         <div className="absolute inset-0 pointer-events-none p-3 flex flex-col justify-between overflow-hidden">
-                            {/* رسالة المستخدم اللي اتعمل عليها لونج بريس (تظهر في مكانها الطبيعي بالضبط) */}
+                            {/* Message clone in exact position */}
                             <div 
                                 className="absolute left-3 right-3 pointer-events-auto"
+                                onClick={(e) => e.stopPropagation()}
                                 style={{
                                     top: `${Math.max(
                                         12,
@@ -886,12 +915,12 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                 }}
                             >
                                 <div className={`flex w-full flex-col relative ${messagePosition.isMe ? 'items-end' : 'items-start'}`}>
-                                    {/* شريط الإيموجيز السريع فوق الرسالة مباشرة */}
+                                    {/* Quick Emoji Reaction Bar */}
                                     <motion.div 
                                         initial={{ scale: 0.8, opacity: 0, y: 10 }}
                                         animate={{ scale: 1, opacity: 1, y: 0 }}
                                         exit={{ scale: 0.8, opacity: 0, y: 10 }}
-                                        className="mb-2 flex max-w-full gap-2.5 overflow-x-auto rounded-full border border-slate-700 bg-[#1e293b] px-3 py-1.5 shadow-2xl"
+                                        className="mb-2 flex max-w-full gap-2.5 overflow-x-auto rounded-full border border-slate-700/80 bg-[#131b2e] px-3 py-1.5 shadow-2xl"
                                     >
                                         {REACTION_EMOJIS.map((emoji) => (
                                             <button 
@@ -914,8 +943,8 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         ))}
                                     </motion.div>
 
-                                    {/* نسخة طبق الأصل من بوكس الرسالة عشان تفضل واضحة وبارزة */}
-                                    <div className={`max-w-[min(85vw,32rem)] rounded-2xl p-3 shadow-2xl ${messagePosition.isMe ? 'bg-cyan-800 text-cyan-50 rounded-tr-sm' : 'bg-[#1e293b] text-slate-200 rounded-tl-sm border border-slate-700/50'}`}>
+                                    {/* Active Message Preview */}
+                                    <div className={`max-w-[min(85vw,32rem)] rounded-2xl p-3 shadow-2xl ${messagePosition.isMe ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-xs border border-blue-500/30' : 'bg-[#131b2e] text-slate-100 rounded-tl-xs border border-slate-700/60'}`}>
                                         {mobileActiveMessage.type === 'audio' && mobileActiveMessage.mediaUrl ? (
                                             <div className="pointer-events-none"><AudioMessage mediaUrl={mobileActiveMessage.mediaUrl} messageId={mobileActiveMessage._id || mobileActiveMessage.createdAt} /></div>
                                         ) : mobileActiveMessage.type === 'image' && mobileActiveMessage.mediaUrl ? (
@@ -929,25 +958,25 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         )}
                                     </div>
 
-                                    {/* قائمة الخيارات (تظهر تحت الرسالة لو فيه مكان، أو فوقها لو الرسالة تحت خالص) */}
+                                    {/* Action Options Popup */}
                                     <motion.div 
                                         initial={{ scale: 0.8, opacity: 0, y: messagePosition.top > window.innerHeight / 2 ? -10 : 10 }}
                                         animate={{ scale: 1, opacity: 1, y: 0 }}
                                         exit={{ scale: 0.8, opacity: 0 }}
-                                        className="mt-2.5 w-56 max-w-[calc(100vw-24px)] flex max-h-[min(42vh,18rem)] flex-col overflow-y-auto overflow-x-hidden rounded-2xl border border-slate-700 bg-[#1e293b] shadow-2xl pointer-events-auto"
+                                        className="mt-2.5 w-56 max-w-[calc(100vw-24px)] flex max-h-[min(42vh,18rem)] flex-col overflow-y-auto overflow-x-hidden rounded-2xl border border-slate-700/80 bg-[#131b2e] shadow-2xl pointer-events-auto"
                                     >
                                         <button 
                                             onClick={() => { toggleMessageSelection(mobileActiveMessage); setMobileActiveMessage(null); }}
-                                            className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800/80 transition-colors border-b border-slate-700/50 text-cyan-400 font-medium"
+                                            className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800 transition-colors border-b border-slate-800 text-sky-400 font-semibold"
                                         >
                                             <span className="text-[14px]">Select</span>
-                                            <Check size={16} className="text-cyan-400" />
+                                            <Check size={16} className="text-sky-400" />
                                         </button>
 
                                         {String(mobileActiveMessage.senderId) === String(currentUserId) && (
                                             <button
                                                 onClick={() => { setDeliveryInfoMessage(mobileActiveMessage); setMobileActiveMessage(null); }}
-                                                className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800/80 transition-colors border-b border-slate-700/50 text-slate-200"
+                                                className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800 transition-colors border-b border-slate-800 text-slate-200"
                                             >
                                                 <span className="text-[14px]">Info</span>
                                                 <Info size={16} />
@@ -957,7 +986,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         {(!mobileActiveMessage.type || mobileActiveMessage.type === 'text') && (
                                             <button 
                                                 onClick={() => { navigator.clipboard.writeText(mobileActiveMessage.text); setMobileActiveMessage(null); }}
-                                                className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800/80 transition-colors border-b border-slate-700/50 text-slate-200"
+                                                className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800 transition-colors border-b border-slate-800 text-slate-200"
                                             >
                                                 <span className="text-[14px]">Copy</span>
                                                 <Copy size={16} />
@@ -971,7 +1000,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                                     setEditText(mobileActiveMessage.text); 
                                                     setMobileActiveMessage(null); 
                                                 }}
-                                                className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800/80 transition-colors border-b border-slate-700/50 text-sky-400"
+                                                className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800 transition-colors border-b border-slate-800 text-sky-400"
                                             >
                                                 <span className="text-[14px]">Edit</span>
                                                 <Edit2 size={16} />
@@ -985,7 +1014,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                                 setMobileActiveMessage(null); 
                                                 setShowDeleteModal(true); 
                                             }}
-                                            className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800/80 transition-colors text-red-400"
+                                            className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800 transition-colors text-rose-400"
                                         >
                                             <span className="text-[14px]">Delete</span>
                                             <Trash2 size={16} />
@@ -997,6 +1026,12 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                     </div>
                 )}
             </AnimatePresence>
+
+            <HymnsBibleLyricsModal 
+                item={activeLyricsItem}
+                showModal={!!activeLyricsItem}
+                onClose={() => setActiveLyricsItem(null)}
+            />
         </div>
     );
 }
