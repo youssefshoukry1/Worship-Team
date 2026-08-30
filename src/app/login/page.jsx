@@ -25,7 +25,8 @@ export default function Login() {
                 if (response.data.msg === 'Login successful') {
                     localStorage.setItem('user_Taspe7_Token', response?.data?.token);
                     localStorage.setItem('user_Taspe7_ID', response?.data?.user?.id);
-                    localStorage.setItem('user_Taspe7_Role', response?.data?.user?.role);
+                    localStorage.setItem('user_Taspe7_GlobalRole', response?.data?.user?.global_role);
+                    localStorage.setItem('user_Taspe7_SubRole', response?.data?.user?.sub_role);
                     localStorage.setItem('user_Taspe7_ChurchId', response?.data?.user?.churchId);
                     localStorage.setItem('user_Taspe7_Status', response?.data?.user?.status);
                     localStorage.setItem('user_Taspe7_Email', response?.data?.user?.email);

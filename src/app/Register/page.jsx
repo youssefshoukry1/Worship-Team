@@ -105,7 +105,7 @@ export default function Register() {
             .then((response) => {
                 if (response.data.msg === "User created successfully") {
                     localStorage.setItem("user_Taspe7_Token", response?.data?.token);
-                    localStorage.setItem("user_Taspe7_Role", response?.data?.user?.role);
+                    localStorage.setItem("user_Taspe7_GlobalRole", response?.data?.user?.global_role);
                     localStorage.setItem("user_Taspe7_ID", response?.data?.user?._id);
                     setLogin(response.data.token);
                     setLoading(false);

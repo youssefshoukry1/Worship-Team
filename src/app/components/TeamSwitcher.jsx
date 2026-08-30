@@ -89,7 +89,7 @@ export default function TeamSwitcher({ dashboardOnly = false, showDelete = false
       {approvedTeams.map((team) => {
         const isActive = team.churchId?.toString() === churchId?.toString();
         const isLoading = switching === team.churchId;
-        const isTeamManager = team.role === "MANAGER";
+        const isTeamManager = (team.sub_role || team.role) === "MANAGER";
 
         return (
           <div 
@@ -108,7 +108,7 @@ export default function TeamSwitcher({ dashboardOnly = false, showDelete = false
                 ${isActive ? "text-sky-300 cursor-default" : "text-gray-400 hover:text-white cursor-pointer"}
                 ${isLoading ? "opacity-60" : ""}
               `}
-              title={`Role: ${team.role}`}
+              title={`Role: ${team.sub_role || team.role || 'JOINED_USER'}`}
             >
               {isActive && <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />}
               {isLoading && (
@@ -118,8 +118,8 @@ export default function TeamSwitcher({ dashboardOnly = false, showDelete = false
                 </svg>
               )}
               <span>{team.churchName}</span>
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${getRoleColor(team.role)}`}>
-                {team.role}
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${getRoleColor(team.sub_role || team.role)}`}>
+                {team.sub_role || team.role || 'JOINED_USER'}
               </span>
             </button>
 

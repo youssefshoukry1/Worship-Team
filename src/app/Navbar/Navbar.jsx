@@ -71,6 +71,8 @@ export default function Navbar() {
 
     const handleLogout = () => {
         localStorage.removeItem("user_Taspe7_Token");
+        localStorage.removeItem("user_Taspe7_GlobalRole");
+        localStorage.removeItem("user_Taspe7_SubRole");
         localStorage.removeItem("user_Taspe7_Role");
         localStorage.removeItem("user_Taspe7_ID");
         localStorage.removeItem("user_Taspe7_ChurchId");

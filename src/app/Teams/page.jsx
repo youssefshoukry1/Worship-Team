@@ -14,6 +14,7 @@ export default function TeamsPage() {
     const {
         isLogin, setLogin,
         UserRole, setUserRole,
+        subRole, setSubRole,
         UserStatus, setUserStatus,
         churchId, setChurchId,
         teams, setTeams,
@@ -38,24 +39,22 @@ export default function TeamsPage() {
                 const res = await axios.get(`${API}/users/my-profile`, {
                     headers: { Authorization: `Bearer ${isLogin}` }
                 });
-                const data = res.data?.user || res.data;
-                // Only react to approval for the currently selected team.
-                const currentTeam = (data.teams || []).find(t =>
-                    (t.churchId || t.teamId)?.toString() === pendingTeamId?.toString()
-                );
-                if (currentTeam?.status === "approved") {
-                    const newChurchId = currentTeam.churchId || currentTeam.teamId;
-                    const newRole = currentTeam.role || "USER";
-                    localStorage.setItem("user_Taspe7_Teams", JSON.stringify(data.teams));
-                    setTeams(data.teams);
+                const user = res.data;
+                const match = (user.teams || []).find(t => (t.churchId || t.teamId)?.toString() === pendingTeamId);
+                if (match && match.status === "approved") {
                     localStorage.removeItem("user_Taspe7_PendingTeamId");
                     setPendingTeamId(null);
-                    await switchTeam({ churchId: newChurchId, role: newRole });
+                    localStorage.setItem("user_Taspe7_ChurchId", pendingTeamId);
+                    localStorage.setItem("user_Taspe7_SubRole", match.sub_role || match.role || "JOINED_USER");
+                    localStorage.setItem("user_Taspe7_Status", "approved");
+                    setChurchId(pendingTeamId);
+                    setSubRole(match.sub_role || match.role || "JOINED_USER");
+                    setUserStatus("approved");
                     setJustUnlocked(true);
-                    clearInterval(pollRef.current);
                 }
-            } catch { /* silent */ }
+            } catch { /* ignore */ }
         };
+        check();
         pollRef.current = setInterval(check, 8000);
         return () => clearInterval(pollRef.current);
     }, [isLogin, pendingTeamId, switchTeam]);
@@ -106,14 +105,15 @@ export default function TeamsPage() {
                 headers: { Authorization: `Bearer ${isLogin}` }
             });
 
-            const { token, role, churchId: newChurchId, status } = res.data || {};
+            const { token, sub_role, role, churchId: newChurchId, status } = res.data || {};
             if (token) {
                 localStorage.setItem("user_Taspe7_Token", token);
                 setLogin(token);
             }
-            if (role) {
-                localStorage.setItem("user_Taspe7_Role", role);
-                setUserRole(role);
+            const activeSubRole = sub_role || role;
+            if (activeSubRole) {
+                localStorage.setItem("user_Taspe7_SubRole", activeSubRole);
+                setSubRole(activeSubRole);
             }
             if (newChurchId) {
                 localStorage.setItem("user_Taspe7_ChurchId", newChurchId);
