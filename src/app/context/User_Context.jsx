@@ -16,7 +16,12 @@ export default function UserContextProvider({ children }) {
 
   const [UserRole, setUserRole] = useState(() => {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem("user_Taspe7_Role")?.trim() || null;
+    return localStorage.getItem("user_Taspe7_GlobalRole")?.trim() || null;
+  });
+
+  const [subRole, setSubRole] = useState(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("user_Taspe7_SubRole")?.trim() || null;
   });
 
   const [user_id, setUser_id] = useState(() => {
@@ -57,11 +62,13 @@ export default function UserContextProvider({ children }) {
     const { token: newToken, activeTeam } = res.data;
     localStorage.setItem("user_Taspe7_Token", newToken);
     localStorage.setItem("user_Taspe7_ChurchId", activeTeam.churchId);
-    localStorage.setItem("user_Taspe7_Role", activeTeam.role);
+    localStorage.setItem("user_Taspe7_GlobalRole", activeTeam.global_role || UserRole);
+    localStorage.setItem("user_Taspe7_SubRole", activeTeam.sub_role);
     localStorage.setItem("user_Taspe7_Status", activeTeam.status);
     setLogin(newToken);
     setChurchId(activeTeam.churchId);
-    setUserRole(activeTeam.role);
+    if (activeTeam.global_role) setUserRole(activeTeam.global_role);
+    setSubRole(activeTeam.sub_role);
     setUserStatus(activeTeam.status);
   };
 
@@ -72,6 +79,7 @@ export default function UserContextProvider({ children }) {
       <UserContext.Provider value={{
         isLogin, setLogin,
         UserRole, setUserRole,
+        subRole, setSubRole,
         user_id, setUser_id,
         churchId, setChurchId,
         teamId, setTeamId,

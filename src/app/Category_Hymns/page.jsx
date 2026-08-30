@@ -2425,7 +2425,7 @@ export default function Category_Humns() {
   ];
 
   // Helper to check permission
-  const canEdit = UserRole === 'WEBSITE_ADMIN' || UserRole === 'PROGRAMER';
+  const canEdit = UserRole === 'LYRICS_ADMIN' || UserRole === 'PROGRAMER';
 
   // Animation Variants
   const containerVariants = {

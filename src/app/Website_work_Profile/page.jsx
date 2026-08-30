@@ -20,7 +20,7 @@ import { useRef } from 'react';
 
 const API_URL = 'https://worship-team-api.onrender.com/api';
 
-export default function Website_Admin_Profile() {
+export default function Website_work_Profile() {
   const { t, language } = useLanguage();
   const { isLogin, UserRole, churchId } = useContext(UserContext);
   const queryClient = useQueryClient();
@@ -220,7 +220,7 @@ export default function Website_Admin_Profile() {
       });
       return res.data;
     },
-    enabled: !!isLogin && (UserRole === 'WEBSITE_ADMIN' || UserRole === 'PROGRAMER' || UserRole === 'MUSIC_ADMIN'),
+    enabled: !!isLogin && (UserRole === 'LYRICS_ADMIN' || UserRole === 'PROGRAMER' || UserRole === 'MUSIC_ADMIN'),
     keepPreviousData: true,
   });
 
@@ -337,7 +337,7 @@ export default function Website_Admin_Profile() {
   };
 
   if (isLoading) return <Loading />;
-  if (!isLogin || (UserRole !== 'WEBSITE_ADMIN' && UserRole !== 'PROGRAMER' && UserRole !== 'MUSIC_ADMIN')) return null;
+  if (!isLogin || (UserRole !== 'LYRICS_ADMIN' && UserRole !== 'PROGRAMER' && UserRole !== 'MUSIC_ADMIN')) return null;
 
   const roleData = adminTasksData?.role;
   const chunkData = adminTasksData?.data || [];
@@ -507,7 +507,7 @@ export default function Website_Admin_Profile() {
             </div>
           )}
 
-          {(roleData === 'WEBSITE_ADMIN' || roleData === 'MUSIC_ADMIN') && totalPages > 1 && (
+          {(roleData === 'LYRICS_ADMIN' || roleData === 'MUSIC_ADMIN') && totalPages > 1 && (
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-gray-300">
               <span>
                 Showing page {adminPage} of {totalPages}
@@ -663,7 +663,7 @@ export default function Website_Admin_Profile() {
                           </button>
                         </>
                       ) : (
-                        /* ── Default: Full lyrics editor for WEBSITE_ADMIN / PROGRAMER ── */
+                        /* ── Default: Full lyrics editor for LYRICS_ADMIN / PROGRAMER ── */
                         <>
                           <div className="flex flex-col gap-3">
                             <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/10">

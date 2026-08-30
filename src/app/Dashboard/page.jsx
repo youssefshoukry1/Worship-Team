@@ -31,7 +31,7 @@ import TeamSwitcher from '../components/TeamSwitcher';
 const API_URL = "https://worship-team-api.onrender.com/api";
 
 export default function Dashboard() {
-  const { isLogin, UserRole, churchId, teams, switchTeam } = useContext(UserContext);
+  const { isLogin, subRole, churchId, teams, switchTeam } = useContext(UserContext);
   const queryClient = useQueryClient();
   const [switchingToOwnedTeam, setSwitchingToOwnedTeam] = useState(false);
   const [processingId, setProcessingId] = useState(null);
@@ -479,7 +479,7 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <h3 className="text-lg font-bold">{user.Name}</h3>
-                        <p className="text-xs text-sky-400 uppercase tracking-tighter">{user.role}</p>
+                        <p className="text-xs text-sky-400 uppercase tracking-tighter">{user.sub_role}</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -528,13 +528,13 @@ export default function Dashboard() {
                       <div className="flex-1">
                         <h3 className="font-bold text-lg leading-tight">{user.Name}</h3>
                         <select
-                          value={user.role}
+                          value={user.sub_role}
                           onChange={(e) => handleRoleChange(user._id, e.target.value)}
                           className="bg-transparent text-xs text-indigo-400 outline-none cursor-pointer mt-1"
                         >
-                          <option className="bg-slate-900" value="USER">USER</option>
+                          <option className="bg-slate-900" value="JOINED_USER">JOINED_USER</option>
                           <option className="bg-slate-900" value="ADMIN">ADMIN</option>
-                          <option className="bg-slate-900" value="MANEGER">MANAGER</option>
+                          <option className="bg-slate-900" value="MANAGER">MANAGER</option>
                         </select>
                       </div>
                     </div>
@@ -740,7 +740,7 @@ export default function Dashboard() {
                                   </div>
                                   <div className="min-w-0">
                                     <h3 className="font-semibold text-white text-sm truncate">{user.Name}</h3>
-                                    <p className="text-xs text-gray-400">{user.role}</p>
+                                    <p className="text-xs text-gray-400">{user.sub_role}</p>
                                   </div>
                                 </div>
                                 <div className="flex gap-1.5 flex-wrap justify-end">

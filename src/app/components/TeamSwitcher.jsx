@@ -10,10 +10,10 @@ export default function TeamSwitcher({ dashboardOnly = false, showDelete = false
     teams, 
     churchId, 
     switchTeam, 
-    UserRole,
+    subRole,
     setTeams,
     setChurchId,
-    setUserRole,
+    setSubRole,
     setUserStatus,
     isLogin
   } = useContext(UserContext);
@@ -62,10 +62,10 @@ export default function TeamSwitcher({ dashboardOnly = false, showDelete = false
           await switchTeam(newTeams[0]);
         } else {
           localStorage.removeItem("user_Taspe7_ChurchId");
-          localStorage.removeItem("user_Taspe7_Role");
+          localStorage.removeItem("user_Taspe7_SubRole");
           localStorage.removeItem("user_Taspe7_Status");
           setChurchId(null);
-          setUserRole("USER");
+          setSubRole("USER");
           setUserStatus("pending");
         }
       }
@@ -77,7 +77,7 @@ export default function TeamSwitcher({ dashboardOnly = false, showDelete = false
   };
 
   const getRoleColor = (role) => {
-    if (role === "MANEGER") return "text-violet-300 bg-violet-500/10 border-violet-500/30";
+    if (role === "MANAGER") return "text-violet-300 bg-violet-500/10 border-violet-500/30";
     if (role === "ADMIN") return "text-amber-300 bg-amber-500/10 border-amber-500/30";
     if (role === "PROGRAMER") return "text-sky-300 bg-sky-500/10 border-sky-500/30";
     return "text-gray-300 bg-white/5 border-white/10";
@@ -89,7 +89,7 @@ export default function TeamSwitcher({ dashboardOnly = false, showDelete = false
       {approvedTeams.map((team) => {
         const isActive = team.churchId?.toString() === churchId?.toString();
         const isLoading = switching === team.churchId;
-        const isTeamManager = team.role === "MANEGER";
+        const isTeamManager = team.role === "MANAGER";
 
         return (
           <div 

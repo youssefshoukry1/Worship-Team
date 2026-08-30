@@ -92,7 +92,7 @@ function PendingCard({ request, onApprove, onRejectOpen, onViewLyrics, processin
             <span className="text-gray-600 block text-[10px] font-bold uppercase tracking-wider mb-0.5">Requested by</span>
             <span className="text-gray-200 font-medium">{request.requestedByName}</span>
             <span className={`ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/5 ${request.requestedByRole === 'ADMIN' ? 'text-amber-400' :
-              request.requestedByRole === 'MANEGER' ? 'text-violet-400' : 'text-sky-400'
+              request.requestedByRole === 'MANAGER' ? 'text-violet-400' : 'text-sky-400'
               }`}>{request.requestedByRole}</span>
           </div>
           <div className="text-right">
@@ -1083,7 +1083,7 @@ function PendingHymnsPanel({ isLogin }) {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ChurchS_Dashboards() {
   const queryClient = useQueryClient();
-  const { isLogin, UserRole } = useContext(UserContext);
+  const { isLogin, UserRole, subRole } = useContext(UserContext);
 
   // States for Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -1200,7 +1200,7 @@ export default function ChurchS_Dashboards() {
     if (Number.isNaN(startTime.getTime())) return [];
 
     return allUsers
-      .filter((user) => user?.role === 'WEBSITE_ADMIN' || user?.role === 'MUSIC_ADMIN')
+      .filter((user) => user?.role === 'LYRICS_ADMIN' || user?.role === 'MUSIC_ADMIN')
       .map((user) => {
         const approvedCount = Array.isArray(user?.approvedByProgramerHistory)
           ? user.approvedByProgramerHistory.filter((entry) => {
@@ -1220,10 +1220,10 @@ export default function ChurchS_Dashboards() {
   }, [allUsers, reviewWindowActive, reviewWindowStartedAt]);
 
   // Role Check
-  const allowedRoles = ['PROGRAMER', 'MANEGER', 'ADMIN'];
+  const allowedRoles = ['PROGRAMER'];
   if (!isLogin) return <Login />;
 
-  if (UserRole && !allowedRoles.includes(UserRole)) {
+  if (subRole && !allowedRoles.includes(subRole)) {
     return (
       <div className="min-h-screen bg-[#020617] flex items-center justify-center text-white">
         <h1 className="text-2xl font-bold text-red-500 text-center px-4">
@@ -1286,7 +1286,7 @@ export default function ChurchS_Dashboards() {
     }
   }
 
-  const handleUserRoleChange = async (userId, newRole) => {
+  const handleGlobalRoleChange = async (userId, newRole) => {
     if (!userId || !newRole) return;
     try {
       await axios.patch(`${API_URL}/users/system/role/${userId}`, { role: newRole }, {
@@ -1472,18 +1472,18 @@ export default function ChurchS_Dashboards() {
                           <span className="text-gray-200 truncate max-w-[40%]" title={u.Name}>{u.Name}</span>
 
                           <select
-                            value={u.role || 'USER'}
-                            onChange={(e) => handleUserRoleChange(u._id, e.target.value)}
+                            value={u.global_role || 'USER'}
+                            onChange={(e) => handleGlobalRoleChange(u._id, e.target.value)}
                             className={`text-xs px-2 py-0.5 rounded-lg border outline-none cursor-pointer transition-colors max-w-[50%]
-                                                            ${u.role === 'ADMIN' || u.role === 'MANEGER' || u.role === 'PROGRAMER'
+                                                            ${u.global_role === 'ADMIN' || u.global_role === 'MANAGER' || u.global_role === 'PROGRAMER'
                                 ? 'border-amber-500/30 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20'
                                 : 'border-sky-500/20 text-sky-300/70 bg-sky-500/5 hover:bg-sky-500/10'}`}
                           >
                             <option value="USER" className="bg-[#0f172a] text-gray-300">USER</option>
                             <option value="ADMIN" className="bg-[#0f172a] text-amber-300">ADMIN</option>
-                            <option value="MANEGER" className="bg-[#0f172a] text-emerald-300">MANEGER</option>
+                            <option value="MANAGER" className="bg-[#0f172a] text-emerald-300">MANAGER</option>
                             <option value="PROGRAMER" className="bg-[#0f172a] text-sky-300">PROGRAMER</option>
-                            <option value="WEBSITE_ADMIN" className="bg-[#0f172a] text-rose-300">WEBSITE_ADMIN</option>
+                            <option value="LYRICS_ADMIN" className="bg-[#0f172a] text-rose-300">LYRICS_ADMIN</option>
                             <option value="MUSIC_ADMIN" className="bg-[#0f172a] text-indigo-300">MUSIC_ADMIN</option>
                           </select>
                         </div>
