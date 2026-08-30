@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
-import { Search, Loader2, Folder, BookOpen, Music, ChevronLeft } from 'lucide-react';
+import { Search, Loader2, Folder, BookOpen, Music, ChevronLeft, CheckCircle2 } from 'lucide-react';
 import axios from 'axios';
 import { getApiBaseUrl } from '../../utils/apiBase';
 import { HymnsContext } from '../../context/Hymns_Context';
@@ -17,6 +17,47 @@ function normalizeText(text) {
     .replace(/[^\w\s\u0600-\u06FF]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function LongPressButton({ onShortPress, onLongPress, className, children, ...props }) {
+    const timerRef = useRef(null);
+    const isLongPress = useRef(false);
+
+    const start = (e) => {
+        isLongPress.current = false;
+        timerRef.current = setTimeout(() => {
+            isLongPress.current = true;
+            if (navigator.vibrate) navigator.vibrate(50);
+            if (onLongPress) onLongPress(e);
+        }, 500);
+    };
+
+    const stop = () => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+    };
+
+    const handleClick = (e) => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        if (!isLongPress.current) {
+            if (onShortPress) onShortPress(e);
+        }
+    };
+
+    return (
+        <button
+            onMouseDown={start}
+            onTouchStart={start}
+            onMouseUp={stop}
+            onTouchEnd={stop}
+            onMouseLeave={stop}
+            onTouchCancel={stop}
+            onClick={handleClick}
+            className={className}
+            {...props}
+        >
+            {children}
+        </button>
+    );
 }
 
 export default function HymnsBiblePicker({ type, onSelect, onClose }) {
@@ -90,6 +131,47 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
         }
     };
 
+    const [localSelection, setLocalSelection] = useState([]);
+    const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+
+    const getItemKey = (item) => {
+        if (!item) return '';
+        if (item.type === 'bible') {
+            if (item.verses && item.verses.length === 1) {
+                return `bible_${item.bookName}_${item.chapter}_${item.verses[0].verseNumber}`;
+            }
+            return `bible_${item.bookName}_${item.chapter}`;
+        }
+        return `hymn_${item._id}`;
+    };
+
+    const isSelected = (item) => {
+        const key = getItemKey(item);
+        return localSelection.some(i => getItemKey(i) === key);
+    };
+
+    const handleItemInteraction = (item, isLongPress) => {
+        if (isMultiSelectMode) {
+            const key = getItemKey(item);
+            const exists = localSelection.some(i => getItemKey(i) === key);
+            if (exists) {
+                const next = localSelection.filter(i => getItemKey(i) !== key);
+                setLocalSelection(next);
+                if (next.length === 0) setIsMultiSelectMode(false);
+            } else {
+                setLocalSelection(prev => [...prev, item]);
+            }
+        } else {
+            if (isLongPress) {
+                setIsMultiSelectMode(true);
+                setLocalSelection([item]);
+            } else {
+                onSelect(item);
+                onClose();
+            }
+        }
+    };
+
     const handleHymnsSearch = (query) => {
         setSearchQuery(query);
         if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
@@ -157,8 +239,7 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
         }, 500);
     };
 
-    const handleSelectBibleHit = async (hit) => {
-        // Find full chapter from a search hit
+    const handleSelectBibleHit = async (hit, isLongPress) => {
         try {
             setIsSearching(true);
             const { data } = await axios.get(`${BIBLE_API}/verses/${encodeURIComponent(hit.bookName)}/${hit.chapter}?lang=arabic`);
@@ -169,7 +250,7 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                 verses: data,
                 title: `${hit.bookName} ${hit.chapter}`
             };
-            onSelect(item);
+            handleItemInteraction(item, isLongPress);
         } catch (err) {
             console.error(err);
         } finally {
@@ -224,18 +305,22 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                             <div className="text-center text-slate-500 text-xs mt-10">No items in workspace.</div>
                         ) : (
                             workspaceItems.map((item, idx) => (
-                                <button 
+                                <LongPressButton 
                                     key={idx}
-                                    onClick={() => onSelect(item)}
-                                    className="w-full text-right p-3 rounded-xl bg-slate-800/40 hover:bg-slate-700/60 border border-slate-700/40 transition-colors flex items-center justify-between"
+                                    onShortPress={() => handleItemInteraction(item, false)}
+                                    onLongPress={() => handleItemInteraction(item, true)}
+                                    className={`w-full text-right p-3 rounded-xl transition-colors flex items-center justify-between border ${isSelected(item) ? 'bg-sky-500/20 border-sky-500/50' : 'bg-slate-800/40 hover:bg-slate-700/60 border-slate-700/40'}`}
                                 >
-                                    <div className="text-sky-400">
-                                        {type === 'bible' ? <BookOpen size={16} /> : <Music size={16} />}
+                                    <div className="flex items-center gap-3">
+                                        {isSelected(item) && <CheckCircle2 className="text-sky-400 shrink-0" size={16} />}
+                                        <div className="text-sky-400">
+                                            {type === 'bible' ? <BookOpen size={16} /> : <Music size={16} />}
+                                        </div>
                                     </div>
                                     <div className="font-semibold text-sm text-slate-200">
                                         {item.title || item.bookName} {type === 'bible' && item.chapter ? item.chapter : ''}
                                     </div>
-                                </button>
+                                </LongPressButton>
                             ))
                         )}
                     </div>
@@ -256,21 +341,25 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                         </div>
                         <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1.5 pr-1">
                             {searchResults.map((hymn) => (
-                                <button 
+                                <LongPressButton 
                                     key={hymn._id}
-                                    onClick={() => onSelect(hymn)}
-                                    className="w-full text-right p-2.5 rounded-xl bg-slate-800/40 hover:bg-slate-700/60 border border-slate-700/40 transition-colors"
+                                    onShortPress={() => handleItemInteraction(hymn, false)}
+                                    onLongPress={() => handleItemInteraction(hymn, true)}
+                                    className={`w-full text-right p-2.5 rounded-xl transition-colors border flex items-center justify-between gap-2 ${isSelected(hymn) ? 'bg-sky-500/20 border-sky-500/50' : 'bg-slate-800/40 hover:bg-slate-700/60 border-slate-700/40'}`}
                                 >
-                                    <div className="font-semibold text-sm text-slate-200">{hymn.title}</div>
-                                    {hymn.verses && <div className="text-xs text-slate-500 truncate" dir="rtl">{hymn.verses.replace(/\n/g, ' ')}</div>}
-                                </button>
+                                    {isSelected(hymn) && <CheckCircle2 className="text-sky-400 shrink-0" size={16} />}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-semibold text-sm text-slate-200 truncate">{hymn.title}</div>
+                                        {hymn.verses && <div className="text-xs text-slate-500 truncate" dir="rtl">{hymn.verses.replace(/\n/g, ' ')}</div>}
+                                    </div>
+                                </LongPressButton>
                             ))}
                         </div>
                     </div>
                 )}
 
                 {tab === 'search' && type === 'bible' && (
-                    <div className="flex-1 flex flex-col p-2 gap-2">
+                    <div className="flex-1 flex flex-col p-2 gap-2 min-h-0">
                         {bibleStep === 'books' && (
                             <>
                                 <div className="relative shrink-0 mb-2">
@@ -287,16 +376,24 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                                 
                                 {bibleSearchQuery ? (
                                     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1.5 pr-1">
-                                        {searchResults.map((hit, idx) => (
-                                            <button 
+                                        {searchResults.map((hit, idx) => {
+                                            const hitKey = `bible_${hit.bookName}_${hit.chapter}`;
+                                            const selected = localSelection.some(i => getItemKey(i) === hitKey);
+                                            return (
+                                            <LongPressButton 
                                                 key={idx}
-                                                onClick={() => handleSelectBibleHit(hit)}
-                                                className="w-full text-right p-2.5 rounded-xl bg-slate-800/40 hover:bg-slate-700/60 border border-slate-700/40 transition-colors"
+                                                onShortPress={() => handleSelectBibleHit(hit, false)}
+                                                onLongPress={() => handleSelectBibleHit(hit, true)}
+                                                className={`w-full text-right p-2.5 rounded-xl transition-colors border flex items-center gap-2 justify-between ${selected ? 'bg-sky-500/20 border-sky-500/50' : 'bg-slate-800/40 hover:bg-slate-700/60 border-slate-700/40'}`}
                                             >
-                                                <div className="text-sky-400 font-bold text-[10px]">{hit.bookName} {hit.chapter}:{hit.verseNumber}</div>
-                                                <div className="truncate text-slate-300 font-medium text-xs text-right mt-1" dangerouslySetInnerHTML={{ __html: hit.text.replace(/<b[^>]*>(.*?)<\/b>/g, '$1') }} />
-                                            </button>
-                                        ))}
+                                                {selected && <CheckCircle2 className="text-sky-400 shrink-0" size={16} />}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-sky-400 font-bold text-[10px]">{hit.bookName} {hit.chapter}:{hit.verseNumber}</div>
+                                                    <div className="truncate text-slate-300 font-medium text-xs text-right mt-1" dangerouslySetInnerHTML={{ __html: hit.text.replace(/<b[^>]*>(.*?)<\/b>/g, '$1') }} />
+                                                </div>
+                                            </LongPressButton>
+                                            );
+                                        })}
                                     </div>
                                 ) : (
                                     <div className="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-2 gap-1.5 pr-1">
@@ -315,12 +412,12 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                         )}
                         
                         {bibleStep === 'chapters' && (
-                            <div className="flex-1 flex flex-col">
-                                <button onClick={() => setBibleStep('books')} className="mb-2 flex items-center gap-1 text-sky-400 text-xs font-bold p-1">
+                            <div className="flex-1 flex flex-col min-h-0">
+                                <button onClick={() => setBibleStep('books')} className="mb-2 shrink-0 flex items-center gap-1 text-sky-400 text-xs font-bold p-1">
                                     <ChevronLeft size={14} /> Back to Books
                                 </button>
-                                <div className="text-center font-bold text-white mb-2">{selectedBook?.bookName}</div>
-                                <div className="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-4 gap-1.5 pr-1">
+                                <div className="text-center font-bold text-white mb-2 shrink-0">{selectedBook?.bookName}</div>
+                                <div className="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-4 gap-1.5 pr-1 min-h-0">
                                     {bibleChapters.map((ch) => (
                                         <button
                                             key={ch}
@@ -335,32 +432,74 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                         )}
                         
                         {bibleStep === 'verses' && (
-                            <div className="flex-1 flex flex-col">
-                                <button onClick={() => setBibleStep('chapters')} className="mb-2 flex items-center gap-1 text-sky-400 text-xs font-bold p-1">
+                            <div className="flex-1 flex flex-col min-h-0">
+                                <button onClick={() => setBibleStep('chapters')} className="mb-2 shrink-0 flex items-center gap-1 text-sky-400 text-xs font-bold p-1">
                                     <ChevronLeft size={14} /> Back to Chapters
                                 </button>
-                                <div className="flex justify-between items-center mb-2 px-2">
+                                <div className="flex justify-between items-center mb-2 px-2 shrink-0">
                                     <div className="font-bold text-white">{selectedBook?.bookName} {selectedChapter}</div>
                                     <button 
-                                        onClick={handleSelectVerse} 
+                                        onClick={() => { handleSelectVerse(); onClose(); }} 
                                         className="bg-sky-500 text-white text-xs px-3 py-1 rounded-full font-bold hover:bg-sky-400"
                                     >
                                         Select All
                                     </button>
                                 </div>
-                                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1" dir="rtl">
-                                    {bibleVerses.map((verse, idx) => (
-                                        <div key={idx} className="p-2 rounded-xl bg-slate-800/20 border border-slate-700/30">
-                                            <span className="text-sky-400 text-[10px] font-bold ml-1">{verse.verseNumber}</span>
-                                            <span className="text-slate-200 text-xs">{verse.text}</span>
-                                        </div>
-                                    ))}
+                                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1 min-h-0" dir="rtl">
+                                    {bibleVerses.map((verse, idx) => {
+                                        const item = {
+                                            type: 'bible',
+                                            bookName: selectedBook?.bookName,
+                                            chapter: selectedChapter,
+                                            verses: [verse],
+                                            title: `${selectedBook?.bookName} ${selectedChapter}:${verse.verseNumber}`
+                                        };
+                                        const selected = isSelected(item);
+                                        return (
+                                            <LongPressButton 
+                                                key={idx} 
+                                                onShortPress={() => handleItemInteraction(item, false)}
+                                                onLongPress={() => handleItemInteraction(item, true)}
+                                                className={`w-full text-right p-2 rounded-xl transition-colors border flex items-center justify-between gap-2 block ${selected ? 'bg-sky-500/20 border-sky-500/50' : 'bg-slate-800/20 hover:bg-slate-800/60 border-slate-700/30'}`}
+                                            >
+                                                {selected && <CheckCircle2 className="text-sky-400 shrink-0" size={14} />}
+                                                <div className="flex-1 text-right min-w-0">
+                                                    <span className="text-sky-400 text-[10px] font-bold ml-1">{verse.verseNumber}</span>
+                                                    <span className="text-slate-200 text-xs">{verse.text}</span>
+                                                </div>
+                                            </LongPressButton>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
                     </div>
                 )}
             </div>
+
+            {/* Multi-Select Action Bar */}
+            {isMultiSelectMode && localSelection.length > 0 && (
+                <div className="absolute bottom-4 left-4 right-4 bg-[#0a0f18]/95 backdrop-blur border border-sky-500/30 shadow-xl shadow-sky-900/20 rounded-xl p-3 flex justify-between items-center z-[100] animate-in slide-in-from-bottom-4">
+                    <span className="text-slate-200 font-bold text-sm">Selected: <span className="text-sky-400">{localSelection.length}</span></span>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => { setIsMultiSelectMode(false); setLocalSelection([]); }}
+                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={() => {
+                                localSelection.forEach(i => onSelect(i));
+                                onClose();
+                            }}
+                            className="px-3 py-1.5 bg-sky-500 text-white rounded-lg text-xs font-bold hover:bg-sky-400 transition-colors"
+                        >
+                            Add ({localSelection.length})
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
