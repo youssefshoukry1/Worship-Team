@@ -59,8 +59,8 @@ export default function TeamsPage() {
         return () => clearInterval(pollRef.current);
     }, [isLogin, pendingTeamId, switchTeam]);
 
-    const hasTeam = UserStatus === "approved";
-    const isManager = UserRole && ["ADMIN", "MANEGER", "PROGRAMER"].includes(UserRole);
+    const hasTeam = UserStatus === "approved" || (teams || []).some(t => t.status === "approved");
+    const isManager = UserRole === "PROGRAMER" || ["ADMIN", "MANAGER"].includes(subRole);
     const hasChurch = churchId && churchId !== "undefined" && churchId !== "null";
 
     const handleJoinTeam = async () => {
