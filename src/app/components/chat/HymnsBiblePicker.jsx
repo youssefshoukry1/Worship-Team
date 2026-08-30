@@ -490,7 +490,48 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                         </button>
                         <button 
                             onClick={() => {
-                                localSelection.forEach(i => onSelect(i));
+                                const finalItems = [];
+                                const bibleGroups = {};
+
+                                localSelection.forEach(item => {
+                                    if (item.type === 'bible') {
+                                        const key = `${item.bookName}_${item.chapter}`;
+                                        if (!bibleGroups[key]) {
+                                            bibleGroups[key] = {
+                                                type: 'bible',
+                                                bookName: item.bookName,
+                                                chapter: item.chapter,
+                                                verses: [],
+                                            };
+                                        }
+                                        bibleGroups[key].verses.push(...item.verses);
+                                    } else {
+                                        finalItems.push(item);
+                                    }
+                                });
+
+                                Object.values(bibleGroups).forEach(group => {
+                                    group.verses.sort((a, b) => {
+                                        const numA = parseInt(a.verseNumber, 10);
+                                        const numB = parseInt(b.verseNumber, 10);
+                                        return (numA || 0) - (numB || 0);
+                                    });
+                                    
+                                    if (group.verses.length === 1) {
+                                        group.title = `${group.bookName} ${group.chapter}:${group.verses[0].verseNumber}`;
+                                    } else {
+                                        const verseNums = group.verses.map(v => v.verseNumber);
+                                        const isConsecutive = verseNums.length > 1 && verseNums.every((v, i) => i === 0 || parseInt(v, 10) === parseInt(verseNums[i - 1], 10) + 1);
+                                        if (isConsecutive) {
+                                            group.title = `${group.bookName} ${group.chapter}:${verseNums[0]}-${verseNums[verseNums.length - 1]}`;
+                                        } else {
+                                            group.title = `${group.bookName} ${group.chapter}:${verseNums.join(',')}`;
+                                        }
+                                    }
+                                    finalItems.push(group);
+                                });
+
+                                finalItems.forEach(i => onSelect(i));
                                 onClose();
                             }}
                             className="px-3 py-1.5 bg-sky-500 text-white rounded-lg text-xs font-bold hover:bg-sky-400 transition-colors"
