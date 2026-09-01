@@ -131,16 +131,10 @@ export default function ChatTeamPage() {
                         </div>
 
                         <div className="flex items-center gap-1 sm:gap-2 text-slate-400 relative">
-                            <button 
-                                onClick={() => setShowDropdown(!showDropdown)}
-                                className="p-2 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors"
-                            >
-                                <MoreVertical size={19} />
-                            </button>
-                            
+                        
                             {showDropdown && (
                                 <div className="absolute right-0 top-full mt-2 w-48 bg-[#131b2e] border border-slate-700/70 rounded-xl shadow-2xl overflow-hidden z-50">
-                                    <button 
+                                    <button
                                         onClick={() => {
                                             setShowBackupModal(true);
                                             setShowDropdown(false);
@@ -196,16 +190,17 @@ export default function ChatTeamPage() {
                         </div>
                     </div>
                 )}
-                
-                <BackupModal 
-                    isOpen={showBackupModal} 
-                    onClose={() => setShowBackupModal(false)} 
-                    token={isLogin} 
-                    userId={user_id} 
-                    activeTeamId={activeTeamId} 
-                    socket={socket?.current} 
-                />
+
             </div>
+
+            <BackupModal
+                isOpen={showBackupModal}
+                onClose={() => setShowBackupModal(false)}
+                token={isLogin}
+                userId={user_id}
+                activeTeamId={activeTeamId}
+                socket={socket?.current}
+            />
 
             <style jsx global>{`
                 .bg-chat-pattern {

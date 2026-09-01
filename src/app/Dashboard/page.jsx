@@ -6,6 +6,7 @@ import axios from 'axios';
 import { UserContext } from '../context/User_Context';
 import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../loading';
+import { useRouter } from 'next/navigation';
 import {
   Check,
   X,
@@ -23,7 +24,8 @@ import {
   ChevronDown,
   ChevronUp,
   ClipboardList,
-  Filter
+  Filter,
+  ArrowLeft
 } from 'lucide-react';
 import Portal from '../Portal/Portal';
 import TeamSwitcher from '../components/TeamSwitcher';
@@ -31,6 +33,7 @@ import TeamSwitcher from '../components/TeamSwitcher';
 const API_URL = "https://worship-team-api.onrender.com/api";
 
 export default function Dashboard() {
+  const router = useRouter();
   const { isLogin, UserRole, subRole, churchId, teams, switchTeam } = useContext(UserContext);
   const queryClient = useQueryClient();
   const [processingId, setProcessingId] = useState(null);
@@ -420,7 +423,17 @@ export default function Dashboard() {
   }
 
   return (
-    <section className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
+    <div className="min-h-screen bg-[#020617] flex flex-col">
+      <div className="flex items-center gap-2 px-3 py-3 bg-[#0d1322] border-b border-slate-800/80 shrink-0 sticky top-0 z-50">
+        <button
+          onClick={() => router.push('/Teams')}
+          className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-full transition-colors"
+        >
+          <ArrowLeft size={19} />
+        </button>
+        <span className="text-sm font-bold tracking-wide text-slate-200">Dashboard</span>
+      </div>
+      <section className="flex-1 bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-10 relative overflow-hidden">
       <div className="max-w-7xl mx-auto relative z-10">
 
 
@@ -977,5 +990,6 @@ export default function Dashboard() {
         </Portal>
       </div>
     </section>
+    </div>
   );
 }

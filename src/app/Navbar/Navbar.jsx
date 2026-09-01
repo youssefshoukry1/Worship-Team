@@ -118,7 +118,7 @@ export default function Navbar() {
         },
     };
 
-    if (pathname?.startsWith('/presentation') || pathname?.startsWith('/chat_team')  )  {
+    if (pathname?.startsWith('/presentation') || pathname?.startsWith('/chat_team') || pathname?.startsWith('/Trainings') )  {
         return null;
     }
 

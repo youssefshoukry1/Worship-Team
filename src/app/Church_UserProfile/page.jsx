@@ -3,6 +3,7 @@
 import { useContext, useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Portal from '../Portal/Portal';
+import { useRouter } from 'next/navigation';
 import {
     Activity,
     BarChart3,
@@ -25,6 +26,7 @@ import {
     User,
     Users,
     X,
+    ArrowLeft
 } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
 import { getApiBaseUrl } from '../utils/apiBase';
@@ -543,6 +545,7 @@ function PeerComparisonCard({ member, isCurrentUser }) {
 /* --- MAIN PAGE COMPONENT --- */
 
 export default function Church_UserProfile() {
+    const router = useRouter();
     const { user_id, churchId, isLogin } = useContext(UserContext);
     const [profile, setProfile] = useState(null);
     const [userEmail, setUserEmail] = useState('');
@@ -823,9 +826,10 @@ export default function Church_UserProfile() {
     }
 
     return (
+
         <main className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] text-white pb-24">
             <div className="max-w-5xl mx-auto px-3 sm:px-6 pt-8 sm:pt-12">
-
+                
                 {/* --- HEADER PROFILE CARD --- */}
                 <div className="rounded-[2rem] border border-white/5 bg-white/[0.02] p-5 sm:p-8 backdrop-blur-2xl mb-6 sm:mb-8 relative overflow-hidden shadow-2xl shadow-black/50">
                     <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-[0.03] pointer-events-none">
@@ -834,9 +838,7 @@ export default function Church_UserProfile() {
                     <div className="absolute top-1/2 left-0 w-32 h-32 bg-sky-500/10 blur-[100px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2"></div>
 
                     <div className="relative z-10">
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-500/10 border border-sky-400/20 text-sky-300 text-[9px] sm:text-[10px] font-black uppercase tracking-widest mb-4">
-                            User Dashboard
-                        </div>
+
                         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-slate-400 mb-2 leading-tight tracking-tight">
                             {profile?.user?.Name || 'N/A'}
                         </h1>

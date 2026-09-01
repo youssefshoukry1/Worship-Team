@@ -26,6 +26,8 @@ import { useLanguage } from "../context/LanguageContext";
 import { buildHymnPresentationSlides } from '../utils/hymnSlides';
 import { transposeChords } from '../utils/musicUtils';
 import TeamSwitcher from '../components/TeamSwitcher';
+import MainSidebar from '../components/chat/MainSidebar';
+import BottomNav from '../components/chat/BottomNav';
 
 export default function Trainings() {
   const queryClient = useQueryClient();
@@ -547,7 +549,11 @@ export default function Trainings() {
   }
 
   return (
-    <section className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
+    <div className="h-[100dvh] w-full flex overflow-hidden">
+      <div className="hidden md:block">
+        <MainSidebar />
+      </div>
+      <section className="flex-1 min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden overflow-y-auto">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_70%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.15),transparent_70%)]" />
 
@@ -1114,6 +1120,10 @@ export default function Trainings() {
         )}
       </AnimatePresence>
     </section>
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50">
+      <BottomNav />
+    </div>
+    </div>
   );
 }
 

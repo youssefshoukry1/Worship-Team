@@ -25,7 +25,7 @@ const getSenderColor = (userId) => {
 };
 
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
-const EXTENDED_EMOJIS = ['😀','😂','🤣','❤️','😍','🙏','😮','😢','😭','😡','👍','👎','🔥','🎉','💯','👀','🤔','🙌'];
+const EXTENDED_EMOJIS = ['😀', '😂', '🤣', '❤️', '😍', '🙏', '😮', '😢', '😭', '😡', '👍', '👎', '🔥', '🎉', '💯', '👀', '🤔', '🙌'];
 
 function StickerMessage({ msg }) {
     const { localUrl, loading } = useLocalMedia(msg.mediaUrl, msg._id || msg.createdAt);
@@ -46,8 +46,8 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
 
     const [unreadCount, setUnreadCount] = useState(0);
     const [showScrollBtn, setShowScrollBtn] = useState(false);
-    
-    const [selectedMessages, setSelectedMessages] = useState([]); 
+
+    const [selectedMessages, setSelectedMessages] = useState([]);
     const isSelectionMode = selectedMessages.length > 0;
 
     const [viewingMedia, setViewingMedia] = useState(null);
@@ -59,7 +59,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [votingPoll, setVotingPoll] = useState(null);
     const [deliveryInfoMessage, setDeliveryInfoMessage] = useState(null);
-    
+
     const [isTouchDevice, setIsTouchDevice] = useState(false);
     const [mobileActiveMessage, setMobileActiveMessage] = useState(null);
     const [messagePosition, setMessagePosition] = useState(null);
@@ -159,7 +159,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
 
     const getReactionUserId = (reaction) => reaction.userId?._id || reaction.userId;
     const getReactionUserName = (reaction) => reaction.userId?.Name || reaction.userName || 'Member';
-    
+
     const getReactionGroups = (msg) => Object.entries((msg.reactions || []).reduce((groups, reaction) => {
         const key = reaction.emoji;
         if (!groups[key]) groups[key] = [];
@@ -275,7 +275,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
         const targetElement = event.currentTarget;
         swipeStartRef.current = { x: event.touches[0].clientX, y: event.touches[0].clientY, msg };
         suppressClickRef.current = false;
-        
+
         longPressTimerRef.current = window.setTimeout(() => {
             if (isTouchDevice) {
                 if (navigator.vibrate) navigator.vibrate(50);
@@ -377,7 +377,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
 
     return (
         <div className="flex-1 relative min-h-0 flex flex-col">
-            
+
             {isSelectionMode && (
                 <div className="absolute top-0 left-0 right-0 z-[60] bg-[#1e293b] border-b border-slate-700 shadow-lg px-4 py-2 flex items-center justify-between animate-in slide-in-from-top-2">
                     <div className="flex items-center gap-4">
@@ -386,7 +386,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                         </button>
                         <span className="text-white font-medium">{selectedMessages.length} Selected</span>
                     </div>
-                    
+
                     <div className="flex items-center gap-1 sm:gap-2">
                         <div className="hidden sm:flex items-center gap-1 bg-slate-800 rounded-full px-2 py-1 mr-2 border border-slate-700">
                             {REACTION_EMOJIS.slice(0, 5).map(emoji => (
@@ -404,7 +404,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                 <Edit2 size={18} />
                             </button>
                         )}
-                        
+
                         <button onClick={() => setShowDeleteModal(true)} className="p-2 hover:bg-slate-700 rounded-full text-slate-300 transition-colors" title="Delete">
                             <Trash2 size={18} />
                         </button>
@@ -441,12 +441,12 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                     const isSelected = selectedMessages.some(m => m._id === msg._id);
                     const isSticker = msg.type === 'sticker';
                     const hasReactions = msg.reactions?.length > 0;
-                    
+
                     const displayName = msg.senderName || 'Member';
                     const nameColorClass = getSenderColor(msg.senderId);
 
                     return (
-                        <div 
+                        <div
                             key={msg._id || idx}
                             className={`flex w-full px-2 sm:px-4 py-1 transition-colors duration-150 ${isSelected ? 'bg-sky-500/10' : 'hover:bg-white/[0.01]'}`}
                         >
@@ -480,13 +480,12 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         touchAction: 'pan-y',
                                         transform: swipeReply.id === msg._id ? `translateX(${swipeReply.offset}px)` : undefined
                                     }}
-                                    className={`group relative select-none rounded-2xl transition-[transform,box-shadow] duration-150 ${isSelectionMode ? 'cursor-pointer' : ''} ${
-                                        isSticker
+                                    className={`group relative select-none rounded-2xl transition-[transform,box-shadow] duration-150 ${isSelectionMode ? 'cursor-pointer' : ''} ${isSticker
                                             ? 'bg-transparent text-slate-100'
                                             : isMe
                                                 ? 'px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm rounded-2xl rounded-tr-xs border border-blue-500/30'
                                                 : 'px-3.5 py-2 bg-[#131b2e] text-slate-100 shadow-sm rounded-2xl rounded-tl-xs border border-slate-700/60'
-                                    } ${msg.status === 'pending' ? 'opacity-80' : ''}`}
+                                        } ${msg.status === 'pending' ? 'opacity-80' : ''}`}
                                 >
                                     {!isMe && !isSticker && (
                                         <div className="flex items-center gap-1.5 mb-1 select-none">
@@ -496,17 +495,16 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         </div>
                                     )}
 
-                                     {msg.replyTo && !isMessageDeleted(msg) && !isSticker && (
+                                    {msg.replyTo && !isMessageDeleted(msg) && !isSticker && (
                                         <div
                                             onClick={(event) => {
                                                 event.stopPropagation();
                                                 scrollToReply(msg.replyTo);
                                             }}
-                                            className={`mb-2 rounded-lg px-2.5 py-1.5 border-l-[3px] cursor-pointer select-none transition-colors hover:bg-white/10 ${
-                                                isMe
+                                            className={`mb-2 rounded-lg px-2.5 py-1.5 border-l-[3px] cursor-pointer select-none transition-colors hover:bg-white/10 ${isMe
                                                     ? 'bg-black/20 border-l-sky-300'
                                                     : 'bg-slate-800/80 border-l-sky-500'
-                                            }`}
+                                                }`}
                                         >
                                             <p className={`text-[11px] font-bold mb-0.5 truncate ${isMe ? 'text-sky-200' : 'text-sky-400'}`}>
                                                 {msg.replyTo.senderName || 'Member'}
@@ -519,14 +517,14 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
 
                                     {!isSelectionMode && (
                                         <div className="absolute right-1 top-1 z-20 hidden md:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-md rounded-lg p-0.5">
-                                            <button 
+                                            <button
                                                 onClick={(e) => { e.stopPropagation(); toggleMessageSelection(msg); setShowEmojiPicker(true); }}
                                                 className="p-1 text-slate-200 hover:text-white hover:bg-white/20 rounded-md transition-colors"
                                                 title="React"
                                             >
                                                 <Smile size={14} />
                                             </button>
-                                            <button 
+                                            <button
                                                 onClick={(e) => { e.stopPropagation(); toggleMessageSelection(msg); }}
                                                 className="p-1 text-slate-200 hover:text-white hover:bg-white/20 rounded-md transition-colors"
                                                 title="Options"
@@ -575,15 +573,14 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                                         </p>
                                                     </div>
                                                     {totalVotes > 0 && topVoteCount > 0 && (
-                                                        <div className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] ${
-                                                            isMe
+                                                        <div className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] ${isMe
                                                                 ? 'border-white/20 bg-black/20 text-white'
                                                                 : 'border-slate-700/80 bg-slate-800/80 text-slate-200'
-                                                        }`}>
+                                                            }`}>
                                                             <span className="flex min-w-0 items-center gap-1.5">
                                                                 <BarChart2 size={13} className="shrink-0 text-amber-400" />
                                                                 <span className="truncate">
-                                                                    Top voted: 
+                                                                    Top voted:
                                                                     {topOptions.map(option => option.text).join(' · ')}
                                                                 </span>
                                                             </span>
@@ -604,11 +601,10 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                                                         event.stopPropagation();
                                                                         handlePollVote(msg, option.id);
                                                                     }}
-                                                                    className={`relative w-full overflow-hidden rounded-xl border px-3 py-2 text-left text-[13px] transition-colors disabled:cursor-wait disabled:opacity-70 ${
-                                                                        selected
+                                                                    className={`relative w-full overflow-hidden rounded-xl border px-3 py-2 text-left text-[13px] transition-colors disabled:cursor-wait disabled:opacity-70 ${selected
                                                                             ? (isMe ? 'border-white/40 bg-black/40 text-white font-semibold' : 'border-sky-500/70 bg-sky-600/30 text-sky-200 font-semibold')
                                                                             : (isMe ? 'border-white/10 bg-black/20 text-slate-100 hover:bg-black/30' : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-800')
-                                                                    }`}
+                                                                        }`}
                                                                 >
                                                                     <span className="absolute inset-y-0 left-0 bg-white/15 transition-all" style={{ width: `${percentage}%` }} />
                                                                     <span className="relative flex items-center justify-between gap-3">
@@ -666,9 +662,9 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         {isMe && getMessageReceipt(msg) === 'delivered' && <CheckCheck size={14} className="text-white/80" />}
                                         {isMe && getMessageReceipt(msg) === 'seen' && <CheckCheck size={14} className="text-sky-300" />}
                                     </div>
-                                    
+
                                     {hasReactions && (
-                                        <div 
+                                        <div
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setReactionDetails({ msg, allReactions: msg.reactions });
@@ -816,9 +812,9 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                         <h3 className="text-slate-300 text-sm mb-4 font-medium px-1">Choose Reaction</h3>
                         <div className="grid grid-cols-6 gap-3">
                             {EXTENDED_EMOJIS.map(emoji => (
-                                <button 
-                                    key={emoji} 
-                                    onClick={() => handleBulkReaction(emoji)} 
+                                <button
+                                    key={emoji}
+                                    onClick={() => handleBulkReaction(emoji)}
                                     className="text-2xl hover:scale-125 transition-transform p-2 flex items-center justify-center hover:bg-slate-700 rounded-lg"
                                 >
                                     {emoji}
@@ -889,17 +885,17 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
             <AnimatePresence>
                 {mobileActiveMessage && isTouchDevice && messagePosition && (
                     <div className="fixed inset-0 z-[120] flex flex-col sm:hidden" onClick={() => setMobileActiveMessage(null)}>
-                        <motion.div 
-                            initial={{ opacity: 0 }} 
-                            animate={{ opacity: 1 }} 
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             className="absolute inset-0 bg-black/70 backdrop-blur-xs"
                             onClick={() => setMobileActiveMessage(null)}
                         />
-                        
+
                         <div className="absolute inset-0 pointer-events-none p-3 flex flex-col justify-between overflow-hidden">
                             {/* Message clone in exact position */}
-                            <div 
+                            <div
                                 className="absolute left-3 right-3 pointer-events-auto"
                                 onClick={(e) => e.stopPropagation()}
                                 style={{
@@ -916,16 +912,16 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                             >
                                 <div className={`flex w-full flex-col relative ${messagePosition.isMe ? 'items-end' : 'items-start'}`}>
                                     {/* Quick Emoji Reaction Bar */}
-                                    <motion.div 
+                                    <motion.div
                                         initial={{ scale: 0.8, opacity: 0, y: 10 }}
                                         animate={{ scale: 1, opacity: 1, y: 0 }}
                                         exit={{ scale: 0.8, opacity: 0, y: 10 }}
                                         className="mb-2 flex max-w-full gap-2.5 overflow-x-auto rounded-full border border-slate-700/80 bg-[#131b2e] px-3 py-1.5 shadow-2xl"
                                     >
                                         {REACTION_EMOJIS.map((emoji) => (
-                                            <button 
-                                                key={emoji} 
-                                                className="text-xl hover:scale-125 transition-transform" 
+                                            <button
+                                                key={emoji}
+                                                className="text-xl hover:scale-125 transition-transform"
                                                 onClick={() => {
                                                     if (socket?.current && mobileActiveMessage._id) {
                                                         socket.current.emit('toggle-reaction', {
@@ -959,13 +955,13 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                     </div>
 
                                     {/* Action Options Popup */}
-                                    <motion.div 
+                                    <motion.div
                                         initial={{ scale: 0.8, opacity: 0, y: messagePosition.top > window.innerHeight / 2 ? -10 : 10 }}
                                         animate={{ scale: 1, opacity: 1, y: 0 }}
                                         exit={{ scale: 0.8, opacity: 0 }}
                                         className="mt-2.5 w-56 max-w-[calc(100vw-24px)] flex max-h-[min(42vh,18rem)] flex-col overflow-y-auto overflow-x-hidden rounded-2xl border border-slate-700/80 bg-[#131b2e] shadow-2xl pointer-events-auto"
                                     >
-                                        <button 
+                                        <button
                                             onClick={() => { toggleMessageSelection(mobileActiveMessage); setMobileActiveMessage(null); }}
                                             className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800 transition-colors border-b border-slate-800 text-sky-400 font-semibold"
                                         >
@@ -984,7 +980,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         )}
 
                                         {(!mobileActiveMessage.type || mobileActiveMessage.type === 'text') && (
-                                            <button 
+                                            <button
                                                 onClick={() => { navigator.clipboard.writeText(mobileActiveMessage.text); setMobileActiveMessage(null); }}
                                                 className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800 transition-colors border-b border-slate-800 text-slate-200"
                                             >
@@ -994,11 +990,11 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         )}
 
                                         {String(mobileActiveMessage.senderId) === String(currentUserId) && (!mobileActiveMessage.type || mobileActiveMessage.type === 'text') && !isMessageDeleted(mobileActiveMessage) && (
-                                            <button 
-                                                onClick={() => { 
-                                                    setEditingMessage(mobileActiveMessage); 
-                                                    setEditText(mobileActiveMessage.text); 
-                                                    setMobileActiveMessage(null); 
+                                            <button
+                                                onClick={() => {
+                                                    setEditingMessage(mobileActiveMessage);
+                                                    setEditText(mobileActiveMessage.text);
+                                                    setMobileActiveMessage(null);
                                                 }}
                                                 className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800 transition-colors border-b border-slate-800 text-sky-400"
                                             >
@@ -1007,12 +1003,12 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                             </button>
                                         )}
 
-                                        <button 
+                                        <button
                                             options-id="delete"
-                                            onClick={() => { 
-                                                setSelectedMessages([mobileActiveMessage]); 
-                                                setMobileActiveMessage(null); 
-                                                setShowDeleteModal(true); 
+                                            onClick={() => {
+                                                setSelectedMessages([mobileActiveMessage]);
+                                                setMobileActiveMessage(null);
+                                                setShowDeleteModal(true);
                                             }}
                                             className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800 transition-colors text-rose-400"
                                         >
@@ -1027,7 +1023,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                 )}
             </AnimatePresence>
 
-            <HymnsBibleLyricsModal 
+            <HymnsBibleLyricsModal
                 item={activeLyricsItem}
                 showModal={!!activeLyricsItem}
                 onClose={() => setActiveLyricsItem(null)}
