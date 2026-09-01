@@ -413,9 +413,9 @@ export default function Category_Humns() {
   const [aiAnalysis, setAiAnalysis] = useState({ loading: false, type: null, text: '', error: null, isLimit: false });
   const [showAiOptions, setShowAiOptions] = useState(false);
   const [bibleVerseFontSize, setBibleVerseFontSize] = useState(() => {
-    if (typeof window === 'undefined') return 24;
+    if (typeof window === 'undefined') return 20;
     const saved = localStorage.getItem('taspe7_bible_verse_font_size');
-    return saved ? parseInt(saved, 10) : 24;
+    return saved ? parseInt(saved, 10) : 20;
   });
 
   useEffect(() => {
@@ -3554,77 +3554,61 @@ export default function Category_Humns() {
                   className="relative w-full h-full sm:h-[85vh] max-w-4xl bg-white/[0.02] border border-white/10 sm:rounded-[2.5rem] shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden backdrop-blur-2xl"
                 >
                   {/* ── Top Bar ── */}
-                  <div className="shrink-0 px-3 py-2 flex items-center justify-between border-b border-white/[0.1] bg-black/30 gap-2 sm:gap-3 rounded-t-xl flex-wrap sm:flex-nowrap">
+                  <div className="Top Bar shrink-0 flex items-center gap-2 px-3 py-2 border-b border-white/[0.07] bg-black/50 backdrop-blur-md rounded-t-xl">
 
-                    {/* Left / Brand Section */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
-                      <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/60 hidden xs:inline">
-                        Digital Scripture
-                      </span>
+                    {/* Offline */}
+                    <button
+                      onClick={() => isDownloadingTranslation !== bibleTranslation && toggleDownloadTranslation(bibleTranslation)}
+                      disabled={isDownloadingTranslation === bibleTranslation}
+                      className={`w-7 h-7 shrink-0 flex items-center justify-center rounded-full border transition-all duration-150 active:scale-90
+      ${downloadedTranslations.has(bibleTranslation) ? "bg-emerald-500/10 border-emerald-500/20" : "bg-white/[0.05] border-white/10"}
+      ${isDownloadingTranslation === bibleTranslation ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                    >
+                      {isDownloadingTranslation === bibleTranslation ? (
+                        <Loader2 className="w-3 h-3 animate-spin text-sky-400" />
+                      ) : downloadedTranslations.has(bibleTranslation) ? (
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.7)]" />
+                      ) : (
+                        <svg className="w-3 h-3 text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 15V3m0 12-4-4m4 4 4-4" />
+                          <path d="M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17" />
+                        </svg>
+                      )}
+                    </button>
+
+                    {/* Pill — compact, fits content only */}
+                    <div className="relative flex items-center mx-auto bg-white/[0.08] rounded-full border border-white/[0.1] p-[3px]">
+                      <div
+                        className="absolute top-[3px] bottom-[3px] rounded-full bg-sky-500 shadow-[0_2px_8px_rgba(14,165,233,0.3)]"
+                        style={{
+                          width: `calc((100% - 6px) / ${availableTranslations.length})`,
+                          transform: `translateX(calc(${availableTranslations.indexOf(bibleTranslation)} * 100%))`,
+                          transition: "transform 0.18s cubic-bezier(0.4,0,0.2,1)",
+                          willChange: "transform",
+                        }}
+                      />
+                      {availableTranslations.map((tr) => (
+                        <button
+                          key={tr}
+                          onClick={() => setBibleTranslation(tr)}
+                          className={`relative z-10 px-3 py-1 text-[11px] font-bold tracking-wide rounded-full transition-colors duration-150 cursor-pointer whitespace-nowrap
+          ${bibleTranslation === tr ? "text-white" : "text-white/40 hover:text-white/70"}`}
+                        >
+                          {tr}
+                        </button>
+                      ))}
                     </div>
 
-                    {/* Middle Controls (Translations + Offline Toggle) */}
-                    <div className="flex items-center gap-2 overflow-x-auto min-w-0">
-                      {/* Translation Selector */}
-                      <div className="flex items-center gap-1.5 bg-white/10 rounded-xl p-1 border border-white/20 shrink-0">
-                        {availableTranslations.map((tr) => {
-                          const isActive = bibleTranslation === tr;
-                          return (
-                            <button
-                              key={tr}
-                              onClick={() => setBibleTranslation(tr)}
-                              className={`px-3 py-1 text-[12px] font-bold tracking-wider rounded-lg transition-all duration-300 ${isActive
-                                ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30'
-                                : 'text-white/90 hover:text-white bg-white/5 hover:bg-white/20'
-                                }`}
-                            >
-                              {tr}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Offline Download Option */}
-                      <div className="flex items-center gap-1.5 shrink-0" dir="rtl">
-                        <div className="flex items-center">
-                          {isDownloadingTranslation === bibleTranslation ? (
-                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-sky-400 bg-sky-500/20 border border-sky-500/30 px-2 py-1 rounded-xl animate-pulse whitespace-nowrap">
-                              <Loader2 className="w-3 h-3 animate-spin shrink-0" />
-                              <span>تحميل...</span>
-                            </div>
-                          ) : downloadedTranslations.has(bibleTranslation) ? (
-                            <button
-                              onClick={() => toggleDownloadTranslation(bibleTranslation)}
-                              className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/20 border border-emerald-500/30 hover:bg-red-500/25 hover:text-red-300 hover:border-red-500/30 px-2 py-1 rounded-xl transition-all duration-300 whitespace-nowrap"
-                              title="حذف الترجمة من الجهاز"
-                            >
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                              <span>محفوظة</span>
-                              <X className="w-2.5 h-2.5 shrink-0 opacity-60" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => toggleDownloadTranslation(bibleTranslation)}
-                              className="flex items-center gap-1 text-[10px] font-bold text-sky-300 bg-sky-500/20 border border-sky-500/30 hover:bg-sky-500/35 hover:text-white px-2 py-1 rounded-xl transition-all duration-300 whitespace-nowrap"
-                              title="تنزيل للتشغيل بدون إنترنت"
-                            >
-                              📥 <span className="hidden sm:inline">تنزيل أوفلاين</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Close Button - Guaranteed to Stay Visible */}
+                    {/* Close */}
                     <button
                       onClick={closeBibleModal}
-                      className="group p-1.5 sm:p-2 bg-white/5 hover:bg-red-500/20 rounded-full transition-all duration-300 shrink-0 ml-auto sm:ml-0"
-                      title="إغلاق"
+                      className="w-7 h-7 shrink-0 flex items-center justify-center rounded-full bg-white/[0.05] border border-white/10 text-white/40 hover:text-white/80 hover:bg-white/10 transition-all duration-150 active:scale-90 cursor-pointer"
                     >
-                      <X className="w-4 h-4 text-white/60 group-hover:text-red-400" />
+                      <X className="w-3.5 h-3.5" />
                     </button>
+
                   </div>
+
                   {/* Smart Navigation Hub - GPU Accelerated Low-End Friendly Transition */}
                   <div
                     className={`shrink-0 grid transition-[grid-template-rows,opacity,padding] duration-200 ease-out transform-gpu ${showBibleNavHeader
@@ -3923,370 +3907,293 @@ export default function Category_Humns() {
                     </div>
                   </div>
 
-                  {/* ── SELECTION SHEET (Bottom Drawer Style) ── */}
-                  <AnimatePresence>
-                    {bibleSelectedVerseIds.size > 0 && (
-                      <motion.div
-                        drag="y"
-                        dragConstraints={{ top: 0, bottom: 0 }}
-                        dragElastic={{ top: 0, bottom: 0.6 }}
-                        onDragEnd={(event, info) => {
-                          if (info.offset.y > 100 || info.velocity.y > 300) {
-                            setBibleSelectedVerseIds(new Set());
-                          }
-                        }}
-                        initial={{ y: '100%' }}
-                        animate={{ y: 0 }}
-                        exit={{ y: '100%' }}
-                        transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-                        className="absolute bottom-0 left-0 right-0 z-50 bg-[#0d0e15]/95 border-t border-white/10 backdrop-blur-2xl px-6 py-5 rounded-t-[2.5rem] shadow-[0_-15px_35px_rgba(0,0,0,0.6)] flex flex-col gap-4 text-white"
-                        dir="rtl"
+<AnimatePresence>
+  {bibleSelectedVerseIds.size > 0 && (
+    <motion.div
+      drag="y"
+      dragConstraints={{ top: 0, bottom: 0 }}
+      dragElastic={{ top: 0, bottom: 0.6 }}
+      onDragEnd={(event, info) => {
+        if (info.offset.y > 100 || info.velocity.y > 300) {
+          setBibleSelectedVerseIds(new Set());
+          setShowAiOptions(false);
+          setAiAnalysis({ loading: false, type: null, text: '', error: null });
+          setShowColorCustomizer(false);
+        }
+      }}
+      initial={{ y: '100%' }}
+      animate={{ y: 0 }}
+      exit={{ y: '100%' }}
+      transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+      className="absolute bottom-0 left-0 right-0 z-50 bg-[#0d0e15]/95 border-t border-white/10 backdrop-blur-2xl rounded-t-[1.5rem] shadow-[0_-15px_35px_rgba(0,0,0,0.6)] flex flex-col text-white overflow-hidden"
+      dir="rtl"
+    >
+      {/* Pull bar */}
+      <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mt-3 mb-1 shrink-0 cursor-grab active:cursor-grabbing" />
+
+      <div className="flex flex-col gap-3 px-4 pb-4 pt-1">
+
+        {/* Row: ref + close */}
+        <div className="flex justify-between items-center">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">تعديل الآية المحددة</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-black text-sky-400" dir="ltr">{getSelectedVersesRef()}</span>
+            <button
+              onClick={() => {
+                setBibleSelectedVerseIds(new Set());
+                setShowAiOptions(false);
+                setAiAnalysis({ loading: false, type: null, text: '', error: null });
+                setShowColorCustomizer(false);
+              }}
+              className="p-1 rounded-full bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all active:scale-95 flex items-center justify-center"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-1.5 hide-scrollbar" dir="ltr">
+          <button
+            onClick={handleCopySelectedVerses}
+            className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95"
+          >
+            <Copy className="w-3.5 h-3.5 text-sky-400" /> {t('copy')}
+          </button>
+
+          {availableTranslations.length > 1 && (
+            <button
+              onClick={() => {
+                const nums = bibleModalVerses
+                  .filter(v => bibleSelectedVerseIds.has(v._id))
+                  .map(v => v.verseNumber);
+                openCompare(nums);
+              }}
+              className="flex-1 min-w-[90px] py-2.5 px-4 rounded-full bg-[#0a0f1d]/80 hover:bg-[#0f172a] border border-sky-500/40 text-sky-300 text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-[inset_0_0_20px_rgba(14,165,233,0.1),0_0_15px_rgba(14,165,233,0.2)] backdrop-blur-md relative overflow-hidden group/compare"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-sky-500/0 via-sky-400/10 to-sky-500/0 -translate-x-full group-hover/compare:translate-x-full transition-transform duration-1000" />
+              <BookOpen className="w-3.5 h-3.5 text-sky-400" /> {t('compare')}
+            </button>
+          )}
+
+          <button
+            onClick={() => {
+              const firstVerse = bibleModalVerses.find(v => bibleSelectedVerseIds.has(v._id));
+              if (!firstVerse) return;
+              setNoteText(verseNotes[firstVerse._id] || '');
+              setNoteModalConfig({ type: 'bible', data: firstVerse, existingNote: verseNotes[firstVerse._id] });
+            }}
+            className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95"
+          >
+            <FileText className="w-3.5 h-3.5 text-indigo-400" /> {t('Note')}
+          </button>
+
+          <button
+            onClick={() => {
+              setShowAiOptions(p => !p);
+              setAiAnalysis({ loading: false, type: null, text: '', error: null });
+            }}
+            className={`flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 relative overflow-hidden
+              ${showAiOptions
+                ? 'bg-violet-500/20 border-violet-400/50 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.3)]'
+                : 'bg-white/5 hover:bg-violet-500/10 border-white/10 hover:border-violet-400/30 text-white hover:text-violet-300'
+              }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" /> {t('Ai')}
+          </button>
+        </div>
+
+        {/* AI Options */}
+        {showAiOptions && (
+          <div className="flex gap-2 shrink-0 animate-in fade-in slide-in-from-bottom-1 duration-150" dir="rtl">
+            {[
+              { type: 'explain',         label: 'تفسير', icon: BookOpen,  color: 'text-violet-400', border: 'border-violet-500/20 hover:border-violet-400/50 hover:bg-violet-500/5', glow: 'shadow-[0_0_15px_rgba(139,92,246,0.15)] hover:shadow-[0_0_22px_rgba(139,92,246,0.25)]' },
+              { type: 'cross_reference', label: 'مراجع', icon: Link2,     color: 'text-sky-400',    border: 'border-sky-500/20 hover:border-sky-400/50 hover:bg-sky-500/5',           glow: 'shadow-[0_0_15px_rgba(14,165,233,0.15)] hover:shadow-[0_0_22px_rgba(14,165,233,0.25)]' },
+              { type: 'practical',       label: 'تطبيق', icon: Lightbulb, color: 'text-amber-400',  border: 'border-amber-500/20 hover:border-amber-400/50 hover:bg-amber-500/5',     glow: 'shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:shadow-[0_0_22px_rgba(245,158,11,0.25)]' },
+            ].map(({ type, label, icon: IconComponent, color, border, glow }) => (
+              <button
+                key={type}
+                onClick={() => handleAiAnalysis(type)}
+                disabled={aiAnalysis.loading}
+                className={`flex-1 py-3 px-4 rounded-2xl bg-[#111322]/50 border ${border} ${glow} transition-all duration-300 flex flex-col items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 group`}
+              >
+                <IconComponent className={`w-5 h-5 ${color} group-hover:scale-110 group-active:scale-95 transition-transform duration-300`} />
+                <span className="text-[11px] font-black text-slate-300 group-hover:text-white transition-colors duration-300">{label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* AI Response — no header bar, floating dismiss pill */}
+        {(aiAnalysis.loading || aiAnalysis.text || aiAnalysis.error) && (
+          <div className="relative rounded-2xl overflow-hidden border border-violet-500/20 bg-[#0c0f1e]/80 backdrop-blur-md shadow-[0_4px_24px_rgba(139,92,246,0.12)]">
+
+            <div className="flex items-center justify-between px-4 pt-3 pb-1">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-violet-400" />
+                <span className="text-[10px] font-black text-violet-300 tracking-widest uppercase">
+                  {aiAnalysis.type === 'explain' ? 'تفسير روحي' : aiAnalysis.type === 'cross_reference' ? 'مراجع كتابية' : 'تطبيق عملي'}
+                </span>
+              </div>
+              <button
+                onClick={() => setAiAnalysis({ loading: false, type: null, text: '', error: null })}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 hover:bg-red-500/15 text-white/25 hover:text-red-400 border border-white/8 hover:border-red-500/20 transition-all duration-150 text-[10px] font-bold"
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </div>
+
+            <div className="px-4 pb-4 max-h-52 overflow-y-auto custom-scrollbar-thin" dir="rtl">
+              {aiAnalysis.loading ? (
+                <div className="flex items-center justify-center gap-2 py-6">
+                  <div className="relative w-7 h-7">
+                    <div className="absolute inset-0 rounded-full border-2 border-violet-500/30 border-t-violet-400 animate-spin" />
+                    <Sparkles className="absolute inset-0 m-auto w-3 h-3 text-violet-400 animate-pulse" />
+                  </div>
+                </div>
+              ) : aiAnalysis.error ? (
+                <>
+                  <p className="text-xs text-red-400 text-center py-3">{aiAnalysis.error}</p>
+                  {aiAnalysis.isLimit && !isLogin && (
+                    <div className="mt-2 flex justify-center">
+                      <button
+                        onClick={() => router.push('/regester')}
+                        className="inline-flex items-center justify-center rounded-full bg-sky-500 px-4 py-2 text-xs font-black text-white transition hover:bg-sky-400"
                       >
-                        {/* Pull bar */}
-                        <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-1 shrink-0 cursor-grab active:cursor-grabbing" />
+                        {t('register')}
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-[13px] leading-loose text-slate-200/90 font-arabic whitespace-pre-line">
+                  {aiAnalysis.text}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
-                        {/* Title & Ref */}
-                        <div className="flex justify-between items-center shrink-0">
-                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">تعديل الآية المحددة</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-black text-sky-400" dir="ltr">
-                              {getSelectedVersesRef()}
-                            </span>
-                            <button
-                              onClick={() => setBibleSelectedVerseIds(new Set())}
-                              className="p-1 rounded-full bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all active:scale-95 flex items-center justify-center"
-                              title="إغلاق"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
+        {/* Highlights */}
+        <div className="flex items-center gap-2.5 overflow-x-auto py-1 hide-scrollbar">
+          {highlightColorsList.map(c => {
+            const isColorActive = Array.from(bibleSelectedVerseIds).every(id => bibleHighlights[id] === c.id);
+            return (
+              <button
+                key={c.id}
+                onClick={() => handleApplyHighlight(c.id)}
+                className={`w-7 h-7 rounded-full transition-all active:scale-90 flex items-center justify-center border-2 shrink-0
+                  ${isColorActive ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
+                style={{ backgroundColor: c.hex }}
+              >
+                {isColorActive && <Check className="w-4 h-4 text-slate-900 stroke-[3]" />}
+              </button>
+            );
+          })}
 
-                        {/* Capsule Action Buttons */}
-                        <div className="flex gap-2 overflow-x-auto py-1 hide-scrollbar shrink-0" dir="ltr">
-                          <button
-                            onClick={handleCopySelectedVerses}
-                            className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95"
-                          >
-                            <Copy className="w-3.5 h-3.5 text-sky-400" /> {t('copy')}
-                          </button>
-                          {availableTranslations.length > 1 && (
-                            <button
-                              onClick={() => {
-                                const nums = bibleModalVerses
-                                  .filter(v => bibleSelectedVerseIds.has(v._id))
-                                  .map(v => v.verseNumber);
-                                openCompare(nums);
-                              }}
-                              className="flex-1 min-w-[90px] py-2.5 px-4 rounded-full bg-[#0a0f1d]/80 hover:bg-[#0f172a] border border-sky-500/40 text-sky-300 text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-[inset_0_0_20px_rgba(14,165,233,0.1),0_0_15px_rgba(14,165,233,0.2)] backdrop-blur-md relative overflow-hidden group/compare"
-                            >
-                              <div className="absolute inset-0 bg-gradient-to-r from-sky-500/0 via-sky-400/10 to-sky-500/0 -translate-x-full group-hover/compare:translate-x-full transition-transform duration-1000"></div>
-                              <BookOpen className="w-3.5 h-3.5 text-sky-400" /> {t('compare')}
-                            </button>
-                          )}
-                          <button
-                            onClick={() => {
-                              const firstVerse = bibleModalVerses.find(v => bibleSelectedVerseIds.has(v._id));
-                              if (!firstVerse) return;
-                              setNoteText(verseNotes[firstVerse._id] || '');
-                              setNoteModalConfig({ type: 'bible', data: firstVerse, existingNote: verseNotes[firstVerse._id] });
-                            }}
-                            className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95"
-                          >
-                            <FileText className="w-3.5 h-3.5 text-indigo-400" /> {t('Note')}
-                          </button>
-                          {/* AI Analyze Button */}
-                          <button
-                            onClick={() => { setShowAiOptions(p => !p); setAiAnalysis({ loading: false, type: null, text: '', error: null }); }}
-                            className={`flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 relative overflow-hidden ${showAiOptions
-                              ? 'bg-violet-500/20 border-violet-400/50 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.3)]'
-                              : 'bg-white/5 hover:bg-violet-500/10 border-white/10 hover:border-violet-400/30 text-white hover:text-violet-300'
-                              }`}
-                          >
-                            <Sparkles className="w-3.5 h-3.5" /> {t('Ai')}
-                          </button>
-                        </div>
+          <button
+            onClick={() => setShowColorCustomizer(prev => !prev)}
+            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90 border border-white/20 shrink-0
+              ${showColorCustomizer ? 'bg-sky-500/20 text-sky-400 border-sky-500/50' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}`}
+          >
+            <PlusCircle className="w-4 h-4" />
+          </button>
+        </div>
 
-                        {/* AI Options Row */}
-                        {showAiOptions && (
-                          <div className="flex gap-2 shrink-0 animate-in fade-in slide-in-from-bottom-1 duration-200" dir="rtl">
-                            {[
-                              { type: 'explain', label: 'تفسير', icon: BookOpen, color: 'text-violet-400', border: 'border-violet-500/20 hover:border-violet-400/50 hover:bg-violet-500/5', glow: 'shadow-[0_0_15px_rgba(139,92,246,0.15)] hover:shadow-[0_0_22px_rgba(139,92,246,0.25)]' },
-                              { type: 'cross_reference', label: 'مراجع', icon: Link2, color: 'text-sky-400', border: 'border-sky-500/20 hover:border-sky-400/50 hover:bg-sky-500/5', glow: 'shadow-[0_0_15px_rgba(14,165,233,0.15)] hover:shadow-[0_0_22px_rgba(14,165,233,0.25)]' },
-                              { type: 'practical', label: 'تطبيق', icon: Lightbulb, color: 'text-amber-400', border: 'border-amber-500/20 hover:border-amber-400/50 hover:bg-amber-500/5', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:shadow-[0_0_22px_rgba(245,158,11,0.25)]' },
-                            ].map(({ type, label, icon: IconComponent, color, border, glow }) => (
-                              <button
-                                key={type}
-                                onClick={() => handleAiAnalysis(type)}
-                                disabled={aiAnalysis.loading}
-                                className={`flex-1 py-3 px-4 rounded-2xl bg-[#111322]/50 border ${border} ${glow} transition-all duration-300 flex flex-col items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 group`}
-                              >
-                                <IconComponent className={`w-5 h-5 ${color} group-hover:scale-110 group-active:scale-95 transition-transform duration-300`} />
-                                <span className="text-[11px] font-black text-slate-300 group-hover:text-white transition-colors duration-300">{label}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
+        {/* Color Customizer */}
+        {showColorCustomizer && (
+          <div className="flex flex-col sm:flex-row gap-5 bg-[#141824]/95 backdrop-blur-xl text-white rounded-[24px] p-5 animate-in fade-in slide-in-from-bottom-2 duration-150 shadow-[0_15px_50px_rgba(0,0,0,0.6)] border border-white/10 w-full max-w-[540px] select-none origin-top-right">
 
-                        {/* AI Response Panel */}
-                        {(aiAnalysis.loading || aiAnalysis.text || aiAnalysis.error) && (
-                          <div
-                            className="shrink-0 rounded-2xl overflow-hidden border border-violet-500/20 bg-[#0c0f1e]/80 backdrop-blur-md shadow-[0_4px_24px_rgba(139,92,246,0.12)]"
-                            style={{ transition: 'background-color 0.3s ease-in-out', padding: '1rem' }}
-                          >
-                            {/* Panel header */}
-                            <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-gradient-to-r from-violet-600/10 to-indigo-600/5">
-                              <div className="flex items-center gap-2">
-                                <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-                                <span
-                                  className="text-[11px] font-black text-violet-300 tracking-wider uppercase"
-                                  style={{ transition: 'color 0.3s ease-in-out' }}
-                                >
-                                  {aiAnalysis.type === 'explain' ? 'تفسير روحي' : aiAnalysis.type === 'cross_reference' ? 'مراجع كتابية' : 'تطبيق عملي'}
-                                </span>
-                              </div>
-                              <button
-                                onClick={() => setAiAnalysis({ loading: false, type: null, text: '', error: null })}
-                                className="p-1 rounded-full hover:bg-white/10 text-white/30 hover:text-white transition-all"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                            {/* Content */}
-                            <div
-                              className="px-4 py-3 max-h-52 overflow-y-auto custom-scrollbar-thin"
-                              dir="rtl"
-                              style={{ transition: 'max-height 0.3s ease-in-out' }}
-                            >
-                              {aiAnalysis.loading ? (
-                                <div
-                                  className="flex flex-col items-center justify-center gap-3 py-6"
-                                  style={{
-                                    animation: 'pulse 1s ease-in-out infinite',
-                                    backgroundColor: '#0c0f1e'
-                                  }}
-                                >
-                                  <div className="relative w-8 h-8" style={{ animation: 'spin 2s linear infinite' }}>
-                                    <div
-                                      className="absolute inset-0 rounded-full border-2 border-violet-500/30 border-t-violet-400"
-                                      style={{ animation: 'pulse 1s ease-in-out infinite', backgroundColor: '#0c0f1e' }}
-                                    >
-                                      <Sparkles className="absolute inset-0 m-auto w-3.5 h-3.5 text-violet-400 animate-pulse" />
-                                    </div>
-                                  </div>
-                                </div>
-                              ) : aiAnalysis.error ? (
-                                <>
-                                  <p className="text-xs text-red-400 text-center py-3" style={{ color: '#f15c6d' }}>
-                                    {aiAnalysis.error}
-                                  </p>
-                                  {aiAnalysis.isLimit && !isLogin && (
-                                    <div className="mt-3 flex justify-center">
-                                      <button
-                                        onClick={() => router.push('/regester')}
-                                        className="inline-flex items-center justify-center rounded-full bg-sky-500 px-4 py-2 text-xs font-black text-white transition hover:bg-sky-400"
-                                      >
-                                        {t('register')}
-                                      </button>
-                                    </div>
-                                  )}
-                                </>
-                              ) : (
-                                <p
-                                  className="text-[13px] leading-loose text-slate-200/90 font-arabic whitespace-pre-line"
-                                  style={{ color: '#c5d8e4' }}
-                                >
-                                  {aiAnalysis.text}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        )}
+            <div className="flex flex-col gap-2 shrink-0">
+              <div
+                className="relative w-full sm:w-[260px] h-32 sm:h-[160px] rounded-2xl overflow-hidden cursor-crosshair shadow-inner border border-white/15 touch-none"
+                onPointerDown={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const updateColor = (pEvent) => {
+                    const x = Math.max(0, Math.min(1, (pEvent.clientX - rect.left) / rect.width));
+                    const y = Math.max(0, Math.min(1, (pEvent.clientY - rect.top) / rect.height));
+                    const hue = x * 360;
+                    const val = 1 - y;
+                    const f = (n, k = (n + hue / 60) % 6) => val - val * Math.max(0, Math.min(k, 4 - k, 1));
+                    const r = Math.round(f(5) * 255);
+                    const g = Math.round(f(3) * 255);
+                    const b = Math.round(f(1) * 255);
+                    setCustomColorHex(`#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`);
+                  };
+                  updateColor(e);
+                  const onPointerMove = (pEvent) => updateColor(pEvent);
+                  const onPointerUp = () => {
+                    window.removeEventListener('pointermove', onPointerMove);
+                    window.removeEventListener('pointerup', onPointerUp);
+                  };
+                  window.addEventListener('pointermove', onPointerMove);
+                  window.addEventListener('pointerup', onPointerUp);
+                }}
+              >
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%)' }} />
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 100%)' }} />
+              </div>
+            </div>
 
-                        {/* Highlights Circle Color Picker */}
-                        <div className="flex flex-col gap-2.5 shrink-0 mt-1">
-                          <div className="flex items-center gap-3">
-                            <div className="flex gap-2.5 items-center overflow-x-auto py-1 hide-scrollbar">
-                              {highlightColorsList.map(c => {
-                                const isColorActive = Array.from(bibleSelectedVerseIds).every(id => bibleHighlights[id] === c.id);
-                                const isCustomColor = c.id.startsWith('custom-');
-                                return (
-                                  <div key={c.id} className="relative group/color shrink-0">
-                                    <button
-                                      onClick={() => handleApplyHighlight(c.id)}
-                                      className={`w-7 h-7 rounded-full transition-all active:scale-90 flex items-center justify-center border-2 ${isColorActive ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'
-                                        }`}
-                                      style={{ backgroundColor: c.hex }}
-                                      title={`Highlight ${c.id}`}
-                                    >
-                                      {isColorActive && <Check className="w-4 h-4 text-slate-900 stroke-[3]" />}
-                                    </button>
+            <div className="flex flex-col flex-1 gap-4 justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl shadow-inner border border-white/20 shrink-0 transition-colors" style={{ backgroundColor: customColorHex }} />
+                <div className="flex flex-col w-full bg-black/30 rounded-xl p-2.5 border border-white/5 font-mono text-xs text-white/90 shadow-inner">
+                  <div className="flex justify-between items-center px-1">
+                    <span className="text-[9px] text-white/40 font-sans font-bold">HEX</span>
+                    <span>{customColorHex.toUpperCase()}</span>
+                  </div>
+                  <div className="w-full h-px bg-white/10 my-1.5" />
+                  <div className="flex justify-between items-center px-1">
+                    <span className="text-[9px] text-white/40 font-sans font-bold">RGB</span>
+                    <span className="text-[10px] text-white/70">
+                      {parseInt(customColorHex.slice(1,3)||'0',16)}, {parseInt(customColorHex.slice(3,5)||'0',16)}, {parseInt(customColorHex.slice(5,7)||'0',16)}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-                                    {isCustomColor && (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setHighlightColorsList(prev => prev.filter(color => color.id !== c.id));
-                                          const nextHighlights = { ...bibleHighlights };
-                                          let changed = false;
-                                          Object.keys(nextHighlights).forEach(vid => {
-                                            if (nextHighlights[vid] === c.id) {
-                                              delete nextHighlights[vid];
-                                              writeLocalBibleHighlight(vid, null);
-                                              changed = true;
-                                            }
-                                          });
-                                          if (changed) setBibleHighlights(nextHighlights);
-                                        }}
-                                        className="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center text-[8px] font-bold shadow-md opacity-100 transition-opacity"
-                                        title="Delete custom color"
-                                      >
-                                        ✕
-                                      </button>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                              {/* Plus button to open/toggle customizer */}
-                              <button
-                                onClick={() => setShowColorCustomizer(prev => !prev)}
-                                className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90 border border-white/20 ${showColorCustomizer ? 'bg-sky-500/20 text-sky-400 border-sky-500/50' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
-                                  }`}
-                                title="Add Custom Color"
-                              >
-                                <PlusCircle className="w-4 h-4" />
-                              </button>
+              <div className="flex flex-wrap gap-2.5 px-1">
+                {['#f43f5e','#ec4899','#a855f7','#6366f1','#3b82f6','#0ea5e9','#10b981','#f59e0b'].map(hex => (
+                  <button
+                    key={hex}
+                    onClick={(e) => { e.preventDefault(); setCustomColorHex(hex); }}
+                    className="w-6 h-6 rounded-full border border-white/20 hover:scale-125 transition-transform shrink-0 shadow-md"
+                    style={{ backgroundColor: hex }}
+                  />
+                ))}
+              </div>
 
-                              <button
-                                onClick={() => handleApplyHighlight(null)}
-                                className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center transition-all active:scale-90 text-white/60 hover:text-white"
-                                title="Clear Highlight"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
+              <div className="flex gap-2.5">
+                <button
+                  onClick={() => setShowColorCustomizer(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-xs font-bold transition-all active:scale-95"
+                >
+                  {t("close")}
+                </button>
+                <button
+                  onClick={() => {
+                    const newId = `custom-${Date.now()}`;
+                    setHighlightColorsList(prev => {
+                      if (prev.some(c => c.hex.toLowerCase() === customColorHex.toLowerCase())) return prev;
+                      return [...prev, { id: newId, hex: customColorHex }];
+                    });
+                    handleApplyHighlight(newId);
+                    setShowColorCustomizer(false);
+                  }}
+                  className="flex-[1.5] py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-black transition-all active:scale-95 shadow-[0_0_15px_rgba(56,189,248,0.3)]"
+                >
+                  {t('setthecolor')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
-                          {/* Custom Pure-In-App Spectrum Picker (Horizontal Layout) */}
-                          {showColorCustomizer && (
-                            <div className="flex flex-col sm:flex-row gap-5 bg-[#141824]/95 backdrop-blur-xl text-white rounded-[24px] p-5 mt-2 animate-in fade-in slide-in-from-bottom-2 duration-200 shadow-[0_15px_50px_rgba(0,0,0,0.6)] border border-white/10 w-full max-w-[540px] z-50 select-none origin-top-right">
-
-                              {/* Left Side (Spectrum Box) */}
-                              <div className="flex flex-col gap-2 shrink-0">
-                                <div className="flex items-center justify-between px-1">
-                                </div>
-                                <div
-                                  className="relative w-full sm:w-[260px] h-32 sm:h-[160px] rounded-2xl overflow-hidden cursor-crosshair shadow-inner border border-white/15 touch-none"
-                                  onPointerDown={(e) => {
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    const updateColor = (pEvent) => {
-                                      const x = Math.max(0, Math.min(1, (pEvent.clientX - rect.left) / rect.width));
-                                      const y = Math.max(0, Math.min(1, (pEvent.clientY - rect.top) / rect.height));
-
-                                      const hue = x * 360;
-                                      const sat = 1;
-                                      const val = 1 - y;
-
-                                      const f = (n, k = (n + hue / 60) % 6) => val - val * sat * Math.max(0, Math.min(k, 4 - k, 1));
-                                      const r = Math.round(f(5) * 255);
-                                      const g = Math.round(f(3) * 255);
-                                      const b = Math.round(f(1) * 255);
-
-                                      const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-                                      setCustomColorHex(hex);
-                                    };
-
-                                    updateColor(e);
-
-                                    const onPointerMove = (pEvent) => updateColor(pEvent);
-                                    const onPointerUp = () => {
-                                      window.removeEventListener('pointermove', onPointerMove);
-                                      window.removeEventListener('pointerup', onPointerUp);
-                                    };
-
-                                    window.addEventListener('pointermove', onPointerMove);
-                                    window.addEventListener('pointerup', onPointerUp);
-                                  }}
-                                >
-                                  {/* Spectrum Gradients */}
-                                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%)' }} />
-                                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 100%)' }} />
-                                </div>
-                              </div>
-
-                              {/* Right Side (Details & Actions) */}
-                              <div className="flex flex-col flex-1 gap-4 justify-between">
-
-                                {/* Color Preview & Values Container */}
-                                <div className="flex items-center gap-3">
-                                  {/* Color Square */}
-                                  <div className="w-12 h-12 rounded-xl shadow-inner border border-white/20 shrink-0 transition-colors" style={{ backgroundColor: customColorHex }} />
-
-                                  {/* HEX and RGB Values */}
-                                  <div className="flex flex-col w-full bg-black/30 rounded-xl p-2.5 border border-white/5 font-mono text-xs text-white/90 shadow-inner">
-                                    <div className="flex justify-between items-center px-1">
-                                      <span className="text-[9px] text-white/40 font-sans font-bold">HEX</span>
-                                      <span>{customColorHex.toUpperCase()}</span>
-                                    </div>
-                                    <div className="w-full h-px bg-white/10 my-1.5" />
-                                    <div className="flex justify-between items-center px-1">
-                                      <span className="text-[9px] text-white/40 font-sans font-bold">RGB</span>
-                                      <span className="text-[10px] text-white/70">
-                                        {parseInt(customColorHex.slice(1, 3) || '0', 16)}, {parseInt(customColorHex.slice(3, 5) || '0', 16)}, {parseInt(customColorHex.slice(5, 7) || '0', 16)}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Quick Swatches */}
-                                <div className="flex flex-col gap-2">
-                                  <div className="flex flex-wrap gap-2.5 px-1">
-                                    {['#f43f5e', '#ec4899', '#a855f7', '#6366f1', '#3b82f6', '#0ea5e9', '#10b981', '#f59e0b'].map(presetHex => (
-                                      <button
-                                        key={presetHex}
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          setCustomColorHex(presetHex);
-                                        }}
-                                        className="w-6 h-6 rounded-full border border-white/20 hover:scale-125 transition-transform shrink-0 shadow-md hover:z-10"
-                                        style={{ backgroundColor: presetHex }}
-                                      />
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* Control Buttons */}
-                                <div className="flex gap-2.5 mt-auto pt-2">
-                                  <button
-                                    onClick={() => setShowColorCustomizer(false)}
-                                    className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-xs font-bold transition-all active:scale-95"
-                                  >
-                                    {t("close")}
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      const newId = `custom-${Date.now()}`;
-                                      const newColor = { id: newId, hex: customColorHex };
-                                      setHighlightColorsList(prev => {
-                                        if (prev.some(c => c.hex.toLowerCase() === customColorHex.toLowerCase())) return prev;
-                                        return [...prev, newColor];
-                                      });
-                                      handleApplyHighlight(newId);
-                                      setShowColorCustomizer(false);
-                                    }}
-                                    className="flex-[1.5] py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-black transition-all active:scale-95 shadow-[0_0_15px_rgba(56,189,248,0.3)]"
-                                  >
-                                    {t('setthecolor')}
-                                  </button>
-                                </div>
-                              </div>
-
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+      </div>
+    </motion.div>
+  )}
+</AnimatePresence>
 
 
                   {/* Smart Progress Indicator */}
