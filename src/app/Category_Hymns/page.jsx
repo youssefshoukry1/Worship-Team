@@ -122,6 +122,9 @@ export default function Category_Humns() {
     }
   };
 
+  // Incremented when the user picks a Bible chapter in the presentation controls
+  const [biblePickTick, setBiblePickTick] = useState(0);
+
   const [showBibleModal, setShowBibleModal] = useState(false);
   const [showPrayModal, setShowPrayModal] = useState(false);
   const [prayProfile, setPrayProfile] = useState({ prayTime: [] });
@@ -685,6 +688,7 @@ export default function Category_Humns() {
     setSelectedLyricsHymn({ ...hymn, transposeStep });
     setShowChords(vocalsMode ? false : true);
     setDataShowIndex(0);
+    handleSetDesktopSearchType('hymns');
     setShowDataShow(true);
 
     // Open / focus the local display window - Only on desktop/tablet (sm breakpoint)
@@ -724,6 +728,7 @@ export default function Category_Humns() {
       });
       setShowChords(false);
       setDataShowIndex(safeIdx);
+      handleSetDesktopSearchType('bible');
       setShowDataShow(true);
       setShowBibleModal(false);
 
@@ -1206,9 +1211,16 @@ export default function Category_Humns() {
   // Infinite Scroll Trigger is now handled by Virtuoso's endReached prop
   ///////////////////////////////// API proccess end here /////////////////////////////
 
-  // Automatically load selected Bible verses into presentation slides
+  // Automatically load selected Bible verses into presentation slides.
+  // Only replaces the slides when Bible is already on screen or the user picked a chapter —
+  // restoring the last book/chapter (on open or tab switch) must not overwrite a hymn.
+  const handledBiblePickRef = React.useRef(0);
   useEffect(() => {
     if (showDataShow && desktopSearchType === 'bible' && bibleModalBook?.bookName && bibleModalChapter != null && bibleModalVerses.length > 0) {
+      const userPicked = biblePickTick !== handledBiblePickRef.current;
+      const showingBible = !selectedLyricsHymn || selectedLyricsHymn.isBible;
+      if (!userPicked && !showingBible) return;
+      handledBiblePickRef.current = biblePickTick;
       const expectedId = `bible-${bibleModalBook.bookName}-${bibleModalChapter}`;
       if (selectedLyricsHymn?._id !== expectedId) {
         const lyrics = bibleModalVerses.map((v) => ({
@@ -1226,7 +1238,7 @@ export default function Category_Humns() {
         setDataShowIndex(0);
       }
     }
-  }, [showDataShow, desktopSearchType, bibleModalBook, bibleModalChapter, bibleModalVerses, selectedLyricsHymn?._id, t]);
+  }, [showDataShow, desktopSearchType, bibleModalBook, bibleModalChapter, bibleModalVerses, selectedLyricsHymn?._id, biblePickTick, t]);
 
   // ── Presentation Hymn Search States & Effect ──────────────────────
   const [presetSearchQuery, setPresetSearchQuery] = useState('');
@@ -2802,6 +2814,7 @@ export default function Category_Humns() {
                               onClick={() => {
                                 setSelectedLyricsHymn(hymn);
                                 setDataShowIndex(0);
+                                handleSetDesktopSearchType('hymns');
                                 setPresetSearchQuery('');
                                 setPresetSearchResults([]);
 
@@ -2882,6 +2895,7 @@ export default function Category_Humns() {
                                   }`}
                                 onClick={() => {
                                   setBibleModalChapter(ch);
+                                  setBiblePickTick(n => n + 1);
                                   setBiblePickerOpen(null);
                                 }}
                               >
