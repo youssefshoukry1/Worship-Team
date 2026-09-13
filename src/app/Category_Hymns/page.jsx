@@ -9,7 +9,7 @@ import Portal from '../Portal/Portal';
 import Metronome from '../Metronome/page';
 import { UserContext } from '../context/User_Context';
 // Add BookOpen to this line
-import { Music, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2, Mic, MicOff, BookOpen, ChevronDown, Loader2, Copy, Share2, ClipboardCheck, Moon, RotateCcw, ZoomOut, ZoomIn, Cross } from 'lucide-react';
+import { Music, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2, Mic, MicOff, BookOpen, ChevronDown, ChevronRight, Heart, Loader2, Copy, Share2, ClipboardCheck, Moon, RotateCcw, ZoomOut, ZoomIn, Cross, User } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
 import { showToast } from '../components/ToastContainer';
@@ -27,6 +27,7 @@ import {
 } from '../utils/hymnSlides';
 import { useCategoryHymnsTour } from './Tour/useCategoryHymnsTour';
 import { BibleForm, useBibleForm } from './bible_form/page';
+import Pray from '../normal_UserProfile/Pray';
 
 
 const API_ROOT = getApiBaseUrl();
@@ -122,6 +123,52 @@ export default function Category_Humns() {
   };
 
   const [showBibleModal, setShowBibleModal] = useState(false);
+  const [showPrayModal, setShowPrayModal] = useState(false);
+  const [prayProfile, setPrayProfile] = useState({ prayTime: [] });
+
+  const updatePrayProfileState = (modifier) => {
+    setPrayProfile((previous) => {
+      const updatedProfile = typeof modifier === 'function' ? modifier(previous) : modifier;
+      if (updatedProfile && user_id) {
+        import('localforage').then(({ default: localforage }) => {
+          localforage.setItem(`profile_data_${user_id}`, updatedProfile).catch(console.error);
+        });
+      }
+      return updatedProfile;
+    });
+  };
+
+  useEffect(() => {
+    if (!showPrayModal || !isLogin || !user_id) return;
+
+    let ignore = false;
+    const loadPrayProfile = async () => {
+      const localforage = (await import('localforage')).default;
+      const cacheKey = `profile_data_${user_id}`;
+      const cachedData = await localforage.getItem(cacheKey);
+      if (cachedData && !ignore) setPrayProfile(cachedData);
+
+      try {
+        const response = await fetch(`${API_ROOT}/users/my-profile`, {
+          headers: { Authorization: `Bearer ${isLogin}` },
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (ignore) return;
+        updatePrayProfileState({
+          user: data.user,
+          bibleNotes: data.user?.bibleNotes?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
+          bibleHighlights: data.user?.bibleHighlights?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
+          prayTime: data.user?.prayTime?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
+        });
+      } catch (error) {
+        if (!cachedData) console.error('Error fetching prayer profile:', error);
+      }
+    };
+
+    loadPrayProfile();
+    return () => { ignore = true; };
+  }, [showPrayModal, isLogin, user_id]);
 
   // Lyrics Modal State
   const [showLyricsModal, setShowLyricsModal] = useState(false);
@@ -249,7 +296,7 @@ export default function Category_Humns() {
 
   // Lock scroll when modal is open
   useEffect(() => {
-    const isAnyModalOpen = showModal || showLyricsModal || showDataShow || showBibleModal;
+    const isAnyModalOpen = showModal || showLyricsModal || showDataShow || showBibleModal || showPrayModal;
 
     const overflowValue = isAnyModalOpen ? 'hidden' : '';
 
@@ -260,7 +307,7 @@ export default function Category_Humns() {
       document.body.style.overflow = '';
       document.documentElement.style.overflow = '';
     };
-  }, [showModal, showLyricsModal, showDataShow, showBibleModal]);
+  }, [showModal, showLyricsModal, showDataShow, showBibleModal, showPrayModal]);
 
   useEffect(() => {
     if (!showDataShow || typeof window === 'undefined') return;
@@ -1248,13 +1295,40 @@ export default function Category_Humns() {
     setShowModal(false);
   };
 
-  const categories = [
+  const hymnCategories = [
     { id: 'all', label: t("AllHymns"), icon: Music },
     { id: 'christmas', label: t("Christmas"), icon: Gift },
     { id: 'prayer_times', label: t("PrayerTimes"), icon: Star },
     { id: 'praise', label: t("Praise"), icon: Sparkles },
     { id: 'cross', label: t("Cross"), icon: Cross },
     { id: 'kids', label: t("Kids"), icon: GraduationCap },
+  ];
+
+  const categories = [
+    {
+      id: 'profile',
+      label: language === 'ar' ? 'مساحتي' : language === 'de' ? 'Mein Profil' : 'My Profile',
+      icon: User,
+      path: '/normal_UserProfile',
+    },
+    {
+      id: 'workspace',
+      label: language === 'ar' ? 'مساحة العمل' : language === 'de' ? 'Arbeitsbereich' : 'Workspace',
+      icon: Monitor,
+      path: '/WorkSpace',
+    },
+    {
+      id: 'pray-form',
+      label: language === 'ar' ? 'وقت الصلاة' : language === 'de' ? 'Gebetszeit' : 'Pray Time',
+      icon: Heart,
+      onClick: () => setShowPrayModal(true),
+    },
+    {
+      id: 'bible-form',
+      label: t('bible'),
+      icon: BookOpen,
+      onClick: () => setShowBibleModal(true),
+    },
   ];
 
   // Helper to check permission
@@ -1606,11 +1680,12 @@ export default function Category_Humns() {
           <div id="tour-categories" className="flex flex-wrap justify-center gap-4 mb-8">
             {categories.map((cat) => {
               const Icon = cat.icon;
-              const isActive = activeTab === cat.id;
+              const isActive = (cat.id === 'bible-form' && showBibleModal) || (cat.id === 'pray-form' && showPrayModal);
               return (
                 <button
                   key={cat.id}
-                  onClick={() => setActiveTab(cat.id)}
+                  id={cat.id === 'bible-form' ? 'tour-bible-btn' : undefined}
+                  onClick={() => cat.path ? router.push(cat.path) : cat.onClick?.()}
                   className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 border backdrop-blur-md relative overflow-hidden group
                   ${isActive
                       ? 'bg-sky-500/20 border-sky-400/50 text-sky-200 shadow-[0_0_20px_rgba(56,189,248,0.3)]'
@@ -1622,6 +1697,7 @@ export default function Category_Humns() {
                   )}
                   <Icon className={`w-5 h-5 relative z-10 ${isActive ? 'text-sky-300' : ''}`} />
                   <span className="font-medium relative z-10">{cat.label}</span>
+                  {cat.path && <ChevronRight className="w-4 h-4 relative z-10 opacity-70" />}
                 </button>
               )
             })}
@@ -1635,17 +1711,6 @@ export default function Category_Humns() {
 
       {/* Admin Controls */}
       <div className="flex flex-wrap justify-end items-center gap-3 mb-6">
-        {/* --- ADD THIS BIBLE BUTTON --- */}
-        <button
-          id="tour-bible-btn"
-          onClick={() => setShowBibleModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-sky-500/10 text-sky-400 border border-sky-500/30 rounded-full hover:bg-sky-500/20 transition-all shadow-[0_0_15px_rgba(56,189,248,0.1)] active:scale-95 font-semibold text-sm"
-        >
-          <BookOpen className="w-5 h-5" />
-          <span>{t('bible')}</span>
-        </button>
-        {/* ----------------------------- */}
-
         {canEdit && (
           <button
             onClick={openModal}
@@ -1818,7 +1883,7 @@ export default function Category_Humns() {
                     <HymnItem
                       humn={humn}
                       index={index}
-                      categories={categories}
+                      categories={hymnCategories}
                       addToWorkspace={addToWorkspace}
                       isHymnInWorkspace={isHymnInWorkspace}
                       canEdit={canEdit}
@@ -2041,7 +2106,7 @@ export default function Category_Humns() {
                       <div>
                         <label className="block text-gray-400 text-sm mb-2">{t("category")}</label>
                         <div className="flex flex-wrap gap-2 p-3 rounded-xl bg-white/5 border border-white/10">
-                          {categories.map((cat) => {
+                          {hymnCategories.map((cat) => {
                             const isSelected = formData.party.includes(cat.id);
                             return (
                               <button
@@ -2377,6 +2442,35 @@ export default function Category_Humns() {
 
 
           <BibleForm controller={bibleController} />
+          {showPrayModal && (
+            <Portal>
+              <div
+                className="fixed inset-0 z-[10000] flex items-start justify-center overflow-y-auto bg-black/70 p-4 sm:p-6 backdrop-blur-md"
+                data-lenis-prevent
+                onClick={() => setShowPrayModal(false)}
+              >
+                <div
+                  className="relative my-auto w-full max-w-5xl rounded-3xl"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setShowPrayModal(false)}
+                    className="absolute right-3 top-3 z-20 rounded-lg border border-white/10 bg-slate-950/80 p-2 text-slate-400 transition-all hover:bg-white/10 hover:text-white"
+                    aria-label="Close prayer form"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                  <Pray
+                    profile={prayProfile}
+                    updateProfileState={updatePrayProfileState}
+                    userId={user_id}
+                    token={isLogin}
+                  />
+                </div>
+              </div>
+            </Portal>
+          )}
           {/* This is the Presentation controller screen */}
           {showDataShow && selectedLyricsHymn && (
             <Portal>

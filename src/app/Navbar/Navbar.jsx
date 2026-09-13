@@ -33,7 +33,6 @@ export default function Navbar() {
     // Default Items
     const navItems = [
         { name: "hymns", path: "/", id: "home-section" },
-        { name: "workspace", path: "/WorkSpace/", id: "WorkSpace-section" },
     ];
 
     const router = useRouter();
