@@ -48,6 +48,9 @@ function LocalDisplayContent() {
       }
     };
 
+    // Ask the presenter for the current slide — anything sent before this window loaded was missed.
+    channel.postMessage({ type: 'request-state' });
+
     return () => channel.close();
   }, []);
 

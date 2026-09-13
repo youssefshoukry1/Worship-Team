@@ -5,6 +5,10 @@ import { usePathname } from "next/navigation";
 export default function PageTransition({ children }) {
     const pathname = usePathname();
 
+    // Presentation screens are fullscreen `position: fixed` layouts. The motion wrapper's
+    // `filter` would become their containing block (0px tall), hiding everything.
+    if (pathname?.startsWith('/presentation')) return children;
+
     return (
         <AnimatePresence mode="wait">
             <motion.div

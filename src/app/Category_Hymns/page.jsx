@@ -551,6 +551,30 @@ export default function Category_Humns() {
     ch.close();
   }, [dataShowBlackout, dataShowActiveBg, dataShowFontScale]);
 
+  // Keep the local display in sync with the current slide — covers opening a hymn/Bible
+  // presentation, toggling chords, transposing and swiping, not only button navigation.
+  React.useEffect(() => {
+    if (!showDataShow || !dataShowSlides.length) return;
+    broadcastLocalSlide(dataShowSlides, dataShowIndex, selectedLyricsHymn?.title);
+  }, [showDataShow, dataShowSlides, dataShowIndex, selectedLyricsHymn?.title, broadcastLocalSlide]);
+
+  // Answer the display window's handshake: a freshly opened window misses anything
+  // broadcast before it finished loading, so it asks for the current state on mount.
+  const localStateRef = React.useRef({});
+  localStateRef.current = { showDataShow, dataShowSlides, dataShowIndex, title: selectedLyricsHymn?.title, broadcastLocalSlide };
+  React.useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const ch = new BroadcastChannel(LOCAL_CHANNEL);
+    ch.onmessage = (event) => {
+      if (event.data?.type !== 'request-state') return;
+      const s = localStateRef.current;
+      if (s.showDataShow && s.dataShowSlides.length) {
+        s.broadcastLocalSlide(s.dataShowSlides, s.dataShowIndex, s.title);
+      }
+    };
+    return () => ch.close();
+  }, []);
+
   // Background Management Functions
   const handleUploadBackground = (e) => {
     const file = e.target.files[0];
@@ -1677,8 +1701,8 @@ export default function Category_Humns() {
       {
         showSearchBar ?
           (null) :
-          <div id="tour-categories" className="flex flex-wrap justify-center gap-4 mb-8">
-            {categories.map((cat) => {
+          <div id="tour-categories" className="grid grid-cols-2 sm:flex sm:flex-wrap justify-center gap-4 mb-8 w-full max-w-md sm:max-w-none mx-auto">
+            {categories.map((cat, index) => {
               const Icon = cat.icon;
               const isActive = (cat.id === 'bible-form' && showBibleModal) || (cat.id === 'pray-form' && showPrayModal);
               return (
@@ -1686,7 +1710,9 @@ export default function Category_Humns() {
                   key={cat.id}
                   id={cat.id === 'bible-form' ? 'tour-bible-btn' : undefined}
                   onClick={() => cat.path ? router.push(cat.path) : cat.onClick?.()}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 border backdrop-blur-md relative overflow-hidden group
+                  className={`flex min-w-0 items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-xl transition-all duration-300 border backdrop-blur-md relative overflow-hidden group
+                  ${index < 2 ? 'w-full sm:w-auto' : 'w-fit'}
+                  ${index === 2 ? 'justify-self-end' : index === 3 ? 'justify-self-start' : ''}
                   ${isActive
                       ? 'bg-sky-500/20 border-sky-400/50 text-sky-200 shadow-[0_0_20px_rgba(56,189,248,0.3)]'
                       : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
@@ -1696,7 +1722,7 @@ export default function Category_Humns() {
                     <div className="absolute inset-0 bg-sky-400/10 blur-xl rounded-full" />
                   )}
                   <Icon className={`w-5 h-5 relative z-10 ${isActive ? 'text-sky-300' : ''}`} />
-                  <span className="font-medium relative z-10">{cat.label}</span>
+                  <span className="font-medium relative z-10 whitespace-nowrap">{cat.label}</span>
                   {cat.path && <ChevronRight className="w-4 h-4 relative z-10 opacity-70" />}
                 </button>
               )
