@@ -49,6 +49,53 @@ const pickMimeType = () => {
     return ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac'].find((type) => MediaRecorder.isTypeSupported?.(type)) || '';
 };
 
+const MIC_CONSTRAINTS = {
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+};
+const VOICE_BITRATE = 96000;
+
+/**
+ * Voice-note style processing: low-cut → compressor → make-up gain → limiter.
+ * Returns the processed stream plus a close() that releases the audio graph; falls back to the raw mic.
+ */
+const createVoiceStream = async (micStream) => {
+    const AudioCtx = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
+    if (!AudioCtx) return { stream: micStream, close: () => {} };
+    try {
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') await ctx.resume();
+        const source = ctx.createMediaStreamSource(micStream);
+
+        const lowCut = ctx.createBiquadFilter();
+        lowCut.type = 'highpass';
+        lowCut.frequency.value = 85;
+
+        const compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.value = -30;
+        compressor.knee.value = 12;
+        compressor.ratio.value = 4;
+        compressor.attack.value = 0.005;
+        compressor.release.value = 0.2;
+
+        const gain = ctx.createGain();
+        gain.gain.value = 2.5;
+
+        const limiter = ctx.createDynamicsCompressor();
+        limiter.threshold.value = -2;
+        limiter.knee.value = 0;
+        limiter.ratio.value = 20;
+        limiter.attack.value = 0.001;
+        limiter.release.value = 0.1;
+
+        const destination = ctx.createMediaStreamDestination();
+        source.connect(lowCut).connect(compressor).connect(gain).connect(limiter).connect(destination);
+        return { stream: destination.stream, close: () => { ctx.close().catch(() => {}); } };
+    } catch (err) {
+        console.warn('Voice processing unavailable, recording raw microphone:', err);
+        return { stream: micStream, close: () => {} };
+    }
+};
+
 // Only one clip plays at a time across the whole page
 let activePlayer = null;
 
@@ -63,6 +110,8 @@ export function usePrayRecorder(onFinish) {
     const [stream, setStream] = useState(null);
     const recorderRef = useRef(null);
     const streamRef = useRef(null);
+    const micStreamRef = useRef(null);
+    const voiceRef = useRef(null);
     const chunksRef = useRef([]);
     const timerRef = useRef(null);
     const cancelRef = useRef(false);
@@ -78,6 +127,10 @@ export function usePrayRecorder(onFinish) {
         timerRef.current = null;
         streamRef.current?.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
+        micStreamRef.current?.getTracks().forEach((track) => track.stop());
+        micStreamRef.current = null;
+        voiceRef.current?.close();
+        voiceRef.current = null;
         recorderRef.current = null;
         elapsedMsRef.current = 0;
         resumedAtRef.current = 0;
@@ -90,10 +143,20 @@ export function usePrayRecorder(onFinish) {
     const start = async (blockId) => {
         if (recorderRef.current) return;
         try {
-            const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            let micStream;
+            try {
+                micStream = await navigator.mediaDevices.getUserMedia(MIC_CONSTRAINTS);
+            } catch (constraintErr) {
+                if (constraintErr?.name === 'NotAllowedError') throw constraintErr;
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            }
+            micStreamRef.current = micStream;
+            const voice = await createVoiceStream(micStream);
+            voiceRef.current = voice;
+            streamRef.current = voice.stream;
             const mimeType = pickMimeType();
-            const recorder = mimeType ? new MediaRecorder(micStream, { mimeType }) : new MediaRecorder(micStream);
-            streamRef.current = micStream;
+            const options = { audioBitsPerSecond: VOICE_BITRATE, ...(mimeType && { mimeType }) };
+            const recorder = new MediaRecorder(voice.stream, options);
             recorderRef.current = recorder;
             chunksRef.current = [];
             cancelRef.current = false;
@@ -114,7 +177,7 @@ export function usePrayRecorder(onFinish) {
             elapsedMsRef.current = 0;
             resumedAtRef.current = Date.now();
             recorder.start();
-            setStream(micStream);
+            setStream(voice.stream);
             setRecordingBlockId(blockId);
             setIsPaused(false);
             setSeconds(0);
@@ -157,6 +220,8 @@ export function usePrayRecorder(onFinish) {
         cancelRef.current = true;
         if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop();
         streamRef.current?.getTracks().forEach((track) => track.stop());
+        micStreamRef.current?.getTracks().forEach((track) => track.stop());
+        voiceRef.current?.close();
         if (timerRef.current) clearInterval(timerRef.current);
     }, []);
 
