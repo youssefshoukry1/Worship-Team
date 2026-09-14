@@ -46,7 +46,7 @@ export default function BackupModal({ isOpen, onClose, token, userId, activeTeam
                 const res = await axios.get(`${getApiBaseUrl()}/users/my-profile`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                if (!cancelled && res.data?.googleDriveTokens?.access_token) {
+                if (!cancelled && res.data?.user?.googleDriveLinked) {
                     markLinked(true);
                     // Stop polling once linked
                     if (pollTimer) clearInterval(pollTimer);

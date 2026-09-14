@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Check, Edit3, Heart, Loader2, Trash2, X } from 'lucide-react';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { showToast } from '../components/ToastContainer';
 import { getApiBaseUrl } from '../utils/apiBase';
+import { addRecordings, deleteRecordingsForPray, getRecordingsIndex, reconcileTempRecordings } from '../utils/prayRecordings';
+import { MyPraysBackup, SavedPrayRecordings, VoiceRecorderPanel, usePrayRecorder } from './PrayRecordings';
 
 const API_URL = getApiBaseUrl();
 
@@ -20,6 +22,8 @@ const PRAY_TYPES = [
     { id: 'prayer for me', label: 'Pray for me' },
     { id: 'prayer for other', label: 'Prayer For Others' },
 ];
+
+const GENERAL_BLOCK_ID = 'general';
 
 const getFeelingLabel = (value) => PRAY_FEELINGS.find((item) => item.id === value)?.label || 'Other';
 const getPrayTypeLabel = (value) => PRAY_TYPES.find((item) => item.id === value)?.label || 'General Prayer';
@@ -43,22 +47,57 @@ const formatDate = (value, fallback = 'N/A') => {
     return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
-const renderStyledPrayer = (content) => {
-    if (!content) return null;
-    const parts = content.split(/(\[ PRAYER FOR ME \]|\[ PRAYER FOR OTHERS \]|\[ CHAPTER REFLECTION \])/gi);
+// Section markers written into the saved text by the block editor ("Pray for me" blocks write "[ PRAY FOR ME ]")
+const SECTION_MARKERS = [
+    { pattern: /^\[ PRAYE?R? FOR ME \]$/i, type: 'prayer for me', className: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+    { pattern: /^\[ PRAYER FOR OTHERS \]$/i, type: 'prayer for other', className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+    { pattern: /^\[ CHAPTER REFLECTION \]$/i, type: 'chapter', className: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+];
+const SECTION_SPLIT = /(\[ PRAY FOR ME \]|\[ PRAYER FOR ME \]|\[ PRAYER FOR OTHERS \]|\[ CHAPTER REFLECTION \])/gi;
+
+/** Split saved prayer text into ordered sections: general words first, then each marked block. */
+const parsePraySections = (content) => {
+    if (!content) return [];
+    const sections = [];
+    let current = { type: 'general', marker: null, markerClass: '', text: '' };
+    content.split(SECTION_SPLIT).forEach((part) => {
+        const marker = SECTION_MARKERS.find((item) => item.pattern.test(part.trim()));
+        if (!marker) { current.text += part; return; }
+        if (current.marker || current.text.trim()) sections.push(current);
+        current = { type: marker.type, marker: part.trim(), markerClass: marker.className, text: '' };
+    });
+    if (current.marker || current.text.trim()) sections.push(current);
+    return sections;
+};
+
+/** Assign each recording to its section: by saved position, else first section of the same type. */
+const groupRecordingsBySection = (sections, recordings = []) => {
+    const grouped = sections.map(() => []);
+    const leftovers = [];
+    recordings.forEach((rec) => {
+        const byIndex = Number.isInteger(rec.sectionIndex) && sections[rec.sectionIndex]?.type === (rec.blockType || 'general') ? rec.sectionIndex : -1;
+        const target = byIndex >= 0 ? byIndex : sections.findIndex((section) => section.type === (rec.blockType || 'general'));
+        if (target >= 0) grouped[target].push(rec); else leftovers.push(rec);
+    });
+    return { grouped, leftovers };
+};
+
+function PrayEntryContent({ entry, recordings, onRecordingsChanged }) {
+    const sections = parsePraySections(entry.words);
+    const { grouped, leftovers } = groupRecordingsBySection(sections, recordings);
     return (
-        <div className="text-sm text-slate-200 font-medium leading-relaxed whitespace-pre-wrap">
-            {parts.map((part, idx) => {
-                const p = part.trim();
-                if (!p) return null;
-                if (p === '[ PRAYER FOR ME ]') return <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[9px] font-black mr-1.5 border border-blue-500/20 align-middle mb-0.5">{p}</span>;
-                if (p === '[ PRAYER FOR OTHERS ]') return <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[9px] font-black mr-1.5 border border-emerald-500/20 align-middle mb-0.5">{p}</span>;
-                if (p === '[ CHAPTER REFLECTION ]') return <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 text-[9px] font-black mr-1.5 border border-purple-500/20 align-middle mb-0.5">{p}</span>;
-                return <span key={idx} className="opacity-90">{part}</span>;
-            })}
+        <div className="mt-2 flex flex-col gap-3">
+            {sections.map((section, index) => (
+                <div key={index} className="text-sm text-slate-200 font-medium leading-relaxed">
+                    {section.marker && <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black border mb-1 ${section.markerClass}`}>{section.marker}</span>}
+                    {section.text.trim() && <p className="opacity-90 whitespace-pre-wrap">{section.text.trim()}</p>}
+                    <SavedPrayRecordings prayId={entry._id} recordings={grouped[index]} onChanged={onRecordingsChanged} />
+                </div>
+            ))}
+            <SavedPrayRecordings prayId={entry._id} recordings={leftovers} getBlockLabel={getPrayTypeLabel} onChanged={onRecordingsChanged} />
         </div>
     );
-};
+}
 
 function getUsersEndpointCandidates(apiUrl, path) {
     const normalizedPath = String(path || '').replace(/^\/+/, '');
@@ -123,17 +162,79 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
     const [prayEditId, setPrayEditId] = useState(null);
     const [isSubmittingPray, setIsSubmittingPray] = useState(false);
     const [prayBlocks, setPrayBlocks] = useState([]);
+    const [recordingsIndex, setRecordingsIndex] = useState({});
+    const [generalRecordings, setGeneralRecordings] = useState([]);
+
+    const refreshRecordings = useCallback(() => {
+        getRecordingsIndex().then(setRecordingsIndex).catch((err) => console.warn('Could not load prayer recordings:', err));
+    }, []);
+
+    useEffect(() => { refreshRecordings(); }, [refreshRecordings]);
+
+    // Re-link recordings of prayers saved offline once they sync and get a real _id
+    useEffect(() => {
+        if (!profile?.prayTime?.length) return;
+        reconcileTempRecordings(profile.prayTime).then((changed) => { if (changed) refreshRecordings(); }).catch(() => {});
+    }, [profile?.prayTime, refreshRecordings]);
+
+    const recorder = usePrayRecorder((blockId, recording) => {
+        if (blockId === GENERAL_BLOCK_ID) {
+            setGeneralRecordings((recordings) => [...recordings, { id: `${Date.now()}`, ...recording }]);
+            return;
+        }
+        setPrayBlocks((blocks) => blocks.map((block) => block.id === blockId
+            ? { ...block, recordings: [...(block.recordings || []), { id: `${Date.now()}`, ...recording }] }
+            : block));
+    });
+
+    const revokeBlockUrls = (blocks) => blocks.forEach((block) => (block.recordings || []).forEach((rec) => URL.revokeObjectURL(rec.url)));
 
     const resetPrayForm = () => {
-        setPrayWords(''); setPrayBlocks([]); setPrayFeeling('other'); setPrayEditId(null);
+        if (recorder.isRecording) recorder.cancel();
+        revokeBlockUrls([...prayBlocks, { recordings: generalRecordings }]);
+        setPrayWords(''); setPrayBlocks([]); setGeneralRecordings([]); setPrayFeeling('other'); setPrayEditId(null);
     };
-    const handleAddBlock = (type) => setPrayBlocks([...prayBlocks, { id: Date.now(), prayType: type, words: '' }]);
+    const removeGeneralRecording = (recId) => setGeneralRecordings((recordings) => {
+        recordings.filter((rec) => rec.id === recId).forEach((rec) => URL.revokeObjectURL(rec.url));
+        return recordings.filter((rec) => rec.id !== recId);
+    });
+    const handleAddBlock = (type) => setPrayBlocks([...prayBlocks, { id: Date.now(), prayType: type, words: '', recordings: [] }]);
     const updateBlockWords = (id, words) => setPrayBlocks(prayBlocks.map((block) => block.id === id ? { ...block, words } : block));
-    const removeBlock = (id) => setPrayBlocks(prayBlocks.filter((block) => block.id !== id));
+    const removeBlock = (id) => {
+        if (recorder.recordingBlockId === id) recorder.cancel();
+        revokeBlockUrls(prayBlocks.filter((block) => block.id === id));
+        setPrayBlocks(prayBlocks.filter((block) => block.id !== id));
+    };
+    const removePendingRecording = (blockId, recId) => setPrayBlocks((blocks) => blocks.map((block) => {
+        if (block.id !== blockId) return block;
+        (block.recordings || []).filter((rec) => rec.id === recId).forEach((rec) => URL.revokeObjectURL(rec.url));
+        return { ...block, recordings: (block.recordings || []).filter((rec) => rec.id !== recId) };
+    }));
+
+    const hasBlockContent = (block) => block.words.trim() || (block.recordings || []).length > 0;
+
+    const savePendingRecordings = async (prayId, pendingWords, hasGeneralSection) => {
+        // Section order matches the saved text: general words first, then each non-empty block
+        const blockOffset = hasGeneralSection ? 1 : 0;
+        const items = [
+            ...generalRecordings.map((rec) => ({ ...rec, blockType: 'general', sectionIndex: 0 })),
+            ...prayBlocks.filter(hasBlockContent).flatMap((block, index) => (block.recordings || []).map((rec) => ({ ...rec, blockType: block.prayType, sectionIndex: blockOffset + index }))),
+        ];
+        if (!prayId || !items.length) return;
+        try {
+            await addRecordings(prayId, items, pendingWords);
+            refreshRecordings();
+        } catch (err) {
+            console.error('Saving prayer recordings failed:', err);
+            showToast({ message: 'Prayer saved, but the voice recordings could not be stored on this device.', type: 'error', duration: 6000 });
+        }
+    };
 
     const handleSubmitPrayTime = async () => {
-        const extraText = prayBlocks.filter((block) => block.words.trim()).map((block) => `\n\n[ ${getPrayTypeLabel(block.prayType).toUpperCase()} ]\n${block.words.trim()}`).join('');
-        const finalWords = (prayWords + extraText).trim();
+        if (recorder.isRecording) return;
+        const extraText = prayBlocks.filter(hasBlockContent).map((block) => `\n\n[ ${getPrayTypeLabel(block.prayType).toUpperCase()} ]\n${block.words.trim() || '🎙️ Voice prayer'}`).join('');
+        const generalText = prayWords.trim() || (!prayEditId && generalRecordings.length ? '🎙️ Voice prayer' : '');
+        const finalWords = (generalText + extraText).trim();
         if (!finalWords) return;
         setIsSubmittingPray(true);
         try {
@@ -144,7 +245,10 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
                 : { userid: userId, words: finalWords, feeling: prayFeeling, prayType: 'general' };
             const { response, data } = await fetchUsersWithFallback(API_URL, `pray-time${isEditMode ? `/${userId}` : ''}`, method, token, body);
             if (!response?.ok) throw new Error(data?.message || 'Failed to save pray time');
-            updateProfileState((previous) => ({ ...previous, prayTime: (data.user?.prayTime || []).sort((a, b) => new Date(b.date) - new Date(a.date)) }));
+            const savedPrayTime = data.user?.prayTime || [];
+            // The server $pushes the new prayer, so it is the last entry before sorting
+            if (!isEditMode) await savePendingRecordings(savedPrayTime[savedPrayTime.length - 1]?._id, undefined, Boolean(generalText));
+            updateProfileState((previous) => ({ ...previous, prayTime: [...savedPrayTime].sort((a, b) => new Date(b.date) - new Date(a.date)) }));
             resetPrayForm();
         } catch (submitError) {
             const isNetworkError = !navigator.onLine || submitError.message.includes('Failed to fetch') || submitError.message.includes('Network Error') || submitError.message.includes('Load failed');
@@ -155,8 +259,10 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
                     ? { prayId: prayEditId, words: finalWords, feeling: prayFeeling, prayType: 'general' }
                     : { userid: userId, words: finalWords, feeling: prayFeeling, prayType: 'general' };
                 await queueOfflineAction(`${API_URL}/users/pray-time${isEditMode ? `/${userId}` : ''}`, method, body, { Authorization: `Bearer ${token}` });
+                const tempId = `temp-${Date.now()}`;
+                if (!isEditMode) await savePendingRecordings(tempId, finalWords, Boolean(generalText));
                 updateProfileState((previous) => {
-                    const newEntry = isEditMode ? { ...body, _id: prayEditId, date: new Date().toISOString() } : { ...body, _id: `temp-${Date.now()}`, date: new Date().toISOString() };
+                    const newEntry = isEditMode ? { ...body, _id: prayEditId, date: new Date().toISOString() } : { ...body, _id: tempId, date: new Date().toISOString() };
                     const existing = isEditMode ? (previous.prayTime || []).map((entry) => entry._id === prayEditId ? { ...entry, ...newEntry } : entry) : [newEntry, ...(previous.prayTime || [])];
                     return { ...previous, prayTime: existing };
                 });
@@ -184,12 +290,16 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
             const { response, data } = await fetchUsersWithFallback(API_URL, `pray-time/${userId}`, 'DELETE', token, { prayId });
             if (!response?.ok) throw new Error(data?.message || 'Failed to delete pray time');
             updateProfileState((previous) => ({ ...previous, prayTime: (previous?.prayTime || []).filter((entry) => entry._id !== prayId) }));
+            await deleteRecordingsForPray(prayId).catch(() => {});
+            refreshRecordings();
             if (prayEditId === prayId) resetPrayForm();
         } catch (deleteError) {
             const isNetworkError = !navigator.onLine || deleteError.message.includes('Failed to fetch') || deleteError.message.includes('Network Error') || deleteError.message.includes('Load failed');
             if (isNetworkError) {
                 await queueOfflineAction(`${API_URL}/users/pray-time/${userId}`, 'DELETE', { prayId }, { Authorization: `Bearer ${token}` });
                 updateProfileState((previous) => ({ ...previous, prayTime: (previous?.prayTime || []).filter((entry) => entry._id !== prayId) }));
+                await deleteRecordingsForPray(prayId).catch(() => {});
+                refreshRecordings();
                 if (prayEditId === prayId) resetPrayForm();
                 showToast({ message: '📶 You\'re offline — this prayer will be removed once you\'re back online.', type: 'offline', duration: 6000 });
                 return;
@@ -223,6 +333,9 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
                 </div>
                 <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3 sm:p-4 focus-within:ring-1 focus-within:ring-rose-400/30 focus-within:border-rose-400/50 transition-all flex flex-col gap-3.5 mb-4">
                     {(!prayEditId || prayWords || prayBlocks.length === 0) && <textarea value={prayWords} onChange={(event) => setPrayWords(event.target.value)} placeholder="Write your general prayer words here..." rows={4} className="w-full bg-transparent border-none text-white placeholder-white/20 focus:outline-none focus:ring-0 resize-y min-h-[90px] text-sm leading-relaxed p-0 m-0" />}
+                    {!prayEditId && (
+                        <VoiceRecorderPanel blockId={GENERAL_BLOCK_ID} recorder={recorder} recordings={generalRecordings} onRemove={removeGeneralRecording} prayType="general" />
+                    )}
                     {prayBlocks.length > 0 && (
                         <div className={`flex flex-col gap-3 ${prayWords ? 'pt-3 border-t border-white/10' : ''}`}>
                             {prayBlocks.map((block) => {
@@ -234,6 +347,7 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
                                             {!prayEditId && <button onClick={() => removeBlock(block.id)} className="p-1 rounded-md text-slate-400 hover:text-red-400 hover:bg-red-500/20 transition-all" title="Remove section"><X className="w-3.5 h-3.5" /></button>}
                                         </div>
                                         <textarea value={block.words} onChange={(event) => updateBlockWords(block.id, event.target.value)} placeholder={`Write your ${getPrayTypeLabel(block.prayType).toLowerCase()}...`} rows={3} className="w-full bg-transparent border-none text-white placeholder-white/30 focus:outline-none focus:ring-0 resize-y min-h-[60px] text-sm leading-relaxed p-0 m-0" />
+                                        {!prayEditId && <VoiceRecorderPanel blockId={block.id} recorder={recorder} recordings={block.recordings} onRemove={(recId) => removePendingRecording(block.id, recId)} prayType={block.prayType} />}
                                     </div>
                                 );
                             })}
@@ -244,7 +358,7 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
                     <p className="text-[11px] text-slate-400">{(prayWords + ' ' + prayBlocks.map((block) => block.words).join(' ')).trim().split(/\s+/).filter(Boolean).length} total words</p>
                     <div className="flex items-center gap-2">
                         {prayEditId && <button onClick={resetPrayForm} className="px-3 py-2 rounded-lg border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5">Cancel Edit</button>}
-                        <button onClick={handleSubmitPrayTime} disabled={isSubmittingPray || (!prayWords.trim() && !prayBlocks.some((block) => block.words.trim()))} className="px-4 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-all disabled:opacity-40 flex items-center gap-2 shadow-lg shadow-rose-500/20">
+                        <button onClick={handleSubmitPrayTime} disabled={isSubmittingPray || recorder.isRecording || (!prayWords.trim() && !generalRecordings.length && !prayBlocks.some(hasBlockContent))} className="px-4 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-all disabled:opacity-40 flex items-center gap-2 shadow-lg shadow-rose-500/20">
                             {isSubmittingPray ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{prayEditId ? 'Update Note' : 'Save Note'}
                         </button>
                     </div>
@@ -263,9 +377,10 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
                             <button onClick={() => handleDeletePrayTime(entry._id)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5" title="Delete Note"><Trash2 className="w-4 h-4" /></button>
                         </div>
                     </div>
-                    <div className="mt-2">{renderStyledPrayer(entry.words)}</div>
+                    <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} />
                 </div>
             )} />
+            <MyPraysBackup prayTime={profile?.prayTime || []} token={token} userId={userId} onRestored={refreshRecordings} />
         </div>
     );
 }
