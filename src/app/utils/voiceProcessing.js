@@ -1,5 +1,3 @@
-import { RnnoiseWorkletNode, loadRnnoise } from '@sapphi-red/web-noise-suppressor';
-
 /**
  * Voice-note processing for microphone recordings.
  *
@@ -13,10 +11,15 @@ import { RnnoiseWorkletNode, loadRnnoise } from '@sapphi-red/web-noise-suppresso
 const ASSET_BASE = '/audio';
 const RNNOISE_SAMPLE_RATE = 48000;
 
+// The package extends AudioWorkletNode at import time, which doesn't exist during server prerendering,
+// so it is loaded only in the browser when recording starts
+const loadSuppressor = () => import('@sapphi-red/web-noise-suppressor');
+
 // Downloaded once per session and shared by every recording
 let rnnoiseWasmPromise = null;
 const getRnnoiseWasm = () => {
-    rnnoiseWasmPromise ||= loadRnnoise({ url: `${ASSET_BASE}/rnnoise.wasm`, simdUrl: `${ASSET_BASE}/rnnoise_simd.wasm` })
+    rnnoiseWasmPromise ||= loadSuppressor()
+        .then(({ loadRnnoise }) => loadRnnoise({ url: `${ASSET_BASE}/rnnoise.wasm`, simdUrl: `${ASSET_BASE}/rnnoise_simd.wasm` }))
         .catch((err) => { rnnoiseWasmPromise = null; throw err; });
     return rnnoiseWasmPromise;
 };
@@ -115,6 +118,7 @@ export async function openVoiceInput() {
         ];
         let rnnoise = null;
         if (rnnoiseWasm) {
+            const { RnnoiseWorkletNode } = await loadSuppressor();
             rnnoise = new RnnoiseWorkletNode(ctx, { maxChannels: 1, wasmBinary: rnnoiseWasm });
             chain.push(rnnoise);
         }
