@@ -3,7 +3,7 @@ import React, { useState, useContext, useEffect, useRef } from 'react';
 import { openLocalDisplay, prepareLocalDisplay } from '../presentation/local/openLocalDisplay';
 import LocalFullscreenButton from '../presentation/local/LocalFullscreenButton';
 import { transposeScale, transposeChords, transposeLyrics } from '../utils/musicUtils';
-import { useQuery, useInfiniteQuery, useQueryClient, useIsRestoring } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../loading';
@@ -19,7 +19,7 @@ import { Virtuoso } from "react-virtuoso";
 import { usePresentation } from '../hooks/usePresentation';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { useRouter } from 'next/navigation';
-import { isApp } from '../utils/ReactQueryProvider';
+import { isApp, storageReady } from '../utils/platform';
 import StanzaSlideControls from '../components/StanzaSlideControls';
 import {
   buildHymnPresentationSlides,
@@ -70,6 +70,7 @@ export default function Category_Humns() {
           return String(id);
         };
         try {
+          await storageReady;
           const existing = await localforage_.getItem(HYMNS_CACHE_KEY);
           if (!existing || existing.length === 0) {
             const res = await fetch('/hymns.json');
@@ -808,6 +809,18 @@ export default function Category_Humns() {
 
   // --- API Functions ---
 
+  // Reflect a direct (PROGRAMER) hymn change in the list that is on screen.
+  // App: patch the in-memory ["hymns","app"] list. The localforage copy is left alone and is
+  // updated by the version sync after the change is published.
+  // Web: refetch the paginated ["hymns","web",...] pages.
+  const applyHymnsChange = (updateList) => {
+    if (isApp) {
+      queryClient.setQueryData(['hymns', 'app'], (old) => Array.isArray(old) ? updateList(old) : old);
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['hymns', 'web'] });
+    }
+  };
+
   // 2. Add Hymn (Post)
   const add_Hymn = async () => {
     if (!isLogin) return;
@@ -847,9 +860,8 @@ export default function Category_Humns() {
       }
 
       console.log('[CREATE_HYMN] Request approved directly (PROGRAMER role)');
-      // Optimistic cache update → PersistQueryClientProvider auto-saves to localforage
       const newHymn = { ...formData, lyrics: prepareLyricsForSave(formData.lyrics), _id: response.data?._id || response.data?.hymn?._id || Date.now().toString(), usageCount: 0 };
-      queryClient.setQueryData(['hymns'], (old) => Array.isArray(old) ? [newHymn, ...old] : [newHymn]);
+      applyHymnsChange((list) => [newHymn, ...list]);
       showToast({ message: '✅ Hymn added successfully!', type: 'success', duration: 4000 });
       closeModal();
       setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', BPM: '', timeSignature: 'None', party: ['all'] });
@@ -907,11 +919,8 @@ export default function Category_Humns() {
       }
 
       console.log('[EDIT_HYMN] Request approved directly (PROGRAMER role)');
-      // Optimistic cache patch → PersistQueryClientProvider auto-saves to localforage
       const updatedHymn = { ...formData, lyrics: prepareLyricsForSave(formData.lyrics), _id: id };
-      queryClient.setQueryData(['hymns'], (old) =>
-        Array.isArray(old) ? old.map(h => h._id === id ? { ...h, ...updatedHymn } : h) : old
-      );
+      applyHymnsChange((list) => list.map(h => h._id === id ? { ...h, ...updatedHymn } : h));
       showToast({ message: '✅ Hymn updated successfully!', type: 'success', duration: 4000 });
       closeModal();
       setFormData({ title: '', lyrics: [], scale: '', relatedChords: '', link: '', party: ['all'], BPM: '', timeSignature: 'None' });
@@ -951,10 +960,7 @@ export default function Category_Humns() {
       }
 
       console.log('[DELETE_HYMN] Request approved directly (PROGRAMER role)');
-      // Remove from cache instantly → PersistQueryClientProvider auto-saves to localforage
-      queryClient.setQueryData(['hymns'], (old) =>
-        Array.isArray(old) ? old.filter(h => h._id !== id) : old
-      );
+      applyHymnsChange((list) => list.filter(h => h._id !== id));
       showToast({ message: '🗑️ Hymn deleted.', type: 'success', duration: 3000 });
     } catch (error) {
       console.error("Error deleting hymn:", error);
@@ -971,9 +977,12 @@ export default function Category_Humns() {
     queryKey: ["hymns", "app"],
     enabled: isApp,
     staleTime: Infinity,
+    // Reads local storage, not the network — must not be paused while the device is offline.
+    networkMode: 'offlineFirst',
     queryFn: async () => {
       const HYMNS_CACHE_KEY = 'taspe7_hymns_json';
       const localforage_ = (await import('localforage')).default;
+      await storageReady;
 
       const resolveId = (id) => {
         if (!id) return '';
@@ -1037,6 +1046,7 @@ export default function Category_Humns() {
     const doSync = async () => {
       try {
         const localforage_ = (await import('localforage')).default;
+        await storageReady;
         const verRes = await axios.get(`${API_BASE}/version`);
         const serverVersion = verRes.data.version;
         const localVersion = parseInt(localStorage.getItem(HYMNS_VERSION_KEY) || '0');
@@ -1134,7 +1144,6 @@ export default function Category_Humns() {
   });
 
   const isLoading = isApp ? isLoadingApp : isLoadingWeb;
-  const isRestoring = useIsRestoring();
 
   const humns = React.useMemo(() => {
     // ── WEB: Server-side pagination and filtering ──────────────────────────
@@ -1871,7 +1880,7 @@ export default function Category_Humns() {
 
 
       {/* Content Table/List */}
-      {(isLoading && !isRestoring) ? (
+      {isLoading ? (
         <Loading />
       ) : (
         <div className="relative">
@@ -1937,7 +1946,7 @@ export default function Category_Humns() {
               />
             </div>
           ) : (
-            !(isLoading || isRestoring) && (
+            !isLoading && (
               <div className="p-20 text-center flex flex-col items-center justify-center text-gray-500 bg-white/5 rounded-3xl border border-white/5 border-dashed mt-2 mb-20">
                 <Music className="w-12 h-12 mb-4 opacity-50" />
                 <p className="text-lg font-medium">{t("NoHymnsfoundinthiscategory")}</p>

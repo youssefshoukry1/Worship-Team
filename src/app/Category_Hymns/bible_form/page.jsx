@@ -11,7 +11,7 @@ import { Sparkles, X, Check, Search, FileText, BookOpen, ChevronDown, Loader2, C
 import { normalizeBibleBooksFromApi } from '../../utils/bibleBooks';
 import { getApiBaseUrl } from '../../utils/apiBase';
 import { useRouter } from 'next/navigation';
-import { isApp } from '../../utils/ReactQueryProvider';
+import { isApp } from '../../utils/platform';
 import { initLocalBible, getLocalBibleIndex, searchLocalBible, isTranslationDownloaded, downloadTranslationToLocal, deleteTranslationFromLocal } from '../../utils/bibleSync';
 import { queueOfflineAction } from '../../utils/offlineQueue';
 

@@ -1247,7 +1247,7 @@ export default function ChurchS_Dashboards() {
       await axios.post(`${API_URL}/church/createChurch`, { name: churchName }, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
-      queryClient.invalidateQueries(['churches']);
+      queryClient.invalidateQueries({ queryKey: ['churches'] });
       setIsAddModalOpen(false);
       setChurchName("");
     } catch (err) {
@@ -1265,7 +1265,7 @@ export default function ChurchS_Dashboards() {
       await axios.patch(`${API_URL}/church/${selectedChurch._id}`, { name: churchName }, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
-      queryClient.invalidateQueries(['churches']);
+      queryClient.invalidateQueries({ queryKey: ['churches'] });
       setIsEditModalOpen(false);
       setSelectedChurch(null);
       setChurchName("");
@@ -1283,7 +1283,7 @@ export default function ChurchS_Dashboards() {
       await axios.delete(`${API_URL}/church/${id}`, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
-      queryClient.invalidateQueries(['churches']);
+      queryClient.invalidateQueries({ queryKey: ['churches'] });
     } catch (err) {
       console.error(err);
       alert("Failed to delete church");
@@ -1296,7 +1296,7 @@ export default function ChurchS_Dashboards() {
       await axios.patch(`${API_URL}/users/system/role/${userId}`, { role: newRole }, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
-      queryClient.invalidateQueries(['systemUsers']);
+      queryClient.invalidateQueries({ queryKey: ['systemUsers'] });
     } catch (err) {
       console.error(err);
       alert("Failed to update user role");

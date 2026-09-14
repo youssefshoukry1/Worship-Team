@@ -118,7 +118,7 @@ export default function Dashboard() {
       await axios.delete(`${API_URL}/events/${eventId}`, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
-      queryClient.invalidateQueries(['churchEvents']);
+      queryClient.invalidateQueries({ queryKey: ['churchEvents'] });
       setSelectedEventId(null);
     } catch (error) {
       console.error("Delete Error:", error);
@@ -144,7 +144,7 @@ export default function Dashboard() {
         { hymns: [] },
         { headers: { Authorization: `Bearer ${isLogin}` } }
       );
-      queryClient.invalidateQueries(['churchEvents']);
+      queryClient.invalidateQueries({ queryKey: ['churchEvents'] });
       setClearingEventId(null);
     } catch (error) {
       console.error("Clear Error:", error);
@@ -162,7 +162,7 @@ export default function Dashboard() {
         { eventName: editEventName },
         { headers: { Authorization: `Bearer ${isLogin}` } }
       );
-      queryClient.invalidateQueries(['churchEvents']);
+      queryClient.invalidateQueries({ queryKey: ['churchEvents'] });
       setEditingEventId(null);
       setEditEventName("");
     } catch (error) {
@@ -187,7 +187,7 @@ export default function Dashboard() {
         { headers: { Authorization: `Bearer ${isLogin}` } }
       );
       setNewEventName("");
-      queryClient.invalidateQueries(['churchEvents']);
+      queryClient.invalidateQueries({ queryKey: ['churchEvents'] });
     } finally { setProcessingId(null); }
   };
 
@@ -281,7 +281,7 @@ export default function Dashboard() {
     setProcessingId(userId);
     try {
       await axios.patch(`${API_URL}/users/status/${userId}`, { status: newStatus }, { headers: { Authorization: `Bearer ${isLogin}` } });
-      queryClient.invalidateQueries(['pendingUsers']);
+      queryClient.invalidateQueries({ queryKey: ['pendingUsers'] });
       queryClient.invalidateQueries({ queryKey: ['data', isLogin] });
     } finally { setProcessingId(null); }
   };

@@ -4,7 +4,6 @@ import Navbar from "./Navbar/Navbar";
 import Footer from "./Footer/Footer";
 import PageTransition from "./page-transition/page-transition";
 import UserContextProvider from "./context/User_Context";
-import QueryProvider from "../../QueryProvider";
 import HymnsContextProvider from "./context/Hymns_Context";
 import { LanguageProvider } from "./context/LanguageContext";
 import SmoothScroll from "./SmoothScroll"
@@ -49,9 +48,7 @@ export default function RootLayout({
                             <UserContextProvider>
                                 <HymnsContextProvider>
                                     <Navbar />
-                                    <QueryProvider>
-                                        <PageTransition>{children}</PageTransition>
-                                    </QueryProvider>
+                                    <PageTransition>{children}</PageTransition>
                                     <Footer />
                                 </HymnsContextProvider>
                             </UserContextProvider>

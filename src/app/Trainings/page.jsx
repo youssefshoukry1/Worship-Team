@@ -457,7 +457,7 @@ export default function Trainings() {
       .delete(`https://worship-team-api.onrender.com/api/users/${userid}/${songid}`, {
         headers: { Authorization: `Bearer ${isLogin}` },
       })
-      .then(() => queryClient.invalidateQueries(["data", isLogin]))
+      .then(() => queryClient.invalidateQueries({ queryKey: ["data", isLogin] }))
       .catch(() => []);
   };
 
@@ -471,7 +471,7 @@ export default function Trainings() {
         { headers: { Authorization: `Bearer ${isLogin}` } }
       )
       .then((res) => {
-        queryClient.invalidateQueries(["data", isLogin]);
+        queryClient.invalidateQueries({ queryKey: ["data", isLogin] });
         resetModal();
         setSubmitClicked(false);
         return res.data;
@@ -492,7 +492,7 @@ export default function Trainings() {
       { headers: { Authorization: `Bearer ${isLogin}` } }
     )
       .then(() => {
-        queryClient.invalidateQueries(["data", isLogin]);
+        queryClient.invalidateQueries({ queryKey: ["data", isLogin] });
         resetModal();
         setSubmitClicked(false);
       })

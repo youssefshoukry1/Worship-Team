@@ -2,7 +2,7 @@
 import React, { useState, useContext } from 'react';
 import { openLocalDisplay, prepareLocalDisplay } from '../presentation/local/openLocalDisplay';
 import LocalFullscreenButton from '../presentation/local/LocalFullscreenButton';
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../loading';
@@ -220,7 +220,7 @@ export default function Website_work_Profile() {
       return res.data;
     },
     enabled: !!isLogin && (UserRole === 'LYRICS_ADMIN' || UserRole === 'PROGRAMER' || UserRole === 'MUSIC_ADMIN'),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const openEditModal = (hymn) => {

@@ -1,14 +1,6 @@
 import localforage from 'localforage';
 import axios from 'axios';
-import { isApp } from './ReactQueryProvider';
-
-// Configure localforage database safely (for client-side only execution)
-if (typeof window !== 'undefined') {
-  localforage.config({
-    name: 'taspe7_app',
-    storeName: 'bible_store'
-  });
-}
+import { isApp, storageReady } from './platform';
 
 // Map translation key helper
 const getCacheKey = (translation) => `taspe7_bible_db_${String(translation || 'AVD').toUpperCase()}`;
@@ -26,6 +18,7 @@ export async function initLocalBible() {
 
   const cacheKey = getCacheKey('AVD');
   try {
+    await storageReady;
     const existing = await localforage.getItem(cacheKey);
     if (existing && existing.length > 0) {
       console.log(`[BibleSync] AVD cache hydrated with ${existing.length} verses.`);
@@ -80,6 +73,7 @@ export async function isTranslationDownloaded(translation) {
   if (typeof window === 'undefined') return false;
   try {
     const cacheKey = getCacheKey(translation);
+    await storageReady;
     const existing = await localforage.getItem(cacheKey);
     return !!(existing && existing.length > 0);
   } catch {
@@ -132,6 +126,7 @@ export async function deleteTranslationFromLocal(translation) {
   try {
     const cleanTranslation = String(translation).toUpperCase();
     const cacheKey = getCacheKey(cleanTranslation);
+    await storageReady; // otherwise the migration could copy the legacy copy back afterwards
     await localforage.removeItem(cacheKey);
 
     delete memoryBiblesCaches[cleanTranslation];
@@ -155,6 +150,7 @@ export async function getLocalBibleIndex(translation = 'AVD') {
   if (memoryIndexCaches[cleanTranslation]) return memoryIndexCaches[cleanTranslation];
 
   const cacheKey = getCacheKey(cleanTranslation);
+  await storageReady;
   const bibles = memoryBiblesCaches[cleanTranslation] || await localforage.getItem(cacheKey) || [];
   if (bibles.length === 0) return null;
 
@@ -217,6 +213,7 @@ export async function searchLocalBible(query, translation = 'AVD') {
   const cleanTranslation = String(translation).toUpperCase();
 
   const cacheKey = getCacheKey(cleanTranslation);
+  await storageReady;
   const bibles = memoryBiblesCaches[cleanTranslation] || await localforage.getItem(cacheKey) || [];
   if (bibles.length === 0) return [];
 
