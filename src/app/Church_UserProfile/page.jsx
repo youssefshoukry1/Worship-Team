@@ -117,7 +117,7 @@ const getPrayTypeStyle = (type) => {
 const renderStyledPrayer = (content) => {
     if (!content) return null;
     
-    const parts = content.split(/(\[ PRAYER FOR ME \]|\[ PRAYER FOR OTHERS \]|\[ CHAPTER REFLECTION \])/gi);
+    const parts = content.split('🎙️ Voice prayer').join('').split(/(\[ PRAYER FOR ME \]|\[ PRAYER FOR OTHERS \]|\[ CHAPTER REFLECTION \])/gi);
     
     return (
         <div className="text-sm text-slate-200 font-medium leading-relaxed whitespace-pre-wrap">

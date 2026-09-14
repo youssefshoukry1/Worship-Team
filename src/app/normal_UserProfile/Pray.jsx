@@ -55,7 +55,10 @@ const SECTION_MARKERS = [
     { pattern: /^\[ PRAYER FOR OTHERS \]$/i, type: 'prayer for other', className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
     { pattern: /^\[ CHAPTER REFLECTION \]$/i, type: 'chapter', className: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
 ];
-const SECTION_SPLIT = /(\[ PRAY FOR ME \]|\[ PRAYER FOR ME \]|\[ PRAYER FOR OTHERS \]|\[ CHAPTER REFLECTION \])/gi;
+// Saved for voice-only sections because the API requires non-empty words; never shown to the user
+const VOICE_ONLY_TEXT = '🎙️ Voice prayer';
+const stripVoiceOnlyText = (text = '') => text.split(VOICE_ONLY_TEXT).join('');
+const SECTION_SPLIT =/(\[ PRAY FOR ME \]|\[ PRAYER FOR ME \]|\[ PRAYER FOR OTHERS \]|\[ CHAPTER REFLECTION \])/gi;
 
 /** Split saved prayer text into ordered sections: general words first, then each marked block. */
 const parsePraySections = (content) => {
@@ -92,7 +95,7 @@ function PrayEntryContent({ entry, recordings, onRecordingsChanged }) {
             {sections.map((section, index) => (
                 <div key={index} className="text-sm text-slate-200 font-medium leading-relaxed">
                     {section.marker && <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black border mb-1 ${section.markerClass}`}>{section.marker}</span>}
-                    {section.text.trim() && <p className="opacity-90 whitespace-pre-wrap">{section.text.trim()}</p>}
+                    {stripVoiceOnlyText(section.text).trim() && <p className="opacity-90 whitespace-pre-wrap">{stripVoiceOnlyText(section.text).trim()}</p>}
                     <SavedPrayRecordings prayId={entry._id} recordings={grouped[index]} onChanged={onRecordingsChanged} />
                 </div>
             ))}
@@ -243,8 +246,8 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
 
     const handleSubmitPrayTime = async () => {
         if (recorder.isRecording) return;
-        const extraText = prayBlocks.filter(hasBlockContent).map((block) => `\n\n[ ${getPrayTypeLabel(block.prayType).toUpperCase()} ]\n${block.words.trim() || '🎙️ Voice prayer'}`).join('');
-        const generalText = prayWords.trim() || (!prayEditId && generalRecordings.length ? '🎙️ Voice prayer' : '');
+        const extraText = prayBlocks.filter(hasBlockContent).map((block) => `\n\n[ ${getPrayTypeLabel(block.prayType).toUpperCase()} ]\n${block.words.trim() || VOICE_ONLY_TEXT}`).join('');
+        const generalText = prayWords.trim() || (!prayEditId && generalRecordings.length ? VOICE_ONLY_TEXT : '');
         const finalWords = (generalText + extraText).trim();
         if (!finalWords) return;
         setIsSubmittingPray(true);
@@ -308,8 +311,8 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
 
     const handleEditPrayTime = (entry) => {
         setPrayEditId(entry._id);
-        if (entry.prayType === 'general' || !entry.prayType) { setPrayWords(entry.words || ''); setPrayBlocks([]); }
-        else { setPrayWords(''); setPrayBlocks([{ id: entry._id, prayType: entry.prayType, words: entry.words || '' }]); }
+        if (entry.prayType === 'general' || !entry.prayType) { setPrayWords(stripVoiceOnlyText(entry.words).trim()); setPrayBlocks([]); }
+        else { setPrayWords(''); setPrayBlocks([{ id: entry._id, prayType: entry.prayType, words: stripVoiceOnlyText(entry.words).trim() }]); }
         setPrayFeeling(entry.feeling || 'other');
     };
 
