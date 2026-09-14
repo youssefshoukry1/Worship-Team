@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Suspense } from 'react';
+import { FULLSCREEN_MESSAGE } from './openLocalDisplay';
 
 const CHANNEL_NAME = 'taspe_presenter';
 
@@ -54,6 +55,23 @@ function LocalDisplayContent() {
     return () => channel.close();
   }, []);
 
+  // Fullscreen is toggled from the presenter's "ملء الشاشة" button (user activation is delegated here)
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  useEffect(() => {
+    const onMessage = (event) => {
+      if (event.origin !== window.location.origin || event.data?.type !== FULLSCREEN_MESSAGE) return;
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      else document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+    };
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    window.addEventListener('message', onMessage);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => {
+      window.removeEventListener('message', onMessage);
+      document.removeEventListener('fullscreenchange', onChange);
+    };
+  }, []);
+
   const text = slideData?.text ?? '';
   const title = slideData?.title ?? null;
   const isChorus = slideData?.type === 'chorus';
@@ -80,6 +98,7 @@ function LocalDisplayContent() {
       className="fixed inset-0 flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-300"
       style={{
         fontFamily: "'Georgia', serif",
+        cursor: isFullscreen ? 'none' : 'default',
         background: activeBg === 'default'
           ? 'radial-gradient(ellipse 80% 60% at 50% 40%, #0d1527 0%, #070a14 100%)'
           : `url(${activeBg}) center/cover no-repeat`

@@ -1,5 +1,7 @@
 'use client';
 import React, { useState, useContext, useEffect, useRef } from 'react';
+import { openLocalDisplay, prepareLocalDisplay } from '../presentation/local/openLocalDisplay';
+import LocalFullscreenButton from '../presentation/local/LocalFullscreenButton';
 import { transposeScale, transposeChords, transposeLyrics } from '../utils/musicUtils';
 import { useQuery, useInfiniteQuery, useQueryClient, useIsRestoring } from "@tanstack/react-query";
 import axios from 'axios';
@@ -525,6 +527,7 @@ export default function Category_Humns() {
   // ── Local Offline Broadcast (BroadcastChannel API - zero internet needed) ──
   const LOCAL_CHANNEL = 'taspe_presenter';
   const localDisplayRef = React.useRef(null);
+  useEffect(() => prepareLocalDisplay(), []);
 
   const broadcastLocalSettings = React.useCallback((settings) => {
     const ch = new BroadcastChannel(LOCAL_CHANNEL);
@@ -693,11 +696,7 @@ export default function Category_Humns() {
 
     // Open / focus the local display window - Only on desktop/tablet (sm breakpoint)
     if (window.innerWidth >= 640) {
-      if (!localDisplayRef.current || localDisplayRef.current.closed) {
-        localDisplayRef.current = window.open('/presentation/local', 'taspe_local_display', 'width=1280,height=720');
-      } else {
-        localDisplayRef.current.focus();
-      }
+      openLocalDisplay(localDisplayRef);
       setTimeout(() => {
         broadcastLocalSettings({
           blackout: dataShowBlackout,
@@ -733,11 +732,7 @@ export default function Category_Humns() {
       setShowBibleModal(false);
 
       if (typeof window !== 'undefined' && window.innerWidth >= 640) {
-        if (!localDisplayRef.current || localDisplayRef.current.closed) {
-          localDisplayRef.current = window.open('/presentation/local', 'taspe_local_display', 'width=1280,height=720');
-        } else {
-          localDisplayRef.current.focus();
-        }
+        openLocalDisplay(localDisplayRef);
       }
     },
     [t]
@@ -1342,18 +1337,6 @@ export default function Category_Humns() {
 
   const categories = [
     {
-      id: 'profile',
-      label: language === 'ar' ? 'مساحتي' : language === 'de' ? 'Mein Profil' : 'My Profile',
-      icon: User,
-      path: '/normal_UserProfile',
-    },
-    {
-      id: 'workspace',
-      label: language === 'ar' ? 'مساحة العمل' : language === 'de' ? 'Arbeitsbereich' : 'Workspace',
-      icon: Monitor,
-      path: '/WorkSpace',
-    },
-    {
       id: 'pray-form',
       label: language === 'ar' ? 'وقت الصلاة' : language === 'de' ? 'Gebetszeit' : 'Pray Time',
       icon: Heart,
@@ -1713,7 +1696,7 @@ export default function Category_Humns() {
       {
         showSearchBar ?
           (null) :
-          <div id="tour-categories" className="grid grid-cols-2 sm:flex sm:flex-wrap justify-center gap-4 mb-8 w-full max-w-md sm:max-w-none mx-auto">
+          <div id="tour-categories" className="flex flex-wrap justify-center gap-4 mb-8 w-full mx-auto">
             {categories.map((cat, index) => {
               const Icon = cat.icon;
               const isActive = (cat.id === 'bible-form' && showBibleModal) || (cat.id === 'pray-form' && showPrayModal);
@@ -1722,9 +1705,9 @@ export default function Category_Humns() {
                   key={cat.id}
                   id={cat.id === 'bible-form' ? 'tour-bible-btn' : undefined}
                   onClick={() => cat.path ? router.push(cat.path) : cat.onClick?.()}
-                  className={`flex min-w-0 items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-xl transition-all duration-300 border backdrop-blur-md relative overflow-hidden group
-                  ${index < 2 ? 'w-full sm:w-auto' : 'w-fit'}
-                  ${index === 2 ? 'justify-self-end' : index === 3 ? 'justify-self-start' : ''}
+                  className={`flex min-w-0 items-center justify-center gap-2 py-2 rounded-xl transition-all duration-300 border backdrop-blur-md relative overflow-hidden group
+                  ${cat.id === 'bible-form' ? 'px-6' : 'px-6'}
+                  w-fit
                   ${isActive
                       ? 'bg-sky-500/20 border-sky-400/50 text-sky-200 shadow-[0_0_20px_rgba(56,189,248,0.3)]'
                       : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
@@ -3102,6 +3085,7 @@ export default function Category_Humns() {
                               {dataShowBlackout ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                               {dataShowBlackout ? 'إظهار الشاشة' : 'إخفاء الشاشة'}
                             </button>
+                            <LocalFullscreenButton displayRef={localDisplayRef} />
                             <button
                               onClick={() => setShowBgSelector(!showBgSelector)}
                               className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all hover:scale-105 active:scale-95

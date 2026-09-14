@@ -5,7 +5,9 @@ import { Check, Edit3, Heart, Loader2, Trash2, X } from 'lucide-react';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { showToast } from '../components/ToastContainer';
 import { getApiBaseUrl } from '../utils/apiBase';
-import { addRecordings, deleteRecordingsForPray, getRecordingsIndex, reconcileTempRecordings } from '../utils/prayRecordings';
+import {
+    addGuestPray, addRecordings, deleteGuestPray, deleteRecordingsForPray, getGuestPrays, getRecordingsIndex, reconcileTempRecordings, updateGuestPray,
+} from '../utils/prayRecordings';
 import { MyPraysBackup, SavedPrayRecordings, VoiceRecorderPanel, usePrayRecorder } from './PrayRecordings';
 
 const API_URL = getApiBaseUrl();
@@ -164,6 +166,10 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
     const [prayBlocks, setPrayBlocks] = useState([]);
     const [recordingsIndex, setRecordingsIndex] = useState({});
     const [generalRecordings, setGeneralRecordings] = useState([]);
+    // Without an account, prayers are stored only on this device
+    const isGuest = !token || !userId;
+    const [guestPrays, setGuestPrays] = useState([]);
+    const prayList = isGuest ? guestPrays : (profile?.prayTime || []);
 
     const refreshRecordings = useCallback(() => {
         getRecordingsIndex().then(setRecordingsIndex).catch((err) => console.warn('Could not load prayer recordings:', err));
@@ -171,11 +177,16 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
 
     useEffect(() => { refreshRecordings(); }, [refreshRecordings]);
 
+    useEffect(() => {
+        if (!isGuest) return;
+        getGuestPrays().then(setGuestPrays).catch((err) => console.warn('Could not load local prayers:', err));
+    }, [isGuest]);
+
     // Re-link recordings of prayers saved offline once they sync and get a real _id
     useEffect(() => {
-        if (!profile?.prayTime?.length) return;
+        if (isGuest || !profile?.prayTime?.length) return;
         reconcileTempRecordings(profile.prayTime).then((changed) => { if (changed) refreshRecordings(); }).catch(() => {});
-    }, [profile?.prayTime, refreshRecordings]);
+    }, [isGuest, profile?.prayTime, refreshRecordings]);
 
     const recorder = usePrayRecorder((blockId, recording) => {
         if (blockId === GENERAL_BLOCK_ID) {
@@ -237,6 +248,24 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
         const finalWords = (generalText + extraText).trim();
         if (!finalWords) return;
         setIsSubmittingPray(true);
+        if (isGuest) {
+            try {
+                if (prayEditId) {
+                    setGuestPrays(await updateGuestPray(prayEditId, { words: finalWords, feeling: prayFeeling }));
+                } else {
+                    const entry = await addGuestPray({ words: finalWords, feeling: prayFeeling, prayType: 'general' });
+                    await savePendingRecordings(entry._id, undefined, Boolean(generalText));
+                    setGuestPrays(await getGuestPrays());
+                }
+                resetPrayForm();
+            } catch (localError) {
+                console.error('Local prayer save error:', localError);
+                alert('Could not save your prayer on this device.');
+            } finally {
+                setIsSubmittingPray(false);
+            }
+            return;
+        }
         try {
             const isEditMode = Boolean(prayEditId);
             const method = isEditMode ? 'PATCH' : 'POST';
@@ -286,6 +315,18 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
 
     const handleDeletePrayTime = async (prayId) => {
         if (!window.confirm('Are you sure you want to delete this prayer note?')) return;
+        if (isGuest) {
+            try {
+                await deleteGuestPray(prayId);
+                setGuestPrays(await getGuestPrays());
+                refreshRecordings();
+                if (prayEditId === prayId) resetPrayForm();
+            } catch (localError) {
+                console.error('Local prayer delete error:', localError);
+                alert('Could not delete this prayer.');
+            }
+            return;
+        }
         try {
             const { response, data } = await fetchUsersWithFallback(API_URL, `pray-time/${userId}`, 'DELETE', token, { prayId });
             if (!response?.ok) throw new Error(data?.message || 'Failed to delete pray time');
@@ -364,7 +405,7 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
                     </div>
                 </div>
             </div>
-            <ListPanel title="My Pray Time Notes" icon={Heart} iconBgClass="bg-rose-500/10 text-rose-400 border-rose-500/20" items={profile?.prayTime || []} emptyText="No prayer notes yet" renderItem={(entry) => (
+            <ListPanel title="My Pray Time Notes" icon={Heart} iconBgClass="bg-rose-500/10 text-rose-400 border-rose-500/20" items={prayList} emptyText="No prayer notes yet" renderItem={(entry) => (
                 <div key={entry._id} className={`rounded-2xl border transition-all duration-300 p-4 sm:p-5 ${getPrayTypeStyle(entry.prayType).cardBg}`}>
                     <div className="flex items-start justify-between gap-3 mb-2">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -380,7 +421,7 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
                     <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} />
                 </div>
             )} />
-            <MyPraysBackup prayTime={profile?.prayTime || []} token={token} userId={userId} onRestored={refreshRecordings} />
+            <MyPraysBackup prayTime={prayList} token={isGuest ? null : token} userId={userId} onRestored={refreshRecordings} />
         </div>
     );
 }

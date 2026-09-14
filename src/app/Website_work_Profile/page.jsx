@@ -1,5 +1,7 @@
 'use client';
 import React, { useState, useContext } from 'react';
+import { openLocalDisplay, prepareLocalDisplay } from '../presentation/local/openLocalDisplay';
+import LocalFullscreenButton from '../presentation/local/LocalFullscreenButton';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -51,6 +53,7 @@ export default function Website_work_Profile() {
   const [presentationViewport, setPresentationViewport] = useState({ width: 1200, height: 900 });
 
   const localDisplayRef = React.useRef(null);
+  React.useEffect(() => prepareLocalDisplay(), []);
   const thumbContainerRef = React.useRef(null);
 
   const LOCAL_CHANNEL = 'taspe_presenter';
@@ -75,11 +78,7 @@ export default function Website_work_Profile() {
     setShowDataShow(true);
 
     if (typeof window !== 'undefined' && window.innerWidth >= 640) {
-      if (!localDisplayRef.current || localDisplayRef.current.closed) {
-        localDisplayRef.current = window.open('/presentation/local', 'taspe_local_display', 'width=1280,height=720');
-      } else {
-        localDisplayRef.current.focus();
-      }
+      openLocalDisplay(localDisplayRef);
     }
   };
 
@@ -1280,6 +1279,11 @@ export default function Website_work_Profile() {
                         );
                       })}
                     </div>
+                  </div>
+
+                  {/* Desktop Controls Footer */}
+                  <div className="shrink-0 bg-[#0f172a] border-t border-white/10 px-6 py-3 z-20 flex items-center gap-3" dir="rtl">
+                    <LocalFullscreenButton displayRef={localDisplayRef} />
                   </div>
                 </div>
               </div>

@@ -23,7 +23,9 @@ export default function Navbar() {
         vocalsMode, setVocalsMode,
         teams, setTeams
     } = useContext(UserContext);
-    const canUseMusicMode = ["MUSIC_ADMIN", "PROGRAMER"].includes(UserRole);
+    const profileLabel = language === 'ar' ? 'مساحتي' : language === 'de' ? 'Mein Profil' : 'My Profile';
+    const workspaceLabel = language === 'ar' ? 'مساحة العمل' : language === 'de' ? 'Arbeitsbereich' : 'Workspace';
+    const canUseMusicMode =["MUSIC_ADMIN", "PROGRAMER"].includes(UserRole);
     const [langMenuOpen, setLangMenuOpen] = useState(false);
     const [modeMenuOpen, setModeMenuOpen] = useState(false);
     const [authMenuOpen, setAuthMenuOpen] = useState(false);
@@ -181,6 +183,36 @@ export default function Navbar() {
                             </Link>
                         </motion.li>
                     )}
+
+                {/* Workspace Link Desktop */}
+                <motion.li variants={itemVariants} className="list-none">
+                    <Link
+                        href="/WorkSpace"
+                        className={`text-sm lg:text-base font-medium cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-1.5
+                        ${pathname === "/WorkSpace"
+                                ? "text-sky-400 bg-white/5"
+                                : "text-gray-300 hover:text-sky-300"
+                            }`}
+                    >
+                        {workspaceLabel}
+                    </Link>
+                </motion.li>
+
+                {/* Profile Link Desktop */}
+                {isLogin && (
+                    <motion.li variants={itemVariants} className="list-none">
+                        <Link
+                            href="/normal_UserProfile"
+                            className={`text-sm lg:text-base font-medium cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-1.5
+                            ${pathname === "/normal_UserProfile"
+                                    ? "text-sky-400 bg-white/5"
+                                    : "text-gray-300 hover:text-sky-300"
+                                }`}
+                        >
+                            {profileLabel}
+                        </Link>
+                    </motion.li>
+                )}
 
                 {/* Teams Link Desktop */}
                 {isLogin && (
@@ -399,6 +431,38 @@ export default function Navbar() {
                                     >
                                         <ShieldAlert size={18} />
                                         {t("adminTasks")}
+                                    </Link>
+                                </li>
+                            )}
+
+                            {/* Mobile Workspace Link */}
+                            <li>
+                                <Link
+                                    href="/WorkSpace"
+                                    onClick={() => setMenuOpen(false)}
+                                    className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-medium text-sm
+                                    ${pathname === "/WorkSpace"
+                                            ? "bg-sky-500/20 text-sky-400"
+                                            : "text-gray-300 hover:bg-white/5 hover:text-white"
+                                        }`}
+                                >
+                                    {workspaceLabel}
+                                </Link>
+                            </li>
+
+                            {/* Mobile Profile Link */}
+                            {isLogin && (
+                                <li>
+                                    <Link
+                                        href="/normal_UserProfile"
+                                        onClick={() => setMenuOpen(false)}
+                                        className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-medium text-sm
+                                        ${pathname === "/normal_UserProfile"
+                                                ? "bg-sky-500/20 text-sky-400"
+                                                : "text-gray-300 hover:bg-white/5 hover:text-white"
+                                            }`}
+                                    >
+                                        {profileLabel}
                                     </Link>
                                 </li>
                             )}

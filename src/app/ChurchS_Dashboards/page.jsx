@@ -1,5 +1,7 @@
 'use client'
 import React, { useContext, useEffect, useMemo, useState } from 'react'
+import { openLocalDisplay, prepareLocalDisplay } from '../presentation/local/openLocalDisplay'
+import LocalFullscreenButton from '../presentation/local/LocalFullscreenButton'
 import Login from '../login/page'
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserContext } from '../context/User_Context'
@@ -253,6 +255,7 @@ function PendingHymnsPanel({ isLogin }) {
   const [presentationViewport, setPresentationViewport] = useState({ width: 1200, height: 900 });
 
   const localDisplayRef = React.useRef(null);
+  useEffect(() => prepareLocalDisplay(), []);
   const thumbContainerRef = React.useRef(null);
 
   const LOCAL_CHANNEL = 'taspe_presenter';
@@ -277,11 +280,7 @@ function PendingHymnsPanel({ isLogin }) {
     setShowDataShow(true);
 
     if (typeof window !== 'undefined' && window.innerWidth >= 640) {
-      if (!localDisplayRef.current || localDisplayRef.current.closed) {
-        localDisplayRef.current = window.open('/presentation/local', 'taspe_local_display', 'width=1280,height=720');
-      } else {
-        localDisplayRef.current.focus();
-      }
+      openLocalDisplay(localDisplayRef);
     }
   };
 
@@ -1069,6 +1068,11 @@ function PendingHymnsPanel({ isLogin }) {
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Desktop Controls Footer */}
+              <div className="shrink-0 bg-[#0f172a] border-t border-white/10 px-6 py-3 z-20 flex items-center gap-3" dir="rtl">
+                <LocalFullscreenButton displayRef={localDisplayRef} />
               </div>
             </div>
           </div>

@@ -27,7 +27,8 @@ const webStore = () => {
     return _webStore;
 };
 
-const emptyIndex = () => ({ version: 1, recordings: {}, pendingWords: {} });
+// guestPrays: prayer text for users who are not logged in (never sent to the server)
+const emptyIndex = () => ({ version: 1, recordings: {}, pendingWords: {}, guestPrays: [] });
 
 // ─── Binary helpers ─────────────────────────────────────────────────────────
 const uint8ToBase64 = (bytes) => {
@@ -150,6 +151,35 @@ export async function addRecordings(prayId, items, pendingWords) {
         index.recordings[prayId] = [...(index.recordings[prayId] || []), ...saved];
         if (pendingWords) index.pendingWords[prayId] = pendingWords;
     });
+}
+
+// ─── Guest prayers (no account) ─────────────────────────────────────────────
+const byNewest = (a, b) => new Date(b.date) - new Date(a.date);
+
+export async function getGuestPrays() {
+    return [...((await readIndex()).guestPrays || [])].sort(byNewest);
+}
+
+/** @returns {Promise<object>} the saved entry (with a local `_id`) */
+export async function addGuestPray({ words, feeling, prayType }) {
+    const entry = {
+        _id: `local-${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        words, feeling, prayType, date: new Date().toISOString(),
+    };
+    await updateIndex((index) => { index.guestPrays = [...(index.guestPrays || []), entry]; });
+    return entry;
+}
+
+export async function updateGuestPray(prayId, changes) {
+    return updateIndex((index) => {
+        index.guestPrays = (index.guestPrays || []).map((entry) => entry._id === prayId ? { ...entry, ...changes, date: new Date().toISOString() } : entry);
+        return [...index.guestPrays].sort(byNewest);
+    });
+}
+
+export async function deleteGuestPray(prayId) {
+    await updateIndex((index) => { index.guestPrays = (index.guestPrays || []).filter((entry) => entry._id !== prayId); });
+    await deleteRecordingsForPray(prayId);
 }
 
 /** Playable URL. On web the caller must URL.revokeObjectURL() it when done. */

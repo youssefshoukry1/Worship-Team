@@ -444,6 +444,19 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
 
     const isError = status.startsWith('Error');
 
+    // Drive backup needs an account (the Drive link is stored with it); guests keep everything on the device
+    if (!token) {
+        return (
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:p-5 flex items-center gap-3">
+                <div className="p-2 rounded-xl border bg-sky-500/10 text-sky-400 border-sky-500/20"><HardDrive className="h-4 w-4 sm:h-5 sm:w-5" /></div>
+                <div className="flex-1 min-w-0">
+                    <h3 className="text-sm sm:text-base font-bold text-white">Saved on this device</h3>
+                    <p className="text-[11px] text-slate-400">Your prayers and recordings are stored only on this device. Sign in to back them up to Google Drive.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-3">

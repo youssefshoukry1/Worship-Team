@@ -1,6 +1,8 @@
 'use client';
 import Loading from '../loading';
 import React, { useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { openLocalDisplay, prepareLocalDisplay } from '../presentation/local/openLocalDisplay';
+import LocalFullscreenButton from '../presentation/local/LocalFullscreenButton';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { PlayCircle, Trash2, Heart, Music, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle, Radio, ExternalLink, Tv2, ChevronUp, ChevronDown, Mic, MicOff, EyeOff, BookOpen, Eye, Loader2, Check, Pencil, Eraser, Trash, Hand, GripVertical, Copy, Share2, ClipboardCheck } from 'lucide-react';
 import Metronome from '../Metronome/page';
@@ -866,6 +868,7 @@ export default function WorkSpace() {
     // --- Presentation Advanced State & Refs ---
     const thumbContainerRef = useRef(null);
     const localDisplayRef = useRef(null);
+    useEffect(() => prepareLocalDisplay(), []);
     const LOCAL_CHANNEL = 'taspe_presenter';
 
     const broadcastLocalSlide = React.useCallback((slides, index, hymnTitle) => {
@@ -1323,11 +1326,7 @@ export default function WorkSpace() {
 
         // Open / focus the local display window - Only on desktop/tablet (sm breakpoint)
         if (window.innerWidth >= 640) {
-            if (!localDisplayRef.current || localDisplayRef.current.closed) {
-                localDisplayRef.current = window.open('/presentation/local', 'taspe_local_display', 'width=1280,height=720');
-            } else {
-                localDisplayRef.current.focus();
-            }
+            openLocalDisplay(localDisplayRef);
         }
     };
 
@@ -2692,7 +2691,9 @@ export default function WorkSpace() {
                                 </div>
 
                                 {/* Desktop Live Session Footer */}
-                                <div className="shrink-0 bg-[#0f172a] border-t border-white/10 px-6 py-3 z-20">
+                                <div className="shrink-0 bg-[#0f172a] border-t border-white/10 px-6 py-3 z-20 flex items-center gap-3">
+                                    <LocalFullscreenButton displayRef={localDisplayRef} className="shrink-0" />
+                                    <div className="flex-1 min-w-0">
                                     {!dataShowId ? (
                                         <div className="flex items-center gap-2">
                                             <div className="flex items-center gap-2 text-xs text-gray-500 shrink-0">
@@ -2763,6 +2764,7 @@ export default function WorkSpace() {
                                             </button>
                                         </div>
                                     )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
