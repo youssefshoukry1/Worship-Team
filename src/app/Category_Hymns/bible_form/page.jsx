@@ -1964,18 +1964,21 @@ export function BibleForm({ controller }) {
                                       style={{
                                         backgroundColor: inlineBg,
                                         border: inlineBorder !== 'transparent' ? `1px solid ${inlineBorder}` : '1px solid transparent',
-                                        padding: '2px 4px',
-                                        margin: '0 2px',
-                                        borderRadius: '8px',
+                                        padding: '4px 6px',
+                                        margin: '0',
+                                        borderRadius: '5px',
+                                        boxDecorationBreak: 'clone',
+                                        WebkitBoxDecorationBreak: 'clone',
                                       }}
                                       className={`inline cursor-pointer transition-all duration-150 ${!hex && !isSelectedIndividual ? 'hover:bg-white/5' : ''} ${textColor}`}
                                     >
                                       <span
-                                        className={`inline-flex items-center justify-center text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-md mx-1 align-baseline select-none border transition-colors ${
+                                        className={`inline-flex items-center justify-center text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-md ml-1 mr-0 select-none border transition-colors leading-none ${
                                           isSelectedIndividual
                                             ? 'text-sky-500/70 bg-white/5 border-white/10'
                                             : 'text-white/30 bg-white/5 border-white/10'
                                         }`}
+                                        style={{ verticalAlign: 'middle', transform: 'translateY(-1px)' }}
                                       >
                                         {verse.verseNumber}
                                         {existingNote && (
@@ -1989,7 +1992,7 @@ export function BibleForm({ controller }) {
                                           />
                                         )}
                                       </span>
-                                      <span>{verse.text} </span>
+                                      <span>{verse.text?.trim()}</span>
                                     </span>
                                   );
                                 })}
