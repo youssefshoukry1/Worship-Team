@@ -2122,7 +2122,7 @@ export function BibleForm({ controller }) {
             <Sparkles className="w-3.5 h-3.5" /> {t('Ai')}
           </button>
         </div>
-
+ 
         {/* AI Options */}
         {showAiOptions && (
           <div className="flex gap-2 shrink-0 animate-in fade-in slide-in-from-bottom-1 duration-150" dir="rtl">
