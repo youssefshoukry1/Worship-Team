@@ -2198,16 +2198,31 @@ export function BibleForm({ controller }) {
         <div className="flex items-center gap-2.5 overflow-x-auto py-1 hide-scrollbar">
           {highlightColorsList.map(c => {
             const isColorActive = Array.from(bibleSelectedVerseIds).every(id => bibleHighlights[id] === c.id);
+            const isCustom = c.id.startsWith('custom-') || !HIGHLIGHT_COLORS.some(h => h.id === c.id);
             return (
-              <button
-                key={c.id}
-                onClick={() => handleApplyHighlight(c.id)}
-                className={`w-7 h-7 rounded-full transition-all active:scale-90 flex items-center justify-center border-2 shrink-0
-                  ${isColorActive ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
-                style={{ backgroundColor: c.hex }}
-              >
-                {isColorActive && <Check className="w-4 h-4 text-slate-900 stroke-[3]" />}
-              </button>
+              <div key={c.id} className="relative group shrink-0">
+                <button
+                  onClick={() => handleApplyHighlight(c.id)}
+                  className={`w-7 h-7 rounded-full transition-all active:scale-90 flex items-center justify-center border-2
+                    ${isColorActive ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
+                  style={{ backgroundColor: c.hex }}
+                >
+                  {isColorActive && <Check className="w-4 h-4 text-slate-900 stroke-[3]" />}
+                </button>
+
+                {isCustom && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setHighlightColorsList(prev => prev.filter(item => item.id !== c.id));
+                    }}
+                    className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-slate-900 border border-white/20 text-white/70 hover:text-red-400 hover:bg-red-500/20 hover:border-red-400/50 flex items-center justify-center transition-all shadow-sm z-10"
+                    title="حذف اللون"
+                  >
+                    <X className="w-2.5 h-2.5 stroke-[3]" />
+                  </button>
+                )}
+              </div>
             );
           })}
 
