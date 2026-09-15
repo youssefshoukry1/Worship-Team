@@ -741,20 +741,17 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
 
   const handleBibleScroll = (e) => {
     const st = e.target.scrollTop;
-    if (st <= 15) {
-      setShowBibleNavHeader(prev => prev ? prev : true);
-    } else if (st > lastBibleScrollTopRef.current + 20) {
+    if (st <= 10) {
+      setShowBibleNavHeader(true);
+    } else if (st > lastBibleScrollTopRef.current + 4) {
       setShowBibleNavHeader(prev => {
-        if (prev) {
-          setBiblePickerOpen(null);
-          return false;
-        }
+        if (prev) setBiblePickerOpen(null);
         return false;
       });
-    } else if (st < lastBibleScrollTopRef.current - 20) {
-      setShowBibleNavHeader(prev => prev ? prev : true);
+    } else if (st < lastBibleScrollTopRef.current - 4) {
+      setShowBibleNavHeader(true);
     }
-    lastBibleScrollTopRef.current = st;
+    lastBibleScrollTopRef.current = Math.max(0, st);
   };
 
   // Check which translations are offline when modal opens or available translations change
@@ -1624,15 +1621,16 @@ export function BibleForm({ controller }) {
 
                   </div>
 
-                  {/* Smart Navigation Hub - GPU Accelerated Low-End Friendly Transition */}
+                  {/* Smart Navigation Hub - Smooth Chrome-like slide transition */}
                   <div
-                    className={`shrink-0 grid transition-[grid-template-rows,opacity,padding] duration-200 ease-out transform-gpu ${showBibleNavHeader
-                      ? 'grid-rows-[1fr] opacity-100 p-3 sm:p-5'
-                      : 'grid-rows-[0fr] opacity-0 p-0 pointer-events-none'
-                      } bg-gradient-to-b from-black/40 to-transparent`}
+                    className={`shrink-0 overflow-hidden transition-all duration-200 ease-out ${
+                      showBibleNavHeader
+                        ? 'max-h-[400px] opacity-100 p-3 sm:p-5'
+                        : 'max-h-0 opacity-0 p-0 pointer-events-none'
+                    } bg-gradient-to-b from-black/40 to-transparent`}
                     dir="rtl"
                   >
-                    <div className="overflow-hidden space-y-3">
+                    <div className="space-y-3">
                       <div className="flex flex-col sm:flex-row gap-2">
                         {/* Minimalist Search */}
                         <div className="relative flex-1 group">
