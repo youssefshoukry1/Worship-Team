@@ -1,6 +1,6 @@
 export const metadata = {
-  title: 'Privacy Policy - Tasbeha',
-  description: 'Privacy Policy and Google User Data usage details for Tasbeha.',
+  title: 'Privacy Policy - Wasla',
+  description: 'Privacy Policy and Google User Data usage details for Wasla.',
 };
 
 export default function PrivacyPolicy() {
@@ -14,7 +14,7 @@ export default function PrivacyPolicy() {
           <div>
             <h2 className="text-xl font-semibold text-white mb-2">1. Introduction</h2>
             <p className="text-gray-300">
-              Welcome to <strong>Tasbeha</strong>. We respect your privacy and are committed to protecting any personal information you share with us. This Privacy Policy outlines what information we process and how your data is protected.
+              Welcome to <strong>Wasla</strong>. We respect your privacy and are committed to protecting any personal information you share with us. This Privacy Policy outlines what information we process and how your data is protected.
             </p>
           </div>
 
@@ -37,7 +37,7 @@ export default function PrivacyPolicy() {
                 <strong>Access:</strong> We only access basic profile information (email and name) to authenticate your identity, and your authorized storage space to save your personal data directly onto your own Google Drive.
               </li>
               <li>
-                <strong>Limited Use Compliance:</strong> Tasbeha&apos;s use and transfer to any other app of information received from Google APIs will adhere to the{' '}
+                <strong>Limited Use Compliance:</strong> Wasla&apos;s use and transfer to any other app of information received from Google APIs will adhere to the{' '}
                 <a
                   href="https://developers.google.com/terms/api-services-user-data-policy"
                   target="_blank"
@@ -64,7 +64,7 @@ export default function PrivacyPolicy() {
           <div>
             <h2 className="text-xl font-semibold text-white mb-2">5. User Rights & Revoking Access</h2>
             <p className="text-gray-300 mb-2">
-              You can revoke Tasbeha&apos;s access at any time through{' '}
+              You can revoke Wasla&apos;s access at any time through{' '}
               <a
                 href="https://myaccount.google.com/permissions"
                 target="_blank"
@@ -80,8 +80,8 @@ export default function PrivacyPolicy() {
             <h2 className="text-xl font-semibold text-white mb-2">6. Contact Us</h2>
             <p className="text-gray-300">
               For any questions, reach out to us at:{' '}
-              <a href="mailto:support@tasbeha.app" className="text-blue-400 underline">
-                support@tasbeha.app
+              <a href="mailto:wasla.supports@gmail.com" className="text-blue-400 underline">
+                wasla.supports@gmail.com
               </a>
             </p>
           </div>
