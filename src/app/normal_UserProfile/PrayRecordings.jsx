@@ -1,15 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import WaveSurfer from 'wavesurfer.js';
-import RecordPlugin from 'wavesurfer.js/dist/plugins/record.esm.js';
-import { Check, CloudUpload, CloudDownload, HardDrive, Loader2, Mic, Pause, Play, Trash2 } from 'lucide-react';
+import { Check, CloudUpload, CloudDownload, HardDrive, Loader2, Mic, Pause, Play, Trash2, ArrowRightLeft, Plus, X } from 'lucide-react';
 import { buildMyPraysZip, deleteRecording, getRecordingUrl, restoreMyPraysZip } from '../utils/prayRecordings';
 import {
-    DriveNotLinkedError, downloadDriveFile, ensureDriveFolder, findDriveFile, getDriveAccessToken, getDriveAuthUrl, uploadDriveFile,
+    DriveNotLinkedError, downloadDriveFile, ensureDriveFolder, findDriveFile, getDriveAccessToken, getDriveAccounts, getDriveAuthUrl, setDefaultDriveAccount, disconnectDriveAccount, uploadDriveFile,
 } from '../utils/googleDriveClient';
 import { showToast } from '../components/ToastContainer';
 import { openVoiceInput } from '../utils/voiceProcessing';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import WaveSurfer from 'wavesurfer.js';
+import RecordPlugin from 'wavesurfer.js/dist/plugins/record.esm.js';
 
 const BACKUP_FOLDER = 'my-prays-backups';
 const BACKUP_FILE = 'my prays.zip';
@@ -73,7 +73,10 @@ export function usePrayRecorder(onFinish) {
     const elapsedMsRef = useRef(0);
     const resumedAtRef = useRef(0);
     const onFinishRef = useRef(onFinish);
-    onFinishRef.current = onFinish;
+
+    useEffect(() => {
+        onFinishRef.current = onFinish;
+    }, [onFinish]);
 
     const elapsedMs = () => elapsedMsRef.current + (resumedAtRef.current ? Date.now() - resumedAtRef.current : 0);
 
@@ -197,7 +200,6 @@ function LiveRecordingBar({ recorder, tone }) {
         });
         const plugin = wavesurfer.registerPlugin(RecordPlugin.create({ scrollingWaveform: true, scrollingWaveformWindow: 4, renderRecordedAudio: false }));
         pluginRef.current = plugin;
-        // Visualise the recorder's own stream — the plugin never owns or stops the mic
         const micView = plugin.renderMicStream(recorder.stream);
         return () => {
             micView.onDestroy();
@@ -244,7 +246,7 @@ export function VoiceClip({ url, fallbackDuration = 0, tone, label, onDelete }) 
 
     useEffect(() => {
         if (!waveRef.current || !url) return;
-        setIsReady(false); setFailed(false); setCurrentTime(0);
+        let active = true;
         const wavesurfer = WaveSurfer.create({
             container: waveRef.current,
             waveColor: 'rgba(148, 163, 184, 0.35)',
@@ -259,17 +261,28 @@ export function VoiceClip({ url, fallbackDuration = 0, tone, label, onDelete }) 
             url,
         });
         wavesurferRef.current = wavesurfer;
-        wavesurfer.on('ready', (seconds) => { setIsReady(true); if (seconds && Number.isFinite(seconds)) setDuration(seconds); });
-        wavesurfer.on('timeupdate', (seconds) => setCurrentTime(seconds));
+        wavesurfer.on('ready', (seconds) => {
+            if (!active) return;
+            setIsReady(true);
+            if (seconds && Number.isFinite(seconds)) setDuration(seconds);
+        });
+        wavesurfer.on('timeupdate', (seconds) => { if (active) setCurrentTime(seconds); });
         wavesurfer.on('play', () => {
             if (activePlayer && activePlayer !== wavesurfer) activePlayer.pause();
             activePlayer = wavesurfer;
-            setIsPlaying(true);
+            if (active) setIsPlaying(true);
         });
-        wavesurfer.on('pause', () => setIsPlaying(false));
-        wavesurfer.on('finish', () => { setIsPlaying(false); wavesurfer.seekTo(0); setCurrentTime(0); });
-        wavesurfer.on('error', () => setFailed(true));
+        wavesurfer.on('pause', () => { if (active) setIsPlaying(false); });
+        wavesurfer.on('finish', () => {
+            if (active) {
+                setIsPlaying(false);
+                wavesurfer.seekTo(0);
+                setCurrentTime(0);
+            }
+        });
+        wavesurfer.on('error', () => { if (active) setFailed(true); });
         return () => {
+            active = false;
             if (activePlayer === wavesurfer) activePlayer = null;
             wavesurfer.destroy();
             wavesurferRef.current = null;
@@ -378,7 +391,7 @@ export function SavedPrayRecordings({ prayId, recordings, getBlockLabel, onChang
     );
 }
 
-/** Backup / restore of all prayers (text + local recordings) as "my prays.zip" on the user's Google Drive. */
+/** Backup / restore of all prayers with multi-account support & restore account selector modal. */
 export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
     const lastBackupKey = `my_prays_last_backup_${userId}`;
     const [busy, setBusy] = useState(null); // 'backup' | 'restore' | null
@@ -386,10 +399,39 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
     const [status, setStatus] = useState('');
     const [needsLink, setNeedsLink] = useState(false);
     const [lastBackup, setLastBackup] = useState(null);
+    const [accounts, setAccounts] = useState([]);
+    const [showRestoreModal, setShowRestoreModal] = useState(false);
+    const [showAccountsModal, setShowAccountsModal] = useState(false);
 
     useEffect(() => {
-        try { setLastBackup(localStorage.getItem(lastBackupKey)); } catch { /* storage unavailable */ }
+        try { setLastBackup(localStorage.getItem(lastBackupKey)); } catch {}
     }, [lastBackupKey]);
+
+    const loadAccounts = useCallback(async () => {
+        if (!token) return;
+        try {
+            const list = await getDriveAccounts(token);
+            setAccounts(list);
+            if (list.length > 0) setNeedsLink(false);
+        } catch {
+            // failed silently
+        }
+    }, [token]);
+
+    useEffect(() => {
+        loadAccounts();
+    }, [loadAccounts]);
+
+    useEffect(() => {
+        const handleMessage = (e) => {
+            if (e.data && e.data.type === 'GOOGLE_DRIVE_LINKED') {
+                loadAccounts();
+                showToast({ message: e.data.email ? `Connected: ${e.data.email}` : 'Google Drive linked successfully.', type: 'success', duration: 4000 });
+            }
+        };
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [loadAccounts]);
 
     const fail = (err) => {
         console.error('My prays backup error:', err);
@@ -405,11 +447,16 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
         } catch (err) { fail(err); }
     };
 
-    const handleBackup = async () => {
+    const defaultAccount = accounts.find((a) => a.isDefault) || accounts[0];
+    const activeEmail = defaultAccount?.email || null;
+
+    const handleBackup = async (targetEmail = null) => {
         setBusy('backup'); setProgress(0); setNeedsLink(false);
         try {
-            setStatus('Connecting to Google Drive...');
-            const accessToken = await getDriveAccessToken(token);
+            const emailToUse = targetEmail || activeEmail;
+            const targetLabel = emailToUse ? ` (${emailToUse})` : '';
+            setStatus(`Connecting to Google Drive${targetLabel}...`);
+            const accessToken = await getDriveAccessToken(token, emailToUse);
             setProgress(5);
             setStatus('Packing prayers and recordings...');
             const bytes = await buildMyPraysZip(prayTime || [], (ratio) => setProgress(5 + Math.round(ratio * 40)));
@@ -422,7 +469,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                 onProgress: (ratio) => setProgress(50 + Math.round(ratio * 50)),
             });
             const now = new Date().toISOString();
-            try { localStorage.setItem(lastBackupKey, now); } catch { /* storage unavailable */ }
+            try { localStorage.setItem(lastBackupKey, now); } catch {}
             setLastBackup(now);
             setProgress(100);
             setStatus('Backup completed successfully!');
@@ -430,15 +477,16 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
         } catch (err) { fail(err); } finally { setBusy(null); }
     };
 
-    const handleRestore = async () => {
-        if (!window.confirm('Restore voice recordings from your "my prays" backup on Google Drive? Recordings already on this device are kept.')) return;
+    const executeRestore = async (accountEmail = null) => {
+        setShowRestoreModal(false);
         setBusy('restore'); setProgress(0); setNeedsLink(false);
         try {
-            setStatus('Connecting to Google Drive...');
-            const accessToken = await getDriveAccessToken(token);
+            const targetLabel = accountEmail ? ` (${accountEmail})` : '';
+            setStatus(`Connecting to Google Drive${targetLabel}...`);
+            const accessToken = await getDriveAccessToken(token, accountEmail);
             const folder = await findDriveFile(accessToken, { name: BACKUP_FOLDER, mimeType: 'application/vnd.google-apps.folder' });
             const file = folder && await findDriveFile(accessToken, { name: BACKUP_FILE, parentId: folder.id });
-            if (!file) throw new Error('No "my prays" backup found on Google Drive.');
+            if (!file) throw new Error(`No "my prays" backup found on ${accountEmail || 'Google Drive'}.`);
             setProgress(10);
             setStatus('Downloading "my prays"...');
             const bytes = await downloadDriveFile(accessToken, file.id);
@@ -447,13 +495,44 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
             const result = await restoreMyPraysZip(bytes, (ratio) => setProgress(50 + Math.round(ratio * 50)));
             setProgress(100);
             setStatus(`Restored ${result.restored} recording(s) across ${result.prays} prayer(s).`);
+            showToast({ message: `Restored ${result.restored} recording(s) successfully.`, type: 'success', duration: 4000 });
             onRestored?.();
         } catch (err) { fail(err); } finally { setBusy(null); }
     };
 
+    const handleRestoreClick = () => {
+        if (accounts.length > 1) {
+            setShowRestoreModal(true);
+        } else {
+            const singleEmail = accounts[0]?.email || null;
+            if (!window.confirm(`Restore voice recordings from your "my prays" backup on Google Drive${singleEmail ? ` (${singleEmail})` : ''}? Recordings already on this device are kept.`)) return;
+            executeRestore(singleEmail);
+        }
+    };
+
+    const handleSetDefault = async (email) => {
+        try {
+            await setDefaultDriveAccount(token, email);
+            await loadAccounts();
+            showToast({ message: `Default account set to ${email}`, type: 'success', duration: 3000 });
+        } catch (err) {
+            showToast({ message: err.message, type: 'error', duration: 4000 });
+        }
+    };
+
+    const handleDisconnect = async (email) => {
+        if (!window.confirm(`Disconnect Google Drive account (${email})?`)) return;
+        try {
+            await disconnectDriveAccount(token, email);
+            await loadAccounts();
+            showToast({ message: 'Drive account disconnected', type: 'info', duration: 3000 });
+        } catch (err) {
+            showToast({ message: err.message, type: 'error', duration: 4000 });
+        }
+    };
+
     const isError = status.startsWith('Error');
 
-    // Drive backup needs an account (the Drive link is stored with it); guests keep everything on the device
     if (!token) {
         return (
             <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:p-5 flex items-center gap-3">
@@ -467,23 +546,45 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
     }
 
     return (
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:p-5 relative overflow-hidden">
             <div className="flex flex-wrap items-center gap-3">
                 <div className="p-2 rounded-xl border bg-sky-500/10 text-sky-400 border-sky-500/20"><HardDrive className="h-4 w-4 sm:h-5 sm:w-5" /></div>
                 <div className="flex-1 min-w-[150px]">
-                    <h3 className="text-sm sm:text-base font-bold text-white">My Prays Backup</h3>
-                    <p className="text-[11px] text-slate-400">Voice recordings stay on this device. Back up all prayers and recordings to your Google Drive.</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-sm sm:text-base font-bold text-white">My Prays Backup</h3>
+                        {activeEmail && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30">
+                                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                                {activeEmail}
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Voice recordings stay on this device. Back up all prayers and recordings to your Google Drive.</p>
                     {lastBackup && <p className="text-[10px] text-slate-500 mt-0.5">Last backup: {new Date(lastBackup).toLocaleString()}</p>}
                 </div>
-                <div className="flex gap-2">
-                    <button type="button" onClick={handleRestore} disabled={Boolean(busy)} className="px-3 py-2 rounded-lg border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5 disabled:opacity-40 flex items-center gap-1.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (accounts.length > 1) setShowAccountsModal(true);
+                            else handleLink();
+                        }}
+                        disabled={Boolean(busy)}
+                        className="px-3 py-2 rounded-lg border border-sky-500/30 bg-sky-500/10 text-xs font-semibold text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50 transition-all disabled:opacity-40 flex items-center gap-1.5 active:scale-95"
+                        title="Change or switch Google Drive account"
+                    >
+                        <ArrowRightLeft className="w-3.5 h-3.5" />
+                        <span>{activeEmail ? 'Change Drive Email' : 'Link Drive'}</span>
+                    </button>
+                    <button type="button" onClick={handleRestoreClick} disabled={Boolean(busy)} className="px-3 py-2 rounded-lg border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5 transition-all disabled:opacity-40 flex items-center gap-1.5 active:scale-95">
                         {busy === 'restore' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudDownload className="w-4 h-4" />}Restore
                     </button>
-                    <button type="button" onClick={handleBackup} disabled={Boolean(busy)} className="px-3 py-2 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white disabled:opacity-40 flex items-center gap-1.5 shadow-lg shadow-sky-500/20">
+                    <button type="button" onClick={() => handleBackup()} disabled={Boolean(busy)} className="px-3 py-2 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white disabled:opacity-40 flex items-center gap-1.5 shadow-lg shadow-sky-500/20 transition-all active:scale-95">
                         {busy === 'backup' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudUpload className="w-4 h-4" />}Backup
                     </button>
                 </div>
             </div>
+
             {(busy || status) && (
                 <div className="mt-4 space-y-2">
                     <div className="flex justify-between text-xs font-medium gap-2">
@@ -497,10 +598,177 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                     )}
                 </div>
             )}
+
             {needsLink && (
                 <button type="button" onClick={handleLink} className="mt-3 w-full py-2.5 bg-white text-gray-900 rounded-xl text-sm font-medium hover:bg-gray-100 transition-colors">
                     Connect Google Drive
                 </button>
+            )}
+
+            {/* Restore Account Selection Modal */}
+            {showRestoreModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-[#111827] border border-white/10 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between p-5 border-b border-white/5 bg-white/[0.02]">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-2 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                                    <CloudDownload className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h4 className="text-base font-bold text-white">Restore from Google Drive</h4>
+                                    <p className="text-xs text-slate-400">Choose which Google account to restore from</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowRestoreModal(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-3 max-h-[360px] overflow-y-auto">
+                            {accounts.map((acc) => {
+                                const isDef = acc.isDefault || acc.email === activeEmail;
+                                return (
+                                    <div
+                                        key={acc.email}
+                                        onClick={() => executeRestore(acc.email)}
+                                        className="group flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-white/10 bg-white/[0.03] hover:bg-sky-500/10 hover:border-sky-500/40 transition-all cursor-pointer"
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            {acc.picture ? (
+                                                <img src={acc.picture} alt="" className="w-9 h-9 rounded-full object-cover border border-white/20 shrink-0" />
+                                            ) : (
+                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
+                                                    {(acc.name || acc.email || 'G').charAt(0).toUpperCase()}
+                                                </div>
+                                            )}
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-sm font-bold text-white truncate">{acc.name || acc.email}</p>
+                                                    {isDef && <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/20 text-sky-300 border border-sky-500/30">Active</span>}
+                                                </div>
+                                                <p className="text-xs text-slate-400 truncate">{acc.email}</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); executeRestore(acc.email); }}
+                                            className="shrink-0 px-3 py-1.5 rounded-xl bg-sky-500/20 text-sky-300 hover:bg-sky-500 hover:text-white border border-sky-500/30 text-xs font-bold transition-all flex items-center gap-1.5"
+                                        >
+                                            <CloudDownload className="w-3.5 h-3.5" />
+                                            Restore
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="p-4 border-t border-white/5 bg-white/[0.01] flex items-center justify-between gap-3">
+                            <button
+                                type="button"
+                                onClick={() => { setShowRestoreModal(false); handleLink(); }}
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-400 hover:text-sky-300 transition-colors"
+                            >
+                                <Plus className="w-3.5 h-3.5" />
+                                Connect another account
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowRestoreModal(false)}
+                                className="px-4 py-1.5 rounded-xl border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Account Manager / Switcher Modal */}
+            {showAccountsModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-[#111827] border border-white/10 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between p-5 border-b border-white/5 bg-white/[0.02]">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-2 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                                    <ArrowRightLeft className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h4 className="text-base font-bold text-white">Google Drive Accounts</h4>
+                                    <p className="text-xs text-slate-400">Manage or switch active backup account</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowAccountsModal(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-3 max-h-[360px] overflow-y-auto">
+                            {accounts.map((acc) => {
+                                const isDef = acc.isDefault || acc.email === activeEmail;
+                                return (
+                                    <div
+                                        key={acc.email}
+                                        className={`flex items-center justify-between gap-3 p-3.5 rounded-2xl border transition-all ${isDef ? 'bg-sky-500/10 border-sky-500/40' : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]'}`}
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            {acc.picture ? (
+                                                <img src={acc.picture} alt="" className="w-9 h-9 rounded-full object-cover border border-white/20 shrink-0" />
+                                            ) : (
+                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
+                                                    {(acc.name || acc.email || 'G').charAt(0).toUpperCase()}
+                                                </div>
+                                            )}
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-sm font-bold text-white truncate">{acc.name || acc.email}</p>
+                                                    {isDef && <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/20 text-sky-300 border border-sky-500/30">Active</span>}
+                                                </div>
+                                                <p className="text-xs text-slate-400 truncate">{acc.email}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            {!isDef && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSetDefault(acc.email)}
+                                                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 transition-colors"
+                                                >
+                                                    Set Active
+                                                </button>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDisconnect(acc.email)}
+                                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/15 transition-colors"
+                                                title="Disconnect account"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="p-4 border-t border-white/5 bg-white/[0.01] flex items-center justify-between gap-3">
+                            <button
+                                type="button"
+                                onClick={() => { setShowAccountsModal(false); handleLink(); }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold transition-all shadow-md shadow-sky-500/20"
+                            >
+                                <Plus className="w-3.5 h-3.5" />
+                                Connect another account
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowAccountsModal(false)}
+                                className="px-4 py-1.5 rounded-xl border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5 transition-colors"
+                            >
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

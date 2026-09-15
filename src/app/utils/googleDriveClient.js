@@ -11,8 +11,9 @@ const FOLDER_MIME = 'application/vnd.google-apps.folder';
 
 export class DriveNotLinkedError extends Error {}
 
-export async function getDriveAccessToken(appToken) {
-    const res = await fetch(`${getApiBaseUrl()}/backup/drive-token`, { headers: { Authorization: `Bearer ${appToken}` } });
+export async function getDriveAccessToken(appToken, email = null) {
+    const url = `${getApiBaseUrl()}/backup/drive-token${email ? `?email=${encodeURIComponent(email)}` : ''}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${appToken}` } });
     const data = await res.json().catch(() => ({}));
     if (res.status === 404 || res.status === 401 || data.linked === false) {
         throw new DriveNotLinkedError(data.message || 'Google Drive is not linked.');
@@ -26,6 +27,35 @@ export async function getDriveAuthUrl(appToken) {
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.url) throw new Error('Could not start Google Drive link.');
     return data.url;
+}
+
+export async function getDriveAccounts(appToken) {
+    const res = await fetch(`${getApiBaseUrl()}/backup/drive-accounts`, { headers: { Authorization: `Bearer ${appToken}` } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Could not fetch Drive accounts.');
+    return data.accounts || [];
+}
+
+export async function setDefaultDriveAccount(appToken, email) {
+    const res = await fetch(`${getApiBaseUrl()}/backup/set-default-account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${appToken}` },
+        body: JSON.stringify({ email }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Could not set default Drive account.');
+    return data;
+}
+
+export async function disconnectDriveAccount(appToken, email = null) {
+    const res = await fetch(`${getApiBaseUrl()}/backup/drive-account`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${appToken}` },
+        body: JSON.stringify({ email }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Could not disconnect Drive account.');
+    return data;
 }
 
 const escapeQuery = (value) => String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
