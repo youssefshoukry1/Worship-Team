@@ -75,10 +75,17 @@ function writeLocalBibleHighlight(verseId, colorId) {
 }
 
 function getHighlightStyles(colorId, colorsList) {
-  if (!colorId || !colorsList) return null;
-  const color = colorsList.find(c => c.id === colorId);
-  if (!color) return null;
-  const hex = color.hex.startsWith('#') ? color.hex : `#${color.hex}`;
+  if (!colorId) return null;
+  const color = colorsList?.find(c => c.id === colorId);
+  let hex = color ? (color.hex.startsWith('#') ? color.hex : `#${color.hex}`) : null;
+  if (!hex) {
+    if (colorId.startsWith('#')) hex = colorId;
+    else if (colorId.startsWith('custom-')) {
+      const raw = colorId.replace('custom-', '');
+      if (/^[0-9a-fA-F]{3,8}$/.test(raw)) hex = '#' + raw;
+    }
+  }
+  if (!hex) return null;
   return {
     backgroundColor: `${hex}1a`,
     borderRightColor: hex,
@@ -280,6 +287,215 @@ function CompareColumn({ translationCode, verses, isActive = true }) {
     </div>
   );
 }
+
+function hsvToHex(h, s, v) {
+  const sNorm = Math.max(0, Math.min(100, s)) / 100;
+  const vNorm = Math.max(0, Math.min(100, v)) / 100;
+  const f = (n, k = (n + h / 60) % 6) => vNorm - vNorm * sNorm * Math.max(0, Math.min(k, 4 - k, 1));
+  const r = Math.round(f(5) * 255);
+  const g = Math.round(f(3) * 255);
+  const b = Math.round(f(1) * 255);
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
+function hexToHsv(hex) {
+  if (!hex) return { h: 195, s: 52, v: 100 };
+  let c = hex.replace('#', '');
+  if (c.length === 3) c = c.split('').map(x => x + x).join('');
+  if (c.length !== 6) return { h: 195, s: 52, v: 100 };
+  const num = parseInt(c, 16);
+  if (isNaN(num)) return { h: 195, s: 52, v: 100 };
+  const r = ((num >> 16) & 255) / 255;
+  const g = ((num >> 8) & 255) / 255;
+  const b = (num & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const d = max - min;
+  let h = 0;
+  const s = max === 0 ? 0 : d / max;
+  const v = max;
+  if (max !== min) {
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return { h: Math.round(h * 360), s: Math.round(s * 100), v: Math.round(v * 100) };
+}
+
+function ColorCustomizer({
+  initialHex,
+  onSave,
+  onClose,
+  t
+}) {
+  const [hsv, setHsv] = useState(() => hexToHsv(initialHex));
+  const [hexInput, setHexInput] = useState(() => initialHex.toUpperCase());
+  const satValRef = useRef(null);
+  const hueBarRef = useRef(null);
+
+  const currentHex = hsvToHex(hsv.h, hsv.s, hsv.v);
+
+  const updateSatVal = (e) => {
+    const rect = satValRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+    const s = Math.round(x * 100);
+    const v = Math.round((1 - y) * 100);
+    setHsv(prev => {
+      const next = { ...prev, s, v };
+      const newHex = hsvToHex(next.h, next.s, next.v);
+      setHexInput(newHex.toUpperCase());
+      return next;
+    });
+  };
+
+  const updateHue = (e) => {
+    const rect = hueBarRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const h = Math.round(x * 360) % 360;
+    setHsv(prev => {
+      const next = { ...prev, h };
+      const newHex = hsvToHex(next.h, next.s, next.v);
+      setHexInput(newHex.toUpperCase());
+      return next;
+    });
+  };
+
+  const applyPreset = (presetHex) => {
+    const newHsv = hexToHsv(presetHex);
+    setHsv(newHsv);
+    setHexInput(presetHex.toUpperCase());
+  };
+
+  const handleHexInputChange = (e) => {
+    const val = e.target.value;
+    setHexInput(val);
+    if (/^#?[0-9a-fA-F]{6}$/.test(val)) {
+      const formatted = val.startsWith('#') ? val : `#${val}`;
+      setHsv(hexToHsv(formatted));
+    }
+  };
+
+  return (
+    <div className="flex flex-col sm:flex-row gap-4 bg-[#141824]/95 backdrop-blur-2xl text-white rounded-2xl p-4 shadow-[0_15px_50px_rgba(0,0,0,0.7)] border border-white/10 w-full max-w-[500px] select-none" dir="rtl">
+      {/* 2D Saturation / Value Box & Hue Slider */}
+      <div className="flex flex-col gap-3 shrink-0" dir="ltr">
+        {/* Sat/Val 2D Box */}
+        <div
+          ref={satValRef}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.currentTarget.setPointerCapture(e.pointerId);
+            updateSatVal(e);
+          }}
+          onPointerMove={(e) => {
+            if (e.buttons > 0) updateSatVal(e);
+          }}
+          className="relative w-full sm:w-[230px] h-32 sm:h-[145px] rounded-xl overflow-hidden cursor-crosshair border border-white/15 touch-none shadow-inner"
+          style={{ backgroundColor: `hsl(${hsv.h}, 100%, 50%)` }}
+        >
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, #fff, transparent)' }} />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, #000, transparent)' }} />
+
+          {/* Draggable Circle Cursor Thumb */}
+          <div
+            className="absolute w-5 h-5 rounded-full border-2 border-white shadow-[0_0_6px_rgba(0,0,0,0.8)] -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-75"
+            style={{
+              left: `${hsv.s}%`,
+              top: `${100 - hsv.v}%`,
+              backgroundColor: currentHex,
+            }}
+          />
+        </div>
+
+        {/* Hue Bar Slider */}
+        <div
+          ref={hueBarRef}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.currentTarget.setPointerCapture(e.pointerId);
+            updateHue(e);
+          }}
+          onPointerMove={(e) => {
+            if (e.buttons > 0) updateHue(e);
+          }}
+          className="relative w-full sm:w-[230px] h-5 rounded-full cursor-pointer border border-white/15 touch-none shadow-inner"
+          style={{
+            background: 'linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)',
+          }}
+        >
+          {/* Hue Slider Thumb */}
+          <div
+            className="absolute top-1/2 w-5 h-5 rounded-full bg-white border-2 border-slate-900 shadow-md -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-75"
+            style={{ left: `${(hsv.h / 360) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Right Column: Preview, Hex info, Presets & Actions */}
+      <div className="flex flex-col flex-1 gap-3 justify-between">
+        {/* Color preview swatch + Hex Input */}
+        <div className="flex items-center gap-2.5">
+          <div
+            className="w-11 h-11 rounded-xl shadow-inner border border-white/20 shrink-0 transition-colors"
+            style={{ backgroundColor: currentHex }}
+          />
+          <div className="flex-1 flex flex-col gap-1 bg-black/30 rounded-xl px-2.5 py-1.5 border border-white/5 shadow-inner">
+            <div className="flex justify-between items-center text-[10px] text-white/50 font-bold">
+              <span>HEX</span>
+              <span className="font-mono text-white/80">
+                RGB({parseInt(currentHex.slice(1,3)||'0',16)}, {parseInt(currentHex.slice(3,5)||'0',16)}, {parseInt(currentHex.slice(5,7)||'0',16)})
+              </span>
+            </div>
+            <input
+              type="text"
+              value={hexInput}
+              onChange={handleHexInputChange}
+              maxLength={7}
+              className="w-full bg-transparent font-mono text-xs text-white font-bold tracking-wider outline-none uppercase"
+            />
+          </div>
+        </div>
+
+        {/* Quick Presets */}
+        <div className="flex flex-wrap gap-1.5 py-0.5">
+          {['#f43f5e', '#ec4899', '#a855f7', '#6366f1', '#3b82f6', '#0ea5e9', '#10b981', '#f59e0b'].map(hex => (
+            <button
+              key={hex}
+              onClick={(e) => { e.preventDefault(); applyPreset(hex); }}
+              className={`w-5 h-5 rounded-full border transition-transform hover:scale-125 shrink-0 shadow-sm ${
+                currentHex.toLowerCase() === hex.toLowerCase() ? 'border-white scale-110 shadow-md' : 'border-white/20'
+              }`}
+              style={{ backgroundColor: hex }}
+              title={hex}
+            />
+          ))}
+        </div>
+
+        {/* Buttons */}
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs font-bold transition-all active:scale-95"
+          >
+            {t("close")}
+          </button>
+          <button
+            onClick={() => onSave(currentHex)}
+            className="flex-[1.4] py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-black transition-all active:scale-95 shadow-[0_0_15px_rgba(56,189,248,0.3)]"
+          >
+            {t('setthecolor')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function useBibleForm({ isOpen, presentationActive, onClose, onPresent }) {
   const { isLogin, user_id } = useContext(UserContext);
   const { addToWorkspace } = useContext(HymnsContext);
@@ -384,8 +600,27 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   useEffect(() => {
     if (isOpen) {
       setBibleHighlights(readLocalBibleHighlights());
+      if (user_id) {
+        const token = localStorage.getItem("user_Taspe7_Token");
+        if (token) {
+          axios.get(`${API_ROOT.replace(/\/api$/, '')}/api/users/profile/${user_id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          }).then(res => {
+            if (res.data?.user?.bibleHighlights) {
+              const serverHighlights = {};
+              res.data.user.bibleHighlights.forEach(h => {
+                if (h.verseId && h.color) {
+                  serverHighlights[String(h.verseId)] = h.color;
+                }
+              });
+              localStorage.setItem(LOCAL_BIBLE_HIGHLIGHTS_KEY, JSON.stringify(serverHighlights));
+              setBibleHighlights(serverHighlights);
+            }
+          }).catch(() => {});
+        }
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, user_id]);
 
   const handleApplyHighlight = async (colorId) => {
     const selectedIds = Array.from(bibleSelectedVerseIds);
@@ -1698,8 +1933,15 @@ export function BibleForm({ controller }) {
                                   const isSelectedIndividual = bibleSelectedVerseIds.has(verse._id);
                                   const existingNote = verseNotes[verse._id];
                                   const highlightColor = bibleHighlights[verse._id];
-                                  const colorObj = highlightColor ? highlightColorsList.find(c => c.id === highlightColor) : null;
-                                  const hex = colorObj ? (colorObj.hex.startsWith('#') ? colorObj.hex : `#${colorObj.hex}`) : null;
+                                  const colorObj = highlightColor ? highlightColorsList?.find(c => c.id === highlightColor) : null;
+                                  let hex = colorObj ? (colorObj.hex.startsWith('#') ? colorObj.hex : `#${colorObj.hex}`) : null;
+                                  if (!hex && highlightColor) {
+                                    if (highlightColor.startsWith('#')) hex = highlightColor;
+                                    else if (highlightColor.startsWith('custom-')) {
+                                      const raw = highlightColor.replace('custom-', '');
+                                      if (/^[0-9a-fA-F]{3,8}$/.test(raw)) hex = '#' + raw;
+                                    }
+                                  }
 
                                   let inlineBg = 'transparent';
                                   let inlineBorder = 'transparent';
@@ -1979,92 +2221,23 @@ export function BibleForm({ controller }) {
 
         {/* Color Customizer */}
         {showColorCustomizer && (
-          <div className="flex flex-col sm:flex-row gap-5 bg-[#141824]/95 backdrop-blur-xl text-white rounded-[24px] p-5 animate-in fade-in slide-in-from-bottom-2 duration-150 shadow-[0_15px_50px_rgba(0,0,0,0.6)] border border-white/10 w-full max-w-[540px] select-none origin-top-right">
-
-            <div className="flex flex-col gap-2 shrink-0">
-              <div
-                className="relative w-full sm:w-[260px] h-32 sm:h-[160px] rounded-2xl overflow-hidden cursor-crosshair shadow-inner border border-white/15 touch-none"
-                onPointerDown={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const updateColor = (pEvent) => {
-                    const x = Math.max(0, Math.min(1, (pEvent.clientX - rect.left) / rect.width));
-                    const y = Math.max(0, Math.min(1, (pEvent.clientY - rect.top) / rect.height));
-                    const hue = x * 360;
-                    const val = 1 - y;
-                    const f = (n, k = (n + hue / 60) % 6) => val - val * Math.max(0, Math.min(k, 4 - k, 1));
-                    const r = Math.round(f(5) * 255);
-                    const g = Math.round(f(3) * 255);
-                    const b = Math.round(f(1) * 255);
-                    setCustomColorHex(`#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`);
-                  };
-                  updateColor(e);
-                  const onPointerMove = (pEvent) => updateColor(pEvent);
-                  const onPointerUp = () => {
-                    window.removeEventListener('pointermove', onPointerMove);
-                    window.removeEventListener('pointerup', onPointerUp);
-                  };
-                  window.addEventListener('pointermove', onPointerMove);
-                  window.addEventListener('pointerup', onPointerUp);
-                }}
-              >
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%)' }} />
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 100%)' }} />
-              </div>
-            </div>
-
-            <div className="flex flex-col flex-1 gap-4 justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl shadow-inner border border-white/20 shrink-0 transition-colors" style={{ backgroundColor: customColorHex }} />
-                <div className="flex flex-col w-full bg-black/30 rounded-xl p-2.5 border border-white/5 font-mono text-xs text-white/90 shadow-inner">
-                  <div className="flex justify-between items-center px-1">
-                    <span className="text-[9px] text-white/40 font-sans font-bold">HEX</span>
-                    <span>{customColorHex.toUpperCase()}</span>
-                  </div>
-                  <div className="w-full h-px bg-white/10 my-1.5" />
-                  <div className="flex justify-between items-center px-1">
-                    <span className="text-[9px] text-white/40 font-sans font-bold">RGB</span>
-                    <span className="text-[10px] text-white/70">
-                      {parseInt(customColorHex.slice(1,3)||'0',16)}, {parseInt(customColorHex.slice(3,5)||'0',16)}, {parseInt(customColorHex.slice(5,7)||'0',16)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2.5 px-1">
-                {['#f43f5e','#ec4899','#a855f7','#6366f1','#3b82f6','#0ea5e9','#10b981','#f59e0b'].map(hex => (
-                  <button
-                    key={hex}
-                    onClick={(e) => { e.preventDefault(); setCustomColorHex(hex); }}
-                    className="w-6 h-6 rounded-full border border-white/20 hover:scale-125 transition-transform shrink-0 shadow-md"
-                    style={{ backgroundColor: hex }}
-                  />
-                ))}
-              </div>
-
-              <div className="flex gap-2.5">
-                <button
-                  onClick={() => setShowColorCustomizer(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-xs font-bold transition-all active:scale-95"
-                >
-                  {t("close")}
-                </button>
-                <button
-                  onClick={() => {
-                    const newId = `custom-${Date.now()}`;
-                    setHighlightColorsList(prev => {
-                      if (prev.some(c => c.hex.toLowerCase() === customColorHex.toLowerCase())) return prev;
-                      return [...prev, { id: newId, hex: customColorHex }];
-                    });
-                    handleApplyHighlight(newId);
-                    setShowColorCustomizer(false);
-                  }}
-                  className="flex-[1.5] py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-black transition-all active:scale-95 shadow-[0_0_15px_rgba(56,189,248,0.3)]"
-                >
-                  {t('setthecolor')}
-                </button>
-              </div>
-            </div>
-          </div>
+          <ColorCustomizer
+            initialHex={customColorHex}
+            t={t}
+            onClose={() => setShowColorCustomizer(false)}
+            onSave={(selectedHex) => {
+              const cleanHex = selectedHex.replace('#', '').toLowerCase();
+              const newId = `custom-${cleanHex}`;
+              const existing = highlightColorsList?.find(c => c.hex.toLowerCase() === selectedHex.toLowerCase());
+              const idToApply = existing ? existing.id : newId;
+              if (!existing) {
+                setHighlightColorsList(prev => [...prev, { id: newId, hex: selectedHex }]);
+              }
+              setCustomColorHex(selectedHex);
+              handleApplyHighlight(idToApply);
+              setShowColorCustomizer(false);
+            }}
+          />
         )}
 
       </div>

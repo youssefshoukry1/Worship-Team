@@ -311,6 +311,22 @@ export default function normal_UserProfile() {
 
     const handleDeleteBibleHighlight = async (verseId) => {
         if (!window.confirm('Are you sure you want to delete this highlight?')) return;
+        const idsToDelete = Array.isArray(verseId) ? verseId : [verseId];
+
+        // Sync with local storage
+        if (typeof window !== 'undefined') {
+            try {
+                const raw = localStorage.getItem('taspe7_local_bible_highlights');
+                if (raw) {
+                    const current = JSON.parse(raw);
+                    idsToDelete.forEach(id => {
+                        delete current[String(id)];
+                    });
+                    localStorage.setItem('taspe7_local_bible_highlights', JSON.stringify(current));
+                }
+            } catch { }
+        }
+
         try {
             const response = await fetch(`${API_URL}/users/bible-highlight/${user_id}`, {
                 method: 'DELETE',
@@ -323,7 +339,6 @@ export default function normal_UserProfile() {
 
             if (response.ok) {
                 updateProfileState(prev => {
-                    const idsToDelete = Array.isArray(verseId) ? verseId : [verseId];
                     return {
                         ...prev,
                         bibleHighlights: prev.bibleHighlights.filter(h => !idsToDelete.includes(h.verseId))
@@ -338,7 +353,6 @@ export default function normal_UserProfile() {
             if (isNetworkError) {
                 await queueOfflineAction(`${API_URL}/users/bible-highlight/${user_id}`, 'DELETE', { verseId }, { Authorization: `Bearer ${isLogin}` });
                 updateProfileState(prev => {
-                    const idsToDelete = Array.isArray(verseId) ? verseId : [verseId];
                     return {
                         ...prev,
                         bibleHighlights: prev.bibleHighlights.filter(h => !idsToDelete.includes(h.verseId))
@@ -621,12 +635,33 @@ export default function normal_UserProfile() {
                                 renderItem={(highlight) => {
                                     const getHighlightHex = (colorId) => {
                                         if (!colorId) return '#38bdf8';
-                                        if (colorId.startsWith('custom-')) return '#' + colorId.replace('custom-', '');
+                                        if (colorId.startsWith('#')) return colorId;
+
                                         const standard = {
                                             cyan: '#7ae7ff', pink: '#ffbde6', red: '#f87171', lavender: '#e2e0ff',
                                             yellow: '#ffff00', green: '#00ff66', blue: '#00bfff', orange: '#ffaa44'
                                         };
-                                        return standard[colorId] || '#38bdf8';
+                                        if (standard[colorId]) return standard[colorId];
+
+                                        if (typeof window !== 'undefined') {
+                                            try {
+                                                const savedCustom = localStorage.getItem('taspe7_custom_highlights_list');
+                                                if (savedCustom) {
+                                                    const parsed = JSON.parse(savedCustom);
+                                                    const found = parsed.find(c => c.id === colorId);
+                                                    if (found && found.hex) return found.hex.startsWith('#') ? found.hex : `#${found.hex}`;
+                                                }
+                                            } catch { }
+                                        }
+
+                                        if (colorId.startsWith('custom-')) {
+                                            const potentialHex = colorId.replace('custom-', '');
+                                            if (/^[0-9a-fA-F]{3,8}$/.test(potentialHex)) {
+                                                return '#' + potentialHex;
+                                            }
+                                        }
+
+                                        return '#38bdf8';
                                     };
                                     const hex = getHighlightHex(highlight.color);
                                     return (
