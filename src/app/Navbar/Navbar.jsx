@@ -25,7 +25,7 @@ export default function Navbar() {
     } = useContext(UserContext);
     const profileLabel = language === 'ar' ? 'مساحتي' : language === 'de' ? 'Mein Profil' : 'My Profile';
     const workspaceLabel = language === 'ar' ? 'مساحة العمل' : language === 'de' ? 'Arbeitsbereich' : 'Workspace';
-    const canUseMusicMode =["MUSIC_ADMIN", "PROGRAMER"].includes(UserRole);
+    const canUseMusicMode = ["MUSIC_ADMIN", "PROGRAMER"].includes(UserRole);
     const [langMenuOpen, setLangMenuOpen] = useState(false);
     const [modeMenuOpen, setModeMenuOpen] = useState(false);
     const [authMenuOpen, setAuthMenuOpen] = useState(false);
@@ -119,7 +119,7 @@ export default function Navbar() {
         },
     };
 
-    if (pathname?.startsWith('/presentation') || pathname?.startsWith('/chat_team') || pathname?.startsWith('/Trainings') )  {
+    if (pathname?.startsWith('/presentation') || pathname?.startsWith('/chat_team') || pathname?.startsWith('/Trainings')) {
         return null;
     }
 
@@ -158,7 +158,6 @@ export default function Navbar() {
                                     : "text-gray-300 hover:text-sky-300"
                                 }`}
                         >
-                            {/* @ts-ignore */}
                             {t(name)}
                         </Link>
                     </motion.li>

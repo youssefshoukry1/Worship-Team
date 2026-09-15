@@ -1224,10 +1224,13 @@ export default function ChurchS_Dashboards() {
   }, [allUsers, reviewWindowActive, reviewWindowStartedAt]);
 
   // Role Check
-  const allowedRoles = ['PROGRAMER'];
+  const allowedRoles = ['PROGRAMER', 'ADMIN', 'MANAGER'];
   if (!isLogin) return <Login />;
 
-  if (subRole && !allowedRoles.includes(subRole)) {
+  const isProgramer = UserRole?.toUpperCase() === 'PROGRAMER';
+  const hasAccess = isProgramer || allowedRoles.includes(UserRole?.toUpperCase()) || allowedRoles.includes(subRole?.toUpperCase());
+
+  if (!hasAccess) {
     return (
       <div className="min-h-screen bg-[#020617] flex items-center justify-center text-white">
         <h1 className="text-2xl font-bold text-red-500 text-center px-4">

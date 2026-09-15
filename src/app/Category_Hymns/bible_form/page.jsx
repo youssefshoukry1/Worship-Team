@@ -7,7 +7,7 @@ import { UserContext } from '../../context/User_Context';
 import { HymnsContext } from '../../context/Hymns_Context';
 import { useLanguage } from '../../context/LanguageContext';
 import { showToast } from '../../components/ToastContainer';
-import { Sparkles, X, Check, Search, FileText, BookOpen, ChevronDown, Loader2, Copy, Lightbulb, FolderPlus, Monitor, PlusCircle, Link2 } from 'lucide-react';
+import { Sparkles, X, Check, Search, FileText, BookOpen, ChevronDown, Loader2, Copy, Lightbulb, FolderPlus, Monitor, PlusCircle, Link2, List, AlignJustify } from 'lucide-react';
 import { normalizeBibleBooksFromApi } from '../../utils/bibleBooks';
 import { getApiBaseUrl } from '../../utils/apiBase';
 import { useRouter } from 'next/navigation';
@@ -332,6 +332,19 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     }
   };
 
+  // View mode: 'list' (under each other) vs 'paragraph' (beside each other)
+  const [bibleViewMode, setBibleViewMode] = useState(() => {
+    if (typeof window === 'undefined') return 'list';
+    return localStorage.getItem('taspe7_bible_view_mode') || 'list';
+  });
+
+  const handleSetBibleViewMode = (mode) => {
+    setBibleViewMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('taspe7_bible_view_mode', mode);
+    }
+  };
+
   const [bibleHighlights, setBibleHighlights] = useState({});
   const [imageCardConfig, setImageCardConfig] = useState(null);
   const [prayModeActive, setPrayModeActive] = useState(false);
@@ -375,13 +388,20 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   }, [isOpen]);
 
   const handleApplyHighlight = async (colorId) => {
+    const selectedIds = Array.from(bibleSelectedVerseIds);
+    if (!selectedIds.length) return;
+
+    // Toggle off if all selected verses already have this color
+    const isTogglingOff = colorId && selectedIds.every(id => bibleHighlights[id] === colorId);
+    const targetColor = isTogglingOff ? null : colorId;
+
     const newHighlights = { ...bibleHighlights };
 
     // Optimistic UI update
-    bibleSelectedVerseIds.forEach(id => {
-      if (colorId) {
-        newHighlights[id] = colorId;
-        writeLocalBibleHighlight(id, colorId);
+    selectedIds.forEach(id => {
+      if (targetColor) {
+        newHighlights[id] = targetColor;
+        writeLocalBibleHighlight(id, targetColor);
       } else {
         delete newHighlights[id];
         writeLocalBibleHighlight(id, null);
@@ -389,27 +409,26 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     });
     setBibleHighlights(newHighlights);
 
-    // Store array before clearing state
-    const verseIdsToProcess = Array.from(bibleSelectedVerseIds);
-    setBibleSelectedVerseIds(new Set()); // Auto close context menu by deselecting
+    // Auto close context menu by deselecting
+    setBibleSelectedVerseIds(new Set());
 
     if (!user_id) return;
     const token = localStorage.getItem("user_Taspe7_Token");
     if (!token) return;
 
     try {
-      const promises = verseIdsToProcess.map(async (id) => {
+      const promises = selectedIds.map(async (id) => {
         const verse = bibleModalVerses.find(v => v._id === id);
         if (!verse) return;
 
-        if (colorId) {
+        if (targetColor) {
           await axios.post(`${API_ROOT.replace(/\/api$/, '')}/api/users/bible-highlight`, {
             userid: user_id,
             verseId: id,
             bookName: verse.bookName || bibleModalBook?.name || '',
             chapter: verse.chapter || bibleModalChapter?.number || 1,
             verseNumber: verse.verseNumber,
-            color: colorId,
+            color: targetColor,
             text: verse.text
           }, {
             headers: { Authorization: `Bearer ${token}` }
@@ -1229,6 +1248,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     bibleBookPickerRef, bibleChapterPickerRef,
     isSavingBible,
     bibleVerseSpacing, handleSetBibleVerseSpacing,
+    bibleViewMode, handleSetBibleViewMode,
     bibleHighlights,
     imageCardConfig, setImageCardConfig,
     prayModeActive, setPrayModeActive,
@@ -1282,7 +1302,7 @@ export function BibleForm({ controller }) {
     aiAnalysis, setAiAnalysis, showAiOptions, setShowAiOptions, bibleVerseFontSize, setBibleVerseFontSize,
     bibleAddedSuccess, bibleModalBrowseLoading, biblePickerOpen, setBiblePickerOpen,
     bibleBookPickerRef, bibleChapterPickerRef, isSavingBible, bibleVerseSpacing,
-    handleSetBibleVerseSpacing, bibleHighlights, imageCardConfig, setImageCardConfig,
+    handleSetBibleVerseSpacing, bibleViewMode, handleSetBibleViewMode, bibleHighlights, imageCardConfig, setImageCardConfig,
     prayModeActive, setPrayModeActive, highlightColorsList, setHighlightColorsList,
     showColorCustomizer, setShowColorCustomizer, customColorHex, setCustomColorHex,
     colorInputRef, handleTriggerColorPicker, handleColorPickerChange, handleApplyHighlight,
@@ -1593,6 +1613,34 @@ export function BibleForm({ controller }) {
                                         +
                                       </button>
                                     </div>
+
+                                    {/* View Mode Toggle: List (تحت بعض) vs Continuous (بجانب بعض) */}
+                                    <div className="flex items-center bg-white/5 border border-white/[0.07] rounded-xl p-0.5">
+                                      <button
+                                        onClick={() => handleSetBibleViewMode('list')}
+                                        className={`px-2 py-1 rounded-lg flex items-center gap-1 text-[10px] sm:text-xs font-bold transition-all ${
+                                          bibleViewMode === 'list'
+                                            ? 'bg-sky-500 text-white shadow-sm'
+                                            : 'text-white/40 hover:text-white'
+                                        }`}
+                                        title="عرض كل آية في سطر منفصل (تحت بعض)"
+                                      >
+                                        <List className="w-3.5 h-3.5" />
+                                        <span className="hidden sm:inline">عمودي</span>
+                                      </button>
+                                      <button
+                                        onClick={() => handleSetBibleViewMode('paragraph')}
+                                        className={`px-2 py-1 rounded-lg flex items-center gap-1 text-[10px] sm:text-xs font-bold transition-all ${
+                                          bibleViewMode === 'paragraph'
+                                            ? 'bg-sky-500 text-white shadow-sm'
+                                            : 'text-white/40 hover:text-white'
+                                        }`}
+                                        title="عرض متصل للآيات (بجانب بعض)"
+                                      >
+                                        <AlignJustify className="w-3.5 h-3.5" />
+                                        <span className="hidden sm:inline">متصل</span>
+                                      </button>
+                                    </div>
                                   </div>
 
                                   {/* Selection quick actions */}
@@ -1636,26 +1684,95 @@ export function BibleForm({ controller }) {
                               </div>
                             )}
 
-                            {/* Verses List */}
-                            {bibleModalVerses.map((verse) => {
-                              const isSelectedIndividual = bibleSelectedVerseIds.has(verse._id);
-                              const existingNote = verseNotes[verse._id];
-                              const highlightColor = bibleHighlights[verse._id];
-                              return (
-                                <VerseItem
-                                  key={verse._id}
-                                  verse={verse}
-                                  isSelected={isSelectedIndividual}
-                                  fontSize={bibleVerseFontSize}
-                                  spacing={bibleVerseSpacing}
-                                  highlightColor={highlightColor}
-                                  highlightColorsList={highlightColorsList}
-                                  hasNote={existingNote}
-                                  onClick={handleVerseClick}
-                                  onNoteClick={handleVerseNoteClick}
-                                />
-                              );
-                            })}
+                            {/* Verses Display */}
+                            {bibleViewMode === 'paragraph' ? (
+                              <div
+                                className="font-arabic text-right transition-all"
+                                dir="rtl"
+                                style={{
+                                  fontSize: `${bibleVerseFontSize}px`,
+                                  lineHeight: `${1.8 + (bibleVerseSpacing / 30)}`,
+                                }}
+                              >
+                                {bibleModalVerses.map((verse) => {
+                                  const isSelectedIndividual = bibleSelectedVerseIds.has(verse._id);
+                                  const existingNote = verseNotes[verse._id];
+                                  const highlightColor = bibleHighlights[verse._id];
+                                  const colorObj = highlightColor ? highlightColorsList.find(c => c.id === highlightColor) : null;
+                                  const hex = colorObj ? (colorObj.hex.startsWith('#') ? colorObj.hex : `#${colorObj.hex}`) : null;
+
+                                  let inlineBg = 'transparent';
+                                  let inlineBorder = 'transparent';
+                                  let textColor = 'text-white/80 hover:text-white';
+
+                                  if (hex) {
+                                    inlineBg = `${hex}26`;
+                                    inlineBorder = hex;
+                                    textColor = 'text-white';
+                                  } else if (isSelectedIndividual) {
+                                    inlineBg = 'rgba(255, 255, 255, 0.05)';
+                                    inlineBorder = 'rgba(255, 255, 255, 0.1)';
+                                    textColor = 'text-white';
+                                  }
+
+                                  return (
+                                    <span
+                                      key={verse._id}
+                                      onClick={() => handleVerseClick(verse._id)}
+                                      style={{
+                                        backgroundColor: inlineBg,
+                                        border: inlineBorder !== 'transparent' ? `1px solid ${inlineBorder}` : '1px solid transparent',
+                                        padding: '2px 4px',
+                                        margin: '0 2px',
+                                        borderRadius: '8px',
+                                      }}
+                                      className={`inline cursor-pointer transition-all duration-150 ${!hex && !isSelectedIndividual ? 'hover:bg-white/5' : ''} ${textColor}`}
+                                    >
+                                      <span
+                                        className={`inline-flex items-center justify-center text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-md mx-1 align-baseline select-none border transition-colors ${
+                                          isSelectedIndividual
+                                            ? 'text-sky-500/70 bg-white/5 border-white/10'
+                                            : 'text-white/30 bg-white/5 border-white/10'
+                                        }`}
+                                      >
+                                        {verse.verseNumber}
+                                        {existingNote && (
+                                          <span
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleVerseNoteClick(verse, existingNote);
+                                            }}
+                                            className="inline-block w-1.5 h-1.5 rounded-full bg-[#6366f1] mr-1 animate-pulse"
+                                            title="Has note"
+                                          />
+                                        )}
+                                      </span>
+                                      <span>{verse.text} </span>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              bibleModalVerses.map((verse) => {
+                                const isSelectedIndividual = bibleSelectedVerseIds.has(verse._id);
+                                const existingNote = verseNotes[verse._id];
+                                const highlightColor = bibleHighlights[verse._id];
+                                return (
+                                  <VerseItem
+                                    key={verse._id}
+                                    verse={verse}
+                                    isSelected={isSelectedIndividual}
+                                    fontSize={bibleVerseFontSize}
+                                    spacing={bibleVerseSpacing}
+                                    highlightColor={highlightColor}
+                                    highlightColorsList={highlightColorsList}
+                                    hasNote={existingNote}
+                                    onClick={handleVerseClick}
+                                    onNoteClick={handleVerseNoteClick}
+                                  />
+                                );
+                              })
+                            )}
                           </div>
                         </div>
                       ) : (

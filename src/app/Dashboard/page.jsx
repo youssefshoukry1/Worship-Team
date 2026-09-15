@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useContext, useState, useRef, useEffect } from 'react';
+import React, { useContext, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { UserContext } from '../context/User_Context';
@@ -10,20 +10,16 @@ import { useRouter } from 'next/navigation';
 import {
   Check,
   X,
-  ShieldAlert,
   User,
   RefreshCw,
   Users,
   PlusCircle,
-  Calendar,
   Music,
   Trash2,
   Edit,
-  Settings,
   FileText,
   ChevronDown,
   ChevronUp,
-  ClipboardList,
   Filter,
   ArrowLeft
 } from 'lucide-react';
@@ -34,16 +30,10 @@ const API_URL = "https://worship-team-api.onrender.com/api";
 
 export default function Dashboard() {
   const router = useRouter();
-  const { isLogin, UserRole, subRole, churchId, teams, switchTeam } = useContext(UserContext);
+  const { isLogin, UserRole, churchId, teams } = useContext(UserContext);
   const queryClient = useQueryClient();
   const [processingId, setProcessingId] = useState(null);
-  const [newEventName, setNewEventName] = useState("");
-  const [showEventsList, setShowEventsList] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState(null);
-  const [editingEventId, setEditingEventId] = useState(null);
-  const [editEventName, setEditEventName] = useState("");
   const [reportInputs, setReportInputs] = useState({});
-  const [reportEventInputs, setReportEventInputs] = useState({});
   const [reportDateInputs, setReportDateInputs] = useState({});
   const [expandedReports, setExpandedReports] = useState({});
   const [editingReport, setEditingReport] = useState(null);
@@ -55,6 +45,9 @@ export default function Dashboard() {
   );
 
   const hasAccess = UserRole === 'PROGRAMER' || managedTeams.length > 0;
+
+  const activeTeam = (teams || []).find((team) => team.churchId?.toString() === churchId?.toString());
+  const activeTeamName = activeTeam?.teamName || activeTeam?.churchName || 'Current Team';
 
 
   const toggleUserSection = (userId, section) => {
@@ -83,8 +76,6 @@ export default function Dashboard() {
   ];
   const [filterYear, setFilterYear] = useState("All");
   const [filterMonth, setFilterMonth] = useState("All");
-  const [clearingEventId, setClearingEventId] = useState(null);
-  const clearingTimeoutRef = useRef(null);
 
   // --- 1. API Fetching Functions ---
 
@@ -102,153 +93,7 @@ export default function Dashboard() {
     return res.data;
   };
 
-  const fetchChurchEvents = async () => {
-    const res = await axios.get(`${API_URL}/events`, {
-      headers: { Authorization: `Bearer ${isLogin}` },
-    });
-    return res.data;
-  };
-
   // --- 2. Action Handlers ---
-
-  const handleDeleteEvent = async (eventId) => {
-    if (!confirm("Are you sure you want to delete this event? This action cannot be undone.")) return;
-    setProcessingId(`DELETE_${eventId}`);
-    try {
-      await axios.delete(`${API_URL}/events/${eventId}`, {
-        headers: { Authorization: `Bearer ${isLogin}` }
-      });
-      queryClient.invalidateQueries({ queryKey: ['churchEvents'] });
-      setSelectedEventId(null);
-    } catch (error) {
-      console.error("Delete Error:", error);
-      alert("Failed to delete event");
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const handleClearHymns = async (eventId) => {
-    if (clearingEventId !== eventId) {
-      setClearingEventId(eventId);
-      if (clearingTimeoutRef.current) clearTimeout(clearingTimeoutRef.current);
-      clearingTimeoutRef.current = setTimeout(() => {
-        setClearingEventId(null);
-      }, 3000);
-      return;
-    }
-
-    setProcessingId(`CLEAR_${eventId}`);
-    try {
-      await axios.patch(`${API_URL}/events/edit/${eventId}`,
-        { hymns: [] },
-        { headers: { Authorization: `Bearer ${isLogin}` } }
-      );
-      queryClient.invalidateQueries({ queryKey: ['churchEvents'] });
-      setClearingEventId(null);
-    } catch (error) {
-      console.error("Clear Error:", error);
-      alert("Failed to clear hymns");
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const handleUpdateEvent = async (eventId) => {
-    if (!editEventName) return;
-    setProcessingId(`UPDATE_${eventId}`);
-    try {
-      await axios.patch(`${API_URL}/events/edit/${eventId}`,
-        { eventName: editEventName },
-        { headers: { Authorization: `Bearer ${isLogin}` } }
-      );
-      queryClient.invalidateQueries({ queryKey: ['churchEvents'] });
-      setEditingEventId(null);
-      setEditEventName("");
-    } catch (error) {
-      console.error("Update Error:", error);
-      alert("Failed to update event");
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const startEditing = (event) => {
-    setEditingEventId(event._id);
-    setEditEventName(event.eventName);
-  };
-
-  const handleCreateEvent = async () => {
-    if (!newEventName) return;
-    setProcessingId("CREATE_EVENT");
-    try {
-      await axios.post(`${API_URL}/events/create`,
-        { eventName: newEventName },
-        { headers: { Authorization: `Bearer ${isLogin}` } }
-      );
-      setNewEventName("");
-      queryClient.invalidateQueries({ queryKey: ['churchEvents'] });
-    } finally { setProcessingId(null); }
-  };
-
-  const downloadEventPDF = async (event) => {
-    setProcessingId(`PDF_${event._id}`);
-    try {
-      const response = await fetch(`${API_URL}/events/generate-pdf`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${isLogin}`
-        },
-        body: JSON.stringify({
-          hymns: event.hymns,
-          churchName: (typeof window !== 'undefined' && localStorage.getItem('user_Taspe7_ChurchName')) || 'Taspe7',
-          eventName: event.eventName,
-          hideChords: false // Default to showing chords for musician summaries
-        })
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Event-${event.eventName.replace(/\s+/g, '_')}-${new Date(event.createdAt).toLocaleDateString()}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      } else {
-        let errMsg = 'Failed to generate PDF';
-        try {
-          const errData = await response.json();
-          if (errData && errData.message) {
-            errMsg = errData.message;
-            if (errData.error) {
-              errMsg += `: ${errData.error}`;
-            }
-          } else if (typeof errData === 'string') {
-            errMsg = errData;
-          }
-        } catch (_) { }
-        alert(errMsg);
-      }
-    } catch (error) {
-      console.error('Download error:', error);
-      alert('Error connecting to server');
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const toggleUserInEvent = async (userId, eventId) => {
-    setProcessingId(`${userId}-${eventId}`);
-    try {
-      await axios.patch(`${API_URL}/events/toggle/${userId}/${eventId}`, {}, {
-        headers: { Authorization: `Bearer ${isLogin}` }
-      });
-      queryClient.invalidateQueries({ queryKey: ['data', isLogin] });
-    } finally { setProcessingId(null); }
-  };
 
   const toggleUserAttendance = async (userId) => {
     setProcessingId(`attend-${userId}`);
@@ -267,7 +112,7 @@ export default function Dashboard() {
     if (!confirm("Are you sure you want to delete this attendance record?")) return;
     setProcessingId(`del-attend-${attendId}`);
     try {
-      await axios.delete(`${API_URL}/events/attend/${userId}/${attendId}`, {
+      await axios.delete(`${API_URL}/users/attend/${userId}/${attendId}`, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
       queryClient.invalidateQueries({ queryKey: ['data', isLogin] });
@@ -323,10 +168,7 @@ export default function Dashboard() {
 
       // 3. الخطوة السحرية: تحديث كل المفاتيح (Invalidate Everything)
       // سنقوم بعمل Invalidate لكل الـ queries التي تبدأ بكلمات معينة لضمان مسح الكاش
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['data'] }), // هذا هو المفتاح المستخدم في صفحة الـ Training
-        queryClient.invalidateQueries({ queryKey: ['churchEvents'] })
-      ]);
+      await queryClient.invalidateQueries({ queryKey: ['data'] }); // هذا هو المفتاح المستخدم في صفحة الـ Training
 
       alert("تم تصفير كافة الجداول بنجاح ✅");
     } catch (error) {
@@ -700,16 +542,13 @@ export default function Dashboard() {
 
                           // --- Merge live hymns + archived hymnHistory ---
                           const allHymns = [
-                            ...(user.songs_Array || []).map(h => {
-                              const eventObj = churchEvents.find(ce => ce._id === (h.eventId?._id || h.eventId));
-                              return {
-                                ...h,
-                                isHistory: false,
-                                eventName: eventObj ? eventObj.eventName : 'No Event',
-                                date: new Date() // Treat live hymns as current
-                              };
-                            }),
-                            ...(user.hymnHistory || []).map(h => ({ ...h, isHistory: true, date: h.savedAt })),
+                            ...(user.songs_Array || []).map(h => ({
+                              ...h,
+                              isHistory: false,
+                              teamName: activeTeamName,
+                              date: new Date() // Treat live hymns as current
+                            })),
+                            ...(user.hymnHistory || []).map(h => ({ ...h, isHistory: true, teamName: h.churchName || 'Archived Team', date: h.savedAt })),
                           ];
                           const displayedHymns = allHymns.filter(h => {
                             if (filterYear === "All" && filterMonth === "All") return true;
@@ -800,11 +639,6 @@ export default function Dashboard() {
                                                   )}
                                                   {isExpanded && (
                                                     <span className="text-gray-300 font-medium">Report {index + 1}</span>
-                                                  )}
-                                                  {report.eventId && user.trainingEvents?.some(e => (e._id || e) === report.eventId) && (
-                                                    <span className="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1 py-0.5 rounded shrink-0">
-                                                      {user.trainingEvents.find(e => (e._id || e) === report.eventId)?.eventName || 'Assigned Event'}
-                                                    </span>
                                                   )}
                                                   {report.date && (
                                                     <span className="text-[9px] text-gray-500 shrink-0">
@@ -903,15 +737,8 @@ export default function Dashboard() {
                                     ) : (
                                       <div className="max-h-24 overflow-y-auto space-y-1" data-lenis-prevent-wheel>
                                         {displayedAttends.map((att, i) => {
-                                          // For history entries, eventName is pre-resolved.
-                                          // For live entries, look up from churchEvents.
-                                          let eventName;
-                                          if (att.isHistory) {
-                                            eventName = att.eventName || 'Unknown Event';
-                                          } else {
-                                            const eventObj = churchEvents.find(ce => ce._id === (att.eventId?._id || att.eventId));
-                                            eventName = eventObj ? eventObj.eventName : 'Unknown Event';
-                                          }
+                                          // Archived entries keep the team name from when they were reset.
+                                          const teamName = att.isHistory ? (att.churchName || 'Archived Team') : activeTeamName;
                                           const attendDate = new Date(att.date).toLocaleDateString();
                                           const attendTime = new Date(att.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -919,7 +746,7 @@ export default function Dashboard() {
                                             <div key={att._id || i} className="flex justify-between items-center text-xs bg-white/5 p-1.5 rounded border border-emerald-500/10 hover:border-emerald-500/30 transition-colors">
                                               <div className="flex flex-col gap-0.5">
                                                 <div className="flex items-center gap-1.5">
-                                                  <span className="text-emerald-300 font-medium truncate max-w-[120px]">{eventName}</span>
+                                                  <span className="text-emerald-300 font-medium truncate max-w-[120px]">{teamName}</span>
                                                   {att.isHistory && (
                                                     <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1 py-0.5 rounded shrink-0">archived</span>
                                                   )}
@@ -962,7 +789,7 @@ export default function Dashboard() {
                                           <div key={i} className="flex flex-col gap-0.5 text-xs bg-purple-500/5 p-2 rounded border border-purple-500/10 hover:border-purple-500/30 transition-colors">
                                             <span className="text-purple-200 font-semibold truncate">{entry.title}</span>
                                             <div className="flex items-center justify-between gap-2">
-                                              <span className="bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded text-[10px] font-medium truncate max-w-[120px]">{entry.eventName}</span>
+                                              <span className="bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded text-[10px] font-medium truncate max-w-[120px]">{entry.teamName}</span>
                                               <span className="text-gray-500 text-[10px] shrink-0">
                                                 {new Date(entry.date || entry.savedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                                               </span>
