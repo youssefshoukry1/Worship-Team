@@ -4,12 +4,13 @@ import React, { useEffect, useRef, useState, useContext } from "react";
 import { motion, AnimatePresence, easeOut } from "framer-motion";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, X, Globe, ChevronDown, Mic, Music, User, LogOut, LogIn, UserPlus, ShieldAlert, Users } from "lucide-react";
+import { Menu, X, Globe, ChevronDown, Mic, Music, User, LogOut, LogIn, UserPlus, ShieldAlert } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 // Adjust import according to your file structure
 import { UserContext } from "../context/User_Context";
 import Image from "next/image";
 import axios from 'axios';
+import WaslaLogo from "./WaslaLogo";
 
 export default function Navbar() {
     const { t, language, setLanguage } = useLanguage();
@@ -20,8 +21,7 @@ export default function Navbar() {
         user_id, setUser_id,
         churchId, setChurchId,
         HymnIds, setHymnIds,
-        vocalsMode, setVocalsMode,
-        teams, setTeams
+        vocalsMode, setVocalsMode
     } = useContext(UserContext);
     const profileLabel = language === 'ar' ? 'مساحتي' : language === 'de' ? 'Mein Profil' : 'My Profile';
     const workspaceLabel = language === 'ar' ? 'مساحة العمل' : language === 'de' ? 'Arbeitsbereich' : 'Workspace';
@@ -29,6 +29,36 @@ export default function Navbar() {
     const [langMenuOpen, setLangMenuOpen] = useState(false);
     const [modeMenuOpen, setModeMenuOpen] = useState(false);
     const [authMenuOpen, setAuthMenuOpen] = useState(false);
+
+    // Intro Transition: Every 3 days or first time
+    const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+    const [introStage, setIntroStage] = useState("done"); // "center" | "sliding" | "done"
+
+    useEffect(() => {
+        try {
+            const lastTime = localStorage.getItem("wasla_intro_last_time");
+            const now = Date.now();
+            if (!lastTime || now - Number(lastTime) > THREE_DAYS_MS) {
+                setIntroStage("center");
+            }
+        } catch (_) {}
+    }, []);
+
+    const handleLogoAssembleComplete = () => {
+        // Hold in center so the user can enjoy the assembled logo, then glide left
+        setTimeout(() => {
+            setIntroStage("sliding");
+        }, 700);
+    };
+
+    const handleSlideComplete = () => {
+        if (introStage === "sliding") {
+            setIntroStage("done");
+            try {
+                localStorage.setItem("wasla_intro_last_time", Date.now().toString());
+            } catch (_) {}
+        }
+    };
 
 
 
@@ -124,25 +154,52 @@ export default function Navbar() {
     }
 
     return (
-        <nav className="sticky top-0 z-50 h-20 px-2 flex items-center justify-between bg-[#0b0f19]/60 backdrop-blur-md border-b border-white/10">
-            {/* Responsive & Fast Logo */}
-            <Link
-                href="/"
-                className="relative flex items-center transition-transform hover:scale-105 active:scale-95"
-            >
-                <Image
-                    src="/wasla0.svg"
-                    alt="Logo"
-                    width={110}
-                    height={40}
-                    priority
-                    sizes="(max-width: 640px) 85px, (max-width: 768px) 100px, 110px"
-                    className="w-20 sm:w-24 md:w-28 h-auto object-contain "
-                />
-            </Link>
+        <nav className="sticky top-0 z-50 h-20 px-2 flex items-center justify-between bg-[#0b0f19]/60 backdrop-blur-md border-b border-white/10 relative">
+            {/* Logo with In-Navbar Center-to-Left Intro */}
+            <div className="relative flex items-center">
+                {introStage !== "done" && (
+                    <motion.div
+                        initial={{ left: "50%", x: "-50%", scale: 1.2 }}
+                        animate={
+                            introStage === "center"
+                                ? { left: "50%", x: "-50%", scale: 1.2 }
+                                : { left: "0%", x: "0%", scale: 1 }
+                        }
+                        transition={{
+                            duration: 0.8,
+                            ease: [0.22, 1, 0.36, 1],
+                        }}
+                        onAnimationComplete={handleSlideComplete}
+                        className="fixed md:absolute top-1/2 -translate-y-1/2 z-30 flex items-center pointer-events-auto"
+                    >
+                        <Link
+                            href="/"
+                            className="relative flex items-center transition-transform hover:scale-105 active:scale-95"
+                        >
+                            <WaslaLogo
+                                animated={introStage === "center"}
+                                onComplete={handleLogoAssembleComplete}
+                                className="w-24 sm:w-28 md:w-32 h-auto drop-shadow-[0_0_20px_rgba(47,196,201,0.3)]"
+                            />
+                        </Link>
+                    </motion.div>
+                )}
+
+                <Link
+                    href="/"
+                    className={`relative flex items-center transition-transform hover:scale-105 active:scale-95 ${
+                        introStage !== "done" ? "opacity-0 pointer-events-none" : "opacity-100"
+                    }`}
+                >
+                    <WaslaLogo className="w-20 sm:w-24 md:w-28 h-auto" />
+                </Link>
+            </div>
+
             {/* Desktop Menu */}
             <motion.ul
-                className="relative hidden md:flex gap-8 items-center"
+                className={`relative hidden md:flex gap-8 items-center transition-opacity duration-500 ${
+                    introStage === "center" ? "opacity-0 pointer-events-none" : "opacity-100"
+                }`}
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
@@ -213,22 +270,6 @@ export default function Navbar() {
                     </motion.li>
                 )}
 
-                {/* Teams Link Desktop */}
-                {isLogin && (
-                    <motion.li variants={itemVariants} className="list-none">
-                        <Link
-                            href="/Teams"
-                            className={`text-sm lg:text-base font-medium cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-1.5
-                            ${pathname === "/Teams"
-                                    ? "text-sky-400 bg-white/5"
-                                    : "text-gray-300 hover:text-sky-300"
-                                }`}
-                        >
-                            <Users size={18} />
-                            Teams
-                        </Link>
-                    </motion.li>
-                )}
 
                 {/* Mode Switcher Desktop */}
                 <div className="relative">
@@ -380,7 +421,9 @@ export default function Navbar() {
             </motion.ul>
 
             {/* Mobile Hamburger */}
-            <div className="relative md:hidden">
+            <div className={`relative md:hidden transition-opacity duration-500 ${
+                introStage === "center" ? "opacity-0 pointer-events-none" : "opacity-100"
+            }`}>
                 <button
                     onClick={() => setMenuOpen((prev) => !prev)}
                     className="text-white hover:text-sky-400 p-2 transition"
@@ -466,23 +509,6 @@ export default function Navbar() {
                                 </li>
                             )}
 
-                            {/* Mobile Teams Link */}
-                            {isLogin && (
-                                <li>
-                                    <Link
-                                        href="/Teams"
-                                        onClick={() => setMenuOpen(false)}
-                                        className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-medium text-sm
-                                        ${pathname === "/Teams"
-                                                ? "bg-sky-500/20 text-sky-400"
-                                                : "text-gray-300 hover:bg-white/5 hover:text-white"
-                                            }`}
-                                    >
-                                        <Users size={18} />
-                                        Teams
-                                    </Link>
-                                </li>
-                            )}
 
                             {/* Mobile Mode Switcher */}
                             <li className="w-full">

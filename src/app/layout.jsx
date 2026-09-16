@@ -11,6 +11,7 @@ import ServiceWorkerRegistry from "./components/ServiceWorkerRegistry";
 import ToastContainer from "./components/ToastContainer";
 import ReactQueryProvider from "../app/utils/ReactQueryProvider";
 import CapgoUpdater from "./CapgoUpdater";
+import WaslaSplashIntro from "./components/WaslaSplashIntro";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -39,6 +40,7 @@ export default function RootLayout({
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
+                <WaslaSplashIntro />
                 <CapgoUpdater />
                 <ServiceWorkerRegistry />
                 <ToastContainer />
