@@ -400,11 +400,17 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
     const [needsLink, setNeedsLink] = useState(false);
     const [lastBackup, setLastBackup] = useState(null);
     const [accounts, setAccounts] = useState([]);
-    const [showRestoreModal, setShowRestoreModal] = useState(false);
-    const [showAccountsModal, setShowAccountsModal] = useState(false);
+    const [openPanel, setOpenPanel] = useState(null); // 'accounts' | 'restore' | null
+    const panelRef = useRef(null);
 
     useEffect(() => {
-        try { setLastBackup(localStorage.getItem(lastBackupKey)); } catch {}
+        if (openPanel) {
+            panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }, [openPanel]);
+
+    useEffect(() => {
+        try { setLastBackup(localStorage.getItem(lastBackupKey)); } catch { }
     }, [lastBackupKey]);
 
     const loadAccounts = useCallback(async () => {
@@ -469,7 +475,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                 onProgress: (ratio) => setProgress(50 + Math.round(ratio * 50)),
             });
             const now = new Date().toISOString();
-            try { localStorage.setItem(lastBackupKey, now); } catch {}
+            try { localStorage.setItem(lastBackupKey, now); } catch { }
             setLastBackup(now);
             setProgress(100);
             setStatus('Backup completed successfully!');
@@ -478,7 +484,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
     };
 
     const executeRestore = async (accountEmail = null) => {
-        setShowRestoreModal(false);
+        setOpenPanel(null);
         setBusy('restore'); setProgress(0); setNeedsLink(false);
         try {
             const targetLabel = accountEmail ? ` (${accountEmail})` : '';
@@ -502,7 +508,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
 
     const handleRestoreClick = () => {
         if (accounts.length > 1) {
-            setShowRestoreModal(true);
+            setOpenPanel((prev) => (prev === 'restore' ? null : 'restore'));
         } else {
             const singleEmail = accounts[0]?.email || null;
             if (!window.confirm(`Restore voice recordings from your "my prays" backup on Google Drive${singleEmail ? ` (${singleEmail})` : ''}? Recordings already on this device are kept.`)) return;
@@ -546,7 +552,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
     }
 
     return (
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:p-5 relative overflow-hidden">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:p-5 relative overflow-hidden transition-all">
             <div className="flex flex-wrap items-center gap-3">
                 <div className="p-2 rounded-xl border bg-sky-500/10 text-sky-400 border-sky-500/20"><HardDrive className="h-4 w-4 sm:h-5 sm:w-5" /></div>
                 <div className="flex-1 min-w-[150px]">
@@ -566,17 +572,33 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                     <button
                         type="button"
                         onClick={() => {
-                            if (accounts.length > 1) setShowAccountsModal(true);
-                            else handleLink();
+                            if (accounts.length > 0) {
+                                setOpenPanel((prev) => (prev === 'accounts' ? null : 'accounts'));
+                            } else {
+                                handleLink();
+                            }
                         }}
                         disabled={Boolean(busy)}
-                        className="px-3 py-2 rounded-lg border border-sky-500/30 bg-sky-500/10 text-xs font-semibold text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50 transition-all disabled:opacity-40 flex items-center gap-1.5 active:scale-95"
+                        className={`px-3 py-2 rounded-lg border text-xs font-semibold transition-all disabled:opacity-40 flex items-center gap-1.5 active:scale-95 ${
+                            openPanel === 'accounts'
+                                ? 'border-sky-500 bg-sky-500/20 text-white'
+                                : 'border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50'
+                        }`}
                         title="Change or switch Google Drive account"
                     >
                         <ArrowRightLeft className="w-3.5 h-3.5" />
                         <span>{activeEmail ? 'Change Drive Email' : 'Link Drive'}</span>
                     </button>
-                    <button type="button" onClick={handleRestoreClick} disabled={Boolean(busy)} className="px-3 py-2 rounded-lg border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5 transition-all disabled:opacity-40 flex items-center gap-1.5 active:scale-95">
+                    <button
+                        type="button"
+                        onClick={handleRestoreClick}
+                        disabled={Boolean(busy)}
+                        className={`px-3 py-2 rounded-lg border text-xs font-semibold transition-all disabled:opacity-40 flex items-center gap-1.5 active:scale-95 ${
+                            openPanel === 'restore'
+                                ? 'border-sky-500 bg-sky-500/20 text-white'
+                                : 'border-white/10 text-slate-300 hover:bg-white/5'
+                        }`}
+                    >
                         {busy === 'restore' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudDownload className="w-4 h-4" />}Restore
                     </button>
                     <button type="button" onClick={() => handleBackup()} disabled={Boolean(busy)} className="px-3 py-2 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white disabled:opacity-40 flex items-center gap-1.5 shadow-lg shadow-sky-500/20 transition-all active:scale-95">
@@ -605,168 +627,119 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                 </button>
             )}
 
-            {/* Restore Account Selection Modal */}
-            {showRestoreModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-[#111827] border border-white/10 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between p-5 border-b border-white/5 bg-white/[0.02]">
-                            <div className="flex items-center gap-2.5">
-                                <div className="p-2 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                                    <CloudDownload className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <h4 className="text-base font-bold text-white">Restore from Google Drive</h4>
-                                    <p className="text-xs text-slate-400">Choose which Google account to restore from</p>
-                                </div>
+            {/* Bottom Inline Accounts / Restore Panel */}
+            {openPanel && (
+                <div ref={panelRef} className="mt-4 pt-4 border-t border-white/10 space-y-3 scroll-mt-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                                {openPanel === 'restore' ? <CloudDownload className="w-4 h-4" /> : <ArrowRightLeft className="w-4 h-4" />}
                             </div>
-                            <button onClick={() => setShowRestoreModal(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
-                                <X className="w-4 h-4" />
-                            </button>
+                            <div>
+                                <h4 className="text-xs sm:text-sm font-bold text-white">
+                                    {openPanel === 'restore' ? 'Restore from Google Drive' : 'Connected Google Accounts'}
+                                </h4>
+                                <p className="text-[10px] sm:text-[11px] text-slate-400">
+                                    {openPanel === 'restore' ? 'Select an account to restore recordings from' : 'Switch active backup account or link a new one'}
+                                </p>
+                            </div>
                         </div>
-
-                        <div className="p-5 space-y-3 max-h-[360px] overflow-y-auto">
-                            {accounts.map((acc) => {
-                                const isDef = acc.isDefault || acc.email === activeEmail;
-                                return (
-                                    <div
-                                        key={acc.email}
-                                        onClick={() => executeRestore(acc.email)}
-                                        className="group flex items-center justify-between gap-3 p-3.5 rounded-2xl border border-white/10 bg-white/[0.03] hover:bg-sky-500/10 hover:border-sky-500/40 transition-all cursor-pointer"
-                                    >
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            {acc.picture ? (
-                                                <img src={acc.picture} alt="" className="w-9 h-9 rounded-full object-cover border border-white/20 shrink-0" />
-                                            ) : (
-                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
-                                                    {(acc.name || acc.email || 'G').charAt(0).toUpperCase()}
-                                                </div>
-                                            )}
-                                            <div className="min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <p className="text-sm font-bold text-white truncate">{acc.name || acc.email}</p>
-                                                    {isDef && <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/20 text-sky-300 border border-sky-500/30">Active</span>}
-                                                </div>
-                                                <p className="text-xs text-slate-400 truncate">{acc.email}</p>
-                                            </div>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={(e) => { e.stopPropagation(); executeRestore(acc.email); }}
-                                            className="shrink-0 px-3 py-1.5 rounded-xl bg-sky-500/20 text-sky-300 hover:bg-sky-500 hover:text-white border border-sky-500/30 text-xs font-bold transition-all flex items-center gap-1.5"
-                                        >
-                                            <CloudDownload className="w-3.5 h-3.5" />
-                                            Restore
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        <div className="p-4 border-t border-white/5 bg-white/[0.01] flex items-center justify-between gap-3">
-                            <button
-                                type="button"
-                                onClick={() => { setShowRestoreModal(false); handleLink(); }}
-                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-400 hover:text-sky-300 transition-colors"
-                            >
-                                <Plus className="w-3.5 h-3.5" />
-                                Connect another account
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setShowRestoreModal(false)}
-                                className="px-4 py-1.5 rounded-xl border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setOpenPanel(null)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
                     </div>
-                </div>
-            )}
 
-            {/* Account Manager / Switcher Modal */}
-            {showAccountsModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-[#111827] border border-white/10 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between p-5 border-b border-white/5 bg-white/[0.02]">
-                            <div className="flex items-center gap-2.5">
-                                <div className="p-2 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                                    <ArrowRightLeft className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <h4 className="text-base font-bold text-white">Google Drive Accounts</h4>
-                                    <p className="text-xs text-slate-400">Manage or switch active backup account</p>
-                                </div>
-                            </div>
-                            <button onClick={() => setShowAccountsModal(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        <div className="p-5 space-y-3 max-h-[360px] overflow-y-auto">
-                            {accounts.map((acc) => {
-                                const isDef = acc.isDefault || acc.email === activeEmail;
-                                return (
-                                    <div
-                                        key={acc.email}
-                                        className={`flex items-center justify-between gap-3 p-3.5 rounded-2xl border transition-all ${isDef ? 'bg-sky-500/10 border-sky-500/40' : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]'}`}
-                                    >
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            {acc.picture ? (
-                                                <img src={acc.picture} alt="" className="w-9 h-9 rounded-full object-cover border border-white/20 shrink-0" />
-                                            ) : (
-                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
-                                                    {(acc.name || acc.email || 'G').charAt(0).toUpperCase()}
-                                                </div>
-                                            )}
-                                            <div className="min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <p className="text-sm font-bold text-white truncate">{acc.name || acc.email}</p>
-                                                    {isDef && <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/20 text-sky-300 border border-sky-500/30">Active</span>}
-                                                </div>
-                                                <p className="text-xs text-slate-400 truncate">{acc.email}</p>
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                        {accounts.map((acc) => {
+                            const isDef = acc.isDefault || acc.email === activeEmail;
+                            return (
+                                <div
+                                    key={acc.email}
+                                    onClick={() => {
+                                        if (openPanel === 'restore') executeRestore(acc.email);
+                                    }}
+                                    className={`flex items-center justify-between gap-3 p-3 rounded-2xl border transition-all ${
+                                        openPanel === 'restore'
+                                            ? 'cursor-pointer hover:bg-sky-500/10 hover:border-sky-500/40 bg-white/[0.02] border-white/10'
+                                            : isDef
+                                                ? 'bg-sky-500/10 border-sky-500/40'
+                                                : 'bg-white/[0.02] border-white/10 hover:bg-white/[0.05]'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        {acc.picture ? (
+                                            <img src={acc.picture} alt="" className="w-8 h-8 rounded-full object-cover border border-white/20 shrink-0" />
+                                        ) : (
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
+                                                {(acc.name || acc.email || 'G').charAt(0).toUpperCase()}
                                             </div>
+                                        )}
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-xs font-bold text-white truncate">{acc.name || acc.email}</p>
+                                                {isDef && <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/20 text-sky-300 border border-sky-500/30">Active</span>}
+                                            </div>
+                                            <p className="text-[11px] text-slate-400 truncate">{acc.email}</p>
                                         </div>
-                                        <div className="flex items-center gap-1.5 shrink-0">
-                                            {!isDef && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleSetDefault(acc.email)}
-                                                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 transition-colors"
-                                                >
-                                                    Set Active
-                                                </button>
-                                            )}
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        {openPanel === 'restore' ? (
                                             <button
                                                 type="button"
-                                                onClick={() => handleDisconnect(acc.email)}
-                                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/15 transition-colors"
-                                                title="Disconnect account"
+                                                onClick={(e) => { e.stopPropagation(); executeRestore(acc.email); }}
+                                                className="px-2.5 py-1 rounded-lg bg-sky-500 text-white text-xs font-bold hover:bg-sky-400 transition-all flex items-center gap-1"
                                             >
-                                                <Trash2 className="w-3.5 h-3.5" />
+                                                <CloudDownload className="w-3.5 h-3.5" />
+                                                Restore
                                             </button>
-                                        </div>
+                                        ) : (
+                                            <>
+                                                {!isDef && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleSetDefault(acc.email)}
+                                                        className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 transition-colors"
+                                                    >
+                                                        Set Active
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDisconnect(acc.email)}
+                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/15 transition-colors"
+                                                    title="Disconnect account"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
-                                );
-                            })}
-                        </div>
+                                </div>
+                            );
+                        })}
+                    </div>
 
-                        <div className="p-4 border-t border-white/5 bg-white/[0.01] flex items-center justify-between gap-3">
-                            <button
-                                type="button"
-                                onClick={() => { setShowAccountsModal(false); handleLink(); }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold transition-all shadow-md shadow-sky-500/20"
-                            >
-                                <Plus className="w-3.5 h-3.5" />
-                                Connect another account
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setShowAccountsModal(false)}
-                                className="px-4 py-1.5 rounded-xl border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5 transition-colors"
-                            >
-                                Done
-                            </button>
-                        </div>
+                    <div className="flex items-center justify-between pt-1">
+                        <button
+                            type="button"
+                            onClick={handleLink}
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-400 hover:text-sky-300 transition-colors"
+                        >
+                            <Plus className="w-3.5 h-3.5" />
+                            Connect another account
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setOpenPanel(null)}
+                            className="px-3 py-1 rounded-lg border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5 transition-colors"
+                        >
+                            Close
+                        </button>
                     </div>
                 </div>
             )}
