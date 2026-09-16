@@ -23,7 +23,6 @@ import {
 import { UserContext } from '../context/User_Context';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { useLanguage } from "../context/LanguageContext";
-import TeamSwitcher from '../components/TeamSwitcher';
 import Pray from './Pray';
 
 const API_URL = getApiBaseUrl();
@@ -186,7 +185,7 @@ const groupHighlights = (highlights) => {
     return groups.sort((a, b) => new Date(b.date) - new Date(a.date));
 };
 
-export default function normal_UserProfile() {
+export default function NormalUserProfile() {
     const { user_id, isLogin } = useContext(UserContext);
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -511,8 +510,6 @@ export default function normal_UserProfile() {
                     </div>
                 </div>
 
-                <TeamSwitcher />
-
                 {/* --- SMART TABS NAVIGATION --- */}
                 <div className="sticky top-4 z-40 mb-6 sm:mb-8">
                     <div className="flex gap-1.5 p-1.5 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl shadow-black/50 custom-scrollbar-hide overflow-x-auto">
@@ -589,7 +586,7 @@ export default function normal_UserProfile() {
                                                     </span>
                                                 </div>
                                                 <p className="text-xs sm:text-sm text-slate-400 italic leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5 mb-3" dir="rtl">
-                                                    "{note.text}"
+                                                    {note.text}
                                                 </p>
                                                 <div className="flex flex-col gap-1.5">
                                                     <p className="text-[9px] uppercase tracking-widest text-blue-400/60 font-black">My Personal Note</p>

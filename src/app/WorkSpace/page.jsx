@@ -4,7 +4,7 @@ import React, { useContext, useState, useEffect, useRef, useCallback } from 'rea
 import { openLocalDisplay, prepareLocalDisplay } from '../presentation/local/openLocalDisplay';
 import LocalFullscreenButton from '../presentation/local/LocalFullscreenButton';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
-import { PlayCircle, Trash2, Heart, Music, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle, Radio, ExternalLink, Tv2, ChevronUp, ChevronDown, Mic, MicOff, EyeOff, BookOpen, Eye, Loader2, Check, Pencil, Eraser, Trash, Hand, GripVertical, Copy, Share2, ClipboardCheck } from 'lucide-react';
+import { PlayCircle, Trash2, Heart, Music, Gift, Star, Sparkles, GraduationCap, FileText, X, Monitor, Guitar, Calendar, PlusCircle, Radio, Tv2, ChevronUp, ChevronDown, Mic, MicOff, EyeOff, BookOpen, Eye, Loader2, Check, Pencil, Eraser, Trash, Hand, GripVertical, Copy, Share2, ClipboardCheck } from 'lucide-react';
 import Metronome from '../Metronome/page';
 import { HymnsContext } from '../context/Hymns_Context';
 import { UserContext } from '../context/User_Context';
@@ -631,7 +631,7 @@ function DrawingCanvas({ hymnId, tool, color, size, scrollMode, initialStrokes, 
         }
 
         currentPoints.current = [pos];
-    }, [tool]);
+    }, [tool, getPos]);
 
     const drawLastSegment = useCallback(() => {
         const canvas = canvasRef.current;
@@ -686,7 +686,7 @@ function DrawingCanvas({ hymnId, tool, color, size, scrollMode, initialStrokes, 
         if (!rafId.current) {
             rafId.current = requestAnimationFrame(drawLastSegment);
         }
-    }, [tool, size, drawLastSegment]);
+    }, [tool, size, drawLastSegment, getPos]);
 
     const onPointerUp = useCallback((e) => {
         e.preventDefault();
@@ -726,7 +726,7 @@ function DrawingCanvas({ hymnId, tool, color, size, scrollMode, initialStrokes, 
             onStrokesChange([...strokesRef.current]);
         }
         currentPoints.current = [];
-    }, [tool, size, color, redrawAll, onStrokesChange, findNearestStrokeIdx]);
+    }, [tool, size, color, redrawAll, onStrokesChange, findNearestStrokeIdx, getPos]);
 
     const handleClear = useCallback(() => {
         strokesRef.current = [];
@@ -1937,22 +1937,6 @@ export default function WorkSpace() {
                                             >
                                                 <Tv2 size={13} /> Open Display Window
                                             </a>
-                                            {/* Open mobile remote */}
-                                            <a
-                                                href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`}
-                                                onClick={(e) => {
-                                                    if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
-                                                        e.preventDefault();
-                                                        setIsJoiningSession(true);
-                                                        router.push(`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`);
-                                                    }
-                                                }}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all flex-1"
-                                            >
-                                                <ExternalLink size={13} /> Mobile Remote
-                                            </a>
 
                                             {/* Microphone Toggle Button */}
                                             <button
@@ -2740,18 +2724,6 @@ export default function WorkSpace() {
                                                 target="_blank" rel="noopener noreferrer"
                                                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all">
                                                 <Tv2 className="w-4 h-4" /> Open Display Window
-                                            </a>
-                                            <a href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`}
-                                                onClick={(e) => {
-                                                    if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
-                                                        e.preventDefault();
-                                                        setIsJoiningSession(true);
-                                                        router.push(`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`);
-                                                    }
-                                                }}
-                                                target="_blank" rel="noopener noreferrer"
-                                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-400 text-xs font-semibold hover:bg-sky-500/20 transition-all">
-                                                <ExternalLink className="w-4 h-4" /> Mobile Remote
                                             </a>
                                             <button onClick={toggleAudio}
                                                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${isAudioActive ? 'bg-sky-500/10 border-sky-500/30 text-sky-400' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}>

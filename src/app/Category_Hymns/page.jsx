@@ -11,7 +11,7 @@ import Portal from '../Portal/Portal';
 import Metronome from '../Metronome/page';
 import { UserContext } from '../context/User_Context';
 // Add BookOpen to this line
-import { Music, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, ExternalLink, Tv2, Mic, MicOff, BookOpen, ChevronDown, ChevronRight, Heart, Loader2, Copy, Share2, ClipboardCheck, Moon, RotateCcw, ZoomOut, ZoomIn, Cross, User } from 'lucide-react';
+import { Music, Star, Gift, Sparkles, PlayCircle, PlusCircle, Trash2, X, GraduationCap, FolderPlus, Check, Edit2, Search, FileText, Monitor, Guitar, Eye, EyeOff, Radio, Tv2, Mic, MicOff, BookOpen, ChevronDown, ChevronRight, Heart, Loader2, Copy, Share2, ClipboardCheck, Moon, RotateCcw, ZoomOut, ZoomIn, Cross, User } from 'lucide-react';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from "../context/LanguageContext";
 import { showToast } from '../components/ToastContainer';
@@ -179,6 +179,21 @@ export default function Category_Humns() {
   // Lyrics Modal State
   const [showLyricsModal, setShowLyricsModal] = useState(false);
   const [selectedLyricsHymn, setSelectedLyricsHymn] = useState(null);
+
+  // Tracks hymn usage
+  useEffect(() => {
+    let timer;
+    if (selectedLyricsHymn?._id && !selectedLyricsHymn.isBible) {
+      timer = setTimeout(async () => {
+        try {
+          await axios.patch(`${API_ROOT}/hymns/${selectedLyricsHymn._id}/use`);
+        } catch (err) {
+          console.error('Error updating usage:', err);
+        }
+      }, 10000);
+    }
+    return () => clearTimeout(timer);
+  }, [selectedLyricsHymn?._id, selectedLyricsHymn?.isBible]);
   const [lyricsTheme, setLyricsTheme] = useState('main');
   const [fontSize, setFontSize] = useState(18);
   const [showChords, setShowChords] = useState(true); // Toggle for chords visibility
@@ -1554,31 +1569,6 @@ export default function Category_Humns() {
       }
       return segments;
     };
-    // 1. فانكشن تسجيل الاستخدام
-    const recordUsage = async (id) => {
-      try {
-        // تأكد من تغيير المسار للمسار الحقيقي بتاعك
-        await axios.patch(`https://worship-team-api.onrender.com/api/hymns/${id}/use`);
-        console.log("Usage recorded!");
-      } catch (err) {
-        console.error("Error updating usage:", err);
-      }
-    };
-
-    // 2. تتبع الوقت (الذكاء اللي بيمنع الـ Bounce)
-    useEffect(() => {
-      let timer;
-      if (selectedHymn) {
-        // لو المستخدم فضل فاتح الترنيمة 10 ثواني، بنسجل إنه استخدمها فعلاً
-        timer = setTimeout(() => {
-          recordUsage(selectedHymn._id);
-        }, 10000); // 10 ثواني
-      }
-
-      // لو قفل الترنيمة أو اختار واحدة تانية قبل الـ 10 ثواني، التايمر بيتمسح ومبيحسبش حاجة
-      return () => clearTimeout(timer);
-    }, [selectedHymn]); // الـ Effect ده بيشتغل كل ما الـ selectedHymn تتغير
-
 
     return (
       <>
@@ -1739,143 +1729,131 @@ export default function Category_Humns() {
 
 
 
-      {/* Admin Controls */}
-      <div className="flex flex-wrap justify-end items-center gap-3 mb-6">
-        {canEdit && (
-          <button
-            onClick={openModal}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-full hover:bg-gray-100 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_25px_rgba(255,255,255,0.5)] active:scale-95 font-semibold text-sm"
-          >
-            <PlusCircle className="w-5 h-5" />
-            <span>{t("newHymn")}</span>
-          </button>
-        )}
-
-        {/* Live Session Panel */}
-        <div id="tour-live-session" className="relative">
-          <div className={`relative p-[1px] rounded-full overflow-hidden transition-all duration-300
-            ${isConnected
-              ? 'shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]'
-              : 'shadow-[0_0_15px_rgba(255,255,255,0.02)]'}`}
-          >
-            {/* Animated looping gradient background */}
-            <div className={`absolute -inset-[100%] pointer-events-none z-0 ${isConnected ? 'animate-border-spin-fast' : 'animate-border-spin-slow'}`}
-              style={{
-                background: isConnected
-                  ? 'conic-gradient(from 0deg, transparent 0deg, transparent 120deg, #10b981 180deg, #34d399 240deg, #3b82f6 300deg, transparent 360deg)'
-                  : 'conic-gradient(from 0deg, transparent 0deg, transparent 180deg, rgba(255,255,255,0.15) 270deg, transparent 360deg)'
-              }}
-            />
-            {/* Mask button overlay */}
+      {/* Admin Controls & Live Session */}
+      <div className="flex flex-col items-end gap-3 mb-6 w-full">
+        <div className="flex flex-wrap justify-end items-center gap-3 w-full">
+          {canEdit && (
             <button
-              onClick={() => setShowSessionPanel(p => !p)}
-              className={`relative z-10 flex items-center gap-2 px-5 py-2.5 rounded-full transition-all font-semibold text-sm w-full h-full justify-center
-                  ${isConnected
-                  ? 'bg-[#0c142c] text-green-400 hover:bg-[#121d3f]'
-                  : 'bg-[#0a1020] text-gray-400 hover:bg-[#0f172f] hover:text-white'
-                }`}
+              onClick={openModal}
+              className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-full hover:bg-gray-100 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_25px_rgba(255,255,255,0.5)] active:scale-95 font-semibold text-sm"
             >
-              <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse text-green-400' : ''}`} />
-              {isConnected ? (
-                <><span className="text-[10px] text-green-400 font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
-              ) : t('livesession')}
+              <PlusCircle className="w-5 h-5" />
+              <span>{t("newHymn")}</span>
             </button>
-          </div>
-
-          {showSessionPanel && (
-            <div className="absolute right-0 mt-2 z-50 p-4 bg-[#0c1627] border border-white/10 rounded-2xl shadow-2xl w-[90vw] sm:w-[400px]">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Presentation Room</p>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  value={dataShowIdInput}
-                  onChange={e => setDataShowIdInput(e.target.value)}
-                  placeholder='e.g. "sunday-01"'
-                  className="flex-1 bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600 w-full"
-                  onKeyDown={e => { if (e.key === 'Enter') handleJoinSession(); }}
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleCreateSession}
-                    disabled={isCreatingSession}
-                    className="flex items-center justify-center gap-2 flex-1 sm:flex-none px-4 py-2 bg-sky-500 hover:bg-sky-400 disabled:bg-sky-500/50 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-all whitespace-nowrap"
-                  >
-                    {isCreatingSession ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Creating...</span>
-                      </>
-                    ) : 'Create'}
-                  </button>
-                  <button
-                    onClick={handleJoinSession}
-                    disabled={isJoiningSession}
-                    className="flex-1 sm:flex-none px-4 py-2 bg-indigo-500 hover:bg-indigo-400 disabled:bg-indigo-500/50 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-all whitespace-nowrap"
-                  >
-                    Join
-                  </button>
-                </div>
-              </div>
-              {dataShowId && (
-                <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-2">
-                  <a
-                    href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
-                    onClick={(e) => {
-                      if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
-                        e.preventDefault();
-                        setIsJoiningSession(true);
-                        router.push(`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`);
-                      }
-                    }}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all flex-1"
-                  >
-                    <Tv2 size={13} /> Open Display Window
-                  </a>
-                  <a
-                    href={`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`}
-                    onClick={(e) => {
-                      if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
-                        e.preventDefault();
-                        setIsJoiningSession(true);
-                        router.push(`/presentation/remote?dataShowId=${encodeURIComponent(dataShowId)}`);
-                      }
-                    }}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition-all flex-1"
-                  >
-                    <ExternalLink size={13} /> Mobile Remote
-                  </a>
-
-                  {/* Microphone Toggle Button */}
-                  <button
-                    onClick={toggleAudio}
-                    className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all flex-1 ${isAudioActive
-                      ? 'bg-sky-500/10 border-sky-500/30 text-sky-400 hover:bg-sky-500/20'
-                      : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
-                      }`}
-                  >
-                    {isAudioActive ? <Mic size={13} className="text-sky-400 animate-pulse" /> : <MicOff size={13} />}
-                    {isAudioActive ? 'Mic On' : 'Turn On Mic'}
-                  </button>
-
-                  {/* End Session Button */}
-                  <button
-                    onClick={() => {
-                      if (isAudioActive) toggleAudio();
-                      clearDisplay();
-                      setDataShowId('');
-                      localStorage.removeItem('myLivePresentationId');
-                    }}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all w-full sm:w-auto"
-                  >
-                    <X size={13} /> End Session
-                  </button>
-                </div>
-              )}
-            </div>
           )}
+
+          {/* Live Session Button */}
+          <div id="tour-live-session" className="relative">
+            <div className={`relative p-[1px] rounded-full overflow-hidden transition-all duration-300
+              ${isConnected
+                ? 'shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]'
+                : 'shadow-[0_0_15px_rgba(255,255,255,0.02)]'}`}
+            >
+              {/* Animated looping gradient background */}
+              <div className={`absolute -inset-[100%] pointer-events-none z-0 ${isConnected ? 'animate-border-spin-fast' : 'animate-border-spin-slow'}`}
+                style={{
+                  background: isConnected
+                    ? 'conic-gradient(from 0deg, transparent 0deg, transparent 120deg, #10b981 180deg, #34d399 240deg, #3b82f6 300deg, transparent 360deg)'
+                    : 'conic-gradient(from 0deg, transparent 0deg, transparent 180deg, rgba(255,255,255,0.15) 270deg, transparent 360deg)'
+                }}
+              />
+              {/* Mask button overlay */}
+              <button
+                onClick={() => setShowSessionPanel(p => !p)}
+                className={`relative z-10 flex items-center gap-2 px-5 py-2.5 rounded-full transition-all font-semibold text-sm w-full h-full justify-center
+                    ${isConnected
+                    ? 'bg-[#0c142c] text-green-400 hover:bg-[#121d3f]'
+                    : 'bg-[#0a1020] text-gray-400 hover:bg-[#0f172f] hover:text-white'
+                  }`}
+              >
+                <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse text-green-400' : ''}`} />
+                {isConnected ? (
+                  <><span className="text-[10px] text-green-400 font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
+                ) : t('livesession')}
+              </button>
+            </div>
+          </div>
         </div>
+
+        {showSessionPanel && (
+          <div className="w-full sm:max-w-[420px] p-4 bg-[#0c1627] border border-white/10 rounded-2xl shadow-xl backdrop-blur-sm">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Presentation Room</p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={dataShowIdInput}
+                onChange={e => setDataShowIdInput(e.target.value)}
+                placeholder='e.g. "sunday-01"'
+                className="flex-1 bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600 w-full"
+                onKeyDown={e => { if (e.key === 'Enter') handleJoinSession(); }}
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCreateSession}
+                  disabled={isCreatingSession}
+                  className="flex items-center justify-center gap-2 flex-1 sm:flex-none px-4 py-2 bg-sky-500 hover:bg-sky-400 disabled:bg-sky-500/50 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-all whitespace-nowrap"
+                >
+                  {isCreatingSession ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Creating...</span>
+                    </>
+                  ) : 'Create'}
+                </button>
+                <button
+                  onClick={handleJoinSession}
+                  disabled={isJoiningSession}
+                  className="flex-1 sm:flex-none px-4 py-2 bg-indigo-500 hover:bg-indigo-400 disabled:bg-indigo-500/50 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-all whitespace-nowrap"
+                >
+                  Join
+                </button>
+              </div>
+            </div>
+            {dataShowId && (
+              <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-2">
+                <a
+                  href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
+                  onClick={(e) => {
+                    if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
+                      e.preventDefault();
+                      setIsJoiningSession(true);
+                      router.push(`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`);
+                    }
+                  }}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all flex-1"
+                >
+                  <Tv2 size={13} /> Open Display Window
+                </a>
+
+                {/* Microphone Toggle Button */}
+                <button
+                  onClick={toggleAudio}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all flex-1 ${isAudioActive
+                    ? 'bg-sky-500/10 border-sky-500/30 text-sky-400 hover:bg-sky-500/20'
+                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                    }`}
+                >
+                  {isAudioActive ? <Mic size={13} className="text-sky-400 animate-pulse" /> : <MicOff size={13} />}
+                  {isAudioActive ? 'Mic On' : 'Turn On Mic'}
+                </button>
+
+                {/* End Session Button */}
+                <button
+                  onClick={() => {
+                    if (isAudioActive) toggleAudio();
+                    clearDisplay();
+                    setDataShowId('');
+                    localStorage.removeItem('myLivePresentationId');
+                  }}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all w-full sm:w-auto"
+                >
+                  <X size={13} /> End Session
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
 
