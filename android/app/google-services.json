@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "860342583146",
+    "project_id": "wasla-569f0",
+    "storage_bucket": "wasla-569f0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:860342583146:android:048a8c214a220b79876f13",
+        "android_client_info": {
+          "package_name": "com.worship.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAM9RFJozm6xqaYsM2HobFyU9WMUy5AHEQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
