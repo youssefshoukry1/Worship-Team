@@ -401,6 +401,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
     const [lastBackup, setLastBackup] = useState(null);
     const [accounts, setAccounts] = useState([]);
     const [openPanel, setOpenPanel] = useState(null); // 'accounts' | 'restore' | null
+    const [activatingEmail, setActivatingEmail] = useState(null);
     const panelRef = useRef(null);
 
     useEffect(() => {
@@ -517,12 +518,16 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
     };
 
     const handleSetDefault = async (email) => {
+        if (activatingEmail || email === activeEmail) return;
+        setActivatingEmail(email);
         try {
             await setDefaultDriveAccount(token, email);
             await loadAccounts();
-            showToast({ message: `Default account set to ${email}`, type: 'success', duration: 3000 });
+            showToast({ message: `Active account switched to ${email}`, type: 'success', duration: 3000 });
         } catch (err) {
             showToast({ message: err.message, type: 'error', duration: 4000 });
+        } finally {
+            setActivatingEmail(null);
         }
     };
 
@@ -640,7 +645,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                                     {openPanel === 'restore' ? 'Restore from Google Drive' : 'Connected Google Accounts'}
                                 </h4>
                                 <p className="text-[10px] sm:text-[11px] text-slate-400">
-                                    {openPanel === 'restore' ? 'Select an account to restore recordings from' : 'Switch active backup account or link a new one'}
+                                    {openPanel === 'restore' ? 'Select an account to restore recordings from' : 'Click any account to make it active, or link a new one'}
                                 </p>
                             </div>
                         </div>
@@ -656,18 +661,25 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                     <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                         {accounts.map((acc) => {
                             const isDef = acc.isDefault || acc.email === activeEmail;
+                            const isActivating = activatingEmail === acc.email;
                             return (
                                 <div
                                     key={acc.email}
                                     onClick={() => {
-                                        if (openPanel === 'restore') executeRestore(acc.email);
+                                        if (openPanel === 'restore') {
+                                            executeRestore(acc.email);
+                                        } else if (!isDef && !isActivating) {
+                                            handleSetDefault(acc.email);
+                                        }
                                     }}
                                     className={`flex items-center justify-between gap-3 p-3 rounded-2xl border transition-all ${
-                                        openPanel === 'restore'
-                                            ? 'cursor-pointer hover:bg-sky-500/10 hover:border-sky-500/40 bg-white/[0.02] border-white/10'
-                                            : isDef
-                                                ? 'bg-sky-500/10 border-sky-500/40'
-                                                : 'bg-white/[0.02] border-white/10 hover:bg-white/[0.05]'
+                                        isActivating
+                                            ? 'bg-sky-500/10 border-sky-500/50 cursor-wait'
+                                            : openPanel === 'restore'
+                                                ? 'cursor-pointer hover:bg-sky-500/10 hover:border-sky-500/40 bg-white/[0.02] border-white/10'
+                                                : isDef
+                                                    ? 'bg-sky-500/10 border-sky-500/40 cursor-default'
+                                                    : 'bg-white/[0.02] border-white/10 hover:bg-sky-500/5 hover:border-sky-500/30 cursor-pointer active:scale-[0.99]'
                                     }`}
                                 >
                                     <div className="flex items-center gap-2.5 min-w-0">
@@ -681,14 +693,19 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                                         <div className="min-w-0">
                                             <div className="flex items-center gap-2">
                                                 <p className="text-xs font-bold text-white truncate">{acc.name || acc.email}</p>
-                                                {isDef && <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/20 text-sky-300 border border-sky-500/30">Active</span>}
+                                                {isDef && !isActivating && <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/20 text-sky-300 border border-sky-500/30">Active</span>}
                                             </div>
                                             <p className="text-[11px] text-slate-400 truncate">{acc.email}</p>
                                         </div>
                                     </div>
 
                                     <div className="flex items-center gap-1.5 shrink-0">
-                                        {openPanel === 'restore' ? (
+                                        {isActivating ? (
+                                            <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold text-sky-400">
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                <span>Activating...</span>
+                                            </div>
+                                        ) : openPanel === 'restore' ? (
                                             <button
                                                 type="button"
                                                 onClick={(e) => { e.stopPropagation(); executeRestore(acc.email); }}
@@ -698,25 +715,14 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                                                 Restore
                                             </button>
                                         ) : (
-                                            <>
-                                                {!isDef && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleSetDefault(acc.email)}
-                                                        className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 transition-colors"
-                                                    >
-                                                        Set Active
-                                                    </button>
-                                                )}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDisconnect(acc.email)}
-                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/15 transition-colors"
-                                                    title="Disconnect account"
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
-                                            </>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); handleDisconnect(acc.email); }}
+                                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/15 transition-colors"
+                                                title="Disconnect account"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
                                         )}
                                     </div>
                                 </div>
