@@ -12,7 +12,7 @@ import { normalizeBibleBooksFromApi } from '../../utils/bibleBooks';
 import { getApiBaseUrl } from '../../utils/apiBase';
 import { useRouter } from 'next/navigation';
 import { isApp } from '../../utils/platform';
-import { initLocalBible, getLocalBibleIndex, searchLocalBible, isTranslationDownloaded, downloadTranslationToLocal, deleteTranslationFromLocal } from '../../utils/bibleSync';
+import { initLocalBible, getLocalBibleIndex, searchLocalBible, isTranslationDownloaded, downloadTranslationToLocal } from '../../utils/bibleSync';
 import { queueOfflineAction } from '../../utils/offlineQueue';
 
 
@@ -761,48 +761,32 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   }, [isOpen, availableTranslations]);
 
   const toggleDownloadTranslation = async (tr) => {
-    if (tr === 'AVD' && isApp) {
-      showToast(language === 'ar' ? 'نسخة فانديك مدمجة مع التطبيق ولا يمكن حذفها.' : 'AVD is packaged and cannot be deleted.');
+    if (downloadedTranslations.has(tr) || isDownloadingTranslation === tr) {
       return;
     }
-    const isDownloaded = downloadedTranslations.has(tr);
-    if (isDownloaded) {
-      if (confirm(language === 'ar' ? `هل أنت متأكد من حذف ترجمة ${tr} من جهازك؟` : `Are you sure you want to delete ${tr} translation from your device?`)) {
-        const success = await deleteTranslationFromLocal(tr);
-        if (success) {
-          setDownloadedTranslations(prev => {
-            const next = new Set(prev);
-            next.delete(tr);
-            return next;
-          });
-          showToast(language === 'ar' ? 'تم حذف الترجمة بنجاح' : 'Translation deleted successfully');
-        }
+    setIsDownloadingTranslation(tr);
+    try {
+      const success = await downloadTranslationToLocal(tr, BIBLE_API);
+      if (success) {
+        setDownloadedTranslations(prev => {
+          const next = new Set(prev);
+          next.add(tr);
+          return next;
+        });
+        showToast(language === 'ar' ? 'تم تحميل الترجمة بنجاح للتشغيل بدون إنترنت!' : 'Translation downloaded successfully for offline use!');
       }
-    } else {
-      setIsDownloadingTranslation(tr);
-      try {
-        const success = await downloadTranslationToLocal(tr, BIBLE_API);
-        if (success) {
-          setDownloadedTranslations(prev => {
-            const next = new Set(prev);
-            next.add(tr);
-            return next;
-          });
-          showToast(language === 'ar' ? 'تم تحميل الترجمة بنجاح للتشغيل بدون إنترنت!' : 'Translation downloaded successfully for offline use!');
-        }
-      } catch (error) {
-        if (error?.isNotFound) {
-          showToast(
-            language === 'ar'
-              ? `ترجمة ${tr} غير متوفرة في قاعدة البيانات حالياً.`
-              : `Translation ${tr} is not available in the database yet.`
-          );
-        } else {
-          showToast(language === 'ar' ? 'فشل تحميل الترجمة. تأكد من اتصالك بالإنترنت.' : 'Failed to download translation. Check your connection.');
-        }
-      } finally {
-        setIsDownloadingTranslation(null);
+    } catch (error) {
+      if (error?.isNotFound) {
+        showToast(
+          language === 'ar'
+            ? `ترجمة ${tr} غير متوفرة في قاعدة البيانات حالياً.`
+            : `Translation ${tr} is not available in the database yet.`
+        );
+      } else {
+        showToast(language === 'ar' ? 'فشل تحميل الترجمة. تأكد من اتصالك بالإنترنت.' : 'Failed to download translation. Check your connection.');
       }
+    } finally {
+      setIsDownloadingTranslation(null);
     }
   };
 
@@ -1588,11 +1572,11 @@ export function BibleForm({ controller }) {
 
                 {/* Offline */}
                 <button
-                  onClick={() => isDownloadingTranslation !== bibleTranslation && toggleDownloadTranslation(bibleTranslation)}
-                  disabled={isDownloadingTranslation === bibleTranslation}
-                  className={`w-7 h-7 shrink-0 flex items-center justify-center rounded-full border transition-all duration-150 active:scale-90
-      ${downloadedTranslations.has(bibleTranslation) ? "bg-emerald-500/10 border-emerald-500/20" : "bg-white/[0.05] border-white/10"}
-      ${isDownloadingTranslation === bibleTranslation ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                  onClick={() => !downloadedTranslations.has(bibleTranslation) && isDownloadingTranslation !== bibleTranslation && toggleDownloadTranslation(bibleTranslation)}
+                  disabled={downloadedTranslations.has(bibleTranslation) || isDownloadingTranslation === bibleTranslation}
+                  className={`w-7 h-7 shrink-0 flex items-center justify-center rounded-full border transition-all duration-150
+      ${downloadedTranslations.has(bibleTranslation) ? "bg-emerald-500/10 border-emerald-500/20 cursor-default" : "bg-white/[0.05] border-white/10 active:scale-90 cursor-pointer"}
+      ${isDownloadingTranslation === bibleTranslation ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   {isDownloadingTranslation === bibleTranslation ? (
                     <Loader2 className="w-3 h-3 animate-spin text-sky-400" />
@@ -1677,7 +1661,7 @@ export function BibleForm({ controller }) {
                           onClick={() => setBiblePickerOpen(o => o === 'book' ? null : 'book')}
                           className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 text-white text-xs font-bold transition-all flex items-center gap-2 ${biblePickerOpen === 'book' ? 'bg-sky-500/20 border-sky-500/50' : ''}`}
                         >
-                          <span className="opacity-50 tracking-tighter">السفر:</span>
+                          <span className="opacity-50 tracking-tighter">{t("book")}:</span>
                           <span className="truncate max-w-[80px]">{bibleModalBook?.bookName || '...'}</span>
                         </button>
 
@@ -1686,7 +1670,7 @@ export function BibleForm({ controller }) {
                           disabled={!bibleModalBook}
                           className={`px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 text-white text-xs font-bold transition-all flex items-center gap-2 ${biblePickerOpen === 'chapter' ? 'bg-sky-500/20 border-sky-500/50' : ''}`}
                         >
-                          <span className="opacity-50">الأصحاح:</span>
+                          <span className="opacity-50">{t("chapter")}:</span>
                           <span>{bibleModalChapter || '0'}</span>
                         </button>
                       </div>
@@ -1805,7 +1789,7 @@ export function BibleForm({ controller }) {
                           </h1>
                           <div className="mt-2 flex items-center gap-2">
                             <span className="h-[2px] w-8 bg-sky-500" />
-                            <span className="text-xs font-bold text-sky-400 uppercase tracking-tighter">أصحاح {bibleModalChapter}</span>
+                            <span className="text-xs font-bold text-sky-400 uppercase tracking-tighter">{t("chapter")} {bibleModalChapter}</span>
                           </div>
                         </div>
                         <button
@@ -1826,7 +1810,7 @@ export function BibleForm({ controller }) {
                               <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap text-white text-xs">
                                 {/* Font Size Control */}
                                 <div className="flex items-center gap-1 sm:gap-2 bg-white/5 border border-white/[0.07] rounded-xl px-2 sm:px-3 py-1 sm:py-1.5">
-                                  <span className="text-white/40 font-bold text-[10px] sm:text-xs">الخط:</span>
+                                  <span className="text-white/40 font-bold text-[10px] sm:text-xs">{t("font")}:</span>
                                   <button
                                     onClick={() => setBibleVerseFontSize(prev => Math.max(16, prev - 2))}
                                     className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-md sm:rounded-lg bg-white/5 hover:bg-white/10 text-white font-bold text-[11px] sm:text-xs transition-all active:scale-90"
@@ -1846,7 +1830,7 @@ export function BibleForm({ controller }) {
 
                                 {/* Spacing Control */}
                                 <div className="flex items-center gap-1 sm:gap-2 bg-white/5 border border-white/[0.07] rounded-xl px-2 sm:px-3 py-1 sm:py-1.5">
-                                  <span className="text-white/40 font-bold text-[10px] sm:text-xs">المسافة:</span>
+                                  <span className="text-white/40 font-bold text-[10px] sm:text-xs">{t("spacing")}:</span>
                                   <button
                                     onClick={() => handleSetBibleVerseSpacing(Math.max(2, bibleVerseSpacing - 2))}
                                     className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-md sm:rounded-lg bg-white/5 hover:bg-white/10 text-white font-bold text-[11px] sm:text-xs transition-all active:scale-90"
@@ -1872,10 +1856,10 @@ export function BibleForm({ controller }) {
                                       ? 'bg-sky-500 text-white shadow-sm'
                                       : 'text-white/40 hover:text-white'
                                       }`}
-                                    title="عرض كل آية في سطر منفصل (تحت بعض)"
+                                    title={t("listViewTitle")}
                                   >
                                     <List className="w-3.5 h-3.5" />
-                                    <span className="hidden sm:inline">عمودي</span>
+                                    <span className="hidden sm:inline">{t("vertical")}</span>
                                   </button>
                                   <button
                                     onClick={() => handleSetBibleViewMode('paragraph')}
@@ -1883,10 +1867,10 @@ export function BibleForm({ controller }) {
                                       ? 'bg-sky-500 text-white shadow-sm'
                                       : 'text-white/40 hover:text-white'
                                       }`}
-                                    title="عرض متصل للآيات (بجانب بعض)"
+                                    title={t("continuousViewTitle")}
                                   >
                                     <AlignJustify className="w-3.5 h-3.5" />
-                                    <span className="hidden sm:inline">متصل</span>
+                                    <span className="hidden sm:inline">{t("continuous")}</span>
                                   </button>
                                 </div>
                               </div>
@@ -1897,13 +1881,13 @@ export function BibleForm({ controller }) {
                                   onClick={() => setBibleSelectedVerseIds(new Set(bibleModalVerses.map(v => v._id)))}
                                   className="px-2.5 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-bold rounded-xl bg-white/5 hover:bg-white/10 border border-white/[0.07] text-slate-200 transition-all active:scale-95"
                                 >
-                                  تحديد الكل
+                                  {t("selectAll")}
                                 </button>
                                 <button
                                   onClick={() => setBibleSelectedVerseIds(new Set())}
                                   className="px-2.5 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-bold rounded-xl bg-white/5 hover:bg-white/10 border border-white/[0.07] text-slate-300 transition-all active:scale-95"
                                 >
-                                  إلغاء التحديد
+                                  {t("deselectAll")}
                                 </button>
 
                                 {/* Save Selected to Workspace */}
@@ -1918,11 +1902,11 @@ export function BibleForm({ controller }) {
                                     {isSavingBible ? (
                                       <><Loader2 className="w-3 h-3 animate-spin" /> ...</>
                                     ) : bibleAddedSuccess ? (
-                                      <><Check className="w-3 h-3" /> تم الحفظ</>
+                                      <><Check className="w-3 h-3" /> {t("saved")}</>
                                     ) : (
                                       <>
                                         <FolderPlus className="w-3 h-3" />
-                                        حفظ ({bibleSelectedVerseIds.size})
+                                        {t("save")} ({bibleSelectedVerseIds.size})
                                       </>
                                     )}
                                   </button>
@@ -2068,18 +2052,18 @@ export function BibleForm({ controller }) {
               {bibleSelectedVerseIds.size === 0 && !bibleSearchQuery.trim() && bibleModalVerses.length > 0 && (
                 <div className="absolute bottom-4 inset-x-4 sm:inset-x-6 flex items-center justify-between pointer-events-none z-30" dir="ltr">
                   <button
-                    onClick={goToNextChapter}
-                    disabled={!hasNextChapter}
-                    className={`pointer-events-auto w-9 h-9 rounded-full bg-black/90 hover:bg-black/80 backdrop-blur-md border border-white/10 flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 ${!hasNextChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
-                    title="الأصحاح التالي"
-                  >
-                    <ChevronLeft className="w-4 h-4 text-white" />
-                  </button>
-                  <button
                     onClick={goToPrevChapter}
                     disabled={!hasPrevChapter}
                     className={`pointer-events-auto w-9 h-9 rounded-full bg-black/90 hover:bg-black/80 backdrop-blur-md border border-white/10 flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 ${!hasPrevChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
                     title="الأصحاح السابق"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-white" />
+                  </button>
+                  <button
+                    onClick={goToNextChapter}
+                    disabled={!hasNextChapter}
+                    className={`pointer-events-auto w-9 h-9 rounded-full bg-black/90 hover:bg-black/80 backdrop-blur-md border border-white/10 flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 ${!hasNextChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
+                    title="الأصحاح التالي"
                   >
                     <ChevronRight className="w-4 h-4 text-white" />
                   </button>
@@ -2091,9 +2075,9 @@ export function BibleForm({ controller }) {
                   <motion.div
                     drag="y"
                     dragConstraints={{ top: 0, bottom: 0 }}
-                    dragElastic={{ top: 0, bottom: 0.6 }}
+                    dragElastic={{ top: 0, bottom: 0.8 }}
                     onDragEnd={(event, info) => {
-                      if (info.offset.y > 100 || info.velocity.y > 300) {
+                      if (info.offset.y > 40 || info.velocity.y > 120) {
                         setBibleSelectedVerseIds(new Set());
                         setShowAiOptions(false);
                         setAiAnalysis({ loading: false, type: null, text: '', error: null });
@@ -2103,7 +2087,7 @@ export function BibleForm({ controller }) {
                     initial={{ y: '100%' }}
                     animate={{ y: 0 }}
                     exit={{ y: '100%' }}
-                    transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+                    transition={{ type: 'spring', damping: 30, stiffness: 360, mass: 0.6 }}
                     className="absolute bottom-0 left-0 right-0 z-50 bg-[#0d0e15]/95 border-t border-white/10 backdrop-blur-2xl rounded-t-[1.5rem] shadow-[0_-15px_35px_rgba(0,0,0,0.6)] flex flex-col text-white overflow-hidden"
                     dir="rtl"
                   >
@@ -2114,20 +2098,10 @@ export function BibleForm({ controller }) {
 
                       {/* Row: ref + close */}
                       <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">تعديل الآية المحددة</span>
+                       
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-black text-sky-400" dir="ltr">{getSelectedVersesRef()}</span>
-                          <button
-                            onClick={() => {
-                              setBibleSelectedVerseIds(new Set());
-                              setShowAiOptions(false);
-                              setAiAnalysis({ loading: false, type: null, text: '', error: null });
-                              setShowColorCustomizer(false);
-                            }}
-                            className="p-1 rounded-full bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all active:scale-95 flex items-center justify-center"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+
                         </div>
                       </div>
 
