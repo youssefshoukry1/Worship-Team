@@ -2,18 +2,18 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import Portal from '../../Portal/Portal';
-import { UserContext } from '../../context/User_Context';
-import { HymnsContext } from '../../context/Hymns_Context';
-import { useLanguage } from '../../context/LanguageContext';
-import { showToast } from '../../components/ToastContainer';
+import Portal from '../Portal/Portal';
+import { UserContext } from '../context/User_Context';
+import { HymnsContext } from '../context/Hymns_Context';
+import { useLanguage } from '../context/LanguageContext';
+import { showToast } from '../components/ToastContainer';
 import { Sparkles, X, Check, Search, FileText, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Loader2, Copy, Lightbulb, FolderPlus, Monitor, PlusCircle, Link2, List, AlignJustify } from 'lucide-react';
-import { normalizeBibleBooksFromApi } from '../../utils/bibleBooks';
-import { getApiBaseUrl } from '../../utils/apiBase';
+import { normalizeBibleBooksFromApi } from '../utils/bibleBooks';
+import { getApiBaseUrl } from '../utils/apiBase';
 import { useRouter } from 'next/navigation';
-import { isApp } from '../../utils/platform';
-import { initLocalBible, getLocalBibleIndex, searchLocalBible, isTranslationDownloaded, downloadTranslationToLocal } from '../../utils/bibleSync';
-import { queueOfflineAction } from '../../utils/offlineQueue';
+import { isApp } from '../utils/platform';
+import { initLocalBible, getLocalBibleIndex, searchLocalBible, isTranslationDownloaded, downloadTranslationToLocal } from '../utils/bibleSync';
+import { queueOfflineAction } from '../utils/offlineQueue';
 
 
 const API_ROOT = getApiBaseUrl();
@@ -2098,7 +2098,7 @@ export function BibleForm({ controller }) {
 
                       {/* Row: ref + close */}
                       <div className="flex justify-between items-center">
-                       
+
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-black text-sky-400" dir="ltr">{getSelectedVersesRef()}</span>
 
