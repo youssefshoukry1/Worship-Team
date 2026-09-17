@@ -11,40 +11,43 @@ export function useCategoryHymnsTour(language) {
     if (typeof window === 'undefined') return;
     if (localStorage.getItem(TOUR_KEY)) return;
 
-    const timeout = setTimeout(() => {
+    let timeoutId;
+    let started = false;
+
+    const startTour = () => {
+      if (started) return;
+      if (localStorage.getItem(TOUR_KEY)) return;
+      started = true;
+
       const isAr = language === 'ar';
       const isDe = language === 'de';
 
-      // Pick the visible presentation button (mobile vs desktop)
       const isMobile = window.innerWidth < 640;
-      const presEl = isMobile
-        ? document.getElementById('tour-presentation-mobile')
-        : document.getElementById('tour-presentation-desktop');
       const presSelector = isMobile ? '#tour-presentation-mobile' : '#tour-presentation-desktop';
 
-      const steps = [
+      const rawSteps = [
         {
           element: '#tour-search-btn',
           popover: {
-            title: isAr ? '🔍 البحث' : isDe ? '🔍 Suche' : '🔍 Search',
+            title: isAr ? 'البحث' : isDe ? 'Suche' : 'Search',
             description: isAr
-              ? 'استمتع بالسيرش الذكي اونلاين واوفلاين مقبول'
+              ? 'ابحث عن أي ترنيمة بالاسم أو الكلمات أونلاين وأوفلاين.'
               : isDe
-                ? 'Finde schnell jedes Lied nach Name oder Text'
-                : 'Quickly find any hymn by name or lyrics',
+                ? 'Finde Lieder nach Titel oder Text online und offline.'
+                : 'Search hymns by title or lyrics online and offline.',
             side: 'bottom',
             align: 'center',
           },
         },
         {
-          element: '#tour-categories',
+          element: '#tour-pray-btn',
           popover: {
-            title: isAr ? '📂 التصنيفات' : isDe ? '📂 Kategorien' : '📂 Categories',
+            title: isAr ? 'وقت الصلاة' : isDe ? 'Gebetszeit' : 'Pray Time',
             description: isAr
-              ? 'تصفح الترانيم حسب التصنيف: تسبيح، صليب، أطفال، والمزيد'
+              ? 'مساحة خاصة للصلاة والتأمل مع إمكانية تسجيل صلاتك وتدوينها.'
               : isDe
-                ? 'Durchsuche Lieder nach Kategorie: Lobpreis, Kreuz, Kinder und mehr'
-                : 'Browse hymns by category: Praise, Cross, Kids, and more',
+                ? 'Ein privater Bereich für Gebet und Besinnung mit der Möglichkeit, deine Gebete aufzunehmen und festzuhalten.'
+                : 'A private space for prayer and reflection with the ability to record and journal your prayers.',
             side: 'bottom',
             align: 'center',
           },
@@ -52,12 +55,16 @@ export function useCategoryHymnsTour(language) {
         {
           element: '#tour-bible-btn',
           popover: {
-            title: isAr ? '📖 الكتاب المقدس' : isDe ? '📖 Bibel' : '📖 Bible',
-            description: isAr
-              ? 'افتح الكتاب المقدس، اقرأ الآيات، أضف ملاحظات وتظليلات'
+            title: isAr
+              ? 'الكتاب المقدس'
               : isDe
-                ? 'Öffne die Bibel, lies Verse, füge Notizen und Markierungen hinzu'
-                : 'Open the Bible, read verses, add notes and highlights',
+                ? 'Bibel'
+                : 'Bible',
+            description: isAr
+              ? 'اقرأ الكتاب المقدس مع تحليلات سريعة، مراجع، وتطبيقات عملية مدعومة بالذكاء الاصطناعي.'
+              : isDe
+                ? 'Bibel lesen mit schnellen Analysen, Querverweisen und praktischer Anwendung dank KI.'
+                : 'Read the Bible with quick analysis, cross-references, and practical AI-powered application.',
             side: 'bottom',
             align: 'center',
           },
@@ -65,12 +72,12 @@ export function useCategoryHymnsTour(language) {
         {
           element: '#tour-live-session',
           popover: {
-            title: isAr ? '📡 غرفة المزامنة' : isDe ? '📡 Live-Sitzung' : '📡 Live Session',
+            title: isAr ? 'غرفة المزامنة' : isDe ? 'Live-Sitzung' : 'Live Session',
             description: isAr
-              ? 'أنشئ أو انضم لغرفة عرض مباشر لمزامنة الترانيم مع اصحابك'
+              ? 'بث مباشر ومزامنة الكلمات مع شاشات العرض والأصدقاء.'
               : isDe
-                ? 'Erstelle oder tritt einem Live-Raum bei, um Lieder mit deinem Team zu synchronisieren'
-                : 'Create or join a live room to sync hymns with your team',
+                ? 'Liedtexte live auf Bildschirme übertragen und mit Freunden synchronisieren.'
+                : 'Sync lyrics in real time with display screens and friends.',
             side: 'bottom',
             align: 'center',
           },
@@ -78,33 +85,47 @@ export function useCategoryHymnsTour(language) {
         {
           element: presSelector,
           popover: {
-            title: isAr ? '🖥️ وضع العرض' : isDe ? '🖥️ Präsentation' : '🖥️ Presentation',
+            title: isAr ? 'وضع العرض' : isDe ? 'Präsentation' : 'Presentation',
             description: isAr
-              ? 'افتح وضع العرض لعرض الكلمات على الشاشة أثناء الخدمة'
+              ? 'عرض الكلمات بملء الشاشة مع التحكم السريع بالمقاطع.'
               : isDe
-                ? 'Öffne den Präsentationsmodus, um Liedtexte während des Gottesdienstes anzuzeigen'
-                : 'Open presentation mode to display lyrics on screen during service',
+                ? 'Liedtexte im Vollbildmodus anzeigen und steuern.'
+                : 'Display full-screen lyrics with instant section control.',
             side: isMobile ? 'bottom' : 'left',
             align: 'center',
           },
         }
       ];
 
-      // Add presentation step only if the button is rendered
-
+      // Filter only steps with matching elements in the DOM
+      const steps = rawSteps.filter(s => !!document.querySelector(s.element));
+      if (steps.length === 0) return;
 
       const tourDriver = driver({
         showProgress: true,
         animate: true,
-        allowClose: false,
-        overlayColor: '#000',
+        allowClose: true,
+        overlayColor: '#020617',
         overlayOpacity: 0.75,
-        stagePadding: 10,
-        stageRadius: 14,
-        popoverClass: 'taspe7-tour-popover',
-        nextBtnText: isAr ? 'التالي ←' : isDe ? 'Weiter →' : 'Next →',
-        prevBtnText: isAr ? '→ السابق' : isDe ? '← Zurück' : '← Back',
-        doneBtnText: isAr ? '✓ تم' : isDe ? '✓ Fertig' : '✓ Done',
+        stagePadding: 6,
+        stageRadius: 12,
+        popoverClass: `taspe7-tour-popover ${isAr ? 'tour-rtl' : ''}`,
+        nextBtnText: isAr ? 'التالي' : isDe ? 'Weiter' : 'Next',
+        prevBtnText: isAr ? 'السابق' : isDe ? 'Zurück' : 'Back',
+        doneBtnText: isAr ? 'تم' : isDe ? 'Fertig' : 'Done',
+        progressText: '{{current}} / {{total}}',
+        showButtons: ['next', 'previous'],
+        onPopoverRender: (popover) => {
+          const footer = popover.wrapper.querySelector('.driver-popover-footer');
+          if (footer && !footer.querySelector('.tour-skip-btn')) {
+            const skipBtn = document.createElement('button');
+            skipBtn.className = 'tour-skip-btn';
+            skipBtn.type = 'button';
+            skipBtn.innerText = isAr ? 'تخطي' : isDe ? 'Überspringen' : 'Skip';
+            skipBtn.onclick = () => tourDriver.destroy();
+            footer.prepend(skipBtn);
+          }
+        },
         steps,
         onDestroyed: () => {
           localStorage.setItem(TOUR_KEY, '1');
@@ -113,7 +134,7 @@ export function useCategoryHymnsTour(language) {
 
       tourDriver.drive();
 
-      // Tap overlay → advance to next step (not close)
+      // Tap overlay advances to next step
       const overlay = document.querySelector('.driver-overlay');
       if (overlay) {
         overlay.addEventListener('click', () => {
@@ -124,8 +145,33 @@ export function useCategoryHymnsTour(language) {
           }
         });
       }
-    }, 1200);
+    };
 
-    return () => clearTimeout(timeout);
+    // Check if splash intro is currently active or pending
+    const isSplashActive = () => {
+      return (
+        window.__wasla_splash_active === true ||
+        !!document.getElementById('wasla-splash-screen') ||
+        (!window.__wasla_splash_done && !localStorage.getItem('wasla_splash_version'))
+      );
+    };
+
+    if (isSplashActive()) {
+      const handleSplashDone = () => {
+        window.removeEventListener('wasla_splash_done', handleSplashDone);
+        timeoutId = setTimeout(startTour, 600);
+      };
+      window.addEventListener('wasla_splash_done', handleSplashDone);
+      return () => {
+        window.removeEventListener('wasla_splash_done', handleSplashDone);
+        clearTimeout(timeoutId);
+      };
+    }
+
+    timeoutId = setTimeout(startTour, 800);
+    return () => clearTimeout(timeoutId);
   }, [language]);
 }
+
+
+

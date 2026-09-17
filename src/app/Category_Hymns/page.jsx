@@ -1702,7 +1702,7 @@ export default function Category_Humns() {
               return (
                 <button
                   key={cat.id}
-                  id={cat.id === 'bible-form' ? 'tour-bible-btn' : undefined}
+                  id={cat.id === 'bible-form' ? 'tour-bible-btn' : cat.id === 'pray-form' ? 'tour-pray-btn' : undefined}
                   onClick={() => cat.path ? router.push(cat.path) : cat.onClick?.()}
                   className={`flex min-w-0 items-center justify-center gap-2 py-2 rounded-xl transition-all duration-300 border backdrop-blur-md relative overflow-hidden group
                   ${cat.id === 'bible-form' ? 'px-6' : 'px-6'}

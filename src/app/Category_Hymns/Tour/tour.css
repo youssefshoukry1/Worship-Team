@@ -1,29 +1,27 @@
 /* ═══════════════════════════════════════════════════════════════
-   Taspe7 Tour — Premium Dark-Glass Popover
+   Taspe7 Tour — Minimalist Dark Popover
    ═══════════════════════════════════════════════════════════════ */
 
 /* Popover container */
 .taspe7-tour-popover.driver-popover {
-  background: linear-gradient(160deg, rgba(12, 22, 42, 0.97) 0%, rgba(15, 29, 56, 0.97) 100%);
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  border: 1px solid rgba(56, 189, 248, 0.15);
-  border-radius: 20px;
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
   box-shadow:
-    0 0 0 1px rgba(56, 189, 248, 0.06),
-    0 12px 40px rgba(0, 0, 0, 0.65),
-    0 0 60px rgba(56, 189, 248, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  color: #e2e8f0;
-  max-width: 340px;
-  padding: 24px 22px 18px !important;
-  animation: tour-popover-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+    0 16px 36px -6px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+  max-width: 320px;
+  padding: 18px 18px 14px !important;
+  animation: tour-popover-in 0.2s ease-out both;
+  font-family: inherit;
+  z-index: 10000000 !important;
 }
 
 @keyframes tour-popover-in {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.96);
+    transform: translateY(4px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -31,100 +29,132 @@
   }
 }
 
+/* RTL layout */
+.taspe7-tour-popover.tour-rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+.taspe7-tour-popover.tour-rtl .driver-popover-footer {
+  flex-direction: row;
+}
+
+.taspe7-tour-popover.tour-rtl .driver-popover-navigation-btns {
+  flex-direction: row-reverse;
+}
+
 /* Title */
 .taspe7-tour-popover .driver-popover-title {
-  font-size: 18px;
-  font-weight: 800;
-  color: #f1f5f9;
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
   letter-spacing: -0.01em;
-  margin-bottom: 6px;
   line-height: 1.3;
+  margin-bottom: 4px;
 }
 
 /* Description */
 .taspe7-tour-popover .driver-popover-description {
-  font-size: 13.5px;
-  line-height: 1.7;
+  font-size: 13px;
+  line-height: 1.55;
   color: #94a3b8;
   font-weight: 400;
 }
 
 /* Progress indicator */
 .taspe7-tour-popover .driver-popover-progress-text {
-  color: #475569;
+  color: #64748b;
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  font-weight: 500;
 }
 
-/* Footer area */
+/* Footer */
 .taspe7-tour-popover .driver-popover-footer {
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-/* All buttons base */
-.taspe7-tour-popover .driver-popover-navigation-btns button {
-  border-radius: 12px;
-  padding: 8px 20px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  border: none;
+/* Button group */
+.taspe7-tour-popover .driver-popover-navigation-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Navigation buttons base */
+.taspe7-tour-popover button {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 6px 14px;
+  transition: all 0.15s ease;
   cursor: pointer;
-  position: relative;
-  overflow: hidden;
+  outline: none;
 }
 
-/* Next / Done button — gradient glow */
+/* Primary Next / Done button */
 .taspe7-tour-popover .driver-popover-next-btn {
-  background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);
-  color: #fff;
-  box-shadow:
-    0 2px 12px rgba(14, 165, 233, 0.35),
-    0 0 20px rgba(99, 102, 241, 0.1);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  background: #38bdf8;
+  color: #030712;
+  border: none;
 }
 
 .taspe7-tour-popover .driver-popover-next-btn:hover {
-  box-shadow:
-    0 4px 20px rgba(14, 165, 233, 0.5),
-    0 0 30px rgba(99, 102, 241, 0.2);
-  transform: translateY(-1px);
+  background: #7dd3fc;
 }
 
 .taspe7-tour-popover .driver-popover-next-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
+  transform: scale(0.97);
 }
 
-/* Previous button — ghost glass */
+/* Previous button */
 .taspe7-tour-popover .driver-popover-prev-btn {
-  background: rgba(255, 255, 255, 0.04);
-  color: #64748b;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 .taspe7-tour-popover .driver-popover-prev-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #cbd5e1;
-  border-color: rgba(255, 255, 255, 0.15) !important;
+  background: rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
 }
 
-/* Close button */
+.taspe7-tour-popover .driver-popover-prev-btn:active {
+  transform: scale(0.97);
+}
+
+/* Skip button */
+.taspe7-tour-popover .tour-skip-btn {
+  background: transparent;
+  color: #64748b;
+  border: none;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.taspe7-tour-popover .tour-skip-btn:hover {
+  color: #94a3b8;
+}
+
+/* Close button (top right) */
 .taspe7-tour-popover .driver-popover-close-btn {
-  color: #334155;
-  width: 28px;
-  height: 28px;
+  color: #64748b;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  transition: all 0.2s;
-  font-size: 16px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  font-size: 14px;
 }
 
 .taspe7-tour-popover .driver-popover-close-btn:hover {
@@ -132,27 +162,27 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* Arrow — match container border tint */
+/* Arrow */
 .taspe7-tour-popover.driver-popover-arrow-side-bottom .driver-popover-arrow {
-  border-bottom-color: rgba(12, 22, 42, 0.97);
+  border-bottom-color: #0f172a;
 }
 
 .taspe7-tour-popover.driver-popover-arrow-side-top .driver-popover-arrow {
-  border-top-color: rgba(12, 22, 42, 0.97);
+  border-top-color: #0f172a;
 }
 
 .taspe7-tour-popover.driver-popover-arrow-side-left .driver-popover-arrow {
-  border-left-color: rgba(12, 22, 42, 0.97);
+  border-left-color: #0f172a;
 }
 
 .taspe7-tour-popover.driver-popover-arrow-side-right .driver-popover-arrow {
-  border-right-color: rgba(12, 22, 42, 0.97);
+  border-right-color: #0f172a;
 }
 
-/* Highlighted stage ring glow */
+/* Active element highlight reset */
 .driver-active-element {
-  box-shadow:
-    0 0 0 4px rgba(14, 165, 233, 0.2),
-    0 0 24px rgba(14, 165, 233, 0.12) !important;
-  border-radius: 14px;
+  box-shadow: none !important;
 }
+
+
+

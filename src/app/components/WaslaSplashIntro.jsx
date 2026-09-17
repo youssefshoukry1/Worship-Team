@@ -7,6 +7,14 @@ export default function WaslaSplashIntro() {
     const [showSplash, setShowSplash] = useState(false);
     const [appVersion, setAppVersion] = useState("1.0.0");
 
+    const finishSplash = () => {
+        if (typeof window !== "undefined") {
+            window.__wasla_splash_active = false;
+            window.__wasla_splash_done = true;
+            window.dispatchEvent(new CustomEvent("wasla_splash_done"));
+        }
+    };
+
     useEffect(() => {
         const checkSplashRequirement = async () => {
             try {
@@ -17,6 +25,7 @@ export default function WaslaSplashIntro() {
                     setAppVersion(ver);
                     const savedVer = localStorage.getItem("wasla_splash_version");
                     if (savedVer !== ver) {
+                        window.__wasla_splash_active = true;
                         setShowSplash(true);
                         return;
                     }
@@ -25,7 +34,10 @@ export default function WaslaSplashIntro() {
 
             const savedVer = localStorage.getItem("wasla_splash_version");
             if (!savedVer) {
+                window.__wasla_splash_active = true;
                 setShowSplash(true);
+            } else {
+                finishSplash();
             }
         };
 
@@ -45,9 +57,10 @@ export default function WaslaSplashIntro() {
     };
 
     return (
-        <AnimatePresence>
+        <AnimatePresence onExitComplete={finishSplash}>
             {showSplash && (
                 <motion.div
+                    id="wasla-splash-screen"
                     key="wasla-full-splash"
                     initial={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -87,3 +100,4 @@ export default function WaslaSplashIntro() {
         </AnimatePresence>
     );
 }
+
