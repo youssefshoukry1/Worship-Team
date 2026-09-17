@@ -254,7 +254,6 @@ Prayforme: 'prayer for me',
 
     // Additional Workspace
     actions: "Actions",
-    save: "Save",
     saving: "Saving...",
     addSubject: "Add Subject",
     pdf: "PDF",
@@ -542,7 +541,6 @@ Prayforme: 'prayer for me',
 
     // Additional Workspace
     actions: "إجراءات",
-    save: "حفظ",
     saving: "جاري الحفظ...",
     addSubject: "إضافة موضوع",
     pdf: "ملف PDF",
