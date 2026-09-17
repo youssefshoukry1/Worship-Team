@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/wasla_vector_logo">
+
+    <!-- Cross: fade in 0→1 over 650ms (matches JSX crossTransition 0.65s) -->
+    <target android:name="cross_group">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="650"
+                android:interpolator="@android:interpolator/decelerate_cubic"
+                android:propertyName="alpha"
+                android:valueFrom="0.0"
+                android:valueTo="1.0"
+                android:valueType="floatType" />
+        </aapt:attr>
+    </target>
+
+    <!-- W: fade in at 450ms delay (JSX delay 0.45s, duration 0.32s = 320ms) -->
+    <target android:name="letter_w">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="320"
+                android:startOffset="450"
+                android:interpolator="@android:interpolator/decelerate_cubic"
+                android:propertyName="alpha"
+                android:valueFrom="0.0"
+                android:valueTo="1.0"
+                android:valueType="floatType" />
+        </aapt:attr>
+    </target>
+
+    <!-- A1: fade in at 620ms delay -->
+    <target android:name="letter_a1">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="320"
+                android:startOffset="620"
+                android:interpolator="@android:interpolator/decelerate_cubic"
+                android:propertyName="alpha"
+                android:valueFrom="0.0"
+                android:valueTo="1.0"
+                android:valueType="floatType" />
+        </aapt:attr>
+    </target>
+
+    <!-- S: fade in at 790ms delay -->
+    <target android:name="letter_s">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="320"
+                android:startOffset="790"
+                android:interpolator="@android:interpolator/decelerate_cubic"
+                android:propertyName="alpha"
+                android:valueFrom="0.0"
+                android:valueTo="1.0"
+                android:valueType="floatType" />
+        </aapt:attr>
+    </target>
+
+    <!-- L: fade in at 960ms delay -->
+    <target android:name="letter_l">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="320"
+                android:startOffset="960"
+                android:interpolator="@android:interpolator/decelerate_cubic"
+                android:propertyName="alpha"
+                android:valueFrom="0.0"
+                android:valueTo="1.0"
+                android:valueType="floatType" />
+        </aapt:attr>
+    </target>
+
+    <!-- A2: fade in at 1130ms delay -->
+    <target android:name="letter_a2">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="320"
+                android:startOffset="1130"
+                android:interpolator="@android:interpolator/decelerate_cubic"
+                android:propertyName="alpha"
+                android:valueFrom="0.0"
+                android:valueTo="1.0"
+                android:valueType="floatType" />
+        </aapt:attr>
+    </target>
+</animated-vector>
