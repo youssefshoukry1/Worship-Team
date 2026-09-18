@@ -2122,9 +2122,8 @@ export function BibleForm({ controller }) {
                                 .map(v => v.verseNumber);
                               openCompare(nums);
                             }}
-                            className="flex-1 min-w-[90px] py-2.5 px-4 rounded-full bg-[#0a0f1d]/80 hover:bg-[#0f172a] border border-sky-500/40 text-sky-300 text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-[inset_0_0_20px_rgba(14,165,233,0.1),0_0_15px_rgba(14,165,233,0.2)] backdrop-blur-md relative overflow-hidden group/compare"
+                            className="flex-1 min-w-[90px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95"
                           >
-                            <div className="absolute inset-0 bg-gradient-to-r from-sky-500/0 via-sky-400/10 to-sky-500/0 -translate-x-full group-hover/compare:translate-x-full transition-transform duration-1000" />
                             <BookOpen className="w-3.5 h-3.5 text-sky-400" /> {t('compare')}
                           </button>
                         )}
@@ -2146,10 +2145,10 @@ export function BibleForm({ controller }) {
                             setShowAiOptions(p => !p);
                             setAiAnalysis({ loading: false, type: null, text: '', error: null });
                           }}
-                          className={`flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 relative overflow-hidden
+                          className={`flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95
               ${showAiOptions
                               ? 'bg-violet-500/20 border-violet-400/50 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.3)]'
-                              : 'bg-white/5 hover:bg-violet-500/10 border-white/10 hover:border-violet-400/30 text-white hover:text-violet-300'
+                              : 'bg-white/5 hover:bg-white/10 border-white/10 text-white'
                             }`}
                         >
                           <Sparkles className="w-3.5 h-3.5" /> {t('Ai')}
