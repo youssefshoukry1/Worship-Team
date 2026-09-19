@@ -7,7 +7,8 @@ import {
 } from '../utils/googleDriveClient';
 import { showToast } from '../components/ToastContainer';
 import { openVoiceInput } from '../utils/voiceProcessing';
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 import WaveSurfer from 'wavesurfer.js';
 import RecordPlugin from 'wavesurfer.js/dist/plugins/record.esm.js';
 
@@ -320,6 +321,7 @@ export function VoiceClip({ url, fallbackDuration = 0, tone, label, onDelete }) 
 
 /** Pending clips + record button / live bar for the general box or a section block while writing. */
 export function VoiceRecorderPanel({ blockId, recorder, recordings = [], onRemove, prayType = 'general' }) {
+    const { t } = useLanguage();
     const tone = getVoiceTone(prayType);
     const isThisBlock = recorder.recordingBlockId === blockId;
 
@@ -339,9 +341,9 @@ export function VoiceRecorderPanel({ blockId, recorder, recordings = [], onRemov
                         className={`inline-flex items-center gap-2 pl-1.5 pr-3.5 py-1.5 rounded-full border text-xs font-bold transition-all active:scale-95 disabled:opacity-35 disabled:pointer-events-none ${tone.soft}`}
                     >
                         <span className={`w-6 h-6 rounded-full flex items-center justify-center text-white ${tone.solid}`}><Mic className="w-3.5 h-3.5" /></span>
-                        {recordings.length ? 'Record another' : 'Record voice'}
+                        {recordings.length ? t('recordAnother') : t('recordVoice')}
                     </button>
-                    {recordings.length > 0 && <span className="text-[10px] text-slate-500">{recordings.length} clip{recordings.length > 1 ? 's' : ''} · saved on this device</span>}
+                    {recordings.length > 0 && <span className="text-[10px] text-slate-500">{recordings.length} {t('records')} · {t('savedOnDeviceTitle')}</span>}
                 </div>
             )}
         </div>
@@ -349,6 +351,7 @@ export function VoiceRecorderPanel({ blockId, recorder, recordings = [], onRemov
 }
 
 function SavedVoiceClip({ rec, label, onDelete }) {
+    const { t } = useLanguage();
     const [url, setUrl] = useState(null);
     const [missing, setMissing] = useState(false);
     useEffect(() => {
@@ -366,7 +369,7 @@ function SavedVoiceClip({ rec, label, onDelete }) {
     if (missing) {
         return (
             <div className={`flex items-center justify-between gap-2 rounded-2xl border ${tone.frame} bg-white/[0.02] px-3 py-2 text-[11px] text-slate-500`}>
-                Recording unavailable on this device
+                {t('recordingUnavailableOnDevice')}
                 <button type="button" onClick={onDelete} className="p-1 rounded-full hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
             </div>
         );
@@ -376,9 +379,10 @@ function SavedVoiceClip({ rec, label, onDelete }) {
 
 /** Recordings saved on this device for a prayer card. */
 export function SavedPrayRecordings({ prayId, recordings, getBlockLabel, onChanged }) {
+    const { t } = useLanguage();
     if (!recordings?.length) return null;
     const handleDelete = async (recId) => {
-        if (!window.confirm('Delete this voice recording from this device?')) return;
+        if (!window.confirm(t('deleteVoiceRecordingConfirm'))) return;
         await deleteRecording(prayId, recId);
         onChanged?.();
     };
@@ -393,6 +397,7 @@ export function SavedPrayRecordings({ prayId, recordings, getBlockLabel, onChang
 
 /** Backup / restore of all prayers with multi-account support & restore account selector modal. */
 export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
+    const { t, language } = useLanguage();
     const lastBackupKey = `my_prays_last_backup_${userId}`;
     const [busy, setBusy] = useState(null); // 'backup' | 'restore' | null
     const [progress, setProgress] = useState(0);
@@ -549,8 +554,8 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
             <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:p-5 flex items-center gap-3">
                 <div className="p-2 rounded-xl border bg-sky-500/10 text-sky-400 border-sky-500/20"><HardDrive className="h-4 w-4 sm:h-5 sm:w-5" /></div>
                 <div className="flex-1 min-w-0">
-                    <h3 className="text-sm sm:text-base font-bold text-white">Saved on this device</h3>
-                    <p className="text-[11px] text-slate-400">Your prayers and recordings are stored only on this device. Sign in to back them up to Google Drive.</p>
+                    <h3 className="text-sm sm:text-base font-bold text-white">{t('savedOnDeviceTitle')}</h3>
+                    <p className="text-[11px] text-slate-400">{t('savedOnDeviceDesc')}</p>
                 </div>
             </div>
         );
@@ -562,7 +567,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                 <div className="p-2 rounded-xl border bg-sky-500/10 text-sky-400 border-sky-500/20"><HardDrive className="h-4 w-4 sm:h-5 sm:w-5" /></div>
                 <div className="flex-1 min-w-[150px]">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm sm:text-base font-bold text-white">My Prays Backup</h3>
+                        <h3 className="text-sm sm:text-base font-bold text-white">{t('myPraysBackupTitle')}</h3>
                         {activeEmail && (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30">
                                 <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
@@ -570,8 +575,8 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                             </span>
                         )}
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Voice recordings stay on this device. Back up all prayers and recordings to your Google Drive.</p>
-                    {lastBackup && <p className="text-[10px] text-slate-500 mt-0.5">Last backup: {new Date(lastBackup).toLocaleString()}</p>}
+                    <p className="text-[11px] text-slate-400 mt-0.5">{t('myPraysBackupDesc')}</p>
+                    {lastBackup && <p className="text-[10px] text-slate-500 mt-0.5">{t('lastBackup')} {new Date(lastBackup).toLocaleString(language === 'ar' ? 'ar-EG' : undefined)}</p>}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                     <button
@@ -589,10 +594,10 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                                 ? 'border-sky-500 bg-sky-500/20 text-white'
                                 : 'border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50'
                         }`}
-                        title="Change or switch Google Drive account"
+                        title={activeEmail ? t('changeDriveEmail') : t('linkDrive')}
                     >
                         <ArrowRightLeft className="w-3.5 h-3.5" />
-                        <span>{activeEmail ? 'Change Drive Email' : 'Link Drive'}</span>
+                        <span>{activeEmail ? t('changeDriveEmail') : t('linkDrive')}</span>
                     </button>
                     <button
                         type="button"
@@ -604,10 +609,10 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                                 : 'border-white/10 text-slate-300 hover:bg-white/5'
                         }`}
                     >
-                        {busy === 'restore' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudDownload className="w-4 h-4" />}Restore
+                        {busy === 'restore' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudDownload className="w-4 h-4" />}{t('restore')}
                     </button>
                     <button type="button" onClick={() => handleBackup()} disabled={Boolean(busy)} className="px-3 py-2 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white disabled:opacity-40 flex items-center gap-1.5 shadow-lg shadow-sky-500/20 transition-all active:scale-95">
-                        {busy === 'backup' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudUpload className="w-4 h-4" />}Backup
+                        {busy === 'backup' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudUpload className="w-4 h-4" />}{t('backup')}
                     </button>
                 </div>
             </div>
@@ -628,7 +633,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
 
             {needsLink && (
                 <button type="button" onClick={handleLink} className="mt-3 w-full py-2.5 bg-white text-gray-900 rounded-xl text-sm font-medium hover:bg-gray-100 transition-colors">
-                    Connect Google Drive
+                    {t('connectGoogleDrive')}
                 </button>
             )}
 
@@ -642,10 +647,10 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                             </div>
                             <div>
                                 <h4 className="text-xs sm:text-sm font-bold text-white">
-                                    {openPanel === 'restore' ? 'Restore from Google Drive' : 'Connected Google Accounts'}
+                                    {openPanel === 'restore' ? t('restoreFromGoogleDrive') : t('connectedGoogleAccounts')}
                                 </h4>
                                 <p className="text-[10px] sm:text-[11px] text-slate-400">
-                                    {openPanel === 'restore' ? 'Select an account to restore recordings from' : 'Click any account to make it active, or link a new one'}
+                                    {openPanel === 'restore' ? t('selectAccountToRestore') : t('clickAccountToMakeActive')}
                                 </p>
                             </div>
                         </div>
@@ -693,7 +698,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                                         <div className="min-w-0">
                                             <div className="flex items-center gap-2">
                                                 <p className="text-xs font-bold text-white truncate">{acc.name || acc.email}</p>
-                                                {isDef && !isActivating && <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/20 text-sky-300 border border-sky-500/30">Active</span>}
+                                                {isDef && !isActivating && <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/20 text-sky-300 border border-sky-500/30">{t('activeStatus')}</span>}
                                             </div>
                                             <p className="text-[11px] text-slate-400 truncate">{acc.email}</p>
                                         </div>
@@ -703,7 +708,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                                         {isActivating ? (
                                             <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold text-sky-400">
                                                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                <span>Activating...</span>
+                                                <span>{t('activating')}</span>
                                             </div>
                                         ) : openPanel === 'restore' ? (
                                             <button
@@ -712,7 +717,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                                                 className="px-2.5 py-1 rounded-lg bg-sky-500 text-white text-xs font-bold hover:bg-sky-400 transition-all flex items-center gap-1"
                                             >
                                                 <CloudDownload className="w-3.5 h-3.5" />
-                                                Restore
+                                                {t('restore')}
                                             </button>
                                         ) : (
                                             <button
@@ -737,14 +742,14 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                             className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-400 hover:text-sky-300 transition-colors"
                         >
                             <Plus className="w-3.5 h-3.5" />
-                            Connect another account
+                            {t('connectAnotherAccount')}
                         </button>
                         <button
                             type="button"
                             onClick={() => setOpenPanel(null)}
                             className="px-3 py-1 rounded-lg border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5 transition-colors"
                         >
-                            Close
+                            {t('close')}
                         </button>
                     </div>
                 </div>
