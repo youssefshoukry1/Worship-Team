@@ -13,13 +13,10 @@ export default function CapgoUpdater() {
                 const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
                 await CapacitorUpdater.notifyAppReady();
 
-                // Approach B: Initialize push notifications and silent background OTA listeners
-                await initPushNotifications();
+                // Initialize push notifications for messages/alerts
+                initPushNotifications();
 
-                /*
-                // ============================================================
-                // Approach A (Polling / Check on Startup) - Retained for reference
-                // ============================================================
+                // Check for updates
                 const res = await fetch(`https://wasla-w.vercel.app/version.json?t=${Date.now()}`, {
                     cache: 'no-store'
                 });
@@ -34,11 +31,10 @@ export default function CapgoUpdater() {
                             url: serverData.url,
                             version: serverData.version,
                         });
-                        await CapacitorUpdater.set({ id: downloadRes.id });
+                        // Stage for next app restart
+                        await CapacitorUpdater.next({ id: downloadRes.id });
                     }
                 }
-                // ============================================================
-                */
             } catch (error) {
                 console.error('[OTA] Updater setup error:', error);
             }

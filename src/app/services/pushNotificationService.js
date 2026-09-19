@@ -5,7 +5,7 @@ let isInitialized = false;
 /**
  * Initializes native push notifications & background listeners
  */
-export async function initPushNotifications({ onOtaUpdate } = {}) {
+export async function initPushNotifications() {
     if (isInitialized) return;
 
     try {
@@ -25,7 +25,7 @@ export async function initPushNotifications({ onOtaUpdate } = {}) {
             return;
         }
 
-        // Register with Apple / Google APNs/FCM
+        // Register device
         await PushNotifications.register();
 
         // Listen for token registration
@@ -37,21 +37,12 @@ export async function initPushNotifications({ onOtaUpdate } = {}) {
             console.error('[Push] Registration error:', error);
         });
 
-        // Handle incoming notifications in foreground or background
-        PushNotifications.addListener('pushNotificationReceived', async (notification) => {
-            const data = notification?.data;
-
-            // Handle Silent OTA Update
-            if (data?.type === 'OTA_UPDATE' && data?.url && data?.version) {
-                if (onOtaUpdate) {
-                    await onOtaUpdate(data);
-                } else {
-                    await handleBackgroundOta(data);
-                }
-            }
+        // Handle foreground notifications
+        PushNotifications.addListener('pushNotificationReceived', (notification) => {
+            console.log('[Push] Notification received:', notification);
         });
 
-        // Handle user clicking on notification
+        // Handle notification click
         PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
             console.log('[Push] Action performed:', notification.actionId);
         });
@@ -62,20 +53,3 @@ export async function initPushNotifications({ onOtaUpdate } = {}) {
     }
 }
 
-/**
- * Downloads and stages OTA update silently
- */
-export async function handleBackgroundOta({ url, version }) {
-    try {
-        const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
-        const currentBundle = await CapacitorUpdater.current();
-        const currentVersion = currentBundle?.bundle?.version || 'builtin';
-
-        if (version && version !== currentVersion) {
-            const downloadRes = await CapacitorUpdater.download({ url, version });
-            await CapacitorUpdater.set({ id: downloadRes.id });
-        }
-    } catch (error) {
-        console.error('[Push-OTA] Download failed:', error);
-    }
-}
