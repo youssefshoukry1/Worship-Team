@@ -99,6 +99,7 @@ export default function Category_Humns() {
 
   // Re-introduced for Role checks
   const [activeTab, setActiveTab] = useState('all');
+  const [appLimit, setAppLimit] = useState(15);
 
 
 
@@ -821,6 +822,11 @@ export default function Category_Humns() {
     };
   }, [search]);
 
+  // Reset pagination limit on search or category change
+  useEffect(() => {
+    setAppLimit(15);
+  }, [activeTab, debouncedSearch]);
+
 
   // --- API Functions ---
 
@@ -1160,11 +1166,8 @@ export default function Category_Humns() {
 
   const isLoading = isApp ? isLoadingApp : isLoadingWeb;
 
-  const humns = React.useMemo(() => {
-    // ── WEB: Server-side pagination and filtering ──────────────────────────
-    if (!isApp) {
-      return webData ? webData.pages.flat() : [];
-    }
+  const fullFilteredAppHymns = React.useMemo(() => {
+    if (!isApp) return [];
 
     // ── APP: Client-side filtering (offline mode) ──────────────────────────
     let filtered = [...allHymns];
@@ -1224,7 +1227,19 @@ export default function Category_Humns() {
 
     // Remove duplicates by _id
     return Array.from(new Map(filtered.map(item => [item._id, item])).values());
-  }, [isApp, webData, allHymns, activeTab, debouncedSearch]);
+  }, [isApp, allHymns, activeTab, debouncedSearch]);
+
+  const humns = React.useMemo(() => {
+    // ── WEB: Server-side pagination and filtering ──────────────────────────
+    if (!isApp) {
+      return webData ? webData.pages.flat() : [];
+    }
+
+    // ── APP: Return sliced data based on appLimit ──────────────────────────
+    return fullFilteredAppHymns.slice(0, appLimit);
+  }, [isApp, webData, fullFilteredAppHymns, appLimit]);
+
+  const hasMoreApp = isApp && humns.length < fullFilteredAppHymns.length;
 
 
   // Infinite Scroll Trigger is now handled by Virtuoso's endReached prop
@@ -1882,8 +1897,14 @@ export default function Category_Humns() {
                 useWindowScroll
                 data={humns}
                 endReached={() => {
-                  if (hasNextPage && !isFetchingNextPage) {
-                    fetchNextPage();
+                  if (!isApp) {
+                    if (hasNextPage && !isFetchingNextPage) {
+                      fetchNextPage();
+                    }
+                  } else {
+                    if (hasMoreApp) {
+                      setAppLimit(prev => prev + 15);
+                    }
                   }
                 }}
                 itemContent={(index, humn) => (
@@ -1910,10 +1931,10 @@ export default function Category_Humns() {
                 components={{
                   Footer: () => (
                     <div className="py-8 flex justify-center w-full flex-col items-center">
-                      {isFetchingNextPage && (
+                      {(!isApp && isFetchingNextPage) && (
                         <div className="w-8 h-8 border-4 border-sky-500/30 border-t-sky-500 rounded-full animate-spin mb-4" />
                       )}
-                      {!hasNextPage && humns.length > 0 && (
+                      {((!isApp && !hasNextPage) || (isApp && !hasMoreApp)) && humns.length > 0 && (
                         <p className="text-center text-gray-500 py-2 font-light italic w-full">
                           — {t("endOfList")} —
                         </p>
