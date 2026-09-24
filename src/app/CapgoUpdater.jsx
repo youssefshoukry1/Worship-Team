@@ -1,28 +1,39 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { initPushNotifications } from './services/pushNotificationService';
 
 export default function CapgoUpdater() {
     const [updateStatus, setUpdateStatus] = useState('idle');
+    const hasRun = useRef(false);
+    const pendingUpdateId = useRef(null);
 
     useEffect(() => {
+        if (hasRun.current) return;
+        hasRun.current = true;
+
         const setupUpdater = async () => {
             try {
                 const { Capacitor } = await import('@capacitor/core');
                 if (!Capacitor.isNativePlatform()) return;
 
                 const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
-                await CapacitorUpdater.notifyAppReady();
+                
+                // 1. MUST call notifyAppReady immediately so Capgo doesn't rollback
+                try {
+                    await CapacitorUpdater.notifyAppReady();
+                } catch (err) {
+                    console.error('[OTA] notifyAppReady error:', err);
+                }
 
                 // Initialize push notifications for messages/alerts (fire and forget)
                 initPushNotifications();
 
-                // 1. Get current running version
+                // 2. Get current running version
                 const currentBundle = await CapacitorUpdater.current();
                 const currentVersion = currentBundle?.bundle?.version || 'builtin';
 
-                // 2. Check if we just updated by comparing with last saved version
+                // 3. Check if we just updated by comparing with last saved version
                 const lastVersion = localStorage.getItem('wasla_last_version');
                 
                 if (lastVersion && lastVersion !== currentVersion) {
@@ -34,23 +45,51 @@ export default function CapgoUpdater() {
                 // Save current version to localStorage for next time
                 localStorage.setItem('wasla_last_version', currentVersion);
 
-                // 3. Silently check for future updates in background
-                const res = await fetch(`https://wasla-w.vercel.app/version.json?t=${Date.now()}`, {
-                    cache: 'no-store'
-                });
+                // 4. Silently check for future updates in background
+                try {
+                    const res = await fetch(`https://wasla-w.vercel.app/version.json?t=${Date.now()}`, {
+                        cache: 'no-store'
+                    });
 
-                if (res.ok) {
-                    const serverData = await res.json();
-                    if (serverData.version && serverData.version !== currentVersion) {
-                        // Download silently
-                        const downloadRes = await CapacitorUpdater.download({
-                            url: serverData.url,
-                            version: serverData.version,
-                        });
-                        // Stage for next app restart (no UI shown)
-                        await CapacitorUpdater.next({ id: downloadRes.id });
+                    if (res.ok) {
+                        const serverData = await res.json();
+                        // Only download if the server version is different from the currently running version
+                        if (serverData.version && serverData.version !== currentVersion) {
+                            
+                            // Download silently
+                            const downloadRes = await CapacitorUpdater.download({
+                                url: serverData.url,
+                                version: serverData.version,
+                            });
+                            
+                            // Stage for next app restart via Capgo (fallback)
+                            await CapacitorUpdater.next({ id: downloadRes.id });
+                            
+                            // Store the downloaded ID so we can apply it when app goes to background
+                            pendingUpdateId.current = downloadRes.id;
+                        }
                     }
+                } catch (fetchError) {
+                    console.error('[OTA] Update check/download failed:', fetchError);
                 }
+
+                // 5. Apply the update silently when the user puts the app in the background
+                const handleVisibilityChange = () => {
+                    if (document.visibilityState === 'hidden' && pendingUpdateId.current) {
+                        // Apply the update while the app is in the background
+                        // This causes a WebView reload silently, so when they reopen it, it's updated.
+                        CapacitorUpdater.set({ id: pendingUpdateId.current }).catch(err => {
+                            console.error('[OTA] Failed to apply update in background:', err);
+                        });
+                        pendingUpdateId.current = null; // Don't apply again
+                    }
+                };
+
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+                
+                // We don't cleanup the listener because this component stays mounted, 
+                // but it's safe since pendingUpdateId gets nullified.
+
             } catch (error) {
                 console.error('[OTA] Updater setup error:', error);
             }
@@ -89,5 +128,3 @@ export default function CapgoUpdater() {
         </div>
     );
 }
-
-
