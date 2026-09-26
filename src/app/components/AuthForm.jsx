@@ -93,18 +93,36 @@ export default function AuthForm() {
       });
 
       googleBtnRef.current.innerHTML = "";
+      const parentWidth = googleBtnRef.current.parentElement?.clientWidth || 320;
+      const btnWidth = Math.min(360, Math.max(240, Math.floor(parentWidth)));
+
       window.google.accounts.id.renderButton(googleBtnRef.current, {
         theme: "outline",
-        size: "large",
-        shape: "rectangular",
-        width: 340,
+        size: "medium",
+        shape: "pill",
         text: "continue_with",
+        logo_alignment: "left",
+        width: btnWidth,
       });
     }
   }, [googleClientId, handleGoogleCallback]);
 
   useEffect(() => {
     setupGoogleButton();
+
+    let resizeTimer;
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        setupGoogleButton();
+      }, 200);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => {
+      clearTimeout(resizeTimer);
+      window.removeEventListener("resize", handleResize);
+    };
   }, [setupGoogleButton]);
 
   // Resend cooldown countdown
@@ -217,7 +235,13 @@ export default function AuthForm() {
         {/* Google Sign-in */}
         {otpStep === 1 && (
           <div className="mb-5 flex flex-col items-center">
-            <div ref={googleBtnRef} id="google-signin-btn" className="min-h-[44px] flex items-center justify-center" />
+            <div className="w-full flex items-center justify-center">
+              <div
+                ref={googleBtnRef}
+                id="google-signin-btn"
+                className="flex items-center justify-center min-h-[40px] transition-transform active:scale-[0.98]"
+              />
+            </div>
             <div className="relative w-full my-5 flex items-center justify-center">
               <div className="w-full border-t border-slate-800" />
               <span className="absolute bg-slate-900 px-3 text-[11px] uppercase tracking-wider text-slate-500">
