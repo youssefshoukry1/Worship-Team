@@ -3,6 +3,7 @@ export const translations = {
   en: {
     // Navbar
     home: "Home",
+    signIn: "Sign In",
     hymns: "Hymns",
     training: "Training",
     workspace: "Workspace",
@@ -131,7 +132,6 @@ Prayforme: 'prayer for me',
     creatingAccount: "Creating Account…",
     createAccountBtn: "Create Account →",
     alreadyHaveAccount: "Already have an account?",
-    signIn: "Sign in",
     nameRequired: "Name is required",
     minChars: "Minimum 3 characters",
     maxChars: "Maximum 30 characters",
@@ -316,6 +316,7 @@ Prayforme: 'prayer for me',
   ar: {
     // Navbar
     home: "الرئيسية",
+    signIn: "تسجيل الدخول",
     hymns: "التصنيفات",
     training: "التدريبات",
     workspace: "مساحتي",
@@ -442,7 +443,6 @@ Prayforme: 'prayer for me',
     creatingAccount: "جاري إنشاء الحساب…",
     createAccountBtn: "إنشاء حساب ←",
     alreadyHaveAccount: "لديك حساب بالفعل؟",
-    signIn: "سجّل دخول",
     nameRequired: "الاسم مطلوب",
     minChars: "٣ أحرف على الأقل",
     maxChars: "٣٠ حرف كحد أقصى",
@@ -631,6 +631,7 @@ Prayforme: 'prayer for me',
   de: {
     // Navbar
     home: "Startseite",
+    signIn: "Anmelden",
     hymns: "Loblieder",
     training: "Training",
     workspace: "Arbeitsbereich",
@@ -726,7 +727,6 @@ Prayforme: 'prayer for me',
     creatingAccount: "Konto wird erstellt…",
     createAccountBtn: "Konto erstellen →",
     alreadyHaveAccount: "Haben Sie bereits ein Konto?",
-    signIn: "Anmelden",
     somethingWentWrong: "Etwas ist schiefgelaufen",
 
     // Forgot Password

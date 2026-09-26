@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState, useContext } from "react";
 import { motion, AnimatePresence, easeOut } from "framer-motion";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, X, Globe, ChevronDown, Mic, Music, User, LogOut, LogIn, UserPlus, ShieldAlert } from "lucide-react";
+import { Menu, X, Globe, ChevronDown, Mic, Music, LogOut, LogIn, ShieldAlert } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 // Adjust import according to your file structure
 import { UserContext } from "../context/User_Context";
@@ -29,7 +29,6 @@ export default function Navbar() {
     const canUseMusicMode = ["MUSIC_ADMIN", "PROGRAMER"].includes(UserRole);
     const [langMenuOpen, setLangMenuOpen] = useState(false);
     const [modeMenuOpen, setModeMenuOpen] = useState(false);
-    const [authMenuOpen, setAuthMenuOpen] = useState(false);
 
     // Intro Transition: Every 3 days or first time
     const [introStage, setIntroStage] = useState(() => {
@@ -336,43 +335,13 @@ export default function Navbar() {
                 {/* Auth Section Desktop */}
                 <div className="relative ml-2">
                     {!isLogin ? (
-                        <div className="relative">
-                            <button
-                                onClick={() => setAuthMenuOpen(!authMenuOpen)}
-                                className="flex items-center gap-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 px-4 py-2 rounded-full border border-sky-500/20 transition-all duration-300"
-                            >
-                                <User size={18} />
-                                <span className="text-sm font-bold">{t("login")} / {t("register")}</span>
-                                <ChevronDown size={14} className={'transition-transform duration-300 ' + (authMenuOpen ? 'rotate-180' : '')} />
-                            </button>
-                            <AnimatePresence>
-                                {authMenuOpen && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                        className="absolute right-0 mt-2 w-48 bg-[#0f172a] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-1 z-50"
-                                    >
-                                        <Link
-                                            href="/login"
-                                            onClick={() => setAuthMenuOpen(false)}
-                                            className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-sky-400 transition flex items-center gap-3"
-                                        >
-                                            <LogIn size={16} />
-                                            <span>{t("login")}</span>
-                                        </Link>
-                                        <Link
-                                            href="/Register"
-                                            onClick={() => setAuthMenuOpen(false)}
-                                            className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-sky-400 transition flex items-center gap-3"
-                                        >
-                                            <UserPlus size={16} />
-                                            <span>{t("register")}</span>
-                                        </Link>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
+                        <Link
+                            href="/login"
+                            className="flex items-center gap-2 bg-sky-500 hover:bg-sky-400 text-white px-4 py-2 rounded-full font-semibold text-sm transition-all duration-200 shadow-md active:scale-95 cursor-pointer"
+                        >
+                            <LogIn size={16} />
+                            <span>{t("signIn")}</span>
+                        </Link>
                     ) : (
                         <button
                             onClick={handleLogout}
@@ -624,22 +593,14 @@ export default function Navbar() {
                             {/* Mobile Auth Buttons */}
                             <li className="w-full mt-2 pt-2 border-t border-white/10">
                                 {!isLogin ? (
-                                    <div className="flex flex-col gap-2 p-2">
+                                    <div className="p-2">
                                         <Link
                                             href="/login"
                                             onClick={() => setMenuOpen(false)}
-                                            className="flex items-center justify-center gap-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 px-4 py-2 rounded-xl border border-sky-500/20 transition-all duration-300"
+                                            className="flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-400 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 shadow-md active:scale-95 cursor-pointer"
                                         >
                                             <LogIn size={18} />
-                                            <span className="text-sm font-bold">{t("login")}</span>
-                                        </Link>
-                                        <Link
-                                            href="/Register"
-                                            onClick={() => setMenuOpen(false)}
-                                            className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-gray-300 px-4 py-2 rounded-xl border border-transparent transition-all duration-300"
-                                        >
-                                            <UserPlus size={18} />
-                                            <span className="text-sm font-bold">{t("register")}</span>
+                                            <span>{t("signIn")}</span>
                                         </Link>
                                     </div>
                                 ) : (

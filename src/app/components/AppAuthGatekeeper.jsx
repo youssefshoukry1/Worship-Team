@@ -85,9 +85,14 @@ export default function AppAuthGatekeeper({ children }) {
       <div className="fixed inset-0 z-[99999] bg-[#020617] flex items-center justify-center p-4">
         <ClaimUsernameModal
           token={isLogin}
-          onSuccess={(handle) => {
+          onSuccess={(resData) => {
+            const handle = resData?.username || resData;
             localStorage.setItem("user_Taspe7_Username", handle);
             setUsername(handle);
+          }}
+          onCancel={() => {
+            localStorage.clear();
+            window.location.reload();
           }}
         />
       </div>

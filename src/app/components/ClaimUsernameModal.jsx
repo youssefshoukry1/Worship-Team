@@ -20,7 +20,7 @@ const validateUsernameFormat = (name) => {
   return { valid: true };
 };
 
-export default function ClaimUsernameModal({ token, initialSuggestion = "", onSuccess }) {
+export default function ClaimUsernameModal({ token, initialSuggestion = "", onSuccess, onCancel }) {
   // Generate initial base handle from suggestion or fallback
   const baseSuggestion = useMemo(() => {
     const cleaned = (initialSuggestion || "")
@@ -131,7 +131,10 @@ export default function ClaimUsernameModal({ token, initialSuggestion = "", onSu
 
       const finalUsername = res.data.username || username;
       localStorage.setItem("user_Taspe7_Username", finalUsername);
-      if (onSuccess) onSuccess(finalUsername);
+      if (res.data?.token) {
+        localStorage.setItem("user_Taspe7_Token", res.data.token);
+      }
+      if (onSuccess) onSuccess(res.data);
     } catch (err) {
       setStatus("taken");
       setStatusMsg(err.response?.data?.msg || "Failed to set username");
@@ -225,6 +228,19 @@ export default function ClaimUsernameModal({ token, initialSuggestion = "", onSu
           >
             {isSubmitting ? "Saving..." : "Confirm @username"}
           </button>
+
+          {onCancel && (
+            <div className="text-center pt-1">
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={isSubmitting}
+                className="text-xs text-slate-400 hover:text-slate-200 transition-colors py-1 cursor-pointer"
+              >
+                ← Use a different account or email
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>

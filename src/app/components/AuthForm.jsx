@@ -36,6 +36,18 @@ export default function AuthForm() {
     const token = data?.token;
     const user = data?.user;
 
+    // Defer persistence if user needs to choose username
+    if (data?.needsUsername || !user?.username) {
+      setPendingToken(token);
+      const emailPrefix = (data?.email || user?.email || "").split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
+      const nameClean = (data?.name || user?.Name || "").replace(/[^a-zA-Z0-9_]/g, "");
+      const bestSuggestion = data?.suggestedUsername || nameClean || emailPrefix || "user";
+      setSuggestedUsername(bestSuggestion);
+      setShowUsernameModal(true);
+      return;
+    }
+
+    // Persist only when registration is complete with @username
     localStorage.setItem("user_Taspe7_Token", token);
     localStorage.setItem("user_Taspe7_ID", user?.id || user?._id || "");
     localStorage.setItem("user_Taspe7_GlobalRole", user?.global_role || "USER");
@@ -54,17 +66,7 @@ export default function AuthForm() {
 
     setLogin(token);
     if (setTeams) setTeams(teams);
-
-    if (data.needsUsername || !user?.username) {
-      setPendingToken(token);
-      const emailPrefix = (user?.email || "").split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
-      const nameClean = (user?.Name || "").replace(/[^a-zA-Z0-9_]/g, "");
-      const bestSuggestion = nameClean || emailPrefix || "user";
-      setSuggestedUsername(bestSuggestion);
-      setShowUsernameModal(true);
-    } else {
-      window.location.href = "/";
-    }
+    window.location.href = "/";
   }, [setLogin, setTeams, setUsername]);
 
   // Google credential callback
@@ -347,9 +349,18 @@ export default function AuthForm() {
         <ClaimUsernameModal
           token={pendingToken}
           initialSuggestion={suggestedUsername}
-          onSuccess={() => {
+          onSuccess={(resData) => {
             setShowUsernameModal(false);
-            window.location.href = "/";
+            if (resData?.token) {
+              handleAuthSuccess(resData);
+            } else {
+              window.location.href = "/";
+            }
+          }}
+          onCancel={() => {
+            setShowUsernameModal(false);
+            setPendingToken(null);
+            setErrorMsg("");
           }}
         />
       )}
