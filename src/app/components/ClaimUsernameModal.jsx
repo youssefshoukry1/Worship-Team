@@ -27,7 +27,7 @@ export default function ClaimUsernameModal({ token, initialSuggestion = "", onSu
       .replace(/[^a-zA-Z0-9_]/g, "")
       .toLowerCase()
       .slice(0, 20);
-    return cleaned || "user_taspe7";
+    return cleaned || "user_wasla";
   }, [initialSuggestion]);
 
   // Quick recommendation chips for the user
