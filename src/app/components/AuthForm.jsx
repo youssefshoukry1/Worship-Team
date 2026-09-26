@@ -1,21 +1,17 @@
 "use client";
 
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState, useCallback } from "react";
 import Script from "next/script";
 import axios from "axios";
 import { UserContext } from "../context/User_Context";
-import { useLanguage } from "../context/LanguageContext";
 import ClaimUsernameModal from "./ClaimUsernameModal";
 
-export default function AuthForm({ initialMode = "otp" }) {
-  const { t } = useLanguage();
+export default function AuthForm() {
   const { setLogin, setTeams, setUsername } = useContext(UserContext);
 
-  const [mode, setMode] = useState(initialMode); // 'otp' | 'password'
   const [otpStep, setOtpStep] = useState(1); // 1: enter email, 2: enter code
   const [email, setEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
-  const [password, setPassword] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -36,7 +32,7 @@ export default function AuthForm({ initialMode = "otp" }) {
     "984547740511-7rpebq39vq1vife50heqavik47fqh9hc.apps.googleusercontent.com";
 
   // Handles successful auth response
-  const handleAuthSuccess = (data) => {
+  const handleAuthSuccess = useCallback((data) => {
     const token = data?.token;
     const user = data?.user;
 
@@ -61,15 +57,18 @@ export default function AuthForm({ initialMode = "otp" }) {
 
     if (data.needsUsername || !user?.username) {
       setPendingToken(token);
-      setSuggestedUsername(user?.Name || user?.email?.split("@")[0] || "");
+      const emailPrefix = (user?.email || "").split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
+      const nameClean = (user?.Name || "").replace(/[^a-zA-Z0-9_]/g, "");
+      const bestSuggestion = nameClean || emailPrefix || "user";
+      setSuggestedUsername(bestSuggestion);
       setShowUsernameModal(true);
     } else {
       window.location.href = "/";
     }
-  };
+  }, [setLogin, setTeams, setUsername]);
 
   // Google credential callback
-  const handleGoogleCallback = async (response) => {
+  const handleGoogleCallback = useCallback(async (response) => {
     if (!response?.credential) return;
     setIsLoading(true);
     setErrorMsg("");
@@ -83,10 +82,10 @@ export default function AuthForm({ initialMode = "otp" }) {
       setErrorMsg(err.response?.data?.msg || "Google authentication failed");
       setIsLoading(false);
     }
-  };
+  }, [apiBase, handleAuthSuccess]);
 
   // Initialize Google Identity Services
-  const setupGoogleButton = () => {
+  const setupGoogleButton = useCallback(() => {
     if (typeof window !== "undefined" && window.google?.accounts?.id && googleBtnRef.current) {
       window.google.accounts.id.initialize({
         client_id: googleClientId,
@@ -102,11 +101,11 @@ export default function AuthForm({ initialMode = "otp" }) {
         text: "continue_with",
       });
     }
-  };
+  }, [googleClientId, handleGoogleCallback]);
 
   useEffect(() => {
     setupGoogleButton();
-  }, [mode]);
+  }, [setupGoogleButton]);
 
   // Resend cooldown countdown
   useEffect(() => {
@@ -165,21 +164,6 @@ export default function AuthForm({ initialMode = "otp" }) {
     }
   };
 
-  // Password Login
-  const handlePasswordLogin = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setErrorMsg("");
-
-    try {
-      const res = await axios.post(`${apiBase}/users/login`, { email, password });
-      handleAuthSuccess(res.data);
-    } catch (err) {
-      setErrorMsg(err.response?.data?.msg || err.response?.data?.message || "Invalid credentials");
-      setIsLoading(false);
-    }
-  };
-
   const handleOtpInputChange = (val) => {
     const clean = val.replace(/\D/g, "").slice(0, 6);
     setOtpCode(clean);
@@ -209,14 +193,12 @@ export default function AuthForm({ initialMode = "otp" }) {
         {/* Header */}
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold tracking-tight text-white">
-            {mode === "otp" ? "Sign in to Taspe7" : "Password Login"}
+            Sign in to Taspe7
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            {mode === "otp"
-              ? otpStep === 1
-                ? "Fast, passwordless access with Google or Email code"
-                : `Enter the 6-digit code sent to ${email}`
-              : "Enter your registered email and password"}
+            {otpStep === 1
+              ? "Passwordless access with Google or Email verification"
+              : `Enter the 6-digit code sent to ${email}`}
           </p>
         </div>
 
@@ -245,102 +227,9 @@ export default function AuthForm({ initialMode = "otp" }) {
           </div>
         )}
 
-        {/* OTP Flow */}
-        {mode === "otp" && (
-          <>
-            {otpStep === 1 ? (
-              <form onSubmit={handleSendOtp} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Email address
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    placeholder="name@example.com"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-sky-500 transition-colors text-sm"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className={`w-full py-3 rounded-xl font-semibold text-sm transition-all shadow-md ${
-                    isLoading
-                      ? "bg-slate-800 text-slate-500 cursor-not-allowed"
-                      : "bg-sky-500 hover:bg-sky-400 text-white cursor-pointer active:scale-98"
-                  }`}
-                >
-                  {isLoading ? "Sending code..." : "Continue with Email Code"}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyOtp} className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-semibold text-slate-300">
-                      6-Digit Code
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOtpStep(1);
-                        setOtpCode("");
-                        setErrorMsg("");
-                      }}
-                      className="text-xs text-sky-400 hover:underline"
-                    >
-                      Change email
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    value={otpCode}
-                    onChange={(e) => handleOtpInputChange(e.target.value)}
-                    maxLength={6}
-                    required
-                    autoFocus
-                    placeholder="123456"
-                    className="w-full text-center tracking-[0.4em] font-mono text-xl py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-sky-500 transition-colors"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isLoading || otpCode.length < 6}
-                  className={`w-full py-3 rounded-xl font-semibold text-sm transition-all shadow-md ${
-                    isLoading || otpCode.length < 6
-                      ? "bg-slate-800 text-slate-500 cursor-not-allowed"
-                      : "bg-sky-500 hover:bg-sky-400 text-white cursor-pointer active:scale-98"
-                  }`}
-                >
-                  {isLoading ? "Verifying..." : "Verify & Continue"}
-                </button>
-
-                <div className="text-center pt-1">
-                  <button
-                    type="button"
-                    disabled={resendCooldown > 0 || isLoading}
-                    onClick={handleSendOtp}
-                    className="text-xs text-slate-400 hover:text-sky-400 disabled:opacity-50 disabled:hover:text-slate-400 transition-colors"
-                  >
-                    {resendCooldown > 0
-                      ? `Resend code in ${resendCooldown}s`
-                      : "Didn't receive a code? Resend"}
-                  </button>
-                </div>
-              </form>
-            )}
-          </>
-        )}
-
-        {/* Legacy Password Flow */}
-        {mode === "password" && (
-          <form onSubmit={handlePasswordLogin} className="space-y-4">
+        {/* Passwordless OTP Flow */}
+        {otpStep === 1 ? (
+          <form onSubmit={handleSendOtp} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
                 Email address
@@ -350,29 +239,8 @@ export default function AuthForm({ initialMode = "otp" }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoFocus
                 placeholder="name@example.com"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-sky-500 transition-colors text-sm"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-slate-300">
-                  Password
-                </label>
-                <a
-                  href="/forgot-password"
-                  className="text-xs text-sky-400 hover:underline"
-                >
-                  Forgot password?
-                </a>
-              </div>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-sky-500 transition-colors text-sm"
               />
             </div>
@@ -386,40 +254,68 @@ export default function AuthForm({ initialMode = "otp" }) {
                   : "bg-sky-500 hover:bg-sky-400 text-white cursor-pointer active:scale-98"
               }`}
             >
-              {isLoading ? "Signing in..." : "Sign In with Password"}
+              {isLoading ? "Sending code..." : "Continue with Email Code"}
             </button>
           </form>
-        )}
+        ) : (
+          <form onSubmit={handleVerifyOtp} className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-300">
+                  6-Digit Code
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOtpStep(1);
+                    setOtpCode("");
+                    setErrorMsg("");
+                  }}
+                  className="text-xs text-sky-400 hover:underline"
+                >
+                  Change email
+                </button>
+              </div>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={otpCode}
+                onChange={(e) => handleOtpInputChange(e.target.value)}
+                maxLength={6}
+                required
+                autoFocus
+                placeholder="123456"
+                className="w-full text-center tracking-[0.4em] font-mono text-xl py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-sky-500 transition-colors"
+              />
+            </div>
 
-        {/* Toggle between OTP and Password */}
-        <div className="mt-6 pt-4 border-t border-slate-800/80 text-center">
-          {mode === "otp" ? (
             <button
-              type="button"
-              onClick={() => {
-                setMode("password");
-                setErrorMsg("");
-                setSuccessMsg("");
-              }}
-              className="text-xs text-slate-400 hover:text-sky-400 transition-colors"
+              type="submit"
+              disabled={isLoading || otpCode.length < 6}
+              className={`w-full py-3 rounded-xl font-semibold text-sm transition-all shadow-md ${
+                isLoading || otpCode.length < 6
+                  ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                  : "bg-sky-500 hover:bg-sky-400 text-white cursor-pointer active:scale-98"
+              }`}
             >
-              Prefer traditional password? <span className="text-sky-400 font-semibold">Sign in here</span>
+              {isLoading ? "Verifying..." : "Verify & Continue"}
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setMode("otp");
-                setOtpStep(1);
-                setErrorMsg("");
-                setSuccessMsg("");
-              }}
-              className="text-xs text-slate-400 hover:text-sky-400 transition-colors"
-            >
-              Use instant code or Google instead? <span className="text-sky-400 font-semibold">One-click sign in</span>
-            </button>
-          )}
-        </div>
+
+            <div className="text-center pt-1">
+              <button
+                type="button"
+                disabled={resendCooldown > 0 || isLoading}
+                onClick={handleSendOtp}
+                className="text-xs text-slate-400 hover:text-sky-400 disabled:opacity-50 disabled:hover:text-slate-400 transition-colors"
+              >
+                {resendCooldown > 0
+                  ? `Resend code in ${resendCooldown}s`
+                  : "Didn't receive a code? Resend"}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
       {/* Choose @username Modal */}

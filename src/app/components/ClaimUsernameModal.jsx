@@ -1,12 +1,45 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import axios from "axios";
 
+// Validation rules: only letters, numbers, and underscores (no spaces, @, ^, ~, !, ?, etc.)
+const validateUsernameFormat = (name) => {
+  if (!name || name.trim().length === 0) {
+    return { valid: false, reason: "Please enter or pick a username" };
+  }
+  if (name.length > 30) {
+    return { valid: false, reason: "Username cannot exceed 30 characters" };
+  }
+  if (!/^[a-z0-9_]+$/.test(name)) {
+    return {
+      valid: false,
+      reason: "Spaces and symbols (@, !, ?, ^, ~, etc.) are not allowed. Only letters, numbers, and underscores (_).",
+    };
+  }
+  return { valid: true };
+};
+
 export default function ClaimUsernameModal({ token, initialSuggestion = "", onSuccess }) {
-  const [username, setUsername] = useState(
-    initialSuggestion.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase().slice(0, 20)
-  );
+  // Generate initial base handle from suggestion or fallback
+  const baseSuggestion = useMemo(() => {
+    const cleaned = (initialSuggestion || "")
+      .replace(/[^a-zA-Z0-9_]/g, "")
+      .toLowerCase()
+      .slice(0, 20);
+    return cleaned || "user_taspe7";
+  }, [initialSuggestion]);
+
+  // Quick recommendation chips for the user
+  const recommendedHandles = useMemo(() => {
+    return [
+      baseSuggestion,
+      `${baseSuggestion}_1`,
+      `${baseSuggestion}_7`,
+    ];
+  }, [baseSuggestion]);
+
+  const [username, setUsername] = useState(baseSuggestion);
   const [status, setStatus] = useState("idle"); // idle | checking | available | taken | invalid
   const [statusMsg, setStatusMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -14,16 +47,11 @@ export default function ClaimUsernameModal({ token, initialSuggestion = "", onSu
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://worship-team-api.onrender.com/api";
 
-  const checkAvailability = async (name) => {
-    if (!name || name.length < 3) {
+  const checkAvailability = useCallback(async (name) => {
+    const check = validateUsernameFormat(name);
+    if (!check.valid) {
       setStatus("invalid");
-      setStatusMsg("Minimum 3 characters");
-      return;
-    }
-
-    if (!/^[a-zA-Z0-9_]{3,20}$/.test(name)) {
-      setStatus("invalid");
-      setStatusMsg("Only letters, numbers, and underscores");
+      setStatusMsg(check.reason);
       return;
     }
 
@@ -34,42 +62,56 @@ export default function ClaimUsernameModal({ token, initialSuggestion = "", onSu
       const res = await axios.get(`${apiBase}/users/check-username?q=${encodeURIComponent(name)}`);
       if (res.data.available) {
         setStatus("available");
-        setStatusMsg("Username is available!");
+        setStatusMsg(`@${name} is available!`);
       } else {
         setStatus("taken");
-        setStatusMsg(res.data.reason || "Username is already taken");
+        setStatusMsg(res.data.reason || `@${name} is already taken`);
       }
     } catch (err) {
       const msg = err.response?.data?.reason || err.response?.data?.msg || "Unavailable";
       setStatus("taken");
       setStatusMsg(msg);
     }
-  };
+  }, [apiBase]);
 
-  const handleChange = (e) => {
-    const clean = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "");
-    setUsername(clean);
+  const handleInputChange = (e) => {
+    // Automatically sanitize spaces and convert to lowercase
+    const val = e.target.value.toLowerCase().replace(/\s+/g, "");
+    setUsername(val);
 
     if (checkTimer.current) clearTimeout(checkTimer.current);
 
-    if (clean.length >= 3) {
-      checkTimer.current = setTimeout(() => {
-        checkAvailability(clean);
-      }, 300);
-    } else {
+    const check = validateUsernameFormat(val);
+    if (!check.valid) {
       setStatus("invalid");
-      setStatusMsg("Minimum 3 characters");
+      setStatusMsg(check.reason);
+      return;
     }
+
+    checkTimer.current = setTimeout(() => {
+      checkAvailability(val);
+    }, 300);
   };
 
+  const handlePickSuggestion = (handle) => {
+    setUsername(handle);
+    if (checkTimer.current) clearTimeout(checkTimer.current);
+    checkAvailability(handle);
+  };
+
+  // Automatically check the pre-filled recommendation on mount
   useEffect(() => {
-    if (username.length >= 3) {
-      checkAvailability(username);
-    }
+    const timer = setTimeout(() => {
+      if (username) {
+        checkAvailability(username);
+      }
+    }, 50);
+
     return () => {
+      clearTimeout(timer);
       if (checkTimer.current) clearTimeout(checkTimer.current);
     };
-  }, []);
+  }, [checkAvailability, username]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -105,8 +147,8 @@ export default function ClaimUsernameModal({ token, initialSuggestion = "", onSu
             @
           </div>
           <h3 className="text-xl font-bold text-slate-100">Choose your @username</h3>
-          <p className="text-sm text-slate-400 mt-1">
-            Pick a unique handle so friends and teammates can find you.
+          <p className="text-xs sm:text-sm text-slate-400 mt-1.5 leading-relaxed">
+            Spaces and symbols (@, !, ?, ^, ~, etc.) are not allowed. You can only use letters, numbers, and underscores (_).
           </p>
         </div>
 
@@ -122,18 +164,21 @@ export default function ClaimUsernameModal({ token, initialSuggestion = "", onSu
               <input
                 type="text"
                 value={username}
-                onChange={handleChange}
-                maxLength={20}
+                onChange={handleInputChange}
+                maxLength={30}
                 required
                 autoFocus
                 placeholder="username"
-                className="w-full pl-8 pr-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-sky-500 transition-colors text-sm"
+                className="w-full pl-8 pr-10 py-3 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-sky-500 transition-colors text-sm font-mono"
               />
+              {status === "checking" && (
+                <div className="absolute right-3 w-4 h-4 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
+              )}
             </div>
 
             {statusMsg && (
               <p
-                className={`text-xs mt-2 flex items-center gap-1 ${
+                className={`text-xs mt-2 flex items-center gap-1 font-medium ${
                   status === "available"
                     ? "text-emerald-400"
                     : status === "checking"
@@ -144,6 +189,29 @@ export default function ClaimUsernameModal({ token, initialSuggestion = "", onSu
                 {statusMsg}
               </p>
             )}
+
+            {/* Recommended suggestions chips */}
+            <div className="mt-3.5 pt-3 border-t border-slate-800/80">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
+                Recommended for you:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {recommendedHandles.map((handle) => (
+                  <button
+                    key={handle}
+                    type="button"
+                    onClick={() => handlePickSuggestion(handle)}
+                    className={`text-xs px-2.5 py-1 rounded-lg border font-mono transition-colors ${
+                      username === handle
+                        ? "bg-sky-500/20 border-sky-500 text-sky-300 font-semibold"
+                        : "bg-slate-800/80 border-slate-700 hover:border-slate-600 text-slate-300"
+                    }`}
+                  >
+                    @{handle}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <button
