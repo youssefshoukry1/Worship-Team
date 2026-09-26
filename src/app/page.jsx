@@ -824,7 +824,7 @@ export default function Category_Humns() {
 
   // Reset pagination limit on search or category change
   useEffect(() => {
-    setAppLimit(15);
+    setAppLimit(30);
   }, [activeTab, debouncedSearch]);
 
 
@@ -1936,7 +1936,7 @@ export default function Category_Humns() {
                     }
                   } else {
                     if (hasMoreApp) {
-                      setAppLimit(prev => prev + 15);
+                      setAppLimit(prev => prev + 30);
                     }
                   }
                 }}
@@ -1951,7 +1951,6 @@ export default function Category_Humns() {
                       canEdit={canEdit}
                       delete_Hymn={delete_Hymn}
                       openEditModal={openEditModal}
-                      variants={itemVariants}
                       openLyrics={openLyrics}
                       openPresentation={openPresentation}
                       t={t}
@@ -3290,7 +3289,7 @@ function KeyDisplay({ scale, relatedChords, onTranspose }) {
   );
 }
 
-function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, canEdit, delete_Hymn, openEditModal, variants, t, openLyrics, openPresentation, vocalsMode, UserRole, setNoteModalConfig }) {
+const HymnItem = React.memo(function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, canEdit, delete_Hymn, openEditModal, t, openLyrics, openPresentation, vocalsMode, UserRole, setNoteModalConfig }) {
   const [transposeStep, setTransposeStep] = useState(0);
 
   // Handle adding to workspace with transposed values
@@ -3312,8 +3311,7 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
   };
 
   return (
-    <motion.div
-      variants={variants}
+    <div
       className="group relative grid grid-cols-12 gap-2 sm:gap-4 p-3 sm:p-5 items-center 
                  bg-[#13132b]/60 hover:bg-[#1a1a38] 
                  border border-white/5 hover:border-sky-500/30 
@@ -3472,6 +3470,6 @@ function HymnItem({ humn, index, categories, addToWorkspace, isHymnInWorkspace, 
       </div>
 
 
-    </motion.div>
+    </div>
   );
-}
+});
