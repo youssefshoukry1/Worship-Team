@@ -51,6 +51,11 @@ export default function UserContextProvider({ children }) {
     try { return saved ? JSON.parse(saved) : []; } catch { return []; }
   });
 
+  const [username, setUsername] = useState(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("user_Taspe7_Username") || null;
+  });
+
   const [vocalsMode, setVocalsMode] = useState(true);
 
   const refreshTeams = async () => {
@@ -109,6 +114,7 @@ export default function UserContextProvider({ children }) {
         vocalsMode, setVocalsMode,
         UserStatus, setUserStatus,
         teams, setTeams,
+        username, setUsername,
         switchTeam,
         refreshTeams
       }}>

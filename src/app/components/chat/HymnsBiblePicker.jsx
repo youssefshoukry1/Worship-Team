@@ -184,41 +184,50 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
         searchTimerRef.current = setTimeout(async () => {
             setIsSearching(true);
             try {
-                let offlineResults = [];
-                try {
-                    const localforage = (await import('localforage')).default;
-                    const cachedData = await localforage.getItem('taspe7_hymns_json');
-                    if (cachedData && Array.isArray(cachedData.data)) {
-                        const normalizedQuery = normalizeText(query);
-                        const results = cachedData.data.filter(hymn => {
-                            const normalizedTitle = normalizeText(hymn.title || '');
-                            let lyricsText = '';
-                            if (typeof hymn.lyrics === 'string') {
-                                lyricsText = hymn.lyrics;
-                            } else if (Array.isArray(hymn.lyrics)) {
-                                lyricsText = hymn.lyrics.map(l => l.text).join(' ');
-                            }
-                            const normalizedLyrics = normalizeText(lyricsText);
-                            return normalizedTitle.includes(normalizedQuery) || normalizedLyrics.includes(normalizedQuery);
-                        });
-                        offlineResults = results.slice(0, 15);
+                let onlineSuccess = false;
+                if (typeof navigator === 'undefined' || navigator.onLine) {
+                    try {
+                        const { data } = await axios.get(`${API_BASE}/hymns/search?limit=15&q=${encodeURIComponent(query)}`);
+                        if (Array.isArray(data)) {
+                            setSearchResults(data);
+                            onlineSuccess = true;
+                        }
+                    } catch {
+                        // API search failed, fallback to local cache
                     }
-                } catch (e) {
-                    console.error("Offline search failed", e);
                 }
 
-                if (offlineResults.length > 0) {
-                    setSearchResults(offlineResults);
-                } else {
-                    const { data } = await axios.get(`${API_BASE}/hymns/search?limit=15&q=${encodeURIComponent(query)}`);
-                    setSearchResults(Array.isArray(data) ? data : []);
+                if (!onlineSuccess) {
+                    try {
+                        const localforage = (await import('localforage')).default;
+                        const cachedData = await localforage.getItem('taspe7_hymns_json');
+                        const hymnsList = Array.isArray(cachedData) ? cachedData : (cachedData?.data || []);
+                        if (Array.isArray(hymnsList)) {
+                            const normalizedQuery = normalizeText(query);
+                            const results = hymnsList.filter(hymn => {
+                                const normalizedTitle = normalizeText(hymn.title || '');
+                                let lyricsText = '';
+                                if (typeof hymn.lyrics === 'string') {
+                                    lyricsText = hymn.lyrics;
+                                } else if (Array.isArray(hymn.lyrics)) {
+                                    lyricsText = hymn.lyrics.map(l => l.text).join(' ');
+                                }
+                                const normalizedLyrics = normalizeText(lyricsText);
+                                return normalizedTitle.includes(normalizedQuery) || normalizedLyrics.includes(normalizedQuery);
+                            });
+                            setSearchResults(results.slice(0, 15));
+                        }
+                    } catch (e) {
+                        console.error("Offline hymns search failed", e);
+                        setSearchResults([]);
+                    }
                 }
             } catch (err) {
                 console.error(err);
             } finally {
                 setIsSearching(false);
             }
-        }, 500);
+        }, 400);
     };
 
     const handleBibleSearch = (query) => {
@@ -231,25 +240,67 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
         searchTimerRef.current = setTimeout(async () => {
             setIsSearching(true);
             try {
-                const { data } = await axios.get(`${BIBLE_API}/search?q=${encodeURIComponent(query)}&lang=arabic&translation=SVD`);
-                setSearchResults(Array.isArray(data) ? data : []);
+                let onlineSuccess = false;
+                if (typeof navigator === 'undefined' || navigator.onLine) {
+                    try {
+                        const { data } = await axios.get(`${BIBLE_API}/search?q=${encodeURIComponent(query)}&lang=arabic&translation=SVD`);
+                        if (Array.isArray(data)) {
+                            setSearchResults(data);
+                            onlineSuccess = true;
+                        }
+                    } catch {
+                        // Online bible search failed, fallback to local
+                    }
+                }
+
+                if (!onlineSuccess) {
+                    try {
+                        const { searchLocalBible } = await import('../../utils/bibleSync');
+                        const localResults = await searchLocalBible(query, 'AVD');
+                        setSearchResults(Array.isArray(localResults) ? localResults.slice(0, 15) : []);
+                    } catch (e) {
+                        console.error("Offline bible search failed", e);
+                        setSearchResults([]);
+                    }
+                }
             } catch (err) {
                 console.error(err);
             } finally {
                 setIsSearching(false);
             }
-        }, 500);
+        }, 400);
     };
 
     const handleSelectBibleHit = async (hit, isLongPress) => {
         try {
             setIsSearching(true);
-            const { data } = await axios.get(`${BIBLE_API}/verses/${encodeURIComponent(hit.bookName)}/${hit.chapter}?lang=arabic`);
+            let verses = [];
+            if (typeof navigator === 'undefined' || navigator.onLine) {
+                try {
+                    const { data } = await axios.get(`${BIBLE_API}/verses/${encodeURIComponent(hit.bookName)}/${hit.chapter}?lang=arabic`);
+                    if (Array.isArray(data)) verses = data;
+                } catch {
+                    // Fetch failed, try local
+                }
+            }
+
+            if (verses.length === 0) {
+                try {
+                    const { getLocalBibleIndex } = await import('../../utils/bibleSync');
+                    const index = await getLocalBibleIndex('AVD');
+                    if (index?.versesMap) {
+                        verses = index.versesMap.get(`${hit.bookName}_${hit.chapter}`) || [];
+                    }
+                } catch {
+                    // Local fallback failed
+                }
+            }
+
             const item = {
                 type: 'bible',
                 bookName: hit.bookName,
                 chapter: hit.chapter,
-                verses: data,
+                verses: verses,
                 title: `${hit.bookName} ${hit.chapter}`
             };
             handleItemInteraction(item, isLongPress);

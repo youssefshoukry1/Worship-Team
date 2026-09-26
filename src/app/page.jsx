@@ -1164,7 +1164,27 @@ export default function Category_Humns() {
     }
   });
 
-  const isLoading = isApp ? isLoadingApp : isLoadingWeb;
+  // ── APP: Online smart search when connected ─────────────────────────
+  const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+  const isSearchingOnline = isApp && Boolean(debouncedSearch?.trim()) && isOnline;
+
+  const {
+    data: appOnlineSearchResults,
+    isLoading: isLoadingAppSearch,
+    isError: isAppSearchError
+  } = useQuery({
+    queryKey: ["hymns", "app-search", debouncedSearch],
+    enabled: isSearchingOnline,
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const API_BASE = 'https://worship-team-api.onrender.com/api/hymns';
+      const response = await axios.get(`${API_BASE}/search?limit=50&q=${encodeURIComponent(debouncedSearch)}`);
+      return Array.isArray(response.data) ? response.data : [];
+    },
+    retry: 1
+  });
+
+  const isLoading = isApp ? (isLoadingApp || (isSearchingOnline && isLoadingAppSearch)) : isLoadingWeb;
 
   const fullFilteredAppHymns = React.useMemo(() => {
     if (!isApp) return [];
@@ -1235,9 +1255,14 @@ export default function Category_Humns() {
       return webData ? webData.pages.flat() : [];
     }
 
-    // ── APP: Return sliced data based on appLimit ──────────────────────────
+    // ── APP: Online smart search results when online and query present ────
+    if (debouncedSearch && debouncedSearch.trim() && isOnline && !isAppSearchError && Array.isArray(appOnlineSearchResults)) {
+      return appOnlineSearchResults;
+    }
+
+    // ── APP: Fallback to LocalForage cached list ───────────────────────────
     return fullFilteredAppHymns.slice(0, appLimit);
-  }, [isApp, webData, fullFilteredAppHymns, appLimit]);
+  }, [isApp, webData, debouncedSearch, isOnline, isAppSearchError, appOnlineSearchResults, fullFilteredAppHymns, appLimit]);
 
   const hasMoreApp = isApp && humns.length < fullFilteredAppHymns.length;
 
@@ -1289,10 +1314,23 @@ export default function Category_Humns() {
     const delayDebounceFn = setTimeout(async () => {
       setIsSearchingPreset(true);
       try {
-        if (isApp) {
-          // Client-side search for App (offline mode)
+        let onlineSuccess = false;
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          try {
+            const API_BASE = 'https://worship-team-api.onrender.com/api/hymns';
+            const response = await axios.get(`${API_BASE}/search?limit=15&q=${encodeURIComponent(query)}`);
+            if (Array.isArray(response.data)) {
+              setPresetSearchResults(response.data);
+              onlineSuccess = true;
+            }
+          } catch {
+            // Online search failed, fallback to local cache
+          }
+        }
+
+        if (!onlineSuccess) {
           const normalizedQuery = normalizeText(query);
-          const results = allHymns.filter(hymn => {
+          const results = (allHymns || []).filter(hymn => {
             const normalizedTitle = normalizeText(hymn.title || '');
             let lyricsText = '';
             if (typeof hymn.lyrics === 'string') {
@@ -1304,11 +1342,6 @@ export default function Category_Humns() {
             return normalizedTitle.includes(normalizedQuery) || normalizedLyrics.includes(normalizedQuery);
           });
           setPresetSearchResults(results.slice(0, 15));
-        } else {
-          // API Search for Web
-          const API_BASE = 'https://worship-team-api.onrender.com/api/hymns';
-          const response = await axios.get(`${API_BASE}/search?limit=15&q=${encodeURIComponent(query)}`);
-          setPresetSearchResults(Array.isArray(response.data) ? response.data : []);
         }
       } catch (err) {
         console.error("Presentation search error:", err);
@@ -1318,7 +1351,7 @@ export default function Category_Humns() {
     }, 400);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [presetSearchQuery, isApp, allHymns]);
+  }, [presetSearchQuery, allHymns]);
 
   // --- Modal Helpers ---//
   const openModal = () => {
