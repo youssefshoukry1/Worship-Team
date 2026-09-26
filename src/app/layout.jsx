@@ -1,8 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navbar from "./Navbar/Navbar";
-import Footer from "./Footer/Footer";
-import PageTransition from "./page-transition/page-transition";
 import UserContextProvider from "./context/User_Context";
 import HymnsContextProvider from "./context/Hymns_Context";
 import { LanguageProvider } from "./context/LanguageContext";
@@ -12,6 +9,7 @@ import ToastContainer from "./components/ToastContainer";
 import ReactQueryProvider from "../app/utils/ReactQueryProvider";
 import CapgoUpdater from "./CapgoUpdater";
 import WaslaSplashIntro from "./components/WaslaSplashIntro";
+import AppAuthGatekeeper from "./components/AppAuthGatekeeper";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -49,9 +47,9 @@ export default function RootLayout({
                         <LanguageProvider>
                             <UserContextProvider>
                                 <HymnsContextProvider>
-                                    <Navbar />
-                                    <PageTransition>{children}</PageTransition>
-                                    <Footer />
+                                    <AppAuthGatekeeper>
+                                        {children}
+                                    </AppAuthGatekeeper>
                                 </HymnsContextProvider>
                             </UserContextProvider>
                         </LanguageProvider>

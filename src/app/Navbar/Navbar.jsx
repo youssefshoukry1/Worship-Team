@@ -21,7 +21,8 @@ export default function Navbar() {
         user_id, setUser_id,
         churchId, setChurchId,
         HymnIds, setHymnIds,
-        vocalsMode, setVocalsMode
+        vocalsMode, setVocalsMode,
+        setUsername
     } = useContext(UserContext);
     const profileLabel = language === 'ar' ? 'مساحتي' : language === 'de' ? 'Mein Profil' : 'My Profile';
     const workspaceLabel = language === 'ar' ? 'مساحة العمل' : language === 'de' ? 'Arbeitsbereich' : 'Workspace';
@@ -31,18 +32,19 @@ export default function Navbar() {
     const [authMenuOpen, setAuthMenuOpen] = useState(false);
 
     // Intro Transition: Every 3 days or first time
-    const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
-    const [introStage, setIntroStage] = useState("done"); // "center" | "sliding" | "done"
-
-    useEffect(() => {
+    const [introStage, setIntroStage] = useState(() => {
+        if (typeof window === "undefined") return "done";
         try {
             const lastTime = localStorage.getItem("wasla_intro_last_time");
             const now = Date.now();
-            if (!lastTime || now - Number(lastTime) > THREE_DAYS_MS) {
-                setIntroStage("center");
+            if (!lastTime || now - Number(lastTime) > 3 * 24 * 60 * 60 * 1000) {
+                return "center";
             }
-        } catch (_) {}
-    }, []);
+        } catch {
+            return "done";
+        }
+        return "done";
+    });
 
     const handleLogoAssembleComplete = () => {
         // Hold in center so the user can enjoy the assembled logo, then glide left
@@ -109,6 +111,7 @@ export default function Navbar() {
         localStorage.removeItem("user_Taspe7_ChurchId");
         localStorage.removeItem("user_Taspe7_HymnIds");
         localStorage.removeItem("user_Taspe7_Status");
+        localStorage.removeItem("user_Taspe7_Username");
 
         setLogin(null);
         setUserRole(null);
@@ -116,6 +119,7 @@ export default function Navbar() {
         setChurchId(null);
         setHymnIds([]);
         setUserStatus(null);
+        if (setUsername) setUsername(null);
 
         router.push("/");
     };
