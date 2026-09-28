@@ -439,14 +439,7 @@ export default function PrayPage() {
         }
     };
 
-    if (pageLoading) {
-        return (
-            <div className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] flex flex-col items-center justify-center p-4 pb-[80px] text-white">
-                <Loader2 className="w-12 h-12 text-sky-400 animate-spin mb-4" />
-                <p className="text-sky-300 font-medium">Loading your prayers...</p>
-            </div>
-        );
-    }
+
 
     return (
         <section className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] pb-[100px] pt-8 px-4 text-white">

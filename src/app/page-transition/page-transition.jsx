@@ -10,12 +10,12 @@ export default function PageTransition({ children }) {
     if (pathname?.startsWith('/presentation')) return children;
 
     return (
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
             <motion.div
                 key={pathname}
-                initial={{ opacity: 0, filter: "blur(12px)" }}
-                animate={{ opacity: 1, filter: "blur(0px)" }}
-                transition={{ duration: 0.5, ease: "easeInOut" }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
                 className="h-full w-full"
             >
                 {children}

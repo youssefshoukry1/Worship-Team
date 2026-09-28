@@ -257,21 +257,7 @@ export default function Navbar() {
                     </Link>
                 </motion.li>
 
-                {/* Profile Link Desktop */}
-                {isLogin && (
-                    <motion.li variants={itemVariants} className="list-none">
-                        <Link
-                            href="/normal_UserProfile"
-                            className={`text-sm lg:text-base font-medium cursor-pointer transition-all duration-300 px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-1.5
-                            ${pathname === "/normal_UserProfile"
-                                    ? "text-sky-400 bg-white/5"
-                                    : "text-gray-300 hover:text-sky-300"
-                                }`}
-                        >
-                            {profileLabel}
-                        </Link>
-                    </motion.li>
-                )}
+
 
 
                 {/* Mode Switcher Desktop */}
@@ -465,22 +451,7 @@ export default function Navbar() {
                                 </Link>
                             </li>
 
-                            {/* Mobile Profile Link */}
-                            {isLogin && (
-                                <li>
-                                    <Link
-                                        href="/normal_UserProfile"
-                                        onClick={() => setMenuOpen(false)}
-                                        className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-medium text-sm
-                                        ${pathname === "/normal_UserProfile"
-                                                ? "bg-sky-500/20 text-sky-400"
-                                                : "text-gray-300 hover:bg-white/5 hover:text-white"
-                                            }`}
-                                    >
-                                        {profileLabel}
-                                    </Link>
-                                </li>
-                            )}
+
 
 
                             {/* Mobile Mode Switcher */}
