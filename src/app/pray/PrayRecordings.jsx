@@ -1,6 +1,8 @@
 'use client';
 
 import { Check, CloudUpload, CloudDownload, HardDrive, Loader2, Mic, Pause, Play, Trash2, ArrowRightLeft, Plus, X } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import { buildMyPraysZip, deleteRecording, getRecordingUrl, restoreMyPraysZip } from '../utils/prayRecordings';
 import {
     DriveNotLinkedError, downloadDriveFile, ensureDriveFolder, findDriveFile, getDriveAccessToken, getDriveAccounts, getDriveAuthUrl, setDefaultDriveAccount, disconnectDriveAccount, uploadDriveFile,
@@ -453,9 +455,18 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
 
     const handleLink = async () => {
         try {
-            window.open(await getDriveAuthUrl(token), '_blank');
+            const authUrl = await getDriveAuthUrl(token);
+            if (Capacitor.isNativePlatform()) {
+                await Browser.open({ url: authUrl });
+                const listener = await Browser.addListener('browserFinished', () => {
+                    loadAccounts();
+                    listener.remove();
+                });
+            } else {
+                window.open(authUrl, '_blank');
+            }
             setNeedsLink(false);
-            setStatus('Finish connecting in the opened page, then try again.');
+            setStatus('Finish connecting, then try again.');
         } catch (err) { fail(err); }
     };
 

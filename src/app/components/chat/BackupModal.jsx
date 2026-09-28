@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Cloud, HardDrive, MessageSquare, Mic, Image as ImageIcon, Loader2 } from 'lucide-react';
 import axios from 'axios';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import { getApiBaseUrl } from '../../utils/apiBase';
 
 export default function BackupModal({ isOpen, onClose, token, userId, activeTeamId, socket }) {
@@ -104,7 +106,11 @@ export default function BackupModal({ isOpen, onClose, token, userId, activeTeam
             });
             
             if (res.data.url) {
-                window.open(res.data.url, '_blank');
+                if (Capacitor.isNativePlatform()) {
+                    await Browser.open({ url: res.data.url });
+                } else {
+                    window.open(res.data.url, '_blank');
+                }
             }
         } catch (err) {
             console.error("Failed to get Google Auth URL", err);

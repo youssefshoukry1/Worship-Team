@@ -36,7 +36,7 @@ export default function RootLayout({
     return (
         <html lang="en">
             <body
-                className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+                className={`${geistSans.variable} ${geistMono.variable} antialiased text-white min-h-screen`}
             >
                 <WaslaSplashIntro />
                 <CapgoUpdater />
@@ -48,7 +48,9 @@ export default function RootLayout({
                             <UserContextProvider>
                                 <HymnsContextProvider>
                                     <AppAuthGatekeeper>
-                                        {children}
+                                        <main>
+                                            {children}
+                                        </main>
                                     </AppAuthGatekeeper>
                                 </HymnsContextProvider>
                             </UserContextProvider>

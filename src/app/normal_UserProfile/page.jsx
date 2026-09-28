@@ -23,7 +23,6 @@ import {
 import { UserContext } from '../context/User_Context';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { useLanguage } from "../context/LanguageContext";
-import Pray from './Pray';
 
 const API_URL = getApiBaseUrl();
 
@@ -472,10 +471,8 @@ export default function NormalUserProfile() {
 
     const tabs = [
         { id: 'overview', label: 'Overview', icon: User },
-                { id: 'pray-time', label: 'Pray Time', icon: Heart },
         { id: 'highlights', label: 'Highlights', icon: Sparkles },
-                { id: 'bible', label: 'Bible Notes', icon: Book },
-
+        { id: 'bible', label: 'Bible Notes', icon: Book },
     ];
 
     return (
@@ -697,16 +694,6 @@ export default function NormalUserProfile() {
                                 }}
                             />
                         </div>
-                    )}
-
-                    {/* PRAY TIME TAB */}
-                    {activeTab === 'pray-time' && (
-                        <Pray
-                            profile={profile}
-                            updateProfileState={updateProfileState}
-                            userId={user_id}
-                            token={isLogin}
-                        />
                     )}
 
                 </div>

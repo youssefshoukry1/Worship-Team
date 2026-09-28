@@ -29,7 +29,7 @@ import {
 } from '../utils/hymnSlides';
 import { useCategoryHymnsTour } from '../Tour/useCategoryHymnsTour';
 import { BibleForm, useBibleForm } from '../bible_form/page';
-import Pray from '../normal_UserProfile/Pray';
+import Pray from '../pray/page';
 
 
 const API_ROOT = getApiBaseUrl();

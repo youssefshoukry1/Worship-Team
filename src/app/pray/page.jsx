@@ -1,6 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useContext } from 'react';
+import localforage from 'localforage';
+import { UserContext } from '../context/User_Context';
 import { Check, Edit3, Heart, Loader2, Trash2, X } from 'lucide-react';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { showToast } from '../components/ToastContainer';
@@ -171,8 +173,57 @@ function ListPanel({ title, icon: Icon, iconBgClass, items, emptyText, recordsLa
     );
 }
 
-export default function Pray({ profile, updateProfileState, userId, token }) {
+export default function PrayPage() {
+    const { user_id: userId, isLogin: token } = useContext(UserContext);
+    const [profile, setProfile] = useState(null);
+    const [pageLoading, setPageLoading] = useState(true);
+
+    const updateProfileState = (modifier) => {
+        setProfile(prev => {
+            const updatedProfile = typeof modifier === 'function' ? modifier(prev) : modifier;
+            if (updatedProfile && userId) {
+                localforage.setItem(`profile_data_${userId}`, updatedProfile).catch(console.error);
+            }
+            return updatedProfile;
+        });
+    };
+
+    useEffect(() => {
+        if (!token || !userId) {
+            setPageLoading(false);
+            return;
+        }
+        let ignore = false;
+        const loadProfile = async () => {
+            try {
+                const cachedData = await localforage.getItem(`profile_data_${userId}`);
+                if (cachedData && !ignore) {
+                    setProfile(cachedData);
+                    setPageLoading(false);
+                }
+                const res = await fetch(`${API_URL}/users/my-profile`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (ignore) return;
+                const newProfileData = {
+                    user: data.user,
+                    prayTime: data.user?.prayTime?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
+                };
+                updateProfileState(newProfileData);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                if (!ignore) setPageLoading(false);
+            }
+        };
+        loadProfile();
+        return () => { ignore = true; };
+    }, [token, userId]);
+
     const { t, language } = useLanguage();
+
     const [prayWords, setPrayWords] = useState('');
     const [prayFeeling, setPrayFeeling] = useState('other');
     const [prayEditId, setPrayEditId] = useState(null);
@@ -223,7 +274,7 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
     // Re-link recordings of prayers saved offline once they sync and get a real _id
     useEffect(() => {
         if (isGuest || !profile?.prayTime?.length) return;
-        reconcileTempRecordings(profile.prayTime).then((changed) => { if (changed) refreshRecordings(); }).catch(() => {});
+        reconcileTempRecordings(profile.prayTime).then((changed) => { if (changed) refreshRecordings(); }).catch(() => { });
     }, [isGuest, profile?.prayTime, refreshRecordings]);
 
     const recorder = usePrayRecorder((blockId, recording) => {
@@ -369,7 +420,7 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
             const { response, data } = await fetchUsersWithFallback(API_URL, `pray-time/${userId}`, 'DELETE', token, { prayId });
             if (!response?.ok) throw new Error(data?.message || t('deletePrayerError'));
             updateProfileState((previous) => ({ ...previous, prayTime: (previous?.prayTime || []).filter((entry) => entry._id !== prayId) }));
-            await deleteRecordingsForPray(prayId).catch(() => {});
+            await deleteRecordingsForPray(prayId).catch(() => { });
             refreshRecordings();
             if (prayEditId === prayId) resetPrayForm();
         } catch (deleteError) {
@@ -377,7 +428,7 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
             if (isNetworkError) {
                 await queueOfflineAction(`${API_URL}/users/pray-time/${userId}`, 'DELETE', { prayId }, { Authorization: `Bearer ${token}` });
                 updateProfileState((previous) => ({ ...previous, prayTime: (previous?.prayTime || []).filter((entry) => entry._id !== prayId) }));
-                await deleteRecordingsForPray(prayId).catch(() => {});
+                await deleteRecordingsForPray(prayId).catch(() => { });
                 refreshRecordings();
                 if (prayEditId === prayId) resetPrayForm();
                 showToast({ message: t('offlinePrayerDelete'), type: 'offline', duration: 6000 });
@@ -388,79 +439,92 @@ export default function Pray({ profile, updateProfileState, userId, token }) {
         }
     };
 
+    if (pageLoading) {
+        return (
+            <div className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] flex flex-col items-center justify-center p-4 pb-[80px] text-white">
+                <Loader2 className="w-12 h-12 text-sky-400 animate-spin mb-4" />
+                <p className="text-sky-300 font-medium">Loading your prayers...</p>
+            </div>
+        );
+    }
+
     return (
-        <div className="grid gap-5 sm:gap-6">
-            <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-rose-500/10 via-slate-900/70 to-slate-900 p-4 sm:p-6">
-                <div className="flex items-center gap-2 mb-3"><Heart className="w-5 h-5 text-rose-300" /><h3 className="text-base sm:text-lg font-bold text-white">{t('prayTime')}</h3></div>
-                <div className="flex flex-wrap gap-2 mb-4">
-                    <div className="w-full mb-1">
-                        <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-2">{t('addPrayerSection')}</p>
-                        <div className="flex flex-wrap gap-2">
-                            {PRAY_TYPES.filter((item) => item.id !== 'general').map((item) => (
-                                <button key={item.id} onClick={() => !prayEditId && handleAddBlock(item.id)} disabled={!!prayEditId} className="px-3 py-1.5 rounded-lg text-xs font-bold border transition-all bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 disabled:opacity-40">+ {getPrayTypeLabel(item.id)}</button>
-                            ))}
+        <section className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] pb-[100px] pt-8 px-4 text-white">
+            <div className="max-w-5xl mx-auto">
+                <div className="grid gap-5 sm:gap-6">
+                    <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-rose-500/10 via-slate-900/70 to-slate-900 p-4 sm:p-6">
+                        <div className="flex items-center gap-2 mb-3"><Heart className="w-5 h-5 text-rose-300" /><h3 className="text-base sm:text-lg font-bold text-white">{t('prayTime')}</h3></div>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            <div className="w-full mb-1">
+                                <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-2">{t('addPrayerSection')}</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {PRAY_TYPES.filter((item) => item.id !== 'general').map((item) => (
+                                        <button key={item.id} onClick={() => !prayEditId && handleAddBlock(item.id)} disabled={!!prayEditId} className="px-3 py-1.5 rounded-lg text-xs font-bold border transition-all bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 disabled:opacity-40">+ {getPrayTypeLabel(item.id)}</button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="w-full mt-2 mb-1">
+                                <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-2">{t('howAreYouFeeling')}</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {PRAY_FEELINGS.map((item) => (
+                                        <button key={item.id} onClick={() => setPrayFeeling(item.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${prayFeeling === item.id ? 'bg-rose-500/20 text-rose-200 border-rose-400/40' : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'}`}>{getFeelingLabel(item.id)}</button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3 sm:p-4 focus-within:ring-1 focus-within:ring-rose-400/30 focus-within:border-rose-400/50 transition-all flex flex-col gap-3.5 mb-4">
+                            {(!prayEditId || prayWords || prayBlocks.length === 0) && <textarea value={prayWords} onChange={(event) => setPrayWords(event.target.value)} placeholder={t('writePrayerPlaceholder')} rows={4} className="w-full bg-transparent border-none text-white placeholder-white/20 focus:outline-none focus:ring-0 resize-y min-h-[90px] text-sm leading-relaxed p-0 m-0" />}
+                            {!prayEditId && (
+                                <VoiceRecorderPanel blockId={GENERAL_BLOCK_ID} recorder={recorder} recordings={generalRecordings} onRemove={removeGeneralRecording} prayType="general" />
+                            )}
+                            {prayBlocks.length > 0 && (
+                                <div className={`flex flex-col gap-3 ${prayWords ? 'pt-3 border-t border-white/10' : ''}`}>
+                                    {prayBlocks.map((block) => {
+                                        const blockStyle = getPrayTypeStyle(block.prayType);
+                                        return (
+                                            <div key={block.id} className={`flex flex-col gap-2 p-3 rounded-xl border transition-all bg-black/20 ${blockStyle.cardBg.replace('hover:bg-white/5', '')}`}>
+                                                <div className="flex justify-between items-center">
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded-md border uppercase font-bold tracking-wider ${blockStyle.badge}`}>{getPrayTypeLabel(block.prayType)}</span>
+                                                    {!prayEditId && <button onClick={() => removeBlock(block.id)} className="p-1 rounded-md text-slate-400 hover:text-red-400 hover:bg-red-500/20 transition-all" title={t('removeSection')}><X className="w-3.5 h-3.5" /></button>}
+                                                </div>
+                                                <textarea value={block.words} onChange={(event) => updateBlockWords(block.id, event.target.value)} placeholder={t('writeSectionPrayerPlaceholder')} rows={3} className="w-full bg-transparent border-none text-white placeholder-white/30 focus:outline-none focus:ring-0 resize-y min-h-[60px] text-sm leading-relaxed p-0 m-0" />
+                                                {!prayEditId && <VoiceRecorderPanel blockId={block.id} recorder={recorder} recordings={block.recordings} onRemove={(recId) => removePendingRecording(block.id, recId)} prayType={block.prayType} />}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-4">
+                            <p className="text-[11px] text-slate-400">{(prayWords + ' ' + prayBlocks.map((block) => block.words).join(' ')).trim().split(/\s+/).filter(Boolean).length} {t('totalWords')}</p>
+                            <div className="flex items-center gap-2">
+                                {prayEditId && <button onClick={resetPrayForm} className="px-3 py-2 rounded-lg border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5">{t('cancelEdit')}</button>}
+                                <button onClick={handleSubmitPrayTime} disabled={isSubmittingPray || recorder.isRecording || (!prayWords.trim() && !generalRecordings.length && !prayBlocks.some(hasBlockContent))} className="px-4 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-all disabled:opacity-40 flex items-center gap-2 shadow-lg shadow-rose-500/20">
+                                    {isSubmittingPray ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{prayEditId ? t('updateNoteBtn') : t('saveNote')}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    <div className="w-full mt-2 mb-1">
-                        <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-2">{t('howAreYouFeeling')}</p>
-                        <div className="flex flex-wrap gap-2">
-                            {PRAY_FEELINGS.map((item) => (
-                                <button key={item.id} onClick={() => setPrayFeeling(item.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${prayFeeling === item.id ? 'bg-rose-500/20 text-rose-200 border-rose-400/40' : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'}`}>{getFeelingLabel(item.id)}</button>
-                            ))}
+                    <ListPanel title={t('myPrayTimeNotes')} icon={Heart} iconBgClass="bg-rose-500/10 text-rose-400 border-rose-500/20" items={prayList} emptyText={t('noPrayerNotesYet')} recordsLabel={t('records')} renderItem={(entry) => (
+                        <div key={entry._id} className={`rounded-2xl border transition-all duration-300 p-4 sm:p-5 ${getPrayTypeStyle(entry.prayType).cardBg}`}>
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${getPrayTypeStyle(entry.prayType).badge}`}>{getFeelingLabel(entry.feeling)}</span>
+                                    <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
+                                    <span className="text-[10px] text-slate-500 font-bold">{formatDate(entry.date, 'N/A', language)}</span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={() => handleEditPrayTime(entry)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all border border-white/5" title={t('editNote')}><Edit3 className="w-4 h-4" /></button>
+                                    <button onClick={() => handleDeletePrayTime(entry._id)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5" title={t('deleteNote')}><Trash2 className="w-4 h-4" /></button>
+                                </div>
+                            </div>
+                            <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
                         </div>
-                    </div>
-                </div>
-                <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3 sm:p-4 focus-within:ring-1 focus-within:ring-rose-400/30 focus-within:border-rose-400/50 transition-all flex flex-col gap-3.5 mb-4">
-                    {(!prayEditId || prayWords || prayBlocks.length === 0) && <textarea value={prayWords} onChange={(event) => setPrayWords(event.target.value)} placeholder={t('writePrayerPlaceholder')} rows={4} className="w-full bg-transparent border-none text-white placeholder-white/20 focus:outline-none focus:ring-0 resize-y min-h-[90px] text-sm leading-relaxed p-0 m-0" />}
-                    {!prayEditId && (
-                        <VoiceRecorderPanel blockId={GENERAL_BLOCK_ID} recorder={recorder} recordings={generalRecordings} onRemove={removeGeneralRecording} prayType="general" />
-                    )}
-                    {prayBlocks.length > 0 && (
-                        <div className={`flex flex-col gap-3 ${prayWords ? 'pt-3 border-t border-white/10' : ''}`}>
-                            {prayBlocks.map((block) => {
-                                const blockStyle = getPrayTypeStyle(block.prayType);
-                                return (
-                                    <div key={block.id} className={`flex flex-col gap-2 p-3 rounded-xl border transition-all bg-black/20 ${blockStyle.cardBg.replace('hover:bg-white/5', '')}`}>
-                                        <div className="flex justify-between items-center">
-                                            <span className={`text-[10px] px-2 py-0.5 rounded-md border uppercase font-bold tracking-wider ${blockStyle.badge}`}>{getPrayTypeLabel(block.prayType)}</span>
-                                            {!prayEditId && <button onClick={() => removeBlock(block.id)} className="p-1 rounded-md text-slate-400 hover:text-red-400 hover:bg-red-500/20 transition-all" title={t('removeSection')}><X className="w-3.5 h-3.5" /></button>}
-                                        </div>
-                                        <textarea value={block.words} onChange={(event) => updateBlockWords(block.id, event.target.value)} placeholder={t('writeSectionPrayerPlaceholder')} rows={3} className="w-full bg-transparent border-none text-white placeholder-white/30 focus:outline-none focus:ring-0 resize-y min-h-[60px] text-sm leading-relaxed p-0 m-0" />
-                                        {!prayEditId && <VoiceRecorderPanel blockId={block.id} recorder={recorder} recordings={block.recordings} onRemove={(recId) => removePendingRecording(block.id, recId)} prayType={block.prayType} />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-                <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-4">
-                    <p className="text-[11px] text-slate-400">{(prayWords + ' ' + prayBlocks.map((block) => block.words).join(' ')).trim().split(/\s+/).filter(Boolean).length} {t('totalWords')}</p>
-                    <div className="flex items-center gap-2">
-                        {prayEditId && <button onClick={resetPrayForm} className="px-3 py-2 rounded-lg border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5">{t('cancelEdit')}</button>}
-                        <button onClick={handleSubmitPrayTime} disabled={isSubmittingPray || recorder.isRecording || (!prayWords.trim() && !generalRecordings.length && !prayBlocks.some(hasBlockContent))} className="px-4 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-all disabled:opacity-40 flex items-center gap-2 shadow-lg shadow-rose-500/20">
-                            {isSubmittingPray ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{prayEditId ? t('updateNoteBtn') : t('saveNote')}
-                        </button>
-                    </div>
+                    )} />
+                    <MyPraysBackup prayTime={prayList} token={isGuest ? null : token} userId={userId} onRestored={refreshRecordings} />
                 </div>
             </div>
-            <ListPanel title={t('myPrayTimeNotes')} icon={Heart} iconBgClass="bg-rose-500/10 text-rose-400 border-rose-500/20" items={prayList} emptyText={t('noPrayerNotesYet')} recordsLabel={t('records')} renderItem={(entry) => (
-                <div key={entry._id} className={`rounded-2xl border transition-all duration-300 p-4 sm:p-5 ${getPrayTypeStyle(entry.prayType).cardBg}`}>
-                    <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${getPrayTypeStyle(entry.prayType).badge}`}>{getFeelingLabel(entry.feeling)}</span>
-                            <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
-                            <span className="text-[10px] text-slate-500 font-bold">{formatDate(entry.date, 'N/A', language)}</span>
-                        </div>
-                        <div className="flex gap-2">
-                            <button onClick={() => handleEditPrayTime(entry)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all border border-white/5" title={t('editNote')}><Edit3 className="w-4 h-4" /></button>
-                            <button onClick={() => handleDeletePrayTime(entry._id)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5" title={t('deleteNote')}><Trash2 className="w-4 h-4" /></button>
-                        </div>
-                    </div>
-                    <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
-                </div>
-            )} />
-            <MyPraysBackup prayTime={prayList} token={isGuest ? null : token} userId={userId} onRestored={refreshRecordings} />
-        </div>
+        </section>
     );
 }
 

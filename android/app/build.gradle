@@ -4,7 +4,7 @@ android {
     namespace = "com.worship.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.worship.app"
+        applicationId "com.wasla.wasla"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

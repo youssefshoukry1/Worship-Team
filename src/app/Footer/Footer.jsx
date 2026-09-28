@@ -5,10 +5,10 @@ import { usePathname } from "next/navigation";
 export default function Footer() {
     const pathname = usePathname();
 
-    if (pathname?.startsWith('/presentation') || pathname?.startsWith('/chat_team') || pathname?.startsWith('/Trainings')) {
+    if (pathname?.startsWith('/presentation') || pathname?.startsWith('/chat_team') || pathname?.startsWith('/Trainings') || pathname?.startsWith('/pray') || pathname?.startsWith('/') || pathname?.startsWith('/hymns')) {
         return null;
     }
-    
+
     return (
         <footer className="w-full  bg-blue-950/20 backdrop-blur-xl border-t border-sky-500/10 py-8 relative overflow-hidden">
             {/* Glow Effect */}

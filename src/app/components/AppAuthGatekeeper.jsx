@@ -9,6 +9,7 @@ import ClaimUsernameModal from "./ClaimUsernameModal";
 import Navbar from "../Navbar/Navbar";
 import Footer from "../Footer/Footer";
 import PageTransition from "../page-transition/page-transition";
+import BottomNav from "./BottomNav";
 
 const PUBLIC_ROUTES = ["/privacy-policy"];
 
@@ -105,6 +106,7 @@ export default function AppAuthGatekeeper({ children }) {
       <Navbar />
       <PageTransition>{children}</PageTransition>
       <Footer />
+      <BottomNav />
     </>
   );
 }

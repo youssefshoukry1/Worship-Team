@@ -1560,7 +1560,14 @@ export function BibleForm({ controller }) {
       {isOpen && (
         <Portal>
           {/* Fixed the wrapper by adding overflow-hidden to prevent background interaction */}
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-6 overflow-hidden">
+          <div 
+            className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-6 overflow-hidden"
+            onScrollCapture={(e) => {
+              if (e.target.scrollTop !== undefined) {
+                window.dispatchEvent(new CustomEvent('internalScroll', { detail: { scrollY: e.target.scrollTop } }));
+              }
+            }}
+          >
             {/* Dynamic Background Blur */}
             <div className="absolute inset-0 bg-[#050505]/80 backdrop-blur-xl" onClick={closeBibleModal} />
 
