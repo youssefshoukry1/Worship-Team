@@ -20,7 +20,7 @@ import { UserContext } from "../context/User_Context";
 import { HymnsContext } from "../context/Hymns_Context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import Loading from "../loading";
+import Loading from "../_loading";
 import Portal from '../Portal/Portal.jsx'
 import { useLanguage } from "../context/LanguageContext";
 import { buildHymnPresentationSlides } from '../utils/hymnSlides';

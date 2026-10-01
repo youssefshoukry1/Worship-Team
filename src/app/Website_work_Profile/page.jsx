@@ -5,7 +5,7 @@ import LocalFullscreenButton from '../presentation/local/LocalFullscreenButton';
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import Loading from '../loading';
+import Loading from '../_loading';
 import Portal from '../Portal/Portal';
 import { UserContext } from '../context/User_Context';
 import { useLanguage } from "../context/LanguageContext";

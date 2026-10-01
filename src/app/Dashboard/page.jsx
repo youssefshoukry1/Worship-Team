@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { UserContext } from '../context/User_Context';
 import { motion, AnimatePresence } from 'framer-motion';
-import Loading from '../loading';
+import Loading from '../_loading';
 import { useRouter } from 'next/navigation';
 import {
   Check,

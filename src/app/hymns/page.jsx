@@ -6,7 +6,7 @@ import { transposeScale, transposeChords, transposeLyrics } from '../utils/music
 import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import Loading from '../loading';
+import Loading from '../_loading';
 import Portal from '../Portal/Portal';
 import Metronome from '../Metronome/page';
 import { UserContext } from '../context/User_Context';
@@ -1407,20 +1407,6 @@ export default function Category_Humns() {
     { id: 'kids', label: t("Kids"), icon: GraduationCap },
   ];
 
-  const categories = [
-    {
-      id: 'pray-form',
-      label: language === 'ar' ? 'وقت الصلاة' : language === 'de' ? 'Gebetszeit' : 'Pray Time',
-      icon: Heart,
-      onClick: () => setShowPrayModal(true),
-    },
-    {
-      id: 'bible-form',
-      label: t('bible'),
-      icon: BookOpen,
-      onClick: () => setShowBibleModal(true),
-    },
-  ];
 
   // Helper to check permission
   const canEdit = UserRole === 'LYRICS_ADMIN' || UserRole === 'PROGRAMER';
@@ -1739,39 +1725,6 @@ export default function Category_Humns() {
         )}
 
       </div>
-      {/* Categories Tabs */}
-      {
-        showSearchBar ?
-          (null) :
-          <div id="tour-categories" className="flex flex-wrap justify-center gap-4 mb-8 w-full mx-auto">
-            {categories.map((cat, index) => {
-              const Icon = cat.icon;
-              const isActive = (cat.id === 'bible-form' && showBibleModal) || (cat.id === 'pray-form' && showPrayModal);
-              return (
-                <button
-                  key={cat.id}
-                  id={cat.id === 'bible-form' ? 'tour-bible-btn' : cat.id === 'pray-form' ? 'tour-pray-btn' : undefined}
-                  onClick={() => cat.path ? router.push(cat.path) : cat.onClick?.()}
-                  className={`flex min-w-0 items-center justify-center gap-2 py-2 rounded-xl transition-all duration-300 border backdrop-blur-md relative overflow-hidden group
-                  ${cat.id === 'bible-form' ? 'px-6' : 'px-6'}
-                  w-fit
-                  ${isActive
-                      ? 'bg-sky-500/20 border-sky-400/50 text-sky-200 shadow-[0_0_20px_rgba(56,189,248,0.3)]'
-                      : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
-                    }`}
-                >
-                  {isActive && (
-                    <div className="absolute inset-0 bg-sky-400/10 blur-xl rounded-full" />
-                  )}
-                  <Icon className={`w-5 h-5 relative z-10 ${isActive ? 'text-sky-300' : ''}`} />
-                  <span className="font-medium relative z-10 whitespace-nowrap">{cat.label}</span>
-                  {cat.path && <ChevronRight className="w-4 h-4 relative z-10 opacity-70" />}
-                </button>
-              )
-            })}
-          </div>
-
-      }
 
 
 

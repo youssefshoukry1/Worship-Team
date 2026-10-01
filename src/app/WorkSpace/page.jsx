@@ -1,5 +1,5 @@
 'use client';
-import Loading from '../loading';
+import Loading from '../_loading';
 import React, { useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { openLocalDisplay, prepareLocalDisplay } from '../presentation/local/openLocalDisplay';
 import LocalFullscreenButton from '../presentation/local/LocalFullscreenButton';

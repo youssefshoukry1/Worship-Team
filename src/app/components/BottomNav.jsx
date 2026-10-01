@@ -44,12 +44,12 @@ export default function BottomNav() {
   ];
 
   return (
-    <div className={`fixed bottom-0 left-0 right-0 z-[10000] bg-[#020a1c]/95 backdrop-blur-xl border-t border-[#122b5e] transition-transform duration-300 ease-in-out ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}>
+    <div className={`fixed bottom-0 left-0 right-0 z-[10000] bg-[#020a1c]/95 backdrop-blur-xl transition-transform duration-300 ease-in-out ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}>
       <nav className="flex justify-around items-center h-[56px] max-w-md mx-auto">
         {navItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href));
           return (
-            <Link key={item.label} href={item.href} className="relative flex flex-col items-center justify-center w-full h-full space-y-0.5">
+            <Link key={item.label} href={item.href} prefetch={true} className="relative flex flex-col items-center justify-center w-full h-full space-y-0.5">
               <div className="relative flex items-center justify-center w-10 h-8">
                 <item.icon
                   size={isActive ? 22 : 20}

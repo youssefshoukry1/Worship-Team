@@ -161,10 +161,10 @@ export async function getGuestPrays() {
 }
 
 /** @returns {Promise<object>} the saved entry (with a local `_id`) */
-export async function addGuestPray({ words, feeling, prayType }) {
+export async function addGuestPray({ words, prayType }) {
     const entry = {
         _id: `local-${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        words, feeling, prayType, date: new Date().toISOString(),
+        words, prayType, date: new Date().toISOString(),
     };
     await updateIndex((index) => { index.guestPrays = [...(index.guestPrays || []), entry]; });
     return entry;

@@ -15,12 +15,6 @@ import { useLanguage } from '../context/LanguageContext';
 
 const API_URL = getApiBaseUrl();
 
-const PRAY_FEELINGS = [
-    { id: 'thankful', key: 'thankful' },
-    { id: 'anxious', key: 'anxious' },
-    { id: 'tired', key: 'tired' },
-    { id: 'other', key: 'other' },
-];
 
 const PRAY_TYPES = [
     { id: 'general', key: 'generalPrayer' },
@@ -106,7 +100,7 @@ function PrayEntryContent({ entry, recordings, onRecordingsChanged, getPrayTypeL
         <div className="mt-2 flex flex-col gap-3">
             {sections.map((section, index) => (
                 <div key={index} className="text-sm text-slate-200 font-medium leading-relaxed">
-                    {section.marker && <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black border mb-1 ${section.markerClass}`}>{getPrayTypeLabel ? getPrayTypeLabel(section.type) : section.marker}</span>}
+                    {section.marker && section.type !== 'general' && <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black border mb-1 ${section.markerClass}`}>{getPrayTypeLabel ? getPrayTypeLabel(section.type) : section.marker}</span>}
                     {stripVoiceOnlyText(section.text).trim() && <p className="opacity-90 whitespace-pre-wrap">{stripVoiceOnlyText(section.text).trim()}</p>}
                     <SavedPrayRecordings prayId={entry._id} recordings={grouped[index]} onChanged={onRecordingsChanged} />
                 </div>
@@ -225,7 +219,6 @@ export default function PrayPage() {
     const { t, language } = useLanguage();
 
     const [prayWords, setPrayWords] = useState('');
-    const [prayFeeling, setPrayFeeling] = useState('other');
     const [prayEditId, setPrayEditId] = useState(null);
     const [isSubmittingPray, setIsSubmittingPray] = useState(false);
     const [prayBlocks, setPrayBlocks] = useState([]);
@@ -235,18 +228,6 @@ export default function PrayPage() {
     const isGuest = !token || !userId;
     const [guestPrays, setGuestPrays] = useState([]);
     const prayList = isGuest ? guestPrays : (profile?.prayTime || []);
-
-    const getFeelingLabel = useCallback((value) => {
-        switch (value) {
-            case 'thankful': return t('thankful');
-            case 'anxious': return t('anxious');
-            case 'tired': return t('tired');
-            case 'hopeful': return t('hopeful');
-            case 'confused': return t('confused');
-            case 'joyful': return t('joyful');
-            default: return t('other');
-        }
-    }, [t]);
 
     const getPrayTypeLabel = useCallback((value) => {
         const v = (value || 'general').toLowerCase();
@@ -292,7 +273,7 @@ export default function PrayPage() {
     const resetPrayForm = () => {
         if (recorder.isRecording) recorder.cancel();
         revokeBlockUrls([...prayBlocks, { recordings: generalRecordings }]);
-        setPrayWords(''); setPrayBlocks([]); setGeneralRecordings([]); setPrayFeeling('other'); setPrayEditId(null);
+        setPrayWords(''); setPrayBlocks([]); setGeneralRecordings([]); setPrayEditId(null);
     };
     const removeGeneralRecording = (recId) => setGeneralRecordings((recordings) => {
         recordings.filter((rec) => rec.id === recId).forEach((rec) => URL.revokeObjectURL(rec.url));
@@ -340,9 +321,9 @@ export default function PrayPage() {
         if (isGuest) {
             try {
                 if (prayEditId) {
-                    setGuestPrays(await updateGuestPray(prayEditId, { words: finalWords, feeling: prayFeeling }));
+                    setGuestPrays(await updateGuestPray(prayEditId, { words: finalWords }));
                 } else {
-                    const entry = await addGuestPray({ words: finalWords, feeling: prayFeeling, prayType: 'general' });
+                    const entry = await addGuestPray({ words: finalWords, prayType: 'general' });
                     await savePendingRecordings(entry._id, undefined, Boolean(generalText));
                     setGuestPrays(await getGuestPrays());
                 }
@@ -359,8 +340,8 @@ export default function PrayPage() {
             const isEditMode = Boolean(prayEditId);
             const method = isEditMode ? 'PATCH' : 'POST';
             const body = isEditMode
-                ? { prayId: prayEditId, words: finalWords, feeling: prayFeeling, prayType: 'general' }
-                : { userid: userId, words: finalWords, feeling: prayFeeling, prayType: 'general' };
+                ? { prayId: prayEditId, words: finalWords, prayType: 'general' }
+                : { userid: userId, words: finalWords, prayType: 'general' };
             const { response, data } = await fetchUsersWithFallback(API_URL, `pray-time${isEditMode ? `/${userId}` : ''}`, method, token, body);
             if (!response?.ok) throw new Error(data?.message || t('savePrayerError'));
             const savedPrayTime = data.user?.prayTime || [];
@@ -374,8 +355,8 @@ export default function PrayPage() {
                 const isEditMode = Boolean(prayEditId);
                 const method = isEditMode ? 'PATCH' : 'POST';
                 const body = isEditMode
-                    ? { prayId: prayEditId, words: finalWords, feeling: prayFeeling, prayType: 'general' }
-                    : { userid: userId, words: finalWords, feeling: prayFeeling, prayType: 'general' };
+                    ? { prayId: prayEditId, words: finalWords, prayType: 'general' }
+                    : { userid: userId, words: finalWords, prayType: 'general' };
                 await queueOfflineAction(`${API_URL}/users/pray-time${isEditMode ? `/${userId}` : ''}`, method, body, { Authorization: `Bearer ${token}` });
                 const tempId = `temp-${Date.now()}`;
                 if (!isEditMode) await savePendingRecordings(tempId, finalWords, Boolean(generalText));
@@ -399,7 +380,6 @@ export default function PrayPage() {
         setPrayEditId(entry._id);
         if (entry.prayType === 'general' || !entry.prayType) { setPrayWords(stripVoiceOnlyText(entry.words).trim()); setPrayBlocks([]); }
         else { setPrayWords(''); setPrayBlocks([{ id: entry._id, prayType: entry.prayType, words: stripVoiceOnlyText(entry.words).trim() }]); }
-        setPrayFeeling(entry.feeling || 'other');
     };
 
     const handleDeletePrayTime = async (prayId) => {
@@ -446,24 +426,12 @@ export default function PrayPage() {
             <div className="max-w-5xl mx-auto">
                 <div className="grid gap-5 sm:gap-6">
                     <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-rose-500/10 via-slate-900/70 to-slate-900 p-4 sm:p-6">
-                        <div className="flex items-center gap-2 mb-3"><Heart className="w-5 h-5 text-rose-300" /><h3 className="text-base sm:text-lg font-bold text-white">{t('prayTime')}</h3></div>
-                        <div className="flex flex-wrap gap-2 mb-4">
-                            <div className="w-full mb-1">
-                                <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-2">{t('addPrayerSection')}</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {PRAY_TYPES.filter((item) => item.id !== 'general').map((item) => (
-                                        <button key={item.id} onClick={() => !prayEditId && handleAddBlock(item.id)} disabled={!!prayEditId} className="px-3 py-1.5 rounded-lg text-xs font-bold border transition-all bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 disabled:opacity-40">+ {getPrayTypeLabel(item.id)}</button>
-                                    ))}
-                                </div>
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <Heart className="w-5 h-5 text-rose-300" />
+                                <h3 className="text-base sm:text-lg font-bold text-white">{t('prayTime')}</h3>
                             </div>
-                            <div className="w-full mt-2 mb-1">
-                                <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-2">{t('howAreYouFeeling')}</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {PRAY_FEELINGS.map((item) => (
-                                        <button key={item.id} onClick={() => setPrayFeeling(item.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${prayFeeling === item.id ? 'bg-rose-500/20 text-rose-200 border-rose-400/40' : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'}`}>{getFeelingLabel(item.id)}</button>
-                                    ))}
-                                </div>
-                            </div>
+                            <MyPraysBackup prayTime={prayList} token={isGuest ? null : token} userId={userId} onRestored={refreshRecordings} />
                         </div>
                         <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3 sm:p-4 focus-within:ring-1 focus-within:ring-rose-400/30 focus-within:border-rose-400/50 transition-all flex flex-col gap-3.5 mb-4">
                             {(!prayEditId || prayWords || prayBlocks.length === 0) && <textarea value={prayWords} onChange={(event) => setPrayWords(event.target.value)} placeholder={t('writePrayerPlaceholder')} rows={4} className="w-full bg-transparent border-none text-white placeholder-white/20 focus:outline-none focus:ring-0 resize-y min-h-[90px] text-sm leading-relaxed p-0 m-0" />}
@@ -502,8 +470,9 @@ export default function PrayPage() {
                         <div key={entry._id} className={`rounded-2xl border transition-all duration-300 p-4 sm:p-5 ${getPrayTypeStyle(entry.prayType).cardBg}`}>
                             <div className="flex items-start justify-between gap-3 mb-2">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${getPrayTypeStyle(entry.prayType).badge}`}>{getFeelingLabel(entry.feeling)}</span>
-                                    <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
+                                    {entry.prayType && entry.prayType !== 'general' && (
+                                        <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
+                                    )}
                                     <span className="text-[10px] text-slate-500 font-bold">{formatDate(entry.date, 'N/A', language)}</span>
                                 </div>
                                 <div className="flex gap-2">
@@ -514,7 +483,6 @@ export default function PrayPage() {
                             <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
                         </div>
                     )} />
-                    <MyPraysBackup prayTime={prayList} token={isGuest ? null : token} userId={userId} onRestored={refreshRecordings} />
                 </div>
             </div>
         </section>

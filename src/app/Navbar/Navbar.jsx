@@ -64,9 +64,7 @@ export default function Navbar() {
 
 
     // Default Items
-    const navItems = [
-        { name: "hymns", path: "/", id: "home-section" },
-    ];
+    const navItems = [];
 
     const router = useRouter();
     const pathname = usePathname();

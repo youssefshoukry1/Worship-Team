@@ -40,36 +40,6 @@ export function useCategoryHymnsTour(language) {
           },
         },
         {
-          element: '#tour-pray-btn',
-          popover: {
-            title: isAr ? 'وقت الصلاة' : isDe ? 'Gebetszeit' : 'Pray Time',
-            description: isAr
-              ? 'مساحة خاصة للصلاة والتأمل مع إمكانية تسجيل صلاتك وتدوينها.'
-              : isDe
-                ? 'Ein privater Bereich für Gebet und Besinnung mit der Möglichkeit, deine Gebete aufzunehmen und festzuhalten.'
-                : 'A private space for prayer and reflection with the ability to record and journal your prayers.',
-            side: 'bottom',
-            align: 'center',
-          },
-        },
-        {
-          element: '#tour-bible-btn',
-          popover: {
-            title: isAr
-              ? 'الكتاب المقدس'
-              : isDe
-                ? 'Bibel'
-                : 'Bible',
-            description: isAr
-              ? 'اقرأ الكتاب المقدس مع تحليلات سريعة، مراجع، وتطبيقات عملية مدعومة بالذكاء الاصطناعي.'
-              : isDe
-                ? 'Bibel lesen mit schnellen Analysen, Querverweisen und praktischer Anwendung dank KI.'
-                : 'Read the Bible with quick analysis, cross-references, and practical AI-powered application.',
-            side: 'bottom',
-            align: 'center',
-          },
-        },
-        {
           element: '#tour-live-session',
           popover: {
             title: isAr ? 'غرفة المزامنة' : isDe ? 'Live-Sitzung' : 'Live Session',

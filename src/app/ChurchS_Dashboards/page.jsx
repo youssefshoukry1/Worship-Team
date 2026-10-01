@@ -12,7 +12,7 @@ import {
   Music, Clock, CheckCircle2, XCircle, AlertCircle, ChevronDown,
   RefreshCw, Eye, MessageSquare, Filter, Shield, Monitor
 } from 'lucide-react'
-import Loading from '../loading'
+import Loading from '../_loading'
 import Portal from '../Portal/Portal'
 import { showToast } from '../components/ToastContainer'
 import { buildHymnPresentationSlides } from '../utils/hymnSlides'
