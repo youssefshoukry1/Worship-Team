@@ -150,13 +150,13 @@ async function fetchUsersWithFallback(apiUrl, path, method, token, payload) {
 
 function ListPanel({ title, icon: Icon, iconBgClass, items, emptyText, recordsLabel, renderItem }) {
     return (
-        <div className="flex flex-col h-full rounded-3xl border border-white/5 bg-white/[0.03] backdrop-blur-2xl overflow-hidden shadow-xl shadow-black/20">
+        <div className="flex flex-col rounded-3xl border border-white/5 bg-white/[0.03] backdrop-blur-2xl shadow-xl shadow-black/20">
             <div className="flex items-center gap-3 border-b border-white/5 p-4 sm:p-5 bg-black/20">
                 <div className={`p-2 rounded-xl flex items-center justify-center border ${iconBgClass}`}><Icon className="h-4 w-4 sm:h-5 sm:w-5" /></div>
                 <h2 className="text-sm sm:text-base font-bold text-white tracking-wide">{title}</h2>
                 <div className="ml-auto bg-white/10 text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-lg text-slate-300">{items.length} {recordsLabel || 'records'}</div>
             </div>
-            <div className="flex-1 p-3 sm:p-5 overflow-y-auto max-h-[350px] space-y-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[::-webkit-scrollbar-thumb]:bg-white/20" data-lenis-prevent-wheel>
+            <div className="flex-1 p-3 sm:p-5 space-y-2.5">
                 {items.length > 0 ? items.map((item, index) => renderItem(item, index)) : (
                     <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 h-[200px]">
                         <Icon className="w-10 h-10 mb-3 opacity-20" />
@@ -389,6 +389,18 @@ export default function PrayPage() {
     const prayList = Array.from(
         new Map(rawPrayList.map((item) => [String(item._id || item.date), item])).values()
     );
+
+    const isPendingShare = (entry) => {
+        const isReceived = Boolean(
+            (entry.sharedFrom?.username || entry.sharedFrom?.originalPrayId || entry.sharedFrom?.userId) &&
+            !entry.sharedWith?.username
+        );
+        return isReceived && (entry.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed';
+    };
+
+    const pendingPrayList = prayList.filter(isPendingShare);
+    const savedPrayList = prayList.filter((entry) => !isPendingShare(entry));
+    const [activePrayTab, setActivePrayTab] = useState('all');
 
     const getPrayTypeLabel = useCallback((value) => {
         const v = (value || 'general').toLowerCase();
@@ -694,7 +706,51 @@ export default function PrayPage() {
                             </div>
                         </div>
                     </div>
-                    <ListPanel title={t('myPrayTimeNotes')} icon={Heart} iconBgClass="bg-rose-500/10 text-rose-400 border-rose-500/20" items={prayList} emptyText={t('noPrayerNotesYet')} recordsLabel={t('records')} renderItem={(entry) => {
+
+                    {/* Small tabs under pray time div */}
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setActivePrayTab('all')}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                                activePrayTab === 'all'
+                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
+                                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/5 hover:bg-white/10'
+                            }`}
+                        >
+                            <span>All Saved Prays</span>
+                            <span className="px-1.5 py-0.2 rounded-md text-[10px] font-bold bg-white/10 text-slate-300">
+                                {savedPrayList.length}
+                            </span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActivePrayTab('pending')}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                                activePrayTab === 'pending'
+                                    ? 'bg-[#00C2FF]/20 text-[#00C2FF] border border-[#00C2FF]/40 shadow-sm'
+                                    : 'bg-white/5 text-slate-400 hover:text-white border border-white/5 hover:bg-white/10'
+                            }`}
+                        >
+                            <span>Pending to Confirm</span>
+                            <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-bold ${
+                                activePrayTab === 'pending'
+                                    ? 'bg-[#00C2FF] text-[#020817]'
+                                    : pendingPrayList.length > 0 ? 'bg-[#00C2FF]/20 text-[#00C2FF]' : 'bg-white/10 text-slate-400'
+                            }`}>
+                                {pendingPrayList.length}
+                            </span>
+                        </button>
+                    </div>
+
+                    <ListPanel
+                        title={activePrayTab === 'pending' ? 'Pending to Confirm' : t('myPrayTimeNotes')}
+                        icon={activePrayTab === 'pending' ? Users : Heart}
+                        iconBgClass={activePrayTab === 'pending' ? 'bg-[#00C2FF]/10 text-[#00C2FF] border-[#00C2FF]/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}
+                        items={activePrayTab === 'pending' ? pendingPrayList : savedPrayList}
+                        emptyText={activePrayTab === 'pending' ? 'No pending prayers to confirm' : t('noPrayerNotesYet')}
+                        recordsLabel={t('records')}
+                        renderItem={(entry) => {
                         const isReceived = Boolean(
                             (entry.sharedFrom?.username || entry.sharedFrom?.originalPrayId || entry.sharedFrom?.userId) &&
                             !entry.sharedWith?.username
