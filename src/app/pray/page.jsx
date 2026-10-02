@@ -329,6 +329,11 @@ export default function PrayPage() {
                     return p;
                 })
             }));
+            setResponseInputs((prev) => {
+                const next = { ...prev };
+                delete next[prayId];
+                return next;
+            });
             showToast({ message: 'Prayer confirmed!', type: 'success' });
         } catch (err) {
             showToast({ message: err.message, type: 'error' });
@@ -412,7 +417,10 @@ export default function PrayPage() {
     // Without an account, prayers are stored only on this device
     const isGuest = !token || !userId;
     const [guestPrays, setGuestPrays] = useState([]);
-    const prayList = isGuest ? guestPrays : (profile?.prayTime || []);
+    const rawPrayList = isGuest ? guestPrays : (profile?.prayTime || []);
+    const prayList = Array.from(
+        new Map(rawPrayList.map((item) => [String(item._id || item.date), item])).values()
+    );
 
     const getPrayTypeLabel = useCallback((value) => {
         const v = (value || 'general').toLowerCase();
@@ -666,6 +674,7 @@ export default function PrayPage() {
                             !entry.sharedWith?.username
                         );
                         const isPendingConfirmation = isReceived && (entry.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed';
+                        const isConfirmedReceived = isReceived && entry.sharedFrom?.status === 'confirmed';
 
                         return (
                             <div key={entry._id} className={`rounded-2xl border transition-all duration-300 p-4 sm:p-5 ${getPrayTypeStyle(entry.prayType).cardBg}`}>
@@ -692,20 +701,40 @@ export default function PrayPage() {
                                     </div>
                                 </div>
 
-                                <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
+                                {isConfirmedReceived && entry.sharedFrom?.responseWords ? (
+                                    <>
+                                        {/* Recipient's confirmed prayer on top with original font size */}
+                                        <div className="mt-2 text-sm text-slate-200 font-medium leading-relaxed whitespace-pre-wrap">
+                                            {entry.sharedFrom.responseWords}
+                                        </div>
 
-                                {/* Confirmed response note */}
-                                {entry.sharedWith?.status === 'confirmed' && entry.sharedWith?.responseWords && (
-                                    <div className="mt-2.5 pt-2.5 border-t border-white/10 text-xs text-slate-300">
-                                        <strong className="text-[#00C2FF]">@{entry.sharedWith.username}: </strong>
-                                        <span>{entry.sharedWith.responseWords}</span>
-                                    </div>
-                                )}
-                                {entry.sharedFrom?.status === 'confirmed' && entry.sharedFrom?.responseWords && (
-                                    <div className="mt-2.5 pt-2.5 border-t border-white/10 text-xs text-slate-300">
-                                        <strong className="text-rose-300">@{entry.sharedFrom.username}: </strong>
-                                        <span>{entry.sharedFrom.responseWords}</span>
-                                    </div>
+                                        {/* Sender's original prayer below in small font size */}
+                                        <div className="mt-3 pt-2.5 border-t border-white/10 flex flex-col gap-1 text-xs text-slate-400">
+                                            <span className="text-[11px] text-rose-300 font-semibold">
+                                                Shared by @{entry.sharedFrom.username}:
+                                            </span>
+                                            <p className="text-xs text-slate-400 italic leading-relaxed whitespace-pre-wrap pl-2 border-l border-rose-500/30">
+                                                {stripVoiceOnlyText(entry.words).trim()}
+                                            </p>
+                                            <SavedPrayRecordings prayId={entry._id} recordings={recordingsIndex[entry._id]} onChanged={refreshRecordings} />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
+
+                                        {/* Sender view: Confirmed recipient response in small font below */}
+                                        {!isReceived && entry.sharedWith?.status === 'confirmed' && entry.sharedWith?.responseWords && (
+                                            <div className="mt-3 pt-2.5 border-t border-white/10 flex flex-col gap-1 text-xs text-slate-400">
+                                                <span className="text-[11px] text-[#00C2FF] font-semibold">
+                                                    @{entry.sharedWith.username}&apos;s prayer:
+                                                </span>
+                                                <p className="text-xs text-slate-400 italic leading-relaxed whitespace-pre-wrap pl-2 border-l border-[#00C2FF]/30">
+                                                    {entry.sharedWith.responseWords}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
 
                                 {/* Confirm input ONLY for the chosen recipient when pending */}
