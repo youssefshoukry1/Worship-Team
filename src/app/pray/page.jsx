@@ -316,7 +316,7 @@ export default function PrayPage() {
             updateProfileState((prev) => ({
                 ...prev,
                 prayTime: (prev?.prayTime || []).map((p) => {
-                    if (p._id === prayId && p.sharedFrom) {
+                    if (String(p._id) === String(prayId) && p.sharedFrom) {
                         return {
                             ...p,
                             sharedFrom: {
@@ -661,12 +661,11 @@ export default function PrayPage() {
                         </div>
                     </div>
                     <ListPanel title={t('myPrayTimeNotes')} icon={Heart} iconBgClass="bg-rose-500/10 text-rose-400 border-rose-500/20" items={prayList} emptyText={t('noPrayerNotesYet')} recordsLabel={t('records')} renderItem={(entry) => {
-                        const isChosenRecipient = Boolean(
-                            entry.sharedFrom &&
-                            !entry.sharedWith &&
-                            String(entry.sharedFrom?.userId) !== String(userId)
+                        const isReceived = Boolean(
+                            (entry.sharedFrom?.username || entry.sharedFrom?.originalPrayId || entry.sharedFrom?.userId) &&
+                            !entry.sharedWith?.username
                         );
-                        const isPendingConfirmation = isChosenRecipient && entry.sharedFrom?.status !== 'confirmed';
+                        const isPendingConfirmation = isReceived && (entry.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed';
 
                         return (
                             <div key={entry._id} className={`rounded-2xl border transition-all duration-300 p-4 sm:p-5 ${getPrayTypeStyle(entry.prayType).cardBg}`}>
@@ -675,12 +674,12 @@ export default function PrayPage() {
                                         {entry.prayType && entry.prayType !== 'general' && (
                                             <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
                                         )}
-                                        {entry.sharedWith && (
+                                        {entry.sharedWith?.username && (
                                             <span className="bg-[#00C2FF]/15 text-[#00C2FF] text-[10px] font-bold px-2 py-0.5 rounded-md border border-[#00C2FF]/30">
                                                 @{entry.sharedWith.username}
                                             </span>
                                         )}
-                                        {entry.sharedFrom && (
+                                        {entry.sharedFrom?.username && (
                                             <span className="bg-rose-500/15 text-rose-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-rose-500/30">
                                                 @{entry.sharedFrom.username}
                                             </span>
