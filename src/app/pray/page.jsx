@@ -315,9 +315,21 @@ export default function PrayPage() {
 
             updateProfileState((prev) => ({
                 ...prev,
-                prayTime: [...(data.prayTime || [])].sort((a, b) => new Date(b.date) - new Date(a.date))
+                prayTime: (prev?.prayTime || []).map((p) => {
+                    if (p._id === prayId && p.sharedFrom) {
+                        return {
+                            ...p,
+                            sharedFrom: {
+                                ...p.sharedFrom,
+                                status: 'confirmed',
+                                responseWords: responseText
+                            }
+                        };
+                    }
+                    return p;
+                })
             }));
-            showToast({ message: 'Prayer confirmed & joined!', type: 'success' });
+            showToast({ message: 'Prayer confirmed!', type: 'success' });
         } catch (err) {
             showToast({ message: err.message, type: 'error' });
         } finally {
@@ -649,9 +661,12 @@ export default function PrayPage() {
                         </div>
                     </div>
                     <ListPanel title={t('myPrayTimeNotes')} icon={Heart} iconBgClass="bg-rose-500/10 text-rose-400 border-rose-500/20" items={prayList} emptyText={t('noPrayerNotesYet')} recordsLabel={t('records')} renderItem={(entry) => {
-                        const isSharedWith = Boolean(entry.sharedWith);
-                        const isSharedFrom = Boolean(entry.sharedFrom);
-                        const isConfirmed = isSharedWith ? entry.sharedWith.status === 'confirmed' : isSharedFrom ? entry.sharedFrom.status === 'confirmed' : false;
+                        const isChosenRecipient = Boolean(
+                            entry.sharedFrom &&
+                            !entry.sharedWith &&
+                            String(entry.sharedFrom?.userId) !== String(userId)
+                        );
+                        const isPendingConfirmation = isChosenRecipient && entry.sharedFrom?.status !== 'confirmed';
 
                         return (
                             <div key={entry._id} className={`rounded-2xl border transition-all duration-300 p-4 sm:p-5 ${getPrayTypeStyle(entry.prayType).cardBg}`}>
@@ -660,12 +675,12 @@ export default function PrayPage() {
                                         {entry.prayType && entry.prayType !== 'general' && (
                                             <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
                                         )}
-                                        {isSharedWith && (
+                                        {entry.sharedWith && (
                                             <span className="bg-[#00C2FF]/15 text-[#00C2FF] text-[10px] font-bold px-2 py-0.5 rounded-md border border-[#00C2FF]/30">
                                                 @{entry.sharedWith.username}
                                             </span>
                                         )}
-                                        {isSharedFrom && (
+                                        {entry.sharedFrom && (
                                             <span className="bg-rose-500/15 text-rose-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-rose-500/30">
                                                 @{entry.sharedFrom.username}
                                             </span>
@@ -678,91 +693,46 @@ export default function PrayPage() {
                                     </div>
                                 </div>
 
-                                {/* Collaborative Shared Prayer: Formatted as section blocks with username tags */}
-                                {(isSharedWith || isSharedFrom) ? (
-                                    <div className="mt-3 flex flex-col gap-3">
-                                        {/* Block 1: First User's Prayer */}
-                                        <div className="flex flex-col gap-2 p-3 rounded-xl border border-rose-500/20 bg-rose-500/5 transition-all">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[10px] px-2 py-0.5 rounded-md border font-black uppercase tracking-wider bg-rose-500/10 text-rose-300 border-rose-500/20">
-                                                    @{isSharedWith ? (profile?.user?.username || 'You') : entry.sharedFrom.username}
-                                                </span>
-                                            </div>
-                                            <div className="text-sm text-slate-200 font-medium leading-relaxed whitespace-pre-wrap">
-                                                {stripVoiceOnlyText(entry.words).trim()}
-                                            </div>
-                                            <SavedPrayRecordings prayId={entry._id} recordings={recordingsIndex[entry._id]} onChanged={refreshRecordings} />
-                                        </div>
+                                <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
 
-                                        {/* Block 2: Second User's Prayer */}
-                                        <div className="flex flex-col gap-2 p-3 rounded-xl border border-sky-500/20 bg-sky-500/5 transition-all">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[10px] px-2 py-0.5 rounded-md border font-black uppercase tracking-wider bg-sky-500/10 text-sky-300 border-sky-500/20">
-                                                    @{isSharedWith ? entry.sharedWith.username : (profile?.user?.username || 'You')}
-                                                </span>
-                                                {isConfirmed ? (
-                                                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
-                                                        <Check className="w-3 h-3" /> Confirmed
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-[10px] text-amber-400/90 font-semibold">
-                                                        Pending
-                                                    </span>
-                                                )}
-                                            </div>
+                                {/* Confirmed response note */}
+                                {entry.sharedWith?.status === 'confirmed' && entry.sharedWith?.responseWords && (
+                                    <div className="mt-2.5 pt-2.5 border-t border-white/10 text-xs text-slate-300">
+                                        <strong className="text-[#00C2FF]">@{entry.sharedWith.username}: </strong>
+                                        <span>{entry.sharedWith.responseWords}</span>
+                                    </div>
+                                )}
+                                {entry.sharedFrom?.status === 'confirmed' && entry.sharedFrom?.responseWords && (
+                                    <div className="mt-2.5 pt-2.5 border-t border-white/10 text-xs text-slate-300">
+                                        <strong className="text-rose-300">@{entry.sharedFrom.username}: </strong>
+                                        <span>{entry.sharedFrom.responseWords}</span>
+                                    </div>
+                                )}
 
-                                            {/* SENDER VIEW: NEVER has confirm button */}
-                                            {isSharedWith && (
-                                                isConfirmed ? (
-                                                    <div className="text-sm text-slate-200 font-medium leading-relaxed whitespace-pre-wrap">
-                                                        {entry.sharedWith.responseWords || 'Confirmed prayer together.'}
-                                                    </div>
-                                                ) : (
-                                                    <div className="relative py-2.5 select-none overflow-hidden">
-                                                        <p className="text-xs text-slate-400 italic blur-[2.5px] pointer-events-none">
-                                                            Waiting for @{entry.sharedWith.username} to confirm and write their prayer words...
-                                                        </p>
-                                                        <div className="absolute inset-0 flex items-center justify-center">
-                                                            <span className="text-[11px] font-semibold text-amber-300 bg-black/70 border border-amber-500/30 px-3 py-1 rounded-full shadow-lg backdrop-blur-sm">
-                                                                Waiting for @{entry.sharedWith.username} to pray...
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                )
-                                            )}
-
-                                            {/* RECIPIENT VIEW: NEVER has blur */}
-                                            {isSharedFrom && (
-                                                isConfirmed ? (
-                                                    <div className="text-sm text-slate-200 font-medium leading-relaxed whitespace-pre-wrap">
-                                                        {entry.sharedFrom.responseWords || 'Confirmed prayer together.'}
-                                                    </div>
-                                                ) : (
-                                                    <div className="space-y-2.5 pt-1">
-                                                        <textarea
-                                                            value={responseInputs[entry._id] || ''}
-                                                            onChange={(e) => setResponseInputs((prev) => ({ ...prev, [entry._id]: e.target.value }))}
-                                                            placeholder={`Write your prayer words to join @${entry.sharedFrom.username}...`}
-                                                            rows={2}
-                                                            className="w-full p-2.5 bg-black/40 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#00C2FF]/60 resize-y"
-                                                        />
-                                                        <div className="flex justify-end">
-                                                            <button
-                                                                onClick={() => handleConfirmSharedPrayer(entry._id)}
-                                                                disabled={isConfirmingShare[entry._id]}
-                                                                className="px-3.5 py-1.5 text-xs font-bold bg-[#00C2FF] text-[#020817] hover:brightness-110 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-[#00C2FF]/20 disabled:opacity-50"
-                                                            >
-                                                                {isConfirmingShare[entry._id] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                                                                Confirm & Pray
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                )
-                                            )}
+                                {/* Confirm input ONLY for the chosen recipient when pending */}
+                                {isPendingConfirmation && (
+                                    <div className="mt-3 pt-3 border-t border-white/10 flex flex-col gap-2">
+                                        <span className="text-xs text-slate-300">
+                                            Shared by <strong className="text-[#00C2FF]">@{entry.sharedFrom?.username}</strong>
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="text"
+                                                value={responseInputs[entry._id] || ''}
+                                                onChange={(e) => setResponseInputs((prev) => ({ ...prev, [entry._id]: e.target.value }))}
+                                                placeholder={`Write prayer to confirm with @${entry.sharedFrom?.username}...`}
+                                                className="flex-1 px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00C2FF]/60 transition-all"
+                                            />
+                                            <button
+                                                onClick={() => handleConfirmSharedPrayer(entry._id)}
+                                                disabled={isConfirmingShare[entry._id]}
+                                                className="px-3.5 py-1.5 text-xs font-bold bg-[#00C2FF] text-[#020817] hover:brightness-110 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-[#00C2FF]/20 disabled:opacity-50 shrink-0"
+                                            >
+                                                {isConfirmingShare[entry._id] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                                                Confirm
+                                            </button>
                                         </div>
                                     </div>
-                                ) : (
-                                    <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
                                 )}
                             </div>
                         );
