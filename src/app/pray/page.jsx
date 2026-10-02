@@ -174,6 +174,7 @@ export default function PrayPage() {
     const [pageLoading, setPageLoading] = useState(true);
 
     const [isShareOpen, setIsShareOpen] = useState(false);
+    const [selectedShareUser, setSelectedShareUser] = useState(null);
     const [friends, setFriends] = useState([]);
     const [loadingFriends, setLoadingFriends] = useState(false);
     const [shareSearchQuery, setShareSearchQuery] = useState('');
@@ -257,42 +258,9 @@ export default function PrayPage() {
     const [responseInputs, setResponseInputs] = useState({});
     const [isConfirmingShare, setIsConfirmingShare] = useState({});
 
-    const handleShareWithUser = async (targetUser) => {
-        const textToShare = (prayWords || prayBlocks.map((b) => b.words).join('\n')).trim();
-        if (!textToShare) {
-            showToast({ message: 'Please write a prayer first to share.', type: 'info' });
-            return;
-        }
-        try {
-            setIsSubmittingPray(true);
-            const res = await fetch(`${API_URL}/users/pray-time/share`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    words: textToShare,
-                    prayType: 'general',
-                    targetUserId: targetUser._id
-                })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.msg || 'Failed to share prayer');
-
-            updateProfileState((prev) => ({
-                ...prev,
-                prayTime: [...(data.prayTime || [])].sort((a, b) => new Date(b.date) - new Date(a.date))
-            }));
-
-            resetPrayForm();
-            setIsShareOpen(false);
-            showToast({ message: `Prayer saved & shared with @${targetUser.username}!`, type: 'success' });
-        } catch (err) {
-            showToast({ message: err.message, type: 'error' });
-        } finally {
-            setIsSubmittingPray(false);
-        }
+    const handleSelectShareUser = (targetUser) => {
+        setSelectedShareUser(targetUser);
+        setIsShareOpen(false);
     };
 
     const handleConfirmSharedPrayer = async (prayId) => {
@@ -466,7 +434,7 @@ export default function PrayPage() {
     const resetPrayForm = () => {
         if (recorder.isRecording) recorder.cancel();
         revokeBlockUrls([...prayBlocks, { recordings: generalRecordings }]);
-        setPrayWords(''); setPrayBlocks([]); setGeneralRecordings([]); setPrayEditId(null);
+        setPrayWords(''); setPrayBlocks([]); setGeneralRecordings([]); setPrayEditId(null); setSelectedShareUser(null);
     };
     const removeGeneralRecording = (recId) => setGeneralRecordings((recordings) => {
         recordings.filter((rec) => rec.id === recId).forEach((rec) => URL.revokeObjectURL(rec.url));
@@ -511,6 +479,47 @@ export default function PrayPage() {
         const finalWords = (generalText + extraText).trim();
         if (!finalWords) return;
         setIsSubmittingPray(true);
+
+        if (selectedShareUser && !prayEditId && !isGuest) {
+            try {
+                const res = await fetch(`${API_URL}/users/pray-time/share`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        words: finalWords,
+                        prayType: 'general',
+                        targetUserId: selectedShareUser._id
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.msg || 'Failed to share prayer');
+
+                const savedPrayTime = data.prayTime || [];
+                const createdPray = data.entry || savedPrayTime[savedPrayTime.length - 1];
+                if (createdPray?._id) {
+                    await savePendingRecordings(createdPray._id, undefined, Boolean(generalText));
+                }
+
+                updateProfileState((previous) => ({
+                    ...previous,
+                    prayTime: [...savedPrayTime].sort((a, b) => new Date(b.date) - new Date(a.date))
+                }));
+
+                const targetUsername = selectedShareUser.username;
+                resetPrayForm();
+                showToast({ message: `Prayer saved & shared with @${targetUsername}!`, type: 'success' });
+            } catch (shareError) {
+                console.error('Share error:', shareError);
+                showToast({ message: shareError.message || 'Failed to share prayer', type: 'error' });
+            } finally {
+                setIsSubmittingPray(false);
+            }
+            return;
+        }
+
         if (isGuest) {
             try {
                 if (prayEditId) {
@@ -571,6 +580,7 @@ export default function PrayPage() {
 
     const handleEditPrayTime = (entry) => {
         setPrayEditId(entry._id);
+        setSelectedShareUser(null);
         if (entry.prayType === 'general' || !entry.prayType) { setPrayWords(stripVoiceOnlyText(entry.words).trim()); setPrayBlocks([]); }
         else { setPrayWords(''); setPrayBlocks([{ id: entry._id, prayType: entry.prayType, words: stripVoiceOnlyText(entry.words).trim() }]); }
     };
@@ -626,16 +636,32 @@ export default function PrayPage() {
                             </div>
                             <MyPraysBackup prayTime={prayList} token={isGuest ? null : token} userId={userId} onRestored={refreshRecordings} />
                         </div>
-                        <div className="mb-3.5">
+                        <div className="mb-3.5 flex items-center gap-2 flex-wrap">
                             <button
                                 onClick={() => setIsShareOpen(true)}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 text-xs font-semibold text-rose-300 hover:text-white transition-all shadow-sm"
                             >
                                 <Share2 className="w-3.5 h-3.5" />
-                                <span>Share with...</span>
+                                <span>{selectedShareUser ? 'Change recipient' : 'Share with...'}</span>
                             </button>
                         </div>
-                        <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3 sm:p-4 focus-within:ring-1 focus-within:ring-rose-400/30 focus-within:border-rose-400/50 transition-all flex flex-col gap-3.5 mb-4">
+                        <div className={`w-full bg-white/[0.04] border ${selectedShareUser ? 'border-[#00C2FF]/50 ring-1 ring-[#00C2FF]/30 shadow-[0_0_16px_rgba(0,194,255,0.08)]' : 'border-white/10'} rounded-2xl p-3 sm:p-4 focus-within:ring-1 ${selectedShareUser ? 'focus-within:ring-[#00C2FF]/60 focus-within:border-[#00C2FF]/70' : 'focus-within:ring-rose-400/30 focus-within:border-rose-400/50'} transition-all flex flex-col gap-3.5 mb-4`}>
+                            {selectedShareUser && (
+                                <div className="flex items-center justify-between pb-2 border-b border-[#00C2FF]/20 text-xs">
+                                    <span className="flex items-center gap-1.5 text-[#00C2FF] font-semibold">
+                                        <Share2 className="w-3.5 h-3.5 shrink-0" />
+                                        <span>Will send to: <strong className="underline underline-offset-2">@{selectedShareUser.username}</strong></span>
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedShareUser(null)}
+                                        className="p-1 rounded-md text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                                        title="Cancel share"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            )}
                             {(!prayEditId || prayWords || prayBlocks.length === 0) && <textarea value={prayWords} onChange={(event) => setPrayWords(event.target.value)} placeholder={t('writePrayerPlaceholder')} rows={4} className="w-full bg-transparent border-none text-white placeholder-white/20 focus:outline-none focus:ring-0 resize-y min-h-[90px] text-sm leading-relaxed p-0 m-0" />}
                             {!prayEditId && (
                                 <VoiceRecorderPanel blockId={GENERAL_BLOCK_ID} recorder={recorder} recordings={generalRecordings} onRemove={removeGeneralRecording} prayType="general" />
@@ -662,8 +688,8 @@ export default function PrayPage() {
                             <p className="text-[11px] text-slate-400">{(prayWords + ' ' + prayBlocks.map((block) => block.words).join(' ')).trim().split(/\s+/).filter(Boolean).length} {t('totalWords')}</p>
                             <div className="flex items-center gap-2">
                                 {prayEditId && <button onClick={resetPrayForm} className="px-3 py-2 rounded-lg border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5">{t('cancelEdit')}</button>}
-                                <button onClick={handleSubmitPrayTime} disabled={isSubmittingPray || recorder.isRecording || (!prayWords.trim() && !generalRecordings.length && !prayBlocks.some(hasBlockContent))} className="px-4 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-all disabled:opacity-40 flex items-center gap-2 shadow-lg shadow-rose-500/20">
-                                    {isSubmittingPray ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{prayEditId ? t('updateNoteBtn') : t('saveNote')}
+                                <button onClick={handleSubmitPrayTime} disabled={isSubmittingPray || recorder.isRecording || (!prayWords.trim() && !generalRecordings.length && !prayBlocks.some(hasBlockContent))} className={`px-4 py-2 rounded-lg text-xs font-bold ${selectedShareUser ? 'bg-[#00C2FF] text-[#020817] hover:brightness-110 shadow-[#00C2FF]/20' : 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-500/20'} transition-all disabled:opacity-40 flex items-center gap-2 shadow-lg`}>
+                                    {isSubmittingPray ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{prayEditId ? t('updateNoteBtn') : (selectedShareUser ? `Save & Send to @${selectedShareUser.username}` : t('saveNote'))}
                                 </button>
                             </div>
                         </div>
@@ -688,7 +714,7 @@ export default function PrayPage() {
                                                 @{entry.sharedWith.username}
                                             </span>
                                         )}
-                                        {entry.sharedFrom?.username && (
+                                        {entry.sharedFrom?.username && !(isConfirmedReceived && entry.sharedFrom?.responseWords) && (
                                             <span className="bg-rose-500/15 text-rose-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-rose-500/30">
                                                 @{entry.sharedFrom.username}
                                             </span>
@@ -862,10 +888,10 @@ export default function PrayPage() {
                                             </div>
 
                                             <button
-                                                onClick={() => handleShareWithUser(user)}
-                                                className="px-3 py-1.5 text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white rounded-xl transition-all shrink-0 shadow-sm"
+                                                onClick={() => handleSelectShareUser(user)}
+                                                className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all shrink-0 shadow-sm ${selectedShareUser?._id === user._id ? 'bg-emerald-500 text-white' : 'bg-[#00C2FF] text-[#020817] hover:brightness-110'}`}
                                             >
-                                                Share
+                                                {selectedShareUser?._id === user._id ? 'Selected' : 'Select'}
                                             </button>
                                         </div>
                                     ))
