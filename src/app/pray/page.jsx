@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState, useContext } from 'react';
 import localforage from 'localforage';
 import { UserContext } from '../context/User_Context';
-import { Check, Edit3, Heart, Loader2, Trash2, X } from 'lucide-react';
+import { Check, Edit3, Heart, Loader2, Trash2, X, Share2, Search, Users, Sparkles } from 'lucide-react';
+import Portal from '../Portal/Portal';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { showToast } from '../components/ToastContainer';
 import { getApiBaseUrl } from '../utils/apiBase';
@@ -171,6 +172,158 @@ export default function PrayPage() {
     const { user_id: userId, isLogin: token } = useContext(UserContext);
     const [profile, setProfile] = useState(null);
     const [pageLoading, setPageLoading] = useState(true);
+
+    const [isShareOpen, setIsShareOpen] = useState(false);
+    const [friends, setFriends] = useState([]);
+    const [loadingFriends, setLoadingFriends] = useState(false);
+    const [shareSearchQuery, setShareSearchQuery] = useState('');
+    const [systemSearchResults, setSystemSearchResults] = useState([]);
+    const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+
+    useEffect(() => {
+        if (!isShareOpen || !token) return;
+        const fetchFriends = async () => {
+            try {
+                setLoadingFriends(true);
+                const res = await fetch(`${API_URL}/users/friends`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setFriends(data.friends || []);
+                }
+            } catch (err) {
+                console.error('Failed to load friends:', err);
+            } finally {
+                setLoadingFriends(false);
+            }
+        };
+        fetchFriends();
+    }, [isShareOpen, token]);
+
+    useEffect(() => {
+        const clean = shareSearchQuery.trim().replace(/^@/, '');
+        if (clean.length < 2) {
+            setSystemSearchResults([]);
+            setIsSearchingUsers(false);
+            return;
+        }
+        setIsSearchingUsers(true);
+        const timer = setTimeout(async () => {
+            try {
+                const res = await fetch(`${API_URL}/users/search-username?q=${encodeURIComponent(clean)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setSystemSearchResults(data || []);
+                }
+            } catch {
+                setSystemSearchResults([]);
+            } finally {
+                setIsSearchingUsers(false);
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [shareSearchQuery]);
+
+    const getSortedShareResults = () => {
+        const cleanQuery = shareSearchQuery.trim().replace(/^@/, '').toLowerCase();
+        if (!cleanQuery) {
+            return friends.map((f) => ({ ...f, isFriend: true }));
+        }
+
+        const matchingFriends = friends.filter((f) =>
+            f.username?.toLowerCase().includes(cleanQuery) ||
+            f.Name?.toLowerCase().includes(cleanQuery)
+        ).map((f) => ({ ...f, isFriend: true }));
+
+        const friendIds = new Set(friends.map((f) => (f._id || f).toString()));
+        const nonFriendMatches = systemSearchResults
+            .filter((u) => !friendIds.has(u._id.toString()) && u._id.toString() !== userId?.toString())
+            .map((u) => ({ ...u, isFriend: false }));
+
+        const exactMatchUser = nonFriendMatches.find((u) => u.username?.toLowerCase() === cleanQuery);
+
+        if (exactMatchUser) {
+            return [
+                { ...exactMatchUser, isExact: true },
+                ...matchingFriends,
+                ...nonFriendMatches.filter((u) => u._id.toString() !== exactMatchUser._id.toString())
+            ];
+        }
+
+        return [...matchingFriends, ...nonFriendMatches];
+    };
+
+    const [responseInputs, setResponseInputs] = useState({});
+    const [isConfirmingShare, setIsConfirmingShare] = useState({});
+
+    const handleShareWithUser = async (targetUser) => {
+        const textToShare = (prayWords || prayBlocks.map((b) => b.words).join('\n')).trim();
+        if (!textToShare) {
+            showToast({ message: 'Please write a prayer first to share.', type: 'info' });
+            return;
+        }
+        try {
+            setIsSubmittingPray(true);
+            const res = await fetch(`${API_URL}/users/pray-time/share`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    words: textToShare,
+                    prayType: 'general',
+                    targetUserId: targetUser._id
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.msg || 'Failed to share prayer');
+
+            updateProfileState((prev) => ({
+                ...prev,
+                prayTime: [...(data.prayTime || [])].sort((a, b) => new Date(b.date) - new Date(a.date))
+            }));
+
+            resetPrayForm();
+            setIsShareOpen(false);
+            showToast({ message: `Prayer saved & shared with @${targetUser.username}!`, type: 'success' });
+        } catch (err) {
+            showToast({ message: err.message, type: 'error' });
+        } finally {
+            setIsSubmittingPray(false);
+        }
+    };
+
+    const handleConfirmSharedPrayer = async (prayId) => {
+        const responseText = (responseInputs[prayId] || '').trim();
+        try {
+            setIsConfirmingShare((prev) => ({ ...prev, [prayId]: true }));
+            const res = await fetch(`${API_URL}/users/pray-time/confirm-share`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    prayId,
+                    responseWords: responseText
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.msg || 'Failed to confirm prayer');
+
+            updateProfileState((prev) => ({
+                ...prev,
+                prayTime: [...(data.prayTime || [])].sort((a, b) => new Date(b.date) - new Date(a.date))
+            }));
+            showToast({ message: 'Prayer confirmed & joined!', type: 'success' });
+        } catch (err) {
+            showToast({ message: err.message, type: 'error' });
+        } finally {
+            setIsConfirmingShare((prev) => ({ ...prev, [prayId]: false }));
+        }
+    };
 
     const updateProfileState = (modifier) => {
         setProfile(prev => {
@@ -426,12 +579,21 @@ export default function PrayPage() {
             <div className="max-w-5xl mx-auto">
                 <div className="grid gap-5 sm:gap-6">
                     <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-rose-500/10 via-slate-900/70 to-slate-900 p-4 sm:p-6">
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                                 <Heart className="w-5 h-5 text-rose-300" />
                                 <h3 className="text-base sm:text-lg font-bold text-white">{t('prayTime')}</h3>
                             </div>
                             <MyPraysBackup prayTime={prayList} token={isGuest ? null : token} userId={userId} onRestored={refreshRecordings} />
+                        </div>
+                        <div className="mb-3.5">
+                            <button
+                                onClick={() => setIsShareOpen(true)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 text-xs font-semibold text-rose-300 hover:text-white transition-all shadow-sm"
+                            >
+                                <Share2 className="w-3.5 h-3.5" />
+                                <span>Share with...</span>
+                            </button>
                         </div>
                         <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3 sm:p-4 focus-within:ring-1 focus-within:ring-rose-400/30 focus-within:border-rose-400/50 transition-all flex flex-col gap-3.5 mb-4">
                             {(!prayEditId || prayWords || prayBlocks.length === 0) && <textarea value={prayWords} onChange={(event) => setPrayWords(event.target.value)} placeholder={t('writePrayerPlaceholder')} rows={4} className="w-full bg-transparent border-none text-white placeholder-white/20 focus:outline-none focus:ring-0 resize-y min-h-[90px] text-sm leading-relaxed p-0 m-0" />}
@@ -473,6 +635,16 @@ export default function PrayPage() {
                                     {entry.prayType && entry.prayType !== 'general' && (
                                         <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
                                     )}
+                                    {entry.sharedWith && (
+                                        <span className="bg-[#00C2FF]/15 text-[#00C2FF] text-[10px] font-bold px-2 py-0.5 rounded-md border border-[#00C2FF]/30">
+                                            @{entry.sharedWith.username}
+                                        </span>
+                                    )}
+                                    {entry.sharedFrom && (
+                                        <span className="bg-rose-500/15 text-rose-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-rose-500/30">
+                                            @{entry.sharedFrom.username}
+                                        </span>
+                                    )}
                                     <span className="text-[10px] text-slate-500 font-bold">{formatDate(entry.date, 'N/A', language)}</span>
                                 </div>
                                 <div className="flex gap-2">
@@ -481,10 +653,209 @@ export default function PrayPage() {
                                 </div>
                             </div>
                             <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
+
+                            {/* Shared with section (Sender view) */}
+                            {entry.sharedWith && (
+                                <div className="mt-3 pt-3 border-t border-white/10">
+                                    {entry.sharedWith.status === 'confirmed' ? (
+                                        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-sm space-y-1.5">
+                                            <div className="flex items-center justify-between text-xs text-emerald-300 font-semibold">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Check className="w-3.5 h-3.5" />
+                                                    <span>Joined by <span className="text-[#00C2FF]">@{entry.sharedWith.username}</span></span>
+                                                </div>
+                                                {entry.sharedWith.respondedAt && (
+                                                    <span className="text-[10px] text-slate-400 font-normal">
+                                                        {formatDate(entry.sharedWith.respondedAt, 'N/A', language)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {entry.sharedWith.responseWords ? (
+                                                <p className="text-xs sm:text-sm text-slate-200 bg-black/20 p-2.5 rounded-lg border border-white/5 whitespace-pre-wrap">
+                                                    {entry.sharedWith.responseWords}
+                                                </p>
+                                            ) : (
+                                                <p className="text-xs text-slate-400 italic">Confirmed prayer together.</p>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 backdrop-blur-sm relative overflow-hidden">
+                                            <div className="flex items-center justify-between text-xs text-slate-300 mb-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                                                    <span>Shared with <strong className="text-[#00C2FF]">@{entry.sharedWith.username}</strong></span>
+                                                </div>
+                                                <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 font-medium">
+                                                    Waiting for prayer...
+                                                </span>
+                                            </div>
+                                            <div className="text-xs text-slate-500 blur-[2px] select-none pointer-events-none">
+                                                Waiting for @{entry.sharedWith.username} to confirm and pray with you...
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Shared from section (Recipient view) */}
+                            {entry.sharedFrom && (
+                                <div className="mt-3 pt-3 border-t border-white/10">
+                                    {entry.sharedFrom.status === 'confirmed' ? (
+                                        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-sm space-y-1.5">
+                                            <div className="flex items-center gap-1.5 text-xs text-emerald-300 font-semibold">
+                                                <Check className="w-3.5 h-3.5" />
+                                                <span>You joined this prayer with <span className="text-[#00C2FF]">@{entry.sharedFrom.username}</span></span>
+                                            </div>
+                                            {entry.sharedFrom.responseWords && (
+                                                <p className="text-xs sm:text-sm text-slate-200 bg-black/20 p-2.5 rounded-lg border border-white/5 whitespace-pre-wrap">
+                                                    {entry.sharedFrom.responseWords}
+                                                </p>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="p-3 rounded-xl bg-[#00C2FF]/10 border border-[#00C2FF]/25 backdrop-blur-sm space-y-2.5">
+                                            <div className="flex items-center justify-between text-xs">
+                                                <div className="flex items-center gap-1.5 text-sky-200 font-semibold">
+                                                    <Sparkles className="w-3.5 h-3.5 text-[#00C2FF]" />
+                                                    <span>Your turn to pray with <span className="text-[#00C2FF]">@{entry.sharedFrom.username}</span></span>
+                                                </div>
+                                                <span className="text-[10px] bg-[#00C2FF]/20 text-[#00C2FF] font-bold px-2 py-0.5 rounded-md">
+                                                    Turn to Pray
+                                                </span>
+                                            </div>
+                                            <textarea
+                                                value={responseInputs[entry._id] || ''}
+                                                onChange={(e) => setResponseInputs((prev) => ({ ...prev, [entry._id]: e.target.value }))}
+                                                placeholder={`Write your prayer to confirm and join with @${entry.sharedFrom.username}...`}
+                                                rows={2}
+                                                className="w-full p-2.5 bg-black/40 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#00C2FF]/60 resize-y"
+                                            />
+                                            <div className="flex justify-end">
+                                                <button
+                                                    onClick={() => handleConfirmSharedPrayer(entry._id)}
+                                                    disabled={isConfirmingShare[entry._id]}
+                                                    className="px-3.5 py-1.5 text-xs font-bold bg-[#00C2FF] text-[#020817] hover:brightness-110 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-[#00C2FF]/20 disabled:opacity-50"
+                                                >
+                                                    {isConfirmingShare[entry._id] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                                                    Confirm & Pray
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )} />
                 </div>
             </div>
+
+            {/* Share with Friends Modal */}
+            {isShareOpen && (
+                <Portal>
+                    <div
+                        className="fixed inset-0 z-[10001] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+                        onClick={() => setIsShareOpen(false)}
+                    >
+                        <div
+                            className="w-full max-w-md bg-[#061226] border border-white/10 rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                                <div className="flex items-center gap-2">
+                                    <div className="p-1.5 rounded-lg bg-rose-500/15 text-rose-400">
+                                        <Users className="w-4 h-4" />
+                                    </div>
+                                    <h3 className="text-sm sm:text-base font-bold text-white">Share Prayer</h3>
+                                </div>
+                                <button
+                                    onClick={() => setIsShareOpen(false)}
+                                    className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            {/* Search by username input */}
+                            <div className="relative">
+                                <Search className="absolute left-3 w-4 h-4 text-slate-400 pointer-events-none top-1/2 -translate-y-1/2" />
+                                <input
+                                    type="text"
+                                    value={shareSearchQuery}
+                                    onChange={(e) => setShareSearchQuery(e.target.value)}
+                                    placeholder="Search by @username..."
+                                    className="w-full pl-9 pr-8 py-2.5 bg-white/[0.04] border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-rose-400/60 transition-all"
+                                    autoFocus
+                                />
+                                {isSearchingUsers ? (
+                                    <Loader2 className="absolute right-3 w-4 h-4 text-rose-400 animate-spin top-1/2 -translate-y-1/2" />
+                                ) : shareSearchQuery ? (
+                                    <button
+                                        onClick={() => setShareSearchQuery('')}
+                                        className="absolute right-3 text-slate-400 hover:text-white top-1/2 -translate-y-1/2"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                ) : null}
+                            </div>
+
+                            {/* User Results List */}
+                            <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[160px] max-h-[320px]">
+                                {loadingFriends ? (
+                                    <div className="flex items-center justify-center py-10 text-slate-400 gap-2">
+                                        <Loader2 className="w-5 h-5 text-rose-400 animate-spin" />
+                                        <span className="text-xs">Loading friends...</span>
+                                    </div>
+                                ) : getSortedShareResults().length === 0 ? (
+                                    <div className="text-center py-10 text-xs text-slate-400 space-y-1">
+                                        <p>No matching users found.</p>
+                                        <p className="text-[11px] text-slate-500">Search by exact @username to discover users.</p>
+                                    </div>
+                                ) : (
+                                    getSortedShareResults().map((user) => (
+                                        <div
+                                            key={user._id}
+                                            className="flex items-center justify-between p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 transition-all"
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0 pr-2">
+                                                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-rose-500/20 to-blue-600/30 border border-rose-400/20 flex items-center justify-center font-bold text-xs text-rose-300 uppercase shrink-0">
+                                                    {user.Name?.charAt(0) || 'U'}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <span className="text-xs font-semibold text-white truncate max-w-[130px]">
+                                                            {user.Name}
+                                                        </span>
+                                                        {user.isExact && (
+                                                            <span className="text-[9px] px-1.5 py-0.2 bg-sky-500/20 text-sky-300 rounded border border-sky-400/30 font-bold">
+                                                                @match
+                                                            </span>
+                                                        )}
+                                                        {user.isFriend && (
+                                                            <span className="text-[9px] px-1.5 py-0.2 bg-emerald-500/15 text-emerald-400 rounded border border-emerald-500/20 font-medium">
+                                                                Friend
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-[11px] text-slate-400 truncate">
+                                                        @{user.username || 'user'}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={() => handleShareWithUser(user)}
+                                                className="px-3 py-1.5 text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white rounded-xl transition-all shrink-0 shadow-sm"
+                                            >
+                                                Share
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </Portal>
+            )}
         </section>
     );
 }
