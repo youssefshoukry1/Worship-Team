@@ -20,6 +20,48 @@ const API_ROOT = getApiBaseUrl();
 const BIBLE_API = `${API_ROOT}/bible`;
 const LOCAL_BIBLE_NOTES_KEY = 'taspe7_local_bible_notes';
 const BIBLE_LAST_POS_KEY = 'taspe7_bible_last_position';
+const BIBLE_LAST_VERSES_KEY = 'taspe7_bible_last_verses';
+const BIBLE_CACHED_BOOKS_KEY = 'taspe7_bible_cached_books';
+
+function getInitialBibleData() {
+  if (typeof window === 'undefined') return { book: null, chapter: null, verses: [] };
+  try {
+    const rawPos = localStorage.getItem(BIBLE_LAST_POS_KEY);
+    const rawVerses = localStorage.getItem(BIBLE_LAST_VERSES_KEY);
+    const pos = rawPos ? JSON.parse(rawPos) : null;
+    const cached = rawVerses ? JSON.parse(rawVerses) : null;
+    const bookName = pos?.bookName || cached?.bookName || 'تكوين';
+    const chapter = pos?.chapter ?? cached?.chapter ?? 1;
+    let verses = [];
+    if (cached && cached.bookName === bookName && Number(cached.chapter) === Number(chapter) && Array.isArray(cached.verses)) {
+      verses = cached.verses;
+    }
+    return {
+      book: { bookName, _id: bookName },
+      chapter,
+      verses,
+    };
+  } catch {
+    return { book: null, chapter: null, verses: [] };
+  }
+}
+
+function getInitialBibleBooks() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(BIBLE_CACHED_BOOKS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLastCachedVerses(bookName, chapter, verses) {
+  if (typeof window === 'undefined' || !bookName || chapter == null || !Array.isArray(verses) || verses.length === 0) return;
+  try {
+    localStorage.setItem(BIBLE_LAST_VERSES_KEY, JSON.stringify({ bookName, chapter, verses }));
+  } catch {}
+}
 
 function readLocalBibleNotes() {
   if (typeof window === 'undefined') return {};
@@ -503,11 +545,15 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   const [bibleSearchQuery, setBibleSearchQuery] = useState('');
   const [bibleSearchResults, setBibleSearchResults] = useState([]);
   const [isSearchingBible, setIsSearchingBible] = useState(false);
-  const [bibleModalBooks, setBibleModalBooks] = useState([]);
-  const [bibleModalBook, setBibleModalBook] = useState(null);
+  const initialBibleRef = useRef(null);
+  if (!initialBibleRef.current) {
+    initialBibleRef.current = getInitialBibleData();
+  }
+  const [bibleModalBooks, setBibleModalBooks] = useState(getInitialBibleBooks);
+  const [bibleModalBook, setBibleModalBook] = useState(initialBibleRef.current.book);
   const [bibleModalChapters, setBibleModalChapters] = useState([]);
-  const [bibleModalChapter, setBibleModalChapter] = useState(null);
-  const [bibleModalVerses, setBibleModalVerses] = useState([]);
+  const [bibleModalChapter, setBibleModalChapter] = useState(initialBibleRef.current.chapter);
+  const [bibleModalVerses, setBibleModalVerses] = useState(initialBibleRef.current.verses);
   const [bibleSelectedVerseIds, setBibleSelectedVerseIds] = useState(new Set());
   // AI analysis state
   const [aiAnalysis, setAiAnalysis] = useState({ loading: false, type: null, text: '', error: null, isLimit: false });
@@ -948,25 +994,28 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   // ─── Load books when modal opens or presentation Bible mode is active ───
   useEffect(() => {
     if (!isOpen && !(presentationActive)) return;
-    setBibleModalBook(null);
-    setBibleModalChapter(null);
-    setBibleModalChapters([]);
     setBibleSelectedVerseIds(new Set());
-    setBibleModalVerses([]);
-    setBibleModalBooksReady(false);
     let cancelled = false;
     (async () => {
       try {
         // Books are the same across translations — prefer local index (fast/offline)
         const index = await getLocalBibleIndex();
         if (index && index.books && index.books.length > 0) {
-          if (!cancelled) setBibleModalBooks(normalizeBibleBooksFromApi(index.books));
+          const normalized = normalizeBibleBooksFromApi(index.books);
+          if (!cancelled) {
+            setBibleModalBooks(normalized);
+            if (typeof window !== 'undefined') localStorage.setItem(BIBLE_CACHED_BOOKS_KEY, JSON.stringify(normalized));
+          }
         } else {
           const { data } = await axios.get(`${BIBLE_API}/books?lang=arabic`);
-          if (!cancelled) setBibleModalBooks(normalizeBibleBooksFromApi(data));
+          const normalized = normalizeBibleBooksFromApi(data);
+          if (!cancelled) {
+            setBibleModalBooks(normalized);
+            if (typeof window !== 'undefined') localStorage.setItem(BIBLE_CACHED_BOOKS_KEY, JSON.stringify(normalized));
+          }
         }
       } catch {
-        if (!cancelled) setBibleModalBooks([]);
+        if (!cancelled && bibleModalBooks.length === 0) setBibleModalBooks([]);
       } finally {
         if (!cancelled) setBibleModalBooksReady(true);
       }
@@ -1046,6 +1095,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
             const verses = index.versesMap.get(`${bibleModalBook.bookName}_${parseInt(bibleModalChapter)}`) || [];
             if (!cancelled) {
               setBibleModalVerses(verses);
+              saveLastCachedVerses(bibleModalBook.bookName, bibleModalChapter, verses);
               setBibleModalBrowseLoading(false);
             }
             return;
@@ -1055,15 +1105,19 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
         const { data } = await axios.get(
           `${BIBLE_API}/verses/${encodeURIComponent(bibleModalBook.bookName)}/${bibleModalChapter}?lang=arabic&translation=${bibleTranslation}`
         );
-        if (!cancelled) setBibleModalVerses(Array.isArray(data) ? data : []);
+        if (!cancelled) {
+          const verses = Array.isArray(data) ? data : [];
+          setBibleModalVerses(verses);
+          saveLastCachedVerses(bibleModalBook.bookName, bibleModalChapter, verses);
+        }
       } catch {
-        if (!cancelled) setBibleModalVerses([]);
+        if (!cancelled && bibleModalVerses.length === 0) setBibleModalVerses([]);
       } finally {
         if (!cancelled) setBibleModalBrowseLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [isOpen, presentationActive, bibleModalBook, bibleModalChapter, bibleTranslation, downloadedTranslations]);
+  }, [isOpen, presentationActive, bibleModalBook?.bookName, bibleModalChapter, bibleTranslation, downloadedTranslations]);
 
 
   // Bible Search Debounce Effect
@@ -1786,7 +1840,7 @@ export function BibleForm({ controller }) {
                         </div>
                       )}
                     </div>
-                  ) : bibleModalVerses.length > 0 ? (
+                  ) : (bibleModalVerses.length > 0 || bibleModalBook) ? (
                     <div className="space-y-10">
                       {/* Modern Chapter Indicator */}
                       <div className="flex items-end justify-between border-b border-white/5 pb-6">
@@ -1924,7 +1978,11 @@ export function BibleForm({ controller }) {
                         )}
 
                         {/* Verses Display */}
-                        {bibleViewMode === 'paragraph' ? (
+                        {bibleModalVerses.length === 0 && bibleModalBrowseLoading ? (
+                          <div className="flex items-center justify-center py-24">
+                            <Loader2 className="w-6 h-6 animate-spin text-sky-400" />
+                          </div>
+                        ) : bibleViewMode === 'paragraph' ? (
                           <div
                             className="font-arabic text-right transition-all"
                             dir="rtl"
@@ -2046,12 +2104,7 @@ export function BibleForm({ controller }) {
                         )}
                       </div>
                     </div>
-                  ) : (
-                    <div className="h-full flex flex-col items-center justify-center opacity-10 py-40">
-                      <BookOpen className="w-20 h-20 mb-4" />
-                      <span className="text-sm font-bold uppercase tracking-[0.4em]">Select Wisdom</span>
-                    </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
