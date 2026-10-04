@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, useContext } from 'react';
 import localforage from 'localforage';
 import { UserContext } from '../context/User_Context';
-import { Check, Edit3, Heart, Loader2, Trash2, X, Share2, Search, Users, ChevronRight, ArrowRight } from 'lucide-react';
+import { Check, Edit3, Heart, Loader2, Trash2, X, Share2, Search, Users, ChevronRight, ArrowRight, Send, Inbox, Lock, Clock, Sparkles } from 'lucide-react';
 import Portal from '../Portal/Portal';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { showToast } from '../components/ToastContainer';
@@ -154,7 +154,6 @@ function ListPanel({ title, icon: Icon, iconBgClass, items, emptyText, recordsLa
             <div className="flex items-center gap-3 border-b border-white/5 p-4 sm:p-5 bg-black/20">
                 <div className={`p-2 rounded-xl flex items-center justify-center border ${iconBgClass}`}><Icon className="h-4 w-4 sm:h-5 sm:w-5" /></div>
                 <h2 className="text-sm sm:text-base font-bold text-white tracking-wide">{title}</h2>
-                <div className="ml-auto bg-white/10 text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-lg text-slate-300">{items.length} {recordsLabel || 'records'}</div>
             </div>
             <div className="flex-1 p-3 sm:p-5 space-y-2.5">
                 {items.length > 0 ? items.map((item, index) => renderItem(item, index)) : (
@@ -263,8 +262,9 @@ export default function PrayPage() {
         setIsShareOpen(false);
     };
 
-    const handleConfirmSharedPrayer = async (prayId) => {
-        const responseText = (responseInputs[prayId] || '').trim();
+    const handleConfirmSharedPrayer = async (prayId, quickReplyText) => {
+        const rawText = quickReplyText !== undefined ? quickReplyText : (responseInputs[prayId] || '');
+        const responseText = (rawText || 'Amen 🙏').trim();
         try {
             setIsConfirmingShare((prev) => ({ ...prev, [prayId]: true }));
             const res = await fetch(`${API_URL}/users/pray-time/confirm-share`, {
@@ -390,22 +390,26 @@ export default function PrayPage() {
         new Map(rawPrayList.map((item) => [String(item._id || item.date), item])).values()
     );
 
-    const isPendingShare = (entry) => {
-        const isReceived = Boolean(
-            (entry.sharedFrom?.username || entry.sharedFrom?.originalPrayId || entry.sharedFrom?.userId) &&
-            !entry.sharedWith?.username
-        );
-        return isReceived && (entry.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed';
-    };
+    const isReceivedPrayer = (entry) => Boolean(
+        (entry.sharedFrom?.username || entry.sharedFrom?.originalPrayId || entry.sharedFrom?.userId) &&
+        !entry.sharedWith?.username
+    );
+    const isSentPrayer = (entry) => Boolean(
+        entry.sharedWith?.username || entry.sharedWith?.userId
+    );
+    const isPersonalPrayer = (entry) => !isReceivedPrayer(entry) && !isSentPrayer(entry);
+    const isPendingShare = (entry) => isReceivedPrayer(entry) && (entry.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed';
 
-    const isFriendPrayer = (entry) => Boolean(entry.sharedFrom?.username || entry.sharedWith?.username);
+    const personalPrayList = prayList.filter(isPersonalPrayer);
+    const receivedPrayList = prayList.filter(isReceivedPrayer);
+    const sentPrayList = prayList.filter(isSentPrayer);
+    const pendingPrayList = receivedPrayList.filter(isPendingShare);
+    const confirmedReceivedList = receivedPrayList.filter((entry) => !isPendingShare(entry));
+    const allSharedCount = receivedPrayList.length + sentPrayList.length;
 
-    const pendingPrayList = prayList.filter(isPendingShare);
-    const allFriendsPrayList = prayList.filter(isFriendPrayer);
-    const confirmedFriendsPrayList = allFriendsPrayList.filter((entry) => !isPendingShare(entry));
-    const savedPrayList = prayList.filter((entry) => !isPendingShare(entry));
-    const [activePrayTab, setActivePrayTab] = useState('all');
-    const [friendsFilter, setFriendsFilter] = useState('saved');
+    const [activePrayTab, setActivePrayTab] = useState('personal');
+    const [sharedSubTab, setSharedSubTab] = useState('received');
+    const [receivedFilter, setReceivedFilter] = useState('all');
     const [expandedFriendPrayers, setExpandedFriendPrayers] = useState(() => new Set());
     const [openedFriendPrayers, setOpenedFriendPrayers] = useState(() => {
         if (typeof window === 'undefined') return new Set();
@@ -554,6 +558,8 @@ export default function PrayPage() {
 
                 const targetUsername = selectedShareUser.username;
                 resetPrayForm();
+                setActivePrayTab('shared');
+                setSharedSubTab('sent');
                 showToast({ message: `Prayer saved & shared with @${targetUsername}!`, type: 'success' });
             } catch (shareError) {
                 console.error('Share error:', shareError);
@@ -686,7 +692,7 @@ export default function PrayPage() {
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 text-xs font-semibold text-rose-300 hover:text-white transition-all shadow-sm"
                             >
                                 <Share2 className="w-3.5 h-3.5" />
-                                <span>{selectedShareUser ? 'Change recipient' : 'Share with...'}</span>
+                                <span>{selectedShareUser ? 'Change recipient' : 'Share with friend...'}</span>
                             </button>
                         </div>
                         <div className={`w-full bg-white/[0.04] border ${selectedShareUser ? 'border-[#00C2FF]/50 ring-1 ring-[#00C2FF]/30 shadow-[0_0_16px_rgba(0,194,255,0.08)]' : 'border-white/10'} rounded-2xl p-3 sm:p-4 focus-within:ring-1 ${selectedShareUser ? 'focus-within:ring-[#00C2FF]/60 focus-within:border-[#00C2FF]/70' : 'focus-within:ring-rose-400/30 focus-within:border-rose-400/50'} transition-all flex flex-col gap-3.5 mb-4`}>
@@ -739,101 +745,265 @@ export default function PrayPage() {
                         </div>
                     </div>
 
-                    {/* Small tabs under pray time div */}
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setActivePrayTab('all')}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${activePrayTab === 'all'
-                                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
-                                        : 'bg-white/5 text-slate-400 hover:text-white border border-white/5 hover:bg-white/10'
-                                    }`}
-                            >
-                                <span>All Saved Prays</span>
-                                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-bold bg-white/10 text-slate-300">
-                                    {savedPrayList.length}
-                                </span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setActivePrayTab('friends')}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${activePrayTab === 'friends'
-                                        ? 'bg-[#00C2FF]/20 text-[#00C2FF] border border-[#00C2FF]/40 shadow-sm'
-                                        : 'bg-white/5 text-slate-400 hover:text-white border border-white/5 hover:bg-white/10'
-                                    }`}
-                            >
-                                <span>Friends&apos; Prayers</span>
-                                <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-bold ${activePrayTab === 'friends'
-                                        ? 'bg-[#00C2FF] text-[#020817]'
-                                        : pendingPrayList.length > 0 ? 'bg-[#00C2FF]/20 text-[#00C2FF]' : 'bg-white/10 text-slate-400'
-                                    }`}>
-                                    {allFriendsPrayList.length}
-                                </span>
-                            </button>
-                        </div>
-
-                        {/* Sub-filters for Friends' Prayers */}
-                        {activePrayTab === 'friends' && (
-                            <div className="flex items-center gap-1 p-1 bg-white/5 rounded-xl border border-white/5 text-xs">
+                    {/* Primary Space Tabs: My Journal vs Prayer Circle */}
+                    <div className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex items-center gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => setFriendsFilter('saved')}
-                                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${friendsFilter === 'saved'
-                                            ? 'bg-white/15 text-white shadow-sm'
-                                            : 'text-slate-400 hover:text-white'
+                                    onClick={() => setActivePrayTab('personal')}
+                                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activePrayTab === 'personal'
+                                            ? 'bg-rose-500/20 text-rose-200 border border-rose-500/40 shadow-sm'
+                                            : 'bg-white/5 text-slate-400 hover:text-white border border-white/5 hover:bg-white/10'
                                         }`}
                                 >
-                                    Saved Prays ({confirmedFriendsPrayList.length})
+                                    <Lock className="w-3.5 h-3.5" />
+                                    <span>My Journal</span>
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setFriendsFilter('pending')}
-                                    className={`px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1 ${friendsFilter === 'pending'
-                                            ? 'bg-[#00C2FF] text-[#020817] shadow-sm'
+                                    onClick={() => setActivePrayTab('shared')}
+                                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activePrayTab === 'shared'
+                                            ? 'bg-[#00C2FF]/20 text-[#00C2FF] border border-[#00C2FF]/40 shadow-sm'
+                                            : 'bg-white/5 text-slate-400 hover:text-white border border-white/5 hover:bg-white/10'
+                                        }`}
+                                >
+                                    <Users className="w-3.5 h-3.5" />
+                                    <span>Prayer Circle</span>
+                                    {pendingPrayList.length > 0 && (
+                                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-[#00C2FF] text-[#020817] flex items-center gap-1 shadow-sm shadow-[#00C2FF]/30">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-[#020817] animate-pulse" />
+                                            <span>{pendingPrayList.length}</span>
+                                        </span>
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* Sub-Tabs for Prayer Circle */}
+                            {activePrayTab === 'shared' && (
+                                <div className="flex items-center gap-1 p-1 bg-white/5 rounded-xl border border-white/5 text-xs">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSharedSubTab('received')}
+                                        className={`px-3 py-1 rounded-lg font-bold transition-all flex items-center gap-1.5 ${sharedSubTab === 'received'
+                                                ? 'bg-[#00C2FF] text-[#020817] shadow-sm'
+                                                : 'text-slate-400 hover:text-white'
+                                            }`}
+                                    >
+                                        <Inbox className="w-3.5 h-3.5" />
+                                        <span>Received</span>
+                                        {pendingPrayList.length > 0 && (
+                                            <span className="px-1.5 py-0.2 rounded-md text-[9px] font-black bg-rose-500 text-white">
+                                                {pendingPrayList.length}
+                                            </span>
+                                        )}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSharedSubTab('sent')}
+                                        className={`px-3 py-1 rounded-lg font-bold transition-all flex items-center gap-1.5 ${sharedSubTab === 'sent'
+                                                ? 'bg-purple-500 text-white shadow-sm'
+                                                : 'text-slate-400 hover:text-white'
+                                            }`}
+                                    >
+                                        <Send className="w-3.5 h-3.5" />
+                                        <span>Sent</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Sub-filter pills for Received prayers */}
+                        {activePrayTab === 'shared' && sharedSubTab === 'received' && (
+                            <div className="flex items-center gap-1.5 text-xs">
+                                <button
+                                    type="button"
+                                    onClick={() => setReceivedFilter('all')}
+                                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${receivedFilter === 'all'
+                                            ? 'bg-white/15 text-white'
                                             : 'text-slate-400 hover:text-white'
                                         }`}
                                 >
-                                    Pending ({pendingPrayList.length})
+                                    All
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setReceivedFilter('pending')}
+                                    className={`px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5 ${receivedFilter === 'pending'
+                                            ? 'bg-[#00C2FF]/20 text-[#00C2FF] border border-[#00C2FF]/30'
+                                            : 'text-slate-400 hover:text-white'
+                                        }`}
+                                >
+                                    {pendingPrayList.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-[#00C2FF] animate-pulse" />}
+                                    <span>Awaiting Response {pendingPrayList.length > 0 ? `(${pendingPrayList.length})` : ''}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setReceivedFilter('prayed')}
+                                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${receivedFilter === 'prayed'
+                                            ? 'bg-white/15 text-white'
+                                            : 'text-slate-400 hover:text-white'
+                                        }`}
+                                >
+                                    Prayed
                                 </button>
                             </div>
                         )}
                     </div>
 
                     <ListPanel
-                        title={activePrayTab === 'friends' ? "Friends' Prayers" : t('myPrayTimeNotes')}
-                        icon={activePrayTab === 'friends' ? Users : Heart}
-                        iconBgClass={activePrayTab === 'friends' ? 'bg-[#00C2FF]/10 text-[#00C2FF] border-[#00C2FF]/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}
-                        items={activePrayTab === 'friends' ? (friendsFilter === 'pending' ? pendingPrayList : confirmedFriendsPrayList) : savedPrayList}
-                        emptyText={activePrayTab === 'friends' ? (friendsFilter === 'pending' ? 'No pending prayers to confirm' : 'No saved friends prayers yet') : t('noPrayerNotesYet')}
+                        title={
+                            activePrayTab === 'personal'
+                                ? t('myPrayTimeNotes')
+                                : sharedSubTab === 'received'
+                                    ? 'Received from Friends'
+                                    : 'Sent to Friends'
+                        }
+                        icon={
+                            activePrayTab === 'personal'
+                                ? Heart
+                                : sharedSubTab === 'received'
+                                    ? Inbox
+                                    : Send
+                        }
+                        iconBgClass={
+                            activePrayTab === 'personal'
+                                ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                : sharedSubTab === 'received'
+                                    ? 'bg-[#00C2FF]/10 text-[#00C2FF] border-[#00C2FF]/20'
+                                    : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                        }
+                        items={
+                            activePrayTab === 'personal'
+                                ? personalPrayList
+                                : sharedSubTab === 'received'
+                                    ? receivedFilter === 'pending'
+                                        ? pendingPrayList
+                                        : receivedFilter === 'prayed'
+                                            ? confirmedReceivedList
+                                            : [...receivedPrayList].sort((a, b) => {
+                                                const aP = (a.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed';
+                                                const bP = (b.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed';
+                                                if (aP && !bP) return -1;
+                                                if (!aP && bP) return 1;
+                                                return new Date(b.date) - new Date(a.date);
+                                            })
+                                    : sentPrayList
+                        }
+                        emptyText={
+                            activePrayTab === 'personal'
+                                ? t('noPrayerNotesYet')
+                                : sharedSubTab === 'received'
+                                    ? receivedFilter === 'pending'
+                                        ? 'No prayers awaiting your response'
+                                        : receivedFilter === 'prayed'
+                                            ? 'No confirmed prayers yet'
+                                            : 'No received prayers from friends yet'
+                                    : 'No prayers sent to friends yet'
+                        }
                         recordsLabel={t('records')}
                         renderItem={(entry) => {
-                            const isReceived = Boolean(
-                                (entry.sharedFrom?.username || entry.sharedFrom?.originalPrayId || entry.sharedFrom?.userId) &&
-                                !entry.sharedWith?.username
-                            );
+                            const isReceived = isReceivedPrayer(entry);
+                            const isSent = isSentPrayer(entry);
+                            const isPersonal = !isReceived && !isSent;
                             const isPendingConfirmation = isReceived && (entry.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed';
-                            const isConfirmedReceived = isReceived && entry.sharedFrom?.status === 'confirmed';
-                            const isFriendTab = activePrayTab === 'friends';
-                            const isSnapRow = isFriendTab && isPendingConfirmation;
+                            const isConfirmedReceived = isReceived && !isPendingConfirmation;
+                            const isSnapRow = isReceived && isPendingConfirmation;
                             const isExpanded = expandedFriendPrayers.has(entry._id);
                             const isUnopened = !openedFriendPrayers.has(entry._id) && isPendingConfirmation;
-                            const senderUsername = entry.sharedFrom?.username || entry.sharedWith?.username || 'friend';
+                            const senderUsername = entry.sharedFrom?.username || 'friend';
+                            const targetUsername = entry.sharedWith?.username || 'friend';
+
+                            if (isPersonal) {
+                                return (
+                                    <div key={entry._id} className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 ${getPrayTypeStyle(entry.prayType).cardBg}`}>
+                                        <div className="flex items-start justify-between gap-3 mb-2">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="bg-rose-500/15 text-rose-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-rose-500/30 flex items-center gap-1">
+                                                    <Lock className="w-2.5 h-2.5" />
+                                                    <span>Personal</span>
+                                                </span>
+                                                {entry.prayType && entry.prayType !== 'general' && (
+                                                    <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
+                                                )}
+                                                <span className="text-[10px] text-slate-500 font-bold">{formatDate(entry.date, 'N/A', language)}</span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => handleEditPrayTime(entry)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all border border-white/5" title={t('editNote')}><Edit3 className="w-4 h-4" /></button>
+                                                <button onClick={() => handleDeletePrayTime(entry._id)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5" title={t('deleteNote')}><Trash2 className="w-4 h-4" /></button>
+                                            </div>
+                                        </div>
+                                        <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
+                                    </div>
+                                );
+                            }
+
+                            if (isSent) {
+                                const isConfirmed = entry.sharedWith?.status === 'confirmed';
+                                return (
+                                    <div key={entry._id} className="p-4 sm:p-5 rounded-2xl border transition-all duration-200 bg-white/[0.03] border-white/10 hover:border-purple-500/30">
+                                        <div className="flex items-start justify-between gap-3 mb-2">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="bg-purple-500/15 text-purple-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-purple-500/30 flex items-center gap-1">
+                                                    <Send className="w-2.5 h-2.5" />
+                                                    <span>To @{targetUsername}</span>
+                                                </span>
+                                                {isConfirmed ? (
+                                                    <span className="bg-emerald-500/15 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-500/30 flex items-center gap-1">
+                                                        <Check className="w-2.5 h-2.5" />
+                                                        <span>Replied</span>
+                                                    </span>
+                                                ) : (
+                                                    <span className="bg-amber-500/15 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-500/30 flex items-center gap-1">
+                                                        <Clock className="w-2.5 h-2.5" />
+                                                        <span>Awaiting response</span>
+                                                    </span>
+                                                )}
+                                                {entry.prayType && entry.prayType !== 'general' && (
+                                                    <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
+                                                )}
+                                                <span className="text-[10px] text-slate-500 font-bold">{formatDate(entry.date, 'N/A', language)}</span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => handleEditPrayTime(entry)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all border border-white/5" title={t('editNote')}><Edit3 className="w-4 h-4" /></button>
+                                                <button onClick={() => handleDeletePrayTime(entry._id)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5" title={t('deleteNote')}><Trash2 className="w-4 h-4" /></button>
+                                            </div>
+                                        </div>
+                                        <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
+                                        {isConfirmed && entry.sharedWith?.responseWords && (
+                                            <div className="mt-3 pt-2.5 border-t border-white/10 flex flex-col gap-1 text-xs text-slate-400 bg-purple-500/5 p-3 rounded-xl border border-purple-500/20">
+                                                <span className="text-[11px] text-purple-300 font-semibold flex items-center gap-1">
+                                                    <Sparkles className="w-3 h-3 text-purple-400" />
+                                                    @{targetUsername}&apos;s prayer response:
+                                                </span>
+                                                <p className="text-xs text-slate-200 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-purple-400/50">
+                                                    {entry.sharedWith.responseWords}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            }
 
                             return (
-                                <div key={entry._id} className={`rounded-2xl border transition-all duration-300 ${isSnapRow ? 'bg-white/[0.03] border-white/10 overflow-hidden' : `p-4 sm:p-5 ${getPrayTypeStyle(entry.prayType).cardBg}`}`}>
+                                <div key={entry._id} className={`rounded-2xl border transition-all duration-300 ${isSnapRow ? 'bg-white/[0.03] border-[#00C2FF]/30 hover:border-[#00C2FF]/50 overflow-hidden' : 'p-4 sm:p-5 bg-white/[0.03] border-white/10'}`}>
                                     {isSnapRow && (
                                         <div
                                             onClick={() => toggleFriendPrayerExpand(entry._id)}
                                             className="flex items-center justify-between p-3.5 sm:p-4 cursor-pointer hover:bg-white/[0.04] transition-colors gap-3 select-none"
                                         >
                                             <div className="flex items-center gap-2.5 min-w-0">
-                                                {isUnopened && (
-                                                    <span className="w-2.5 h-2.5 rounded-full bg-[#00C2FF] shadow-[0_0_8px_#00C2FF] shrink-0 animate-pulse" title="Unread" />
+                                                {isUnopened ? (
+                                                    <span className="w-2.5 h-2.5 rounded-full bg-[#00C2FF] shadow-[0_0_8px_#00C2FF] shrink-0 animate-pulse" title="Unread prayer" />
+                                                ) : (
+                                                    <span className="w-2 h-2 rounded-full bg-slate-500 shrink-0" />
                                                 )}
                                                 <div className="flex items-center gap-2 flex-wrap min-w-0">
                                                     <span className="text-xs sm:text-sm font-bold text-white truncate">
-                                                        @{senderUsername} send pray
+                                                        @{senderUsername} sent you a prayer
+                                                    </span>
+                                                    <span className="bg-[#00C2FF]/15 text-[#00C2FF] text-[10px] font-bold px-2 py-0.5 rounded-md border border-[#00C2FF]/30">
+                                                        Awaiting Response
                                                     </span>
                                                     {entry.prayType && entry.prayType !== 'general' && (
                                                         <span className="bg-white/10 text-white/70 text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-md border border-white/10 shrink-0">
@@ -855,40 +1025,36 @@ export default function PrayPage() {
                                         <div className={isSnapRow ? 'p-4 sm:p-5 pt-0 border-t border-white/5 mt-1' : ''}>
                                             <div className="flex items-start justify-between gap-3 mb-2">
                                                 <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="bg-[#00C2FF]/15 text-[#00C2FF] text-[10px] font-bold px-2 py-0.5 rounded-md border border-[#00C2FF]/30">
+                                                        From @{senderUsername}
+                                                    </span>
+                                                    {isConfirmedReceived && (
+                                                        <span className="bg-emerald-500/15 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-500/30 flex items-center gap-1">
+                                                            <Check className="w-2.5 h-2.5" />
+                                                            <span>Prayed</span>
+                                                        </span>
+                                                    )}
                                                     {entry.prayType && entry.prayType !== 'general' && (
                                                         <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
-                                                    )}
-                                                    {entry.sharedWith?.username && (
-                                                        <span className="bg-[#00C2FF]/15 text-[#00C2FF] text-[10px] font-bold px-2 py-0.5 rounded-md border border-[#00C2FF]/30">
-                                                            @{entry.sharedWith.username}
-                                                        </span>
-                                                    )}
-                                                    {entry.sharedFrom?.username && !(isConfirmedReceived && entry.sharedFrom?.responseWords) && (
-                                                        <span className="bg-rose-500/15 text-rose-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-rose-500/30">
-                                                            @{entry.sharedFrom.username}
-                                                        </span>
                                                     )}
                                                     <span className="text-[10px] text-slate-500 font-bold">{formatDate(entry.date, 'N/A', language)}</span>
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    <button onClick={() => handleEditPrayTime(entry)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all border border-white/5" title={t('editNote')}><Edit3 className="w-4 h-4" /></button>
                                                     <button onClick={() => handleDeletePrayTime(entry._id)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5" title={t('deleteNote')}><Trash2 className="w-4 h-4" /></button>
                                                 </div>
                                             </div>
 
-                                            {isConfirmedReceived && entry.sharedFrom?.responseWords ? (
+                                            {isConfirmedReceived ? (
                                                 <>
-                                                    {/* Recipient's confirmed prayer on top with original font size */}
                                                     <div className="mt-2 text-sm text-slate-200 font-medium leading-relaxed whitespace-pre-wrap">
-                                                        {entry.sharedFrom.responseWords}
+                                                        {entry.sharedFrom?.responseWords || 'Amen 🙏'}
                                                     </div>
 
-                                                    {/* Sender's original prayer below in small font size */}
-                                                    <div className="mt-3 pt-2.5 border-t border-white/10 flex flex-col gap-1 text-xs text-slate-400">
-                                                        <span className="text-[11px] text-rose-300 font-semibold">
-                                                            Shared by @{entry.sharedFrom.username}:
+                                                    <div className="mt-3 pt-2.5 border-t border-white/10 flex flex-col gap-1 text-xs text-slate-400 bg-white/[0.02] p-3 rounded-xl border border-white/5">
+                                                        <span className="text-[11px] text-[#00C2FF] font-semibold">
+                                                            Shared by @{senderUsername}:
                                                         </span>
-                                                        <p className="text-xs text-slate-400 italic leading-relaxed whitespace-pre-wrap pl-2 border-l border-rose-500/30">
+                                                        <p className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
                                                             {stripVoiceOnlyText(entry.words).trim()}
                                                         </p>
                                                         <SavedPrayRecordings prayId={entry._id} recordings={recordingsIndex[entry._id]} onChanged={refreshRecordings} />
@@ -896,53 +1062,63 @@ export default function PrayPage() {
                                                 </>
                                             ) : (
                                                 <>
-                                                    <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
-
-                                                    {/* Sender view: Confirmed recipient response in small font below */}
-                                                    {!isReceived && entry.sharedWith?.status === 'confirmed' && entry.sharedWith?.responseWords && (
-                                                        <div className="mt-3 pt-2.5 border-t border-white/10 flex flex-col gap-1 text-xs text-slate-400">
-                                                            <span className="text-[11px] text-[#00C2FF] font-semibold">
-                                                                @{entry.sharedWith.username}&apos;s prayer:
-                                                            </span>
-                                                            <p className="text-xs text-slate-400 italic leading-relaxed whitespace-pre-wrap pl-2 border-l border-[#00C2FF]/30">
-                                                                {entry.sharedWith.responseWords}
-                                                            </p>
-                                                        </div>
-                                                    )}
-                                                </>
-                                            )}
-
-                                            {/* Confirm input ONLY for the chosen recipient when pending */}
-                                            {isPendingConfirmation && (
-                                                <div className="mt-3 pt-3 border-t border-white/10 flex flex-col gap-2">
-                                                    <span className="text-xs text-slate-300">
-                                                        Shared by <strong className="text-[#00C2FF]">@{entry.sharedFrom?.username}</strong>
-                                                    </span>
-                                                    <div className="flex items-center gap-2">
-                                                        <input
-                                                            type="text"
-                                                            value={responseInputs[entry._id] || ''}
-                                                            onChange={(e) => setResponseInputs((prev) => ({ ...prev, [entry._id]: e.target.value }))}
-                                                            placeholder={`Write prayer to confirm with @${entry.sharedFrom?.username}...`}
-                                                            className="flex-1 px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00C2FF]/60 transition-all"
-                                                        />
-                                                        <button
-                                                            onClick={() => handleConfirmSharedPrayer(entry._id)}
-                                                            disabled={isConfirmingShare[entry._id]}
-                                                            className="px-3.5 py-1.5 text-xs font-bold bg-[#00C2FF] text-[#020817] hover:brightness-110 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-[#00C2FF]/20 disabled:opacity-50 shrink-0"
-                                                        >
-                                                            {isConfirmingShare[entry._id] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                                                            <span>Send pray replay</span>
-                                                            <ArrowRight className="w-3.5 h-3.5" />
-                                                        </button>
+                                                    <div className="mt-2 text-sm text-slate-100 font-medium leading-relaxed whitespace-pre-wrap">
+                                                        {stripVoiceOnlyText(entry.words).trim()}
                                                     </div>
-                                                </div>
+                                                    <SavedPrayRecordings prayId={entry._id} recordings={recordingsIndex[entry._id]} onChanged={refreshRecordings} />
+
+                                                    <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-slate-400">
+                                                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                                        <span>Saved permanently in your Received archive</span>
+                                                    </div>
+
+                                                    <div className="mt-3 pt-3 border-t border-white/10 flex flex-col gap-2.5">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span className="text-[11px] text-slate-400 font-medium">Quick Reply:</span>
+                                                            <button
+                                                                type="button"
+                                                                disabled={isConfirmingShare[entry._id]}
+                                                                onClick={() => handleConfirmSharedPrayer(entry._id, 'Amen 🙏')}
+                                                                className="px-3 py-1 rounded-xl bg-white/5 hover:bg-[#00C2FF]/20 text-xs font-bold text-slate-200 border border-white/10 hover:border-[#00C2FF]/40 transition-all flex items-center gap-1 active:scale-95 disabled:opacity-50"
+                                                            >
+                                                                <span>🙏 Amen</span>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                disabled={isConfirmingShare[entry._id]}
+                                                                onClick={() => handleConfirmSharedPrayer(entry._id, 'Prayed with you ❤️')}
+                                                                className="px-3 py-1 rounded-xl bg-white/5 hover:bg-rose-500/20 text-xs font-bold text-slate-200 border border-white/10 hover:border-rose-500/40 transition-all flex items-center gap-1 active:scale-95 disabled:opacity-50"
+                                                            >
+                                                                <span>❤️ Prayed with you</span>
+                                                            </button>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="text"
+                                                                value={responseInputs[entry._id] || ''}
+                                                                onChange={(e) => setResponseInputs((prev) => ({ ...prev, [entry._id]: e.target.value }))}
+                                                                placeholder={`Write prayer response to @${senderUsername}...`}
+                                                                className="flex-1 px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00C2FF]/60 transition-all"
+                                                            />
+                                                            <button
+                                                                onClick={() => handleConfirmSharedPrayer(entry._id)}
+                                                                disabled={isConfirmingShare[entry._id]}
+                                                                className="px-3.5 py-1.5 text-xs font-bold bg-[#00C2FF] text-[#020817] hover:brightness-110 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-[#00C2FF]/20 disabled:opacity-50 shrink-0"
+                                                            >
+                                                                {isConfirmingShare[entry._id] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                                                                <span>Send reply</span>
+                                                                <ArrowRight className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </>
                                             )}
                                         </div>
                                     )}
                                 </div>
                             );
-                        }} />
+                        }}
+                    />
                 </div>
             </div>
 
