@@ -69,6 +69,12 @@ body {
   will-change: opacity, transform;
 }
 
+/* Native document navigation is required by the Capacitor/static-export build.
+   Supporting browsers keep that navigation visually continuous. */
+@view-transition {
+  navigation: auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app-page-transition {
     animation: none;

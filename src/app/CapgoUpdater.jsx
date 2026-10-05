@@ -1,79 +1,196 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { initPushNotifications } from './services/pushNotificationService';
 
+const PENDING_UPDATE_KEY = 'wasla_ota_pending_bundle';
+
+function readStoredPendingUpdate() {
+    try {
+        const value = JSON.parse(localStorage.getItem(PENDING_UPDATE_KEY));
+
+        if (
+            typeof value?.id === 'string' &&
+            value.id &&
+            typeof value?.version === 'string' &&
+            value.version
+        ) {
+            return value;
+        }
+    } catch (error) {
+        console.warn('[OTA] Ignoring an invalid pending-update marker:', error);
+    }
+
+    return null;
+}
+
+function storePendingUpdate(bundle) {
+    try {
+        localStorage.setItem(PENDING_UPDATE_KEY, JSON.stringify({
+            id: bundle.id,
+            version: bundle.version,
+        }));
+    } catch (error) {
+        console.warn('[OTA] Could not persist the pending-update marker:', error);
+    }
+}
+
+function clearStoredPendingUpdate() {
+    try {
+        localStorage.removeItem(PENDING_UPDATE_KEY);
+    } catch (error) {
+        console.warn('[OTA] Could not clear the pending-update marker:', error);
+    }
+}
+
 export default function CapgoUpdater() {
-    const [updateStatus, setUpdateStatus] = useState('idle');
     const isCheckingRef = useRef(false);
+    const appReadyWasNotifiedRef = useRef(false);
 
     useEffect(() => {
-        // Initialize push notifications independently
+        // Push notifications are independent from the OTA update lifecycle.
         initPushNotifications();
 
-        const checkForUpdates = async () => {
+        const runUpdater = async () => {
             if (isCheckingRef.current) return;
             isCheckingRef.current = true;
 
             try {
                 const { Capacitor } = await import('@capacitor/core');
-                if (!Capacitor.isNativePlatform()) {
-                    isCheckingRef.current = false;
-                    return;
-                }
+                if (!Capacitor.isNativePlatform()) return;
 
                 const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
-                // Confirm app is healthy to prevent automatic rollback
-                await CapacitorUpdater.notifyAppReady();
 
-                // Fetch latest version info
-                const res = await fetch(`https://wasla-w.vercel.app/version.json?t=${Date.now()}`, {
-                    cache: 'no-store'
-                });
-                if (!res.ok) {
-                    isCheckingRef.current = false;
+                // Confirm each newly loaded bundle before doing any network work.
+                if (!appReadyWasNotifiedRef.current) {
+                    await CapacitorUpdater.notifyAppReady();
+                    appReadyWasNotifiedRef.current = true;
+                }
+
+                const currentBundle = await CapacitorUpdater.current();
+                const currentId = currentBundle?.bundle?.id || 'builtin';
+                const currentVersion = currentBundle?.bundle?.version || 'builtin';
+                const storedPending = readStoredPendingUpdate();
+
+                let nativePending = null;
+                try {
+                    nativePending = await CapacitorUpdater.getNextBundle();
+                } catch (error) {
+                    console.warn('[OTA] Could not read the native pending bundle:', error);
+                }
+
+                // Capgo normally applies a bundle queued with next() while the app is
+                // backgrounded. If that did not happen, set() is the fallback on the
+                // next cold launch or the next time the app becomes visible.
+                const pendingBundle = nativePending || storedPending;
+                if (pendingBundle) {
+                    const pendingIsCurrent =
+                        pendingBundle.id === currentId ||
+                        pendingBundle.version === currentVersion;
+
+                    if (pendingIsCurrent) {
+                        clearStoredPendingUpdate();
+                    } else {
+                        let pendingBundleExists = Boolean(nativePending);
+                        let pendingBundleWasVerified = pendingBundleExists;
+
+                        if (!pendingBundleExists) {
+                            try {
+                                const { bundles = [] } = await CapacitorUpdater.list();
+                                pendingBundleExists = bundles.some(
+                                    (bundle) =>
+                                        bundle.id === pendingBundle.id &&
+                                        (bundle.status === 'success' || bundle.status === 'pending')
+                                );
+                                pendingBundleWasVerified = true;
+                            } catch (error) {
+                                console.warn('[OTA] Could not verify the stored pending bundle:', error);
+                            }
+                        }
+
+                        if (pendingBundleExists) {
+                            // Also persist native-only pending bundles so the fallback
+                            // survives another interrupted activation attempt.
+                            storePendingUpdate(pendingBundle);
+                            // This is terminal when successful: Capgo reloads the WebView.
+                            await CapacitorUpdater.set({ id: pendingBundle.id });
+                            return;
+                        }
+
+                        if (!pendingBundleWasVerified) {
+                            // Preserve the marker after a transient native error and
+                            // retry it on the next launch/foreground transition.
+                            return;
+                        }
+
+                        // The marker is stale (for example, the OS removed the bundle).
+                        // Clear it so the bundle can be downloaded again below.
+                        clearStoredPendingUpdate();
+                    }
+                }
+
+                const response = await fetch(
+                    `https://wasla-w.vercel.app/version.json?t=${Date.now()}`,
+                    { cache: 'no-store' }
+                );
+                if (!response.ok) return;
+
+                const serverData = await response.json();
+                if (
+                    typeof serverData?.version !== 'string' ||
+                    !serverData.version ||
+                    typeof serverData?.url !== 'string' ||
+                    !serverData.url ||
+                    serverData.version === currentVersion
+                ) {
                     return;
                 }
 
-                const serverData = await res.json();
-                const currentBundle = await CapacitorUpdater.current();
-                const currentVersion = currentBundle?.bundle?.version || 'builtin';
+                // Recover a bundle that finished downloading in an earlier run but
+                // was not queued (for example, if the app was killed at that moment).
+                try {
+                    const { bundles = [] } = await CapacitorUpdater.list();
+                    const existingBundle = bundles.find(
+                        (bundle) =>
+                            bundle.version === serverData.version &&
+                            bundle.id !== currentId &&
+                            bundle.status === 'success'
+                    );
 
-                if (serverData?.version && serverData.version !== currentVersion) {
-                    setUpdateStatus('downloading');
-
-                    // Download new bundle
-                    const downloadRes = await CapacitorUpdater.download({
-                        url: serverData.url,
-                        version: serverData.version,
-                    });
-
-                    setUpdateStatus('applying');
-
-                    // Apply update and reload webview
-                    setTimeout(async () => {
-                        try {
-                            await CapacitorUpdater.set({ id: downloadRes.id });
-                        } catch (err) {
-                            console.error('[OTA] Failed to apply update bundle:', err);
-                            setUpdateStatus('idle');
-                        }
-                    }, 1500);
+                    if (existingBundle) {
+                        storePendingUpdate(existingBundle);
+                        // It was downloaded before this updater run, so this is already
+                        // a later app opening. Apply it now instead of delaying again.
+                        await CapacitorUpdater.set({ id: existingBundle.id });
+                        return;
+                    }
+                } catch (error) {
+                    console.warn('[OTA] Could not inspect downloaded bundles:', error);
                 }
+
+                // Download silently. Do not activate it during this app opening.
+                const downloadedBundle = await CapacitorUpdater.download({
+                    url: serverData.url,
+                    version: serverData.version,
+                });
+
+                // Persist first so a process kill between these operations is recoverable.
+                storePendingUpdate(downloadedBundle);
+                await CapacitorUpdater.next({ id: downloadedBundle.id });
             } catch (error) {
+                // OTA failures must never block normal app usage. A later launch or
+                // foreground transition will retry the check or pending activation.
                 console.error('[OTA] Update check failed:', error);
-                setUpdateStatus('idle');
             } finally {
                 isCheckingRef.current = false;
             }
         };
 
-        checkForUpdates();
+        runUpdater();
 
-        // Check for updates when app returns to foreground
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                checkForUpdates();
+                runUpdater();
             }
         };
 
@@ -83,41 +200,6 @@ export default function CapgoUpdater() {
         };
     }, []);
 
-    if (updateStatus === 'idle') return null;
-
-    return (
-        <div className="fixed bottom-8 left-0 right-0 z-[99999] mx-auto flex max-w-[90%] justify-center sm:max-w-sm pointer-events-none">
-            <div
-                className={`flex w-full items-center gap-3 rounded-2xl bg-slate-900 p-3.5 text-white shadow-2xl transition-all duration-500 ease-out 
-                ${updateStatus !== 'idle' ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}
-            >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800">
-                    {updateStatus === 'downloading' ? (
-                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" />
-                    ) : (
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-6 w-6 text-emerald-400 animate-in zoom-in duration-300"
-                            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-                        >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                    )}
-                </div>
-
-                <div className="flex flex-col">
-                    <h4 className="text-sm font-bold text-slate-100">
-                        {updateStatus === 'downloading'
-                            ? 'جاري تحسين التطبيق...'
-                            : 'تم التحديث بنجاح!'}
-                    </h4>
-                    <p className="text-[11px] font-medium text-slate-400">
-                        {updateStatus === 'downloading'
-                            ? 'يتم الآن تنزيل أحدث الميزات في الخلفية'
-                            : 'جاري إعادة التهيئة لضمان أفضل تجربة...'}
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
+    // OTA updates are intentionally invisible to the user.
+    return null;
 }

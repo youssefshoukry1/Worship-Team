@@ -1,16 +1,15 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Heart, BookOpen, Music, Users, User } from 'lucide-react';
 
 const NAV_ITEMS = [
   { label: 'Home', icon: Home, href: '/' },
-  { label: 'Pray', icon: Heart, href: '/pray' },
-  { label: 'Bible', icon: BookOpen, href: '/bible_form' },
-  { label: 'Hymns', icon: Music, href: '/hymns' },
-  { label: 'Friends', icon: Users, href: '/friends' },
-  { label: 'Profile', icon: User, href: '/normal_UserProfile' }
+  { label: 'Pray', icon: Heart, href: '/pray/' },
+  { label: 'Bible', icon: BookOpen, href: '/bible_form/' },
+  { label: 'Hymns', icon: Music, href: '/hymns/' },
+  { label: 'Friends', icon: Users, href: '/friends/' },
+  { label: 'Profile', icon: User, href: '/normal_UserProfile/' }
 ];
 
 const normalizePath = (path) => {
@@ -66,10 +65,9 @@ export default function BottomNav() {
           const isCurrentDestination = currentPath === destinationPath;
 
           return (
-            <Link
+            <a
               key={item.label}
               href={item.href}
-              prefetch
               aria-current={isActive ? 'page' : undefined}
               onPointerDown={() => {
                 if (!isCurrentDestination) {
@@ -108,7 +106,7 @@ export default function BottomNav() {
                   isActive ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0'
                 }`}
               />
-            </Link>
+            </a>
           );
         })}
       </nav>
