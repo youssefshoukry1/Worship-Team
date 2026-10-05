@@ -6,6 +6,39 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+// Next.js static exports store the React Server Component payload for each
+// route as index.txt. Static hosts and Capacitor cannot content-negotiate an
+// `?_rsc=` request, so point those client-navigation requests at the exported
+// payload. This keeps navigation inside the mounted app (no global reload).
+self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin || !url.searchParams.has('_rsc')) return;
+
+  const lastPathSegment = url.pathname.split('/').filter(Boolean).pop() || '';
+  if (lastPathSegment.includes('.')) return;
+
+  const routePath = url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`;
+  const payloadUrl = new URL(`${routePath}index.txt`, url.origin);
+
+  event.respondWith(
+    fetch(payloadUrl).then(async (response) => {
+      if (!response.ok) return fetch(request);
+
+      const headers = new Headers(response.headers);
+      headers.set('Content-Type', 'text/x-component');
+
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    }).catch(() => fetch(request))
+  );
+});
+
 // Helper function to open IndexedDB
 function openOfflineDB() {
   return new Promise((resolve, reject) => {

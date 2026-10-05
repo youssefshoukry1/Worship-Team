@@ -1,24 +1,30 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { Home, Heart, BookOpen, Music, Users, User } from 'lucide-react';
+import { ensureNavigationServiceWorker, navigateDocumentFallback } from '../utils/appNavigation';
 
 const NAV_ITEMS = [
   { label: 'Home', icon: Home, href: '/' },
-  { label: 'Pray', icon: Heart, href: '/pray/' },
-  { label: 'Bible', icon: BookOpen, href: '/bible_form/' },
-  { label: 'Hymns', icon: Music, href: '/hymns/' },
-  { label: 'Friends', icon: Users, href: '/friends/' },
-  { label: 'Profile', icon: User, href: '/normal_UserProfile/' }
+  { label: 'Pray', icon: Heart, href: '/pray' },
+  { label: 'Bible', icon: BookOpen, href: '/bible_form' },
+  { label: 'Hymns', icon: Music, href: '/hymns' },
+  { label: 'Friends', icon: Users, href: '/friends' },
+  { label: 'Profile', icon: User, href: '/normal_UserProfile' }
 ];
 
 const normalizePath = (path) => {
-  if (!path || path === '/') return '/';
-  return path.endsWith('/') ? path : `${path}/`;
+  if (!path) return '/';
+
+  const routePath = path.replace(/\/index\.html\/?$/i, '/');
+  if (routePath === '/') return '/';
+  return routePath.endsWith('/') ? routePath : `${routePath}/`;
 };
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [pendingNavigation, setPendingNavigation] = useState(null);
@@ -27,6 +33,19 @@ export default function BottomNav() {
   const visualPath = pendingNavigation?.from === currentPath
     ? pendingNavigation.to
     : currentPath;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    ensureNavigationServiceWorker().then((workerReady) => {
+      if (!workerReady || cancelled) return;
+      NAV_ITEMS.forEach(({ href }) => router.prefetch(href));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   useEffect(() => {
     const handleScroll = (e) => {
@@ -65,9 +84,10 @@ export default function BottomNav() {
           const isCurrentDestination = currentPath === destinationPath;
 
           return (
-            <a
+            <Link
               key={item.label}
               href={item.href}
+              prefetch
               aria-current={isActive ? 'page' : undefined}
               onPointerDown={() => {
                 if (!isCurrentDestination) {
@@ -75,14 +95,22 @@ export default function BottomNav() {
                 }
               }}
               onPointerCancel={() => setPendingNavigation(null)}
-              onClick={(e) => {
+              onClick={async (e) => {
                 if (isCurrentDestination) {
                   e.preventDefault();
                   setPendingNavigation(null);
                   return;
                 }
 
+                e.preventDefault();
                 setPendingNavigation({ from: currentPath, to: destinationPath });
+
+                const workerReady = await ensureNavigationServiceWorker();
+                if (workerReady) {
+                  router.push(item.href);
+                } else {
+                  navigateDocumentFallback(item.href);
+                }
               }}
               className="group relative flex h-full w-full touch-manipulation flex-col items-center justify-center gap-0.5 outline-none transition-transform duration-150 ease-out active:scale-[0.94]"
             >
@@ -106,7 +134,7 @@ export default function BottomNav() {
                   isActive ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0'
                 }`}
               />
-            </a>
+            </Link>
           );
         })}
       </nav>
