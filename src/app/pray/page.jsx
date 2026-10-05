@@ -948,21 +948,9 @@ export default function PrayPage() {
                                     <div key={entry._id} className="p-4 sm:p-5 rounded-2xl border transition-all duration-200 bg-white/[0.03] border-white/10 hover:border-purple-500/30">
                                         <div className="flex items-start justify-between gap-3 mb-2">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="bg-purple-500/15 text-purple-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-purple-500/30 flex items-center gap-1">
-                                                    <Send className="w-2.5 h-2.5" />
-                                                    <span>To @{targetUsername}</span>
+                                                <span className="text-[11px] text-slate-400 font-medium">
+                                                    Shared with <span className="text-purple-300 font-semibold">@{targetUsername}</span>
                                                 </span>
-                                                {isConfirmed ? (
-                                                    <span className="bg-emerald-500/15 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-500/30 flex items-center gap-1">
-                                                        <Check className="w-2.5 h-2.5" />
-                                                        <span>Replied</span>
-                                                    </span>
-                                                ) : (
-                                                    <span className="bg-amber-500/15 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-500/30 flex items-center gap-1">
-                                                        <Clock className="w-2.5 h-2.5" />
-                                                        <span>Awaiting response</span>
-                                                    </span>
-                                                )}
                                                 {entry.prayType && entry.prayType !== 'general' && (
                                                     <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
                                                 )}
