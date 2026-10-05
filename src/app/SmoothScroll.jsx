@@ -5,14 +5,21 @@ import Lenis from "lenis";
 
 export default function SmoothScroll({ children }) {
   useEffect(() => {
-    // إعداد Lenis
+    // Disable on mobile and touch devices
+    const isTouchOrMobile =
+      "ontouchstart" in window ||
+      navigator.maxTouchPoints > 0 ||
+      window.innerWidth <= 768 ||
+      Boolean(window.Capacitor?.isNativePlatform?.());
+
+    if (isTouchOrMobile) return;
+
     const lenis = new Lenis({
-      duration: 1.5,
+      duration: 1,
       lerp: 0.1,
       smoothWheel: true,
-      // دي الإعدادات اللي بتخلي الـ Scroll "درامي"
       wheelMultiplier: 1,
-      touchMultiplier: 2,
+      touchMultiplier: 1,
       infinite: false,
       prevent: (node) => {
         if (!node || typeof node !== "object") return false;
@@ -26,7 +33,6 @@ export default function SmoothScroll({ children }) {
       },
     });
 
-    // حلقة التحديث (Request Animation Frame)
     let rafId;
     function raf(time) {
       lenis.raf(time);
@@ -35,7 +41,6 @@ export default function SmoothScroll({ children }) {
 
     rafId = requestAnimationFrame(raf);
 
-    // تنظيف المكتبة لما الـ Component يتشال (مهم جداً في Next.js)
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
       lenis.destroy();

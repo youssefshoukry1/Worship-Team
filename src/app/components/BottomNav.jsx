@@ -1,13 +1,11 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Home, Heart, BookOpen, Music, Users, User } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const router = useRouter();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
@@ -48,7 +46,7 @@ export default function BottomNav() {
   return (
     <div
       data-lenis-prevent
-      className={`fixed bottom-0 left-0 right-0 z-[10000] bg-[#020a1c]/95 backdrop-blur-xl transition-transform duration-300 ease-in-out touch-manipulation select-none ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}
+      className={`fixed bottom-0 left-0 right-0 z-[10000] bg-[#020a1c]/95 backdrop-blur-xl transition-transform duration-200 ease-in-out touch-manipulation select-none ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}
     >
       <nav className="flex justify-around items-center h-[56px] max-w-md mx-auto">
         {navItems.map((item) => {
@@ -57,30 +55,20 @@ export default function BottomNav() {
             <Link
               key={item.label}
               href={item.href}
-              prefetch={false}
-              onClick={(e) => {
-                if (pathname !== item.href) {
-                  e.preventDefault();
-                  router.push(item.href);
-                }
-              }}
+              prefetch={true}
               className="relative flex flex-col items-center justify-center w-full h-full space-y-0.5 cursor-pointer"
             >
               <div className="relative flex items-center justify-center w-10 h-8 pointer-events-none">
                 <item.icon
                   size={isActive ? 22 : 20}
-                  className={`transition-all duration-300 z-10 ${isActive ? 'text-[#00C2FF]' : 'text-slate-400'}`}
+                  className={`transition-colors duration-150 z-10 ${isActive ? 'text-[#00C2FF]' : 'text-slate-400'}`}
                   strokeWidth={isActive ? 2.5 : 2}
                 />
                 {isActive && (
-                  <motion.div
-                    layoutId="nav-glow"
-                    className="absolute inset-0 bg-[#00C2FF]/20 blur-[10px] rounded-full pointer-events-none"
-                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                  />
+                  <div className="absolute inset-0 bg-[#00C2FF]/20 blur-[8px] rounded-full pointer-events-none" />
                 )}
               </div>
-              <span className={`text-[10px] font-medium transition-colors duration-300 pointer-events-none ${isActive ? 'text-[#00C2FF]' : 'text-slate-400'}`}>
+              <span className={`text-[10px] font-medium transition-colors duration-150 pointer-events-none ${isActive ? 'text-[#00C2FF]' : 'text-slate-400'}`}>
                 {item.label}
               </span>
             </Link>
