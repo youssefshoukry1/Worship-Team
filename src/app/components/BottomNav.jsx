@@ -1,16 +1,16 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Home, Heart, BookOpen, Music, Users, User } from 'lucide-react';
 
 const NAV_ITEMS = [
   { label: 'Home', icon: Home, href: '/' },
-  { label: 'Pray', icon: Heart, href: '/pray/' },
-  { label: 'Bible', icon: BookOpen, href: '/bible_form/' },
-  { label: 'Hymns', icon: Music, href: '/hymns/' },
-  { label: 'Friends', icon: Users, href: '/friends/' },
-  { label: 'Profile', icon: User, href: '/normal_UserProfile/' }
+  { label: 'Pray', icon: Heart, href: '/pray' },
+  { label: 'Bible', icon: BookOpen, href: '/bible_form' },
+  { label: 'Hymns', icon: Music, href: '/hymns' },
+  { label: 'Friends', icon: Users, href: '/friends' },
+  { label: 'Profile', icon: User, href: '/normal_UserProfile' }
 ];
 
 const normalizePath = (path) => {
@@ -20,7 +20,6 @@ const normalizePath = (path) => {
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const router = useRouter();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [pendingNavigation, setPendingNavigation] = useState(null);
@@ -29,11 +28,6 @@ export default function BottomNav() {
   const visualPath = pendingNavigation?.from === currentPath
     ? pendingNavigation.to
     : currentPath;
-
-  // Keep all primary destinations warm so a tap can switch screens immediately.
-  useEffect(() => {
-    NAV_ITEMS.forEach(({ href }) => router.prefetch(href));
-  }, [router]);
 
   useEffect(() => {
     const handleScroll = (e) => {
@@ -67,8 +61,9 @@ export default function BottomNav() {
     >
       <nav className="flex justify-around items-center h-[58px] max-w-md mx-auto" aria-label="Primary navigation">
         {NAV_ITEMS.map((item) => {
-          const isActive = visualPath === item.href || (item.href !== '/' && visualPath.startsWith(item.href));
-          const isCurrentDestination = currentPath === item.href;
+          const destinationPath = normalizePath(item.href);
+          const isActive = visualPath === destinationPath || (item.href !== '/' && visualPath.startsWith(destinationPath));
+          const isCurrentDestination = currentPath === destinationPath;
 
           return (
             <Link
@@ -78,12 +73,10 @@ export default function BottomNav() {
               aria-current={isActive ? 'page' : undefined}
               onPointerDown={() => {
                 if (!isCurrentDestination) {
-                  setPendingNavigation({ from: currentPath, to: item.href });
+                  setPendingNavigation({ from: currentPath, to: destinationPath });
                 }
               }}
               onPointerCancel={() => setPendingNavigation(null)}
-              onMouseEnter={() => router.prefetch(item.href)}
-              onFocus={() => router.prefetch(item.href)}
               onClick={(e) => {
                 if (isCurrentDestination) {
                   e.preventDefault();
@@ -91,7 +84,7 @@ export default function BottomNav() {
                   return;
                 }
 
-                setPendingNavigation({ from: currentPath, to: item.href });
+                setPendingNavigation({ from: currentPath, to: destinationPath });
               }}
               className="group relative flex h-full w-full touch-manipulation flex-col items-center justify-center gap-0.5 outline-none transition-transform duration-150 ease-out active:scale-[0.94]"
             >
