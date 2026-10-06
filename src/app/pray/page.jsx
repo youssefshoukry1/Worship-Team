@@ -674,7 +674,7 @@ export default function PrayPage() {
 
 
     return (
-        <section className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] pb-[100px] pt-8 px-4 text-white">
+        <section className="min-h-screen bg-[var(--app-bg)] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(14,165,233,0.07),rgba(0,0,0,0))] pb-[100px] pt-8 px-4 text-white transition-colors duration-150">
             <div className="max-w-5xl mx-auto">
                 <div className="grid gap-5 sm:gap-6">
                     <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-rose-500/10 via-slate-900/70 to-slate-900 p-4 sm:p-6">

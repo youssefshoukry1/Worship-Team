@@ -782,6 +782,10 @@ export default function Category_Humns() {
   const closeLyricsModal = () => {
     setShowLyricsModal(false);
     setSelectedLyricsHymn(null);
+    if (lyricsModalCardRef.current) {
+      lyricsModalCardRef.current.style.transform = '';
+      lyricsModalCardRef.current.style.transition = '';
+    }
     // لو قفل المودال قبل الـ 10 ثواني، نكنسل الطلب فوراً
     if (usageTimerRef.current) {
       clearTimeout(usageTimerRef.current);
@@ -790,19 +794,106 @@ export default function Category_Humns() {
     }
   };
 
+  const lyricsModalCardRef = React.useRef(null);
+  const lyricsTouchStartY = React.useRef(0);
+  const lyricsPullDistance = React.useRef(0);
+  const lyricsStartedAtTop = React.useRef(false);
+  const lyricsWheelDelta = React.useRef(0);
+  const lyricsWheelTimer = React.useRef(null);
+
+  // Real-time interactive drag to dismiss
+  const handleLyricsTouchStart = (e) => {
+    lyricsTouchStartY.current = e.touches[0].clientY;
+    lyricsPullDistance.current = 0;
+    lyricsStartedAtTop.current = (lyricsScrollRef.current?.scrollTop ?? 0) <= 0;
+    if (lyricsModalCardRef.current) {
+      lyricsModalCardRef.current.style.transition = 'none';
+    }
+  };
+
+  const handleLyricsTouchMove = (e) => {
+    const currentY = e.touches[0].clientY;
+    const currentScrollTop = lyricsScrollRef.current?.scrollTop ?? 0;
+    if (currentScrollTop <= 0) {
+      if (!lyricsStartedAtTop.current) {
+        lyricsStartedAtTop.current = true;
+        lyricsTouchStartY.current = currentY;
+      }
+      const deltaY = currentY - lyricsTouchStartY.current;
+      if (deltaY > 0) {
+        lyricsPullDistance.current = deltaY;
+        if (lyricsModalCardRef.current) {
+          lyricsModalCardRef.current.style.transform = `translate3d(0, ${deltaY}px, 0)`;
+        }
+      }
+    } else {
+      lyricsPullDistance.current = 0;
+      lyricsStartedAtTop.current = false;
+      if (lyricsModalCardRef.current) {
+        lyricsModalCardRef.current.style.transform = '';
+      }
+    }
+  };
+
+  const handleLyricsTouchEnd = () => {
+    if (lyricsModalCardRef.current) {
+      lyricsModalCardRef.current.style.transition = 'transform 0.22s cubic-bezier(0.32, 0.72, 0, 1)';
+      if (lyricsStartedAtTop.current && lyricsPullDistance.current > 100) {
+        lyricsModalCardRef.current.style.transform = 'translate3d(0, 100%, 0)';
+        setTimeout(() => {
+          closeLyricsModal();
+        }, 220);
+      } else {
+        lyricsModalCardRef.current.style.transform = 'translate3d(0, 0, 0)';
+      }
+    } else if (lyricsStartedAtTop.current && lyricsPullDistance.current > 100) {
+      closeLyricsModal();
+    }
+    lyricsPullDistance.current = 0;
+    lyricsStartedAtTop.current = false;
+  };
+
+  const handleLyricsWheel = (e) => {
+    if (!lyricsScrollRef.current) return;
+    if (lyricsScrollRef.current.scrollTop <= 0 && e.deltaY < 0) {
+      lyricsWheelDelta.current += Math.abs(e.deltaY);
+      if (lyricsWheelDelta.current > 100) {
+        lyricsWheelDelta.current = 0;
+        if (lyricsModalCardRef.current) {
+          lyricsModalCardRef.current.style.transition = 'transform 0.22s cubic-bezier(0.32, 0.72, 0, 1)';
+          lyricsModalCardRef.current.style.transform = 'translate3d(0, 100%, 0)';
+          setTimeout(() => {
+            closeLyricsModal();
+          }, 220);
+        } else {
+          closeLyricsModal();
+        }
+      }
+      if (lyricsWheelTimer.current) clearTimeout(lyricsWheelTimer.current);
+      lyricsWheelTimer.current = setTimeout(() => {
+        lyricsWheelDelta.current = 0;
+      }, 250);
+    } else {
+      lyricsWheelDelta.current = 0;
+    }
+  };
+
 
 
   // Attached via onScroll prop to guarantee firing in Portals
 
-  // Prevent background scrolling when lyrics modal is open
+  // Prevent background scrolling and lock bottom nav when lyrics modal is open
   React.useEffect(() => {
     if (showLyricsModal) {
       document.body.style.overflow = 'hidden';
+      window.dispatchEvent(new CustomEvent('lockBottomNav', { detail: { hidden: true } }));
     } else {
       document.body.style.overflow = '';
+      window.dispatchEvent(new CustomEvent('lockBottomNav', { detail: { hidden: false } }));
     }
     return () => {
       document.body.style.overflow = '';
+      window.dispatchEvent(new CustomEvent('lockBottomNav', { detail: { hidden: false } }));
     };
   }, [showLyricsModal]);
 
@@ -1670,10 +1761,10 @@ export default function Category_Humns() {
     return <Loading />;
   }
 
-  return (<section id="Category_Humns" className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#17275c] text-white px-4 sm:px-6 py-10 relative overflow-hidden">
+  return (<section id="Category_Humns" className="min-h-screen bg-[var(--app-bg)] text-white px-4 sm:px-6 py-10 relative overflow-hidden transition-colors duration-150">
     {/* Background Gradients */}
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_70%)]" />
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.15),transparent_70%)]" />
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_70%)] dark:opacity-25 pointer-events-none" />
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.08),transparent_70%)] dark:opacity-25 pointer-events-none" />
 
     <div className="relative z-10 max-w-7xl mx-auto">
 
@@ -2250,6 +2341,11 @@ export default function Category_Humns() {
                 className="fixed inset-0 z-9999 flex justify-center items-end sm:items-center bg-black/70"
               >
                 <div
+                  ref={lyricsModalCardRef}
+                  onTouchStart={handleLyricsTouchStart}
+                  onTouchMove={handleLyricsTouchMove}
+                  onTouchEnd={handleLyricsTouchEnd}
+                  onWheel={handleLyricsWheel}
                   style={{
                     backgroundColor: lyricsThemes[lyricsTheme].bg,
                     boxShadow: lyricsTheme === 'warm' ? '0 10px 40px rgba(139, 94, 60, 0.15)' : '0 10px 40px rgba(0, 0, 0, 0.5)',
@@ -2267,7 +2363,7 @@ export default function Category_Humns() {
                     return (
                       <div
                         ref={lyricsScrollRef}
-                        className="flex-1 overflow-y-auto custom-scrollbar relative flex flex-col"
+                        className="flex-1 overflow-y-auto overscroll-contain custom-scrollbar relative flex flex-col"
                         style={{ WebkitOverflowScrolling: 'touch' }}
                         data-lenis-prevent-wheel
                       >

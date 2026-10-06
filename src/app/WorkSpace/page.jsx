@@ -1744,10 +1744,10 @@ export default function WorkSpace() {
     }
 
     return (
-        <section id='WorkSpace-section' className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
+        <section id='WorkSpace-section' className="min-h-screen bg-[var(--app-bg)] text-white px-4 sm:px-6 py-16 relative overflow-hidden transition-colors duration-150">
             {/* Background Gradients - Matching Category Page */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_70%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.15),transparent_70%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_70%)] dark:opacity-25 pointer-events-none" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.08),transparent_70%)] dark:opacity-25 pointer-events-none" />
 
             <div className="relative z-10 max-w-7xl mx-auto">
                 {/* Header */}

@@ -4,8 +4,9 @@ import React, { useEffect, useRef, useState, useContext } from "react";
 import { motion, AnimatePresence, easeOut } from "framer-motion";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, X, Globe, ChevronDown, Mic, Music, LogOut, LogIn, ShieldAlert } from "lucide-react";
+import { Menu, X, Globe, ChevronDown, Mic, Music, LogOut, LogIn, ShieldAlert, Sun, Moon } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
+import { useTheme } from "../context/ThemeContext";
 // Adjust import according to your file structure
 import { UserContext } from "../context/User_Context";
 import Image from "next/image";
@@ -14,6 +15,7 @@ import WaslaLogo from "./WaslaLogo";
 
 export default function Navbar() {
     const { t, language, setLanguage } = useLanguage();
+    const { theme, toggleTheme, isDark } = useTheme();
     const {
         isLogin, setLogin,
         UserRole, setUserRole,
@@ -375,12 +377,32 @@ export default function Navbar() {
                         )}
                     </AnimatePresence>
                 </div>
+
+                {/* Theme Toggle Desktop */}
+                <div className="relative ml-1">
+                    <button
+                        onClick={toggleTheme}
+                        className="p-2 rounded-xl border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-all duration-200 active:scale-95 flex items-center justify-center cursor-pointer shadow-sm"
+                        title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                        aria-label="Toggle theme"
+                    >
+                        {isDark ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} className="text-sky-300" />}
+                    </button>
+                </div>
             </motion.ul>
 
-            {/* Mobile Hamburger */}
-            <div className={`relative md:hidden transition-opacity duration-500 ${
+            {/* Mobile Actions */}
+            <div className={`relative flex items-center gap-1 md:hidden transition-opacity duration-500 ${
                 introStage === "center" ? "opacity-0 pointer-events-none" : "opacity-100"
             }`}>
+                <button
+                    onClick={toggleTheme}
+                    className="p-2 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white transition active:scale-90"
+                    title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                    aria-label="Toggle theme"
+                >
+                    {isDark ? <Sun size={19} className="text-amber-400" /> : <Moon size={19} className="text-sky-300" />}
+                </button>
                 <button
                     onClick={() => setMenuOpen((prev) => !prev)}
                     className="text-white hover:text-sky-400 p-2 transition"
@@ -557,6 +579,23 @@ export default function Navbar() {
                                         )}
                                     </AnimatePresence>
                                 </div>
+                            </li>
+
+                            {/* Mobile Theme Switcher */}
+                            <li className="w-full">
+                                <button
+                                    onClick={() => {
+                                        toggleTheme();
+                                        setMenuOpen(false);
+                                    }}
+                                    className="flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all font-medium text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        {isDark ? <Sun size={20} className="text-amber-400" /> : <Moon size={20} className="text-sky-300" />}
+                                        <span>{isDark ? "Light Mode" : "Dark Mode"}</span>
+                                    </span>
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-white/40">{theme}</span>
+                                </button>
                             </li>
 
                             {/* Mobile Auth Buttons */}

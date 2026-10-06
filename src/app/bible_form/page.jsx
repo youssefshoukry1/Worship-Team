@@ -555,6 +555,16 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   const [bibleModalChapter, setBibleModalChapter] = useState(initialBibleRef.current.chapter);
   const [bibleModalVerses, setBibleModalVerses] = useState(initialBibleRef.current.verses);
   const [bibleSelectedVerseIds, setBibleSelectedVerseIds] = useState(new Set());
+
+  // Lock bottom nav when verses are selected
+  useEffect(() => {
+    const isLocked = isOpen && bibleSelectedVerseIds.size > 0;
+    window.dispatchEvent(new CustomEvent('lockBottomNav', { detail: { hidden: isLocked } }));
+    return () => {
+      window.dispatchEvent(new CustomEvent('lockBottomNav', { detail: { hidden: false } }));
+    };
+  }, [isOpen, bibleSelectedVerseIds.size]);
+
   // AI analysis state
   const [aiAnalysis, setAiAnalysis] = useState({ loading: false, type: null, text: '', error: null, isLimit: false });
   const [showAiOptions, setShowAiOptions] = useState(false);
@@ -1616,11 +1626,6 @@ export function BibleForm({ controller }) {
           {/* Fixed the wrapper by adding overflow-hidden to prevent background interaction */}
           <div 
             className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-6 overflow-hidden"
-            onScrollCapture={(e) => {
-              if (e.target.scrollTop !== undefined) {
-                window.dispatchEvent(new CustomEvent('internalScroll', { detail: { scrollY: e.target.scrollTop } }));
-              }
-            }}
           >
             {/* Dynamic Background Blur */}
             <div className="absolute inset-0 bg-[#050505]/80 backdrop-blur-xl" onClick={closeBibleModal} />
@@ -1691,6 +1696,9 @@ export function BibleForm({ controller }) {
                 className="flex-1 overflow-y-auto min-h-0 overscroll-contain custom-scrollbar-thin"
                 dir="rtl"
                 data-lenis-prevent-wheel
+                onScroll={(e) => {
+                  window.dispatchEvent(new CustomEvent('internalScroll', { detail: { scrollY: e.currentTarget.scrollTop } }));
+                }}
               >
                 <div className="p-4 sm:p-12 max-w-3xl mx-auto space-y-6">
                   {/* Smart Navigation Hub */}

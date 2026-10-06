@@ -230,7 +230,7 @@ export default function FriendsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#020817] text-slate-100 pb-28 pt-4 px-4 sm:px-6 max-w-2xl mx-auto">
+    <div className="min-h-screen bg-[var(--app-bg)] text-slate-100 pb-28 pt-4 px-4 sm:px-6 max-w-2xl mx-auto transition-colors duration-150">
       {/* Top Header */}
       <div className="flex items-center justify-between mb-6">
         <button

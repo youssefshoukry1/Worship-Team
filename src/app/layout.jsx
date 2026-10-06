@@ -3,6 +3,7 @@ import "./globals.css";
 import UserContextProvider from "./context/User_Context";
 import HymnsContextProvider from "./context/Hymns_Context";
 import { LanguageProvider } from "./context/LanguageContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import SmoothScroll from "./SmoothScroll"
 import ServiceWorkerRegistry from "./components/ServiceWorkerRegistry";
 import ToastContainer from "./components/ToastContainer";
@@ -34,7 +35,14 @@ export default function RootLayout({
     children,
 }) {
     return (
-        <html lang="en">
+        <html lang="en" suppressHydrationWarning>
+            <head>
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `(function(){try{var t=localStorage.getItem("taspe7_theme");if(t==="dark"){document.documentElement.classList.add("dark");document.documentElement.setAttribute("data-theme","dark");}}catch(_){}})();`
+                    }}
+                />
+            </head>
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased text-white min-h-screen`}
             >
@@ -44,17 +52,19 @@ export default function RootLayout({
                 <ToastContainer />
                 <SmoothScroll>
                     <ReactQueryProvider>
-                        <LanguageProvider>
-                            <UserContextProvider>
-                                <HymnsContextProvider>
-                                    <AppAuthGatekeeper>
-                                        <main>
-                                            {children}
-                                        </main>
-                                    </AppAuthGatekeeper>
-                                </HymnsContextProvider>
-                            </UserContextProvider>
-                        </LanguageProvider>
+                        <ThemeProvider>
+                            <LanguageProvider>
+                                <UserContextProvider>
+                                    <HymnsContextProvider>
+                                        <AppAuthGatekeeper>
+                                            <main>
+                                                {children}
+                                            </main>
+                                        </AppAuthGatekeeper>
+                                    </HymnsContextProvider>
+                                </UserContextProvider>
+                            </LanguageProvider>
+                        </ThemeProvider>
                     </ReactQueryProvider>
                 </SmoothScroll>
 
