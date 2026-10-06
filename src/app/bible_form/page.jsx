@@ -2142,10 +2142,12 @@ export function BibleForm({ controller }) {
                 {bibleSelectedVerseIds.size > 0 && (
                   <motion.div
                     drag="y"
+                    dragDirectionLock
+                    dragSnapToOrigin
                     dragConstraints={{ top: 0, bottom: 0 }}
-                    dragElastic={{ top: 0, bottom: 0.8 }}
+                    dragElastic={{ top: 0, bottom: 0.6 }}
                     onDragEnd={(event, info) => {
-                      if (info.offset.y > 40 || info.velocity.y > 120) {
+                      if (info.offset.y > 110 || (info.offset.y > 40 && info.velocity.y > 350)) {
                         setBibleSelectedVerseIds(new Set());
                         setShowAiOptions(false);
                         setAiAnalysis({ loading: false, type: null, text: '', error: null });
@@ -2155,7 +2157,7 @@ export function BibleForm({ controller }) {
                     initial={{ y: '100%' }}
                     animate={{ y: 0 }}
                     exit={{ y: '100%' }}
-                    transition={{ type: 'spring', damping: 30, stiffness: 360, mass: 0.6 }}
+                    transition={{ duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
                     className="absolute bottom-0 left-0 right-0 z-50 bg-[#0d0e15]/95 border-t border-white/10 backdrop-blur-2xl rounded-t-[1.5rem] shadow-[0_-15px_35px_rgba(0,0,0,0.6)] flex flex-col text-white overflow-hidden"
                     dir="rtl"
                   >
