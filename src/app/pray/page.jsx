@@ -33,7 +33,7 @@ const getPrayTypeStyle = (type) => {
         case 'prayer for others': return { activeBtn: 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40', textareaFocus: 'focus:border-emerald-400/50 focus:ring-emerald-400/30', cardBg: 'bg-emerald-900/10 border-emerald-500/20 shadow-[inset_0_0_20px_rgba(16,185,129,0.05)]', badge: 'bg-emerald-500/20 text-emerald-200 border-emerald-500/20', accent: 'text-emerald-400', glass: 'bg-emerald-500/5 border-emerald-500/10' };
         case 'chapter':
         case 'chapter reflection': return { activeBtn: 'bg-purple-500/20 text-purple-200 border-purple-400/40', textareaFocus: 'focus:border-purple-400/50 focus:ring-purple-400/30', cardBg: 'bg-purple-900/10 border-purple-500/20 shadow-[inset_0_0_20px_rgba(168,85,247,0.05)]', badge: 'bg-purple-500/20 text-purple-200 border-purple-500/20', accent: 'text-purple-400', glass: 'bg-purple-500/5 border-purple-500/10' };
-        default: return { activeBtn: 'bg-rose-500/20 text-rose-200 border-rose-400/40', textareaFocus: 'focus:border-rose-400/50 focus:ring-rose-400/30', cardBg: 'bg-black/20 border-white/5 hover:bg-white/5', badge: 'bg-rose-500/20 text-rose-200 border-rose-500/20', accent: 'text-rose-400', glass: 'bg-rose-500/5 border-rose-500/10' };
+        default: return { activeBtn: 'bg-sky-500/20 text-sky-200 border-sky-400/40', textareaFocus: 'focus:border-sky-400/50 focus:ring-sky-400/30', cardBg: 'bg-black/20 border-white/5 hover:bg-white/5', badge: 'bg-sky-500/20 text-sky-200 border-sky-500/20', accent: 'text-sky-400', glass: 'bg-sky-500/5 border-sky-500/10' };
     }
 };
 
@@ -152,7 +152,6 @@ function ListPanel({ title, icon: Icon, iconBgClass, items, emptyText, recordsLa
     return (
         <div className="flex flex-col rounded-3xl border border-white/5 bg-white/[0.03] backdrop-blur-2xl shadow-xl shadow-black/20">
             <div className="flex items-center gap-3 border-b border-white/5 p-4 sm:p-5 bg-black/20">
-                <div className={`p-2 rounded-xl flex items-center justify-center border ${iconBgClass}`}><Icon className="h-4 w-4 sm:h-5 sm:w-5" /></div>
                 <h2 className="text-sm sm:text-base font-bold text-white tracking-wide">{title}</h2>
             </div>
             <div className="flex-1 p-3 sm:p-5 space-y-2.5">
@@ -677,10 +676,10 @@ export default function PrayPage() {
         <section className="min-h-screen bg-[var(--app-bg)] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(14,165,233,0.07),rgba(0,0,0,0))] pb-[100px] pt-8 px-4 text-white transition-colors duration-150">
             <div className="max-w-5xl mx-auto">
                 <div className="grid gap-5 sm:gap-6">
-                    <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-rose-500/10 via-slate-900/70 to-slate-900 p-4 sm:p-6">
+                    <div className="rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-2xl shadow-xl shadow-black/20 p-4 sm:p-6">
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
-                                <Heart className="w-5 h-5 text-rose-300" />
+                                <Heart className="w-5 h-5 text-sky-300" />
                                 <h3 className="text-base sm:text-lg font-bold text-white">{t('prayTime')}</h3>
                             </div>
                             <MyPraysBackup prayTime={prayList} token={isGuest ? null : token} userId={userId} onRestored={refreshRecordings} />
@@ -688,13 +687,13 @@ export default function PrayPage() {
                         <div className="mb-3.5 flex items-center gap-2 flex-wrap">
                             <button
                                 onClick={() => setIsShareOpen(true)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 text-xs font-semibold text-rose-300 hover:text-white transition-all shadow-sm"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/25 text-xs font-semibold text-sky-300 hover:text-white transition-all shadow-sm"
                             >
                                 <Share2 className="w-3.5 h-3.5" />
                                 <span>{selectedShareUser ? 'Change recipient' : 'Share with friend...'}</span>
                             </button>
                         </div>
-                        <div className={`w-full bg-white/[0.04] border ${selectedShareUser ? 'border-[#00C2FF]/50 ring-1 ring-[#00C2FF]/30 shadow-[0_0_16px_rgba(0,194,255,0.08)]' : 'border-white/10'} rounded-2xl p-3 sm:p-4 focus-within:ring-1 ${selectedShareUser ? 'focus-within:ring-[#00C2FF]/60 focus-within:border-[#00C2FF]/70' : 'focus-within:ring-rose-400/30 focus-within:border-rose-400/50'} transition-all flex flex-col gap-3.5 mb-4`}>
+                        <div className={`w-full bg-white/[0.04] border ${selectedShareUser ? 'border-[#00C2FF]/50 ring-1 ring-[#00C2FF]/30 shadow-[0_0_16px_rgba(0,194,255,0.08)]' : 'border-white/10'} rounded-2xl p-3 sm:p-4 transition-all flex flex-col gap-3.5 mb-4`}>
                             {selectedShareUser && (
                                 <div className="flex items-center justify-between pb-2 border-b border-[#00C2FF]/20 text-xs">
                                     <span className="flex items-center gap-1.5 text-[#00C2FF] font-semibold">
@@ -704,7 +703,7 @@ export default function PrayPage() {
                                     <button
                                         type="button"
                                         onClick={() => setSelectedShareUser(null)}
-                                        className="p-1 rounded-md text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                                        className="p-1 rounded-md text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 transition-colors"
                                         title="Cancel share"
                                     >
                                         <X className="w-3.5 h-3.5" />
@@ -737,7 +736,7 @@ export default function PrayPage() {
                             <p className="text-[11px] text-slate-400">{(prayWords + ' ' + prayBlocks.map((block) => block.words).join(' ')).trim().split(/\s+/).filter(Boolean).length} {t('totalWords')}</p>
                             <div className="flex items-center gap-2">
                                 {prayEditId && <button onClick={resetPrayForm} className="px-3 py-2 rounded-lg border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5">{t('cancelEdit')}</button>}
-                                <button onClick={handleSubmitPrayTime} disabled={isSubmittingPray || recorder.isRecording || (!prayWords.trim() && !generalRecordings.length && !prayBlocks.some(hasBlockContent))} className={`px-4 py-2 rounded-lg text-xs font-bold ${selectedShareUser ? 'bg-[#00C2FF] text-[#020817] hover:brightness-110 shadow-[#00C2FF]/20' : 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-500/20'} transition-all disabled:opacity-40 flex items-center gap-2 shadow-lg`}>
+                                <button onClick={handleSubmitPrayTime} disabled={isSubmittingPray || recorder.isRecording || (!prayWords.trim() && !generalRecordings.length && !prayBlocks.some(hasBlockContent))} className={`px-4 py-2 rounded-lg text-xs font-bold ${selectedShareUser ? 'bg-[#00C2FF] text-[#020817] hover:brightness-110 shadow-[#00C2FF]/20' : 'bg-sky-500 hover:bg-sky-400 text-white shadow-sky-500/20'} transition-all disabled:opacity-40 flex items-center gap-2 shadow-lg`}>
                                     {isSubmittingPray ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{prayEditId ? t('updateNoteBtn') : (selectedShareUser ? `Save & Send to @${selectedShareUser.username}` : t('saveNote'))}
                                 </button>
                             </div>
@@ -752,7 +751,7 @@ export default function PrayPage() {
                                     type="button"
                                     onClick={() => setActivePrayTab('personal')}
                                     className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activePrayTab === 'personal'
-                                        ? 'bg-rose-500/20 text-rose-200 border border-rose-500/40 shadow-sm'
+                                        ? 'bg-white/20 text-white border border-white/10 shadow-sm'
                                         : 'bg-white/5 text-slate-400 hover:text-white border border-white/5 hover:bg-white/10'
                                         }`}
                                 >
@@ -763,7 +762,7 @@ export default function PrayPage() {
                                     type="button"
                                     onClick={() => setActivePrayTab('shared')}
                                     className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activePrayTab === 'shared'
-                                        ? 'bg-[#00C2FF]/20 text-[#00C2FF] border border-[#00C2FF]/40 shadow-sm'
+                                        ? 'bg-white/20 text-white border border-white/10 shadow-sm'
                                         : 'bg-white/5 text-slate-400 hover:text-white border border-white/5 hover:bg-white/10'
                                         }`}
                                 >
@@ -799,8 +798,8 @@ export default function PrayPage() {
                                         title={pendingPrayList.length > 0 ? `Received Prayers (${pendingPrayList.length} awaiting response)` : 'Received Prayers'}
                                         aria-label="Received Prayers"
                                         className={`p-2 rounded-xl transition-all relative ${circleFilter === 'received'
-                                            ? 'bg-[#00C2FF]/20 text-[#00C2FF] border border-[#00C2FF]/30 shadow-sm'
-                                            : 'text-slate-400 hover:text-[#00C2FF] hover:bg-white/10'
+                                            ? 'bg-white/20 text-white shadow-sm'
+                                            : 'text-slate-400 hover:text-white hover:bg-white/10'
                                             }`}
                                     >
                                         <Inbox className="w-4 h-4" />
@@ -816,8 +815,8 @@ export default function PrayPage() {
                                         title="Sent Prayers"
                                         aria-label="Sent Prayers"
                                         className={`p-2 rounded-xl transition-all ${circleFilter === 'sent'
-                                            ? 'bg-purple-500/25 text-purple-300 border border-purple-500/30 shadow-sm'
-                                            : 'text-slate-400 hover:text-purple-300 hover:bg-white/10'
+                                            ? 'bg-white/20 text-white shadow-sm'
+                                            : 'text-slate-400 hover:text-white hover:bg-white/10'
                                             }`}
                                     >
                                         <Send className="w-4 h-4" />
@@ -828,8 +827,8 @@ export default function PrayPage() {
                                         title="Prayed & Confirmed"
                                         aria-label="Prayed & Confirmed"
                                         className={`p-2 rounded-xl transition-all ${circleFilter === 'prayed'
-                                            ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 shadow-sm'
-                                            : 'text-slate-400 hover:text-emerald-300 hover:bg-white/10'
+                                            ? 'bg-white/20 text-white shadow-sm'
+                                            : 'text-slate-400 hover:text-white hover:bg-white/10'
                                             }`}
                                     >
                                         <CheckCheck className="w-4 h-4" />
@@ -864,7 +863,7 @@ export default function PrayPage() {
                         }
                         iconBgClass={
                             activePrayTab === 'personal'
-                                ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                ? 'bg-sky-500/10 text-sky-400 border-sky-500/20'
                                 : circleFilter === 'received' || circleFilter === 'all'
                                     ? 'bg-[#00C2FF]/10 text-[#00C2FF] border-[#00C2FF]/20'
                                     : circleFilter === 'sent'
@@ -923,17 +922,13 @@ export default function PrayPage() {
                                     <div key={entry._id} className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 ${getPrayTypeStyle(entry.prayType).cardBg}`}>
                                         <div className="flex items-start justify-between gap-3 mb-2">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="bg-rose-500/15 text-rose-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-rose-500/30 flex items-center gap-1">
-                                                    <Lock className="w-2.5 h-2.5" />
-                                                    <span>Personal</span>
-                                                </span>
                                                 {entry.prayType && entry.prayType !== 'general' && (
                                                     <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
                                                 )}
                                                 <span className="text-[10px] text-slate-500 font-bold">{formatDate(entry.date, 'N/A', language)}</span>
                                             </div>
                                             <div className="flex gap-2">
-                                                <button onClick={() => handleEditPrayTime(entry)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all border border-white/5" title={t('editNote')}><Edit3 className="w-4 h-4" /></button>
+                                                <button onClick={() => handleEditPrayTime(entry)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-sky-300 hover:bg-sky-500/10 transition-all border border-white/5" title={t('editNote')}><Edit3 className="w-4 h-4" /></button>
                                                 <button onClick={() => handleDeletePrayTime(entry._id)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5" title={t('deleteNote')}><Trash2 className="w-4 h-4" /></button>
                                             </div>
                                         </div>
@@ -945,11 +940,11 @@ export default function PrayPage() {
                             if (isSent) {
                                 const isConfirmed = entry.sharedWith?.status === 'confirmed';
                                 return (
-                                    <div key={entry._id} className="p-4 sm:p-5 rounded-2xl border transition-all duration-200 bg-white/[0.03] border-white/10 hover:border-purple-500/30">
+                                    <div key={entry._id} className="p-4 sm:p-5 rounded-2xl border transition-all duration-200 bg-white/[0.03] border-white/10 hover:border-[#00C2FF]/30">
                                         <div className="flex items-start justify-between gap-3 mb-2">
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <span className="text-[11px] text-slate-400 font-medium">
-                                                    Shared with <span className="text-purple-300 font-semibold">@{targetUsername}</span>
+                                                    Shared with <span className="text-[#00C2FF] font-semibold">@{targetUsername}</span>
                                                 </span>
                                                 {entry.prayType && entry.prayType !== 'general' && (
                                                     <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
@@ -957,18 +952,18 @@ export default function PrayPage() {
                                                 <span className="text-[10px] text-slate-500 font-bold">{formatDate(entry.date, 'N/A', language)}</span>
                                             </div>
                                             <div className="flex gap-2">
-                                                <button onClick={() => handleEditPrayTime(entry)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all border border-white/5" title={t('editNote')}><Edit3 className="w-4 h-4" /></button>
+                                                <button onClick={() => handleEditPrayTime(entry)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-sky-300 hover:bg-sky-500/10 transition-all border border-white/5" title={t('editNote')}><Edit3 className="w-4 h-4" /></button>
                                                 <button onClick={() => handleDeletePrayTime(entry._id)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5" title={t('deleteNote')}><Trash2 className="w-4 h-4" /></button>
                                             </div>
                                         </div>
                                         <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
                                         {isConfirmed && entry.sharedWith?.responseWords && (
-                                            <div className="mt-3 pt-2.5 border-t border-white/10 flex flex-col gap-1 text-xs text-slate-400 bg-purple-500/5 p-3 rounded-xl border border-purple-500/20">
-                                                <span className="text-[11px] text-purple-300 font-semibold flex items-center gap-1">
-                                                    <Sparkles className="w-3 h-3 text-purple-400" />
+                                            <div className="mt-3 pt-2.5 border-t border-white/10 flex flex-col gap-1 text-xs text-slate-400 bg-white/[0.02] p-3 rounded-xl border border-white/5">
+                                                <span className="text-[11px] text-[#00C2FF] font-semibold flex items-center gap-1">
+                                                    <Sparkles className="w-3 h-3 text-[#00C2FF]" />
                                                     @{targetUsername}&apos;s prayer response:
                                                 </span>
-                                                <p className="text-xs text-slate-200 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-purple-400/50">
+                                                <p className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
                                                     {entry.sharedWith.responseWords}
                                                 </p>
                                             </div>
@@ -1068,7 +1063,7 @@ export default function PrayPage() {
                                                                 type="button"
                                                                 disabled={isConfirmingShare[entry._id]}
                                                                 onClick={() => handleConfirmSharedPrayer(entry._id, 'Prayed with you ❤️')}
-                                                                className="px-3 py-1 rounded-xl bg-white/5 hover:bg-rose-500/20 text-xs font-bold text-slate-200 border border-white/10 hover:border-rose-500/40 transition-all flex items-center gap-1 active:scale-95 disabled:opacity-50"
+                                                                className="px-3 py-1 rounded-xl bg-white/5 hover:bg-sky-500/20 text-xs font-bold text-slate-200 border border-white/10 hover:border-sky-500/40 transition-all flex items-center gap-1 active:scale-95 disabled:opacity-50"
                                                             >
                                                                 <span>❤️ Prayed with you</span>
                                                             </button>
@@ -1116,7 +1111,7 @@ export default function PrayPage() {
                         >
                             <div className="flex items-center justify-between pb-2 border-b border-white/10">
                                 <div className="flex items-center gap-2">
-                                    <div className="p-1.5 rounded-lg bg-rose-500/15 text-rose-400">
+                                    <div className="p-1.5 rounded-lg bg-sky-500/15 text-sky-400">
                                         <Users className="w-4 h-4" />
                                     </div>
                                     <h3 className="text-sm sm:text-base font-bold text-white">Share Prayer</h3>
@@ -1137,11 +1132,11 @@ export default function PrayPage() {
                                     value={shareSearchQuery}
                                     onChange={(e) => setShareSearchQuery(e.target.value)}
                                     placeholder="Search by @username..."
-                                    className="w-full pl-9 pr-8 py-2.5 bg-white/[0.04] border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-rose-400/60 transition-all"
+                                    className="w-full pl-9 pr-8 py-2.5 bg-white/[0.04] border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-400/60 transition-all"
                                     autoFocus
                                 />
                                 {isSearchingUsers ? (
-                                    <Loader2 className="absolute right-3 w-4 h-4 text-rose-400 animate-spin top-1/2 -translate-y-1/2" />
+                                    <Loader2 className="absolute right-3 w-4 h-4 text-sky-400 animate-spin top-1/2 -translate-y-1/2" />
                                 ) : shareSearchQuery ? (
                                     <button
                                         onClick={() => setShareSearchQuery('')}
@@ -1156,7 +1151,7 @@ export default function PrayPage() {
                             <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[160px] max-h-[320px]">
                                 {loadingFriends ? (
                                     <div className="flex items-center justify-center py-10 text-slate-400 gap-2">
-                                        <Loader2 className="w-5 h-5 text-rose-400 animate-spin" />
+                                        <Loader2 className="w-5 h-5 text-sky-400 animate-spin" />
                                         <span className="text-xs">Loading friends...</span>
                                     </div>
                                 ) : getSortedShareResults().length === 0 ? (
@@ -1171,7 +1166,7 @@ export default function PrayPage() {
                                             className="flex items-center justify-between p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 transition-all"
                                         >
                                             <div className="flex items-center gap-3 min-w-0 pr-2">
-                                                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-rose-500/20 to-blue-600/30 border border-rose-400/20 flex items-center justify-center font-bold text-xs text-rose-300 uppercase shrink-0">
+                                                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-sky-500/20 to-blue-600/30 border border-sky-400/20 flex items-center justify-center font-bold text-xs text-sky-300 uppercase shrink-0">
                                                     {user.Name?.charAt(0) || 'U'}
                                                 </div>
                                                 <div className="min-w-0">

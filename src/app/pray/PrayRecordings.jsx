@@ -24,11 +24,11 @@ export const formatSeconds = (total = 0) => {
 
 const VOICE_TONES = {
     general: {
-        hex: '#fb7185',
-        solid: 'bg-rose-500 hover:bg-rose-400 shadow-rose-500/30',
-        soft: 'bg-rose-500/10 text-rose-300 border-rose-500/25 hover:bg-rose-500/20',
-        frame: 'border-rose-500/20',
-        text: 'text-rose-300',
+        hex: '#38bdf8',
+        solid: 'bg-sky-500 hover:bg-sky-400 shadow-sky-500/30',
+        soft: 'bg-sky-500/10 text-sky-300 border-sky-500/25 hover:bg-sky-500/20',
+        frame: 'border-sky-500/20',
+        text: 'text-sky-300',
     },
     'prayer for me': {
         hex: '#60a5fa',
