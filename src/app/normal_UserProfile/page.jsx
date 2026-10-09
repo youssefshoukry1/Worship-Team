@@ -632,14 +632,16 @@ export default function NormalUserProfile() {
                                         if (colorId.startsWith('#')) return colorId;
 
                                         const standard = {
-                                            cyan: '#7ae7ff', pink: '#ffbde6', red: '#f87171', lavender: '#e2e0ff',
-                                            yellow: '#ffff00', green: '#00ff66', blue: '#00bfff', orange: '#ffaa44'
+                                            teal: '#2fc4c9', lavender: '#DAB6FC', lightgray: '#EDEDED',
+                                            sage: '#8BB388', pinkred: '#FF2158', coral: '#F85E3B',
+                                            cyan: '#2fc4c9', pink: '#DAB6FC', red: '#FF2158',
+                                            yellow: '#EDEDED', green: '#8BB388', blue: '#2fc4c9', orange: '#F85E3B'
                                         };
                                         if (standard[colorId]) return standard[colorId];
 
                                         if (typeof window !== 'undefined') {
                                             try {
-                                                const savedCustom = localStorage.getItem('taspe7_custom_highlights_list');
+                                                const savedCustom = localStorage.getItem('taspe7_custom_highlights_list_v2') || localStorage.getItem('taspe7_custom_highlights_list');
                                                 if (savedCustom) {
                                                     const parsed = JSON.parse(savedCustom);
                                                     const found = parsed.find(c => c.id === colorId);

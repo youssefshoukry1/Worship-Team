@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Noto_Naskh_Arabic } from "next/font/google";
 import "./globals.css";
 import UserContextProvider from "./context/User_Context";
 import HymnsContextProvider from "./context/Hymns_Context";
@@ -22,9 +22,15 @@ const geistMono = Geist_Mono({
     subsets: ["latin"],
 });
 
+const notoNaskhArabic = Noto_Naskh_Arabic({
+    variable: "--font-noto-naskh-arabic",
+    subsets: ["arabic"],
+    weight: ["400", "500", "600", "700"],
+});
+
 export const metadata = {
     title: "Wasla",
-    description: "تسبيحنا يرتفع للسماء",
+    description: "وصلة - كتاب ترانيم - الكتاب المقدس",
     icons: {
         icon: "/wasla.jpg", // هيظهر بدل أي favicon افتراضي
     },
@@ -44,7 +50,7 @@ export default function RootLayout({
                 />
             </head>
             <body
-                className={`${geistSans.variable} ${geistMono.variable} antialiased text-white min-h-screen`}
+                className={`${geistSans.variable} ${geistMono.variable} ${notoNaskhArabic.variable} antialiased text-white min-h-screen`}
             >
                 <WaslaSplashIntro />
                 <CapgoUpdater />

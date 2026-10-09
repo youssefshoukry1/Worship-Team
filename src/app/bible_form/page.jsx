@@ -60,7 +60,7 @@ function saveLastCachedVerses(bookName, chapter, verses) {
   if (typeof window === 'undefined' || !bookName || chapter == null || !Array.isArray(verses) || verses.length === 0) return;
   try {
     localStorage.setItem(BIBLE_LAST_VERSES_KEY, JSON.stringify({ bookName, chapter, verses }));
-  } catch {}
+  } catch { }
 }
 
 function readLocalBibleNotes() {
@@ -82,15 +82,24 @@ function writeLocalBibleNote(verseId, note) {
 }
 
 const HIGHLIGHT_COLORS = [
-  { id: 'cyan', hex: '#7ae7ff' },
-  { id: 'pink', hex: '#ffbde6' },
-  { id: 'red', hex: '#f87171' },
-  { id: 'lavender', hex: '#e2e0ff' },
-  { id: 'yellow', hex: '#ffff00' },
-  { id: 'green', hex: '#00ff66' },
-  { id: 'blue', hex: '#00bfff' },
-  { id: 'orange', hex: '#ffaa44' },
+  { id: 'teal', hex: '#2fc4c9' },
+  { id: 'lavender', hex: '#DAB6FC' },
+  { id: 'lightgray', hex: '#EDEDED' },
+  { id: 'sage', hex: '#8BB388' },
+  { id: 'pinkred', hex: '#FF2158' },
+  { id: 'coral', hex: '#F85E3B' },
 ];
+
+const LEGACY_COLOR_MAP = {
+  cyan: '#2fc4c9',
+  lavender: '#DAB6FC',
+  yellow: '#EDEDED',
+  green: '#8BB388',
+  red: '#FF2158',
+  orange: '#F85E3B',
+  blue: '#2fc4c9',
+  pink: '#DAB6FC',
+};
 
 const LOCAL_BIBLE_HIGHLIGHTS_KEY = 'taspe7_local_bible_highlights';
 
@@ -125,6 +134,8 @@ function getHighlightStyles(colorId, colorsList) {
     else if (colorId.startsWith('custom-')) {
       const raw = colorId.replace('custom-', '');
       if (/^[0-9a-fA-F]{3,8}$/.test(raw)) hex = '#' + raw;
+    } else if (LEGACY_COLOR_MAP[colorId]) {
+      hex = LEGACY_COLOR_MAP[colorId];
     }
   }
   if (!hex) return null;
@@ -423,7 +434,12 @@ function ColorCustomizer({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row gap-4 bg-[#141824]/95 backdrop-blur-2xl text-white rounded-2xl p-4 shadow-[0_15px_50px_rgba(0,0,0,0.7)] border border-white/10 w-full max-w-[500px] select-none" dir="rtl">
+    <div
+      onPointerDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      className="flex flex-col sm:flex-row gap-4 bg-[#141824]/95 backdrop-blur-2xl text-white rounded-2xl p-4 shadow-[0_15px_50px_rgba(0,0,0,0.7)] border border-white/10 w-full max-w-[500px] select-none"
+      dir="rtl"
+    >
       {/* 2D Saturation / Value Box & Hue Slider */}
       <div className="flex flex-col gap-3 shrink-0" dir="ltr">
         {/* Sat/Val 2D Box */}
@@ -545,6 +561,13 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   const [bibleSearchQuery, setBibleSearchQuery] = useState('');
   const [bibleSearchResults, setBibleSearchResults] = useState([]);
   const [isSearchingBible, setIsSearchingBible] = useState(false);
+  const [showBibleSearchBar, setShowBibleSearchBar] = useState(false);
+
+  useEffect(() => {
+    if (bibleSearchQuery) {
+      setShowBibleSearchBar(true);
+    }
+  }, [bibleSearchQuery]);
   const initialBibleRef = useRef(null);
   if (!initialBibleRef.current) {
     initialBibleRef.current = getInitialBibleData();
@@ -631,8 +654,16 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   const [highlightColorsList, setHighlightColorsList] = useState(() => {
     if (typeof window === 'undefined') return HIGHLIGHT_COLORS;
     try {
-      const saved = localStorage.getItem('taspe7_custom_highlights_list');
-      return saved ? JSON.parse(saved) : HIGHLIGHT_COLORS;
+      const savedV2 = localStorage.getItem('taspe7_custom_highlights_list_v2');
+      if (savedV2) return JSON.parse(savedV2);
+
+      const oldSaved = localStorage.getItem('taspe7_custom_highlights_list');
+      if (oldSaved) {
+        const oldList = JSON.parse(oldSaved);
+        const customs = Array.isArray(oldList) ? oldList.filter(c => c.id && c.id.startsWith('custom-')) : [];
+        return [...HIGHLIGHT_COLORS, ...customs];
+      }
+      return HIGHLIGHT_COLORS;
     } catch {
       return HIGHLIGHT_COLORS;
     }
@@ -640,12 +671,12 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('taspe7_custom_highlights_list', JSON.stringify(highlightColorsList));
+      localStorage.setItem('taspe7_custom_highlights_list_v2', JSON.stringify(highlightColorsList));
     }
   }, [highlightColorsList]);
 
   const [showColorCustomizer, setShowColorCustomizer] = useState(false);
-  const [customColorHex, setCustomColorHex] = useState('#7ae7ff');
+  const [customColorHex, setCustomColorHex] = useState('#2fc4c9');
 
   const colorInputRef = useRef(null);
 
@@ -1297,6 +1328,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     onClose();
     setBibleSearchQuery('');
     setBibleSearchResults([]);
+    setShowBibleSearchBar(false);
     setBibleModalBooks([]);
     setBibleModalBook(null);
     setBibleModalChapters([]);
@@ -1495,6 +1527,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       setBibleModalBook(book);
       setBibleModalChapter(hit.chapter);
       setBibleSearchQuery('');
+      setShowBibleSearchBar(false);
       if (typeof window !== 'undefined') localStorage.setItem(BIBLE_LAST_POS_KEY, JSON.stringify({ bookName: hit.bookName, chapter: hit.chapter }));
     }
   };
@@ -1528,6 +1561,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     bibleSearchQuery, setBibleSearchQuery,
     bibleSearchResults, setBibleSearchResults,
     isSearchingBible,
+    showBibleSearchBar, setShowBibleSearchBar,
     bibleModalBooks, setBibleModalBooks,
     bibleModalBook, setBibleModalBook,
     bibleModalChapters, setBibleModalChapters,
@@ -1594,6 +1628,7 @@ export function BibleForm({ controller }) {
   const {
     isOpen,
     bibleSearchQuery, setBibleSearchQuery, bibleSearchResults, setBibleSearchResults, isSearchingBible,
+    showBibleSearchBar, setShowBibleSearchBar,
     bibleModalBooks, setBibleModalBooks, bibleModalBook, setBibleModalBook,
     bibleModalChapters, setBibleModalChapters, bibleModalChapter, setBibleModalChapter,
     bibleModalVerses, setBibleModalVerses, bibleSelectedVerseIds, setBibleSelectedVerseIds,
@@ -1618,13 +1653,107 @@ export function BibleForm({ controller }) {
     bibleScrollContainerRef
   } = controller;
 
+  const actionCardRef = useRef(null);
+  const actionTouchStartY = useRef(0);
+  const actionLastY = useRef(0);
+  const actionLastTime = useRef(0);
+  const actionVelocity = useRef(0);
+  const actionPullDistance = useRef(0);
+
+  const isClosingActionPanel = useRef(false);
+
+  const closeSelectionPanel = () => {
+    if (isClosingActionPanel.current) return;
+    if (actionCardRef.current) {
+      isClosingActionPanel.current = true;
+      actionCardRef.current.style.animation = 'none';
+      actionCardRef.current.style.transition = 'transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1)';
+      actionCardRef.current.style.transform = 'translate3d(0, 100%, 0)';
+      setTimeout(() => {
+        setBibleSelectedVerseIds(new Set());
+        setShowAiOptions(false);
+        setAiAnalysis({ loading: false, type: null, text: '', error: null });
+        setShowColorCustomizer(false);
+        isClosingActionPanel.current = false;
+      }, 180);
+    } else {
+      setBibleSelectedVerseIds(new Set());
+      setShowAiOptions(false);
+      setAiAnalysis({ loading: false, type: null, text: '', error: null });
+      setShowColorCustomizer(false);
+    }
+  };
+
+  const handleActionTouchStart = (e) => {
+    if (showColorCustomizer) return;
+    const y = e.touches[0].clientY;
+    actionTouchStartY.current = y;
+    actionLastY.current = y;
+    actionLastTime.current = Date.now();
+    actionVelocity.current = 0;
+    actionPullDistance.current = 0;
+    if (actionCardRef.current) {
+      actionCardRef.current.style.animation = 'none';
+      actionCardRef.current.style.transition = 'none';
+    }
+  };
+
+  const handleActionTouchMove = (e) => {
+    if (showColorCustomizer) return;
+    const currentY = e.touches[0].clientY;
+    const now = Date.now();
+    const dt = now - actionLastTime.current || 1;
+    actionVelocity.current = (currentY - actionLastY.current) / dt;
+    actionLastY.current = currentY;
+    actionLastTime.current = now;
+
+    const deltaY = currentY - actionTouchStartY.current;
+    if (deltaY > 0) {
+      actionPullDistance.current = deltaY;
+      if (actionCardRef.current) {
+        actionCardRef.current.style.transform = `translate3d(0, ${deltaY}px, 0)`;
+      }
+    } else {
+      actionPullDistance.current = 0;
+      if (actionCardRef.current) {
+        actionCardRef.current.style.transform = 'translate3d(0, 0, 0)';
+      }
+    }
+  };
+
+  const handleActionTouchEnd = () => {
+    if (showColorCustomizer) return;
+    const pullDist = actionPullDistance.current;
+    const vel = actionVelocity.current;
+
+    // Fast & sensitive dismissal matching user's touch
+    const shouldDismiss = pullDist > 25 || vel > 0.18 || (pullDist > 12 && vel > 0.1);
+
+    if (shouldDismiss) {
+      closeSelectionPanel();
+    } else if (actionCardRef.current) {
+      actionCardRef.current.style.transition = 'transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1)';
+      actionCardRef.current.style.transform = 'translate3d(0, 0, 0)';
+    }
+    actionPullDistance.current = 0;
+    actionVelocity.current = 0;
+  };
+
+  const onVerseClick = (verseId) => {
+    if (bibleSelectedVerseIds.has(verseId) && bibleSelectedVerseIds.size === 1) {
+      closeSelectionPanel();
+    } else {
+      handleVerseClick(verseId);
+    }
+  };
+
   return (
     <>
       {/* This is the Bible search and reader */}
       {isOpen && (
         <Portal>
           {/* Fixed the wrapper by adding overflow-hidden to prevent background interaction */}
-          <div 
+          <div
             className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-6 overflow-hidden"
           >
             {/* Dynamic Background Blur */}
@@ -1703,29 +1832,55 @@ export function BibleForm({ controller }) {
                 <div className="p-4 sm:p-12 max-w-3xl mx-auto space-y-6">
                   {/* Smart Navigation Hub */}
                   <div className="space-y-3 pb-2" dir="rtl">
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      {/* Minimalist Search */}
-                      <div className="relative flex-1 group">
-                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-sky-400 transition-colors" />
-                        <input
-                          type="text"
-                          value={bibleSearchQuery}
-                          onChange={(e) => setBibleSearchQuery(e.target.value)}
-                          placeholder="ابحث بعمق..."
-                          className="w-full bg-white/[0.03] border border-white/5 rounded-2xl py-2.5 pr-10 pl-4 text-white text-sm focus:outline-none focus:bg-white/[0.06] focus:border-sky-500/30 transition-all placeholder:text-white/10"
-                        />
-                        {bibleSearchQuery && (
-                          <button
-                            onClick={() => setBibleSearchQuery('')}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-white/10 text-white/30 transition-all z-20"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
+                    <div className="flex items-center justify-between gap-2 sm:gap-3 w-full">
+                      {/* Search Toggle & Input */}
+                      <div className="flex items-center gap-2 sm:gap-3 relative z-20 h-10 flex-1 min-w-0">
+                        {/* Search Toggle (Icon Only) */}
+                        <button
+                          onClick={() => {
+                            setShowBibleSearchBar(!showBibleSearchBar);
+                            if (showBibleSearchBar) {
+                              setBibleSearchQuery('');
+                            }
+                          }}
+                          className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-full transition-all duration-300 border backdrop-blur-xl relative overflow-hidden group shadow-lg z-30
+                           ${showBibleSearchBar
+                              ? 'bg-red-500/10 border-red-500/20 text-red-400 rotate-90 scale-90'
+                              : 'bg-white/5 border-white/20 text-sky-200 hover:bg-white/10 hover:text-white hover:border-sky-400/30 hover:shadow-[0_0_15px_rgba(56,189,248,0.3)]'
+                            }`}
+                          title={showBibleSearchBar ? (language === 'ar' ? "إغلاق البحث" : "Close Search") : (language === 'ar' ? "البحث في الكتاب المقدس" : "Search Bible")}
+                        >
+                          {showBibleSearchBar ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+                        </button>
+
+                        {/* Search Input Bar */}
+                        {showBibleSearchBar && (
+                          <div className="relative h-10 flex-1 min-w-0 max-w-[260px] flex items-center search-fade-in">
+                            <div className="absolute inset-0 bg-white/5 border border-white/10 rounded-full backdrop-blur-md shadow-inner" />
+
+                            <input
+                              autoFocus
+                              type="text"
+                              value={bibleSearchQuery}
+                              onChange={(e) => setBibleSearchQuery(e.target.value)}
+                              placeholder="ابحث بعمق..."
+                              className="w-full h-full pl-4 pr-8 py-2 bg-transparent text-sm text-white placeholder-gray-400/70 
+                                 outline-none relative z-10 font-light tracking-wide"
+                            />
+                            {bibleSearchQuery && (
+                              <button
+                                onClick={() => setBibleSearchQuery('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-white/20 text-gray-400 hover:text-white transition-all z-20"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
 
                       {/* Compact Selectors */}
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 shrink-0">
                         <button
                           onClick={() => setBiblePickerOpen(o => o === 'book' ? null : 'book')}
                           className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 text-white text-xs font-bold transition-all flex items-center gap-2 ${biblePickerOpen === 'book' ? 'bg-sky-500/20 border-sky-500/50' : ''}`}
@@ -1953,7 +2108,7 @@ export function BibleForm({ controller }) {
                                   {t("selectAll")}
                                 </button>
                                 <button
-                                  onClick={() => setBibleSelectedVerseIds(new Set())}
+                                  onClick={closeSelectionPanel}
                                   className="px-2.5 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-bold rounded-xl bg-white/5 hover:bg-white/10 border border-white/[0.07] text-slate-300 transition-all active:scale-95"
                                 >
                                   {t("deselectAll")}
@@ -2013,6 +2168,8 @@ export function BibleForm({ controller }) {
                                     else if (hl.startsWith('custom-')) {
                                       const raw = hl.replace('custom-', '');
                                       if (/^[0-9a-fA-F]{3,8}$/.test(raw)) h = '#' + raw;
+                                    } else if (LEGACY_COLOR_MAP[hl]) {
+                                      h = LEGACY_COLOR_MAP[hl];
                                     }
                                   }
                                 }
@@ -2053,7 +2210,7 @@ export function BibleForm({ controller }) {
                               return (
                                 <span
                                   key={verse._id}
-                                  onClick={() => handleVerseClick(verse._id)}
+                                  onClick={() => onVerseClick(verse._id)}
                                   style={{
                                     backgroundColor: curr.bg,
                                     border: 'none',
@@ -2104,7 +2261,7 @@ export function BibleForm({ controller }) {
                                 highlightColor={highlightColor}
                                 highlightColorsList={highlightColorsList}
                                 hasNote={existingNote}
-                                onClick={handleVerseClick}
+                                onClick={onVerseClick}
                                 onNoteClick={handleVerseNoteClick}
                               />
                             );
@@ -2138,230 +2295,230 @@ export function BibleForm({ controller }) {
                 </div>
               )}
 
-              <AnimatePresence>
-                {bibleSelectedVerseIds.size > 0 && (
-                  <motion.div
-                    drag="y"
-                    dragDirectionLock
-                    dragSnapToOrigin
-                    dragConstraints={{ top: 0, bottom: 0 }}
-                    dragElastic={{ top: 0, bottom: 0.6 }}
-                    onDragEnd={(event, info) => {
-                      if (info.offset.y > 110 || (info.offset.y > 40 && info.velocity.y > 350)) {
-                        setBibleSelectedVerseIds(new Set());
-                        setShowAiOptions(false);
-                        setAiAnalysis({ loading: false, type: null, text: '', error: null });
-                        setShowColorCustomizer(false);
-                      }
-                    }}
-                    initial={{ y: '100%' }}
-                    animate={{ y: 0 }}
-                    exit={{ y: '100%' }}
-                    transition={{ duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
-                    className="absolute bottom-0 left-0 right-0 z-50 bg-[#0d0e15]/95 border-t border-white/10 backdrop-blur-2xl rounded-t-[1.5rem] shadow-[0_-15px_35px_rgba(0,0,0,0.6)] flex flex-col text-white overflow-hidden"
-                    dir="rtl"
-                  >
-                    {/* Pull bar */}
-                    <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mt-3 mb-1 shrink-0 cursor-grab active:cursor-grabbing" />
+              {bibleSelectedVerseIds.size > 0 && (
+                <div
+                  ref={actionCardRef}
+                  onTouchStart={handleActionTouchStart}
+                  onTouchMove={handleActionTouchMove}
+                  onTouchEnd={handleActionTouchEnd}
+                  onAnimationEnd={() => {
+                    if (actionCardRef.current) {
+                      actionCardRef.current.style.animation = 'none';
+                    }
+                  }}
+                  style={{ willChange: 'transform' }}
+                  className="animate-sheet-slide-up absolute bottom-0 left-0 right-0 z-50 bg-[#0d0e15] border-t border-white/10 rounded-t-[1.5rem] shadow-[0_-15px_35px_rgba(0,0,0,0.6)] flex flex-col text-white overflow-hidden"
+                  dir="rtl"
+                >
+                  {/* Pull bar */}
+                  <div
+                    onClick={closeSelectionPanel}
+                    className={`w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto mt-3 mb-1 shrink-0 transition-colors cursor-pointer ${showColorCustomizer ? 'hidden' : ''}`}
+                  />
 
-                    <div className="flex flex-col gap-3 px-4 pb-4 pt-1">
+                  <div className="flex flex-col gap-3 px-4 pb-4 pt-1">
 
-                      {/* Row: ref + close */}
-                      <div className="flex justify-between items-center">
-
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-black text-sky-400" dir="ltr">{getSelectedVersesRef()}</span>
-
-                        </div>
+                    {/* Row: ref + close */}
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-black text-sky-400" dir="ltr">{getSelectedVersesRef()}</span>
                       </div>
 
-                      {/* Action Buttons */}
-                      <div className="flex gap-1.5 hide-scrollbar" dir="ltr">
-                        <button
-                          onClick={handleCopySelectedVerses}
-                          className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95"
-                        >
-                          <Copy className="w-3.5 h-3.5 text-sky-400" /> {t('copy')}
-                        </button>
+                      <button
+                        onClick={closeSelectionPanel}
+                        className="w-7 h-7 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all active:scale-90"
+                        title="Close"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
 
-                        {availableTranslations.length > 1 && (
-                          <button
-                            onClick={() => {
-                              const nums = bibleModalVerses
-                                .filter(v => bibleSelectedVerseIds.has(v._id))
-                                .map(v => v.verseNumber);
-                              openCompare(nums);
-                            }}
-                            className="flex-1 min-w-[90px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95"
-                          >
-                            <BookOpen className="w-3.5 h-3.5 text-sky-400" /> {t('compare')}
-                          </button>
-                        )}
+                    {/* Action Buttons */}
+                    <div className="flex gap-1.5 hide-scrollbar" dir="ltr">
+                      <button
+                        onClick={handleCopySelectedVerses}
+                        className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                      >
+                        <Copy className="w-3.5 h-3.5 text-sky-400" /> {t('copy')}
+                      </button>
 
+                      {availableTranslations.length > 1 && (
                         <button
                           onClick={() => {
-                            const firstVerse = bibleModalVerses.find(v => bibleSelectedVerseIds.has(v._id));
-                            if (!firstVerse) return;
-                            setNoteText(verseNotes[firstVerse._id] || '');
-                            setNoteModalConfig({ type: 'bible', data: firstVerse, existingNote: verseNotes[firstVerse._id] });
+                            const nums = bibleModalVerses
+                              .filter(v => bibleSelectedVerseIds.has(v._id))
+                              .map(v => v.verseNumber);
+                            openCompare(nums);
                           }}
-                          className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95"
+                          className="flex-1 min-w-[90px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95"
                         >
-                          <FileText className="w-3.5 h-3.5 text-indigo-400" /> {t('Note')}
+                          <BookOpen className="w-3.5 h-3.5 text-sky-400" /> {t('compare')}
                         </button>
-
-                        <button
-                          onClick={() => {
-                            setShowAiOptions(p => !p);
-                            setAiAnalysis({ loading: false, type: null, text: '', error: null });
-                          }}
-                          className={`flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95
-              ${showAiOptions
-                              ? 'bg-violet-500/20 border-violet-400/50 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.3)]'
-                              : 'bg-white/5 hover:bg-white/10 border-white/10 text-white'
-                            }`}
-                        >
-                          <Sparkles className="w-3.5 h-3.5" /> {t('Ai')}
-                        </button>
-                      </div>
-
-                      {/* AI Options */}
-                      {showAiOptions && (
-                        <div className="flex gap-2 shrink-0 animate-in fade-in slide-in-from-bottom-1 duration-150" dir="rtl">
-                          {[
-                            { type: 'explain', label: 'تفسير', icon: BookOpen, color: 'text-violet-400', border: 'border-violet-500/20 hover:border-violet-400/50 hover:bg-violet-500/5', glow: 'shadow-[0_0_15px_rgba(139,92,246,0.15)] hover:shadow-[0_0_22px_rgba(139,92,246,0.25)]' },
-                            { type: 'cross_reference', label: 'مراجع', icon: Link2, color: 'text-sky-400', border: 'border-sky-500/20 hover:border-sky-400/50 hover:bg-sky-500/5', glow: 'shadow-[0_0_15px_rgba(14,165,233,0.15)] hover:shadow-[0_0_22px_rgba(14,165,233,0.25)]' },
-                            { type: 'practical', label: 'تطبيق', icon: Lightbulb, color: 'text-amber-400', border: 'border-amber-500/20 hover:border-amber-400/50 hover:bg-amber-500/5', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:shadow-[0_0_22px_rgba(245,158,11,0.25)]' },
-                          ].map(({ type, label, icon: IconComponent, color, border, glow }) => (
-                            <button
-                              key={type}
-                              onClick={() => handleAiAnalysis(type)}
-                              disabled={aiAnalysis.loading}
-                              className={`flex-1 py-3 px-4 rounded-2xl bg-[#111322]/50 border ${border} ${glow} transition-all duration-300 flex flex-col items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 group`}
-                            >
-                              <IconComponent className={`w-5 h-5 ${color} group-hover:scale-110 group-active:scale-95 transition-transform duration-300`} />
-                              <span className="text-[11px] font-black text-slate-300 group-hover:text-white transition-colors duration-300">{label}</span>
-                            </button>
-                          ))}
-                        </div>
                       )}
 
-                      {/* AI Response — no header bar, floating dismiss pill */}
-                      {(aiAnalysis.loading || aiAnalysis.text || aiAnalysis.error) && (
-                        <div className="relative rounded-2xl overflow-hidden border border-violet-500/20 bg-[#0c0f1e]/80 backdrop-blur-md shadow-[0_4px_24px_rgba(139,92,246,0.12)]">
+                      <button
+                        onClick={() => {
+                          const firstVerse = bibleModalVerses.find(v => bibleSelectedVerseIds.has(v._id));
+                          if (!firstVerse) return;
+                          setNoteText(verseNotes[firstVerse._id] || '');
+                          setNoteModalConfig({ type: 'bible', data: firstVerse, existingNote: verseNotes[firstVerse._id] });
+                        }}
+                        className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-indigo-400" /> {t('Note')}
+                      </button>
 
-                          <div className="flex items-center justify-between px-4 pt-3 pb-1">
-                            <div className="flex items-center gap-1.5">
-                              <Sparkles className="w-3 h-3 text-violet-400" />
-                              <span className="text-[10px] font-black text-violet-300 tracking-widest uppercase">
-                                {aiAnalysis.type === 'explain' ? 'تفسير روحي' : aiAnalysis.type === 'cross_reference' ? 'مراجع كتابية' : 'تطبيق عملي'}
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => setAiAnalysis({ loading: false, type: null, text: '', error: null })}
-                              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 hover:bg-red-500/15 text-white/25 hover:text-red-400 border border-white/8 hover:border-red-500/20 transition-all duration-150 text-[10px] font-bold"
-                            >
-                              <X className="w-2.5 h-2.5" />
-                            </button>
+                      <button
+                        onClick={() => {
+                          setShowAiOptions(p => !p);
+                          setAiAnalysis({ loading: false, type: null, text: '', error: null });
+                        }}
+                        className={`flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95
+              ${showAiOptions
+                            ? 'bg-violet-500/20 border-violet-400/50 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.3)]'
+                            : 'bg-white/5 hover:bg-white/10 border-white/10 text-white'
+                          }`}
+                      >
+                        <Sparkles className="w-3.5 h-3.5" /> {t('Ai')}
+                      </button>
+                    </div>
+
+                    {/* AI Options */}
+                    {showAiOptions && (
+                      <div className="flex gap-2 shrink-0 animate-in fade-in slide-in-from-bottom-1 duration-150" dir="rtl">
+                        {[
+                          { type: 'explain', label: 'تفسير', icon: BookOpen, color: 'text-violet-400', border: 'border-violet-500/20 hover:border-violet-400/50 hover:bg-violet-500/5', glow: 'shadow-[0_0_15px_rgba(139,92,246,0.15)] hover:shadow-[0_0_22px_rgba(139,92,246,0.25)]' },
+                          { type: 'cross_reference', label: 'مراجع', icon: Link2, color: 'text-sky-400', border: 'border-sky-500/20 hover:border-sky-400/50 hover:bg-sky-500/5', glow: 'shadow-[0_0_15px_rgba(14,165,233,0.15)] hover:shadow-[0_0_22px_rgba(14,165,233,0.25)]' },
+                          { type: 'practical', label: 'تطبيق', icon: Lightbulb, color: 'text-amber-400', border: 'border-amber-500/20 hover:border-amber-400/50 hover:bg-amber-500/5', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:shadow-[0_0_22px_rgba(245,158,11,0.25)]' },
+                        ].map(({ type, label, icon: IconComponent, color, border, glow }) => (
+                          <button
+                            key={type}
+                            onClick={() => handleAiAnalysis(type)}
+                            disabled={aiAnalysis.loading}
+                            className={`flex-1 py-3 px-4 rounded-2xl bg-[#111322]/50 border ${border} ${glow} transition-all duration-300 flex flex-col items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 group`}
+                          >
+                            <IconComponent className={`w-5 h-5 ${color} group-hover:scale-110 group-active:scale-95 transition-transform duration-300`} />
+                            <span className="text-[11px] font-black text-slate-300 group-hover:text-white transition-colors duration-300">{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* AI Response — no header bar, floating dismiss pill */}
+                    {(aiAnalysis.loading || aiAnalysis.text || aiAnalysis.error) && (
+                      <div className="relative rounded-2xl overflow-hidden border border-violet-500/20 bg-[#0c0f1e]/80 backdrop-blur-md shadow-[0_4px_24px_rgba(139,92,246,0.12)]">
+
+                        <div className="flex items-center justify-between px-4 pt-3 pb-1">
+                          <div className="flex items-center gap-1.5">
+                            <Sparkles className="w-3 h-3 text-violet-400" />
+                            <span className="text-[10px] font-black text-violet-300 tracking-widest uppercase">
+                              {aiAnalysis.type === 'explain' ? 'تفسير روحي' : aiAnalysis.type === 'cross_reference' ? 'مراجع كتابية' : 'تطبيق عملي'}
+                            </span>
                           </div>
+                          <button
+                            onClick={() => setAiAnalysis({ loading: false, type: null, text: '', error: null })}
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 hover:bg-red-500/15 text-white/25 hover:text-red-400 border border-white/8 hover:border-red-500/20 transition-all duration-150 text-[10px] font-bold"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
 
-                          <div className="px-4 pb-4 max-h-52 overflow-y-auto custom-scrollbar-thin" dir="rtl">
-                            {aiAnalysis.loading ? (
-                              <div className="flex items-center justify-center gap-2 py-6">
-                                <div className="relative w-7 h-7">
-                                  <div className="absolute inset-0 rounded-full border-2 border-violet-500/30 border-t-violet-400 animate-spin" />
-                                  <Sparkles className="absolute inset-0 m-auto w-3 h-3 text-violet-400 animate-pulse" />
-                                </div>
+                        <div className="px-4 pb-4 max-h-52 overflow-y-auto custom-scrollbar-thin" dir="rtl">
+                          {aiAnalysis.loading ? (
+                            <div className="flex items-center justify-center gap-2 py-6">
+                              <div className="relative w-7 h-7">
+                                <div className="absolute inset-0 rounded-full border-2 border-violet-500/30 border-t-violet-400 animate-spin" />
+                                <Sparkles className="absolute inset-0 m-auto w-3 h-3 text-violet-400 animate-pulse" />
                               </div>
-                            ) : aiAnalysis.error ? (
-                              <>
-                                <p className="text-xs text-red-400 text-center py-3">{aiAnalysis.error}</p>
-                                {aiAnalysis.isLimit && !isLogin && (
-                                  <div className="mt-2 flex justify-center">
-                                    <button
-                                      onClick={() => router.push('/regester')}
-                                      className="inline-flex items-center justify-center rounded-full bg-sky-500 px-4 py-2 text-xs font-black text-white transition hover:bg-sky-400"
-                                    >
-                                      {t('register')}
-                                    </button>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-[13px] leading-loose text-slate-200/90 font-arabic whitespace-pre-line">
-                                {aiAnalysis.text}
-                              </p>
+                            </div>
+                          ) : aiAnalysis.error ? (
+                            <>
+                              <p className="text-xs text-red-400 text-center py-3">{aiAnalysis.error}</p>
+                              {aiAnalysis.isLimit && !isLogin && (
+                                <div className="mt-2 flex justify-center">
+                                  <button
+                                    onClick={() => router.push('/regester')}
+                                    className="inline-flex items-center justify-center rounded-full bg-sky-500 px-4 py-2 text-xs font-black text-white transition hover:bg-sky-400"
+                                  >
+                                    {t('register')}
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-[13px] leading-loose text-slate-200/90 font-arabic whitespace-pre-line">
+                              {aiAnalysis.text}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Highlights */}
+                    <div className="flex items-center gap-2.5 overflow-x-auto py-1 hide-scrollbar">
+                      {highlightColorsList.map(c => {
+                        const isColorActive = Array.from(bibleSelectedVerseIds).every(id => bibleHighlights[id] === c.id);
+                        const isCustom = c.id.startsWith('custom-') || !HIGHLIGHT_COLORS.some(h => h.id === c.id);
+                        return (
+                          <div key={c.id} className="relative group shrink-0">
+                            <button
+                              onClick={() => handleApplyHighlight(c.id)}
+                              className={`w-7 h-7 rounded-full transition-all active:scale-90 flex items-center justify-center border-2
+                    ${isColorActive ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
+                              style={{ backgroundColor: c.hex }}
+                            >
+                              {isColorActive && <Check className="w-4 h-4 text-slate-900 stroke-[3]" />}
+                            </button>
+
+                            {isCustom && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setHighlightColorsList(prev => prev.filter(item => item.id !== c.id));
+                                }}
+                                className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-slate-900 border border-white/20 text-white/70 hover:text-red-400 hover:bg-red-500/20 hover:border-red-400/50 flex items-center justify-center transition-all shadow-sm z-10"
+                                title="حذف اللون"
+                              >
+                                <X className="w-2.5 h-2.5 stroke-[3]" />
+                              </button>
                             )}
                           </div>
-                        </div>
-                      )}
+                        );
+                      })}
 
-                      {/* Highlights */}
-                      <div className="flex items-center gap-2.5 overflow-x-auto py-1 hide-scrollbar">
-                        {highlightColorsList.map(c => {
-                          const isColorActive = Array.from(bibleSelectedVerseIds).every(id => bibleHighlights[id] === c.id);
-                          const isCustom = c.id.startsWith('custom-') || !HIGHLIGHT_COLORS.some(h => h.id === c.id);
-                          return (
-                            <div key={c.id} className="relative group shrink-0">
-                              <button
-                                onClick={() => handleApplyHighlight(c.id)}
-                                className={`w-7 h-7 rounded-full transition-all active:scale-90 flex items-center justify-center border-2
-                    ${isColorActive ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
-                                style={{ backgroundColor: c.hex }}
-                              >
-                                {isColorActive && <Check className="w-4 h-4 text-slate-900 stroke-[3]" />}
-                              </button>
-
-                              {isCustom && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setHighlightColorsList(prev => prev.filter(item => item.id !== c.id));
-                                  }}
-                                  className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-slate-900 border border-white/20 text-white/70 hover:text-red-400 hover:bg-red-500/20 hover:border-red-400/50 flex items-center justify-center transition-all shadow-sm z-10"
-                                  title="حذف اللون"
-                                >
-                                  <X className="w-2.5 h-2.5 stroke-[3]" />
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
-
-                        <button
-                          onClick={() => setShowColorCustomizer(prev => !prev)}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90 border border-white/20 shrink-0
+                      <button
+                        onClick={() => setShowColorCustomizer(prev => !prev)}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90 border border-white/20 shrink-0
               ${showColorCustomizer ? 'bg-sky-500/20 text-sky-400 border-sky-500/50' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}`}
-                        >
-                          <PlusCircle className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      {/* Color Customizer */}
-                      {showColorCustomizer && (
-                        <ColorCustomizer
-                          initialHex={customColorHex}
-                          t={t}
-                          onClose={() => setShowColorCustomizer(false)}
-                          onSave={(selectedHex) => {
-                            const cleanHex = selectedHex.replace('#', '').toLowerCase();
-                            const newId = `custom-${cleanHex}`;
-                            const existing = highlightColorsList?.find(c => c.hex.toLowerCase() === selectedHex.toLowerCase());
-                            const idToApply = existing ? existing.id : newId;
-                            if (!existing) {
-                              setHighlightColorsList(prev => [...prev, { id: newId, hex: selectedHex }]);
-                            }
-                            setCustomColorHex(selectedHex);
-                            handleApplyHighlight(idToApply);
-                            setShowColorCustomizer(false);
-                          }}
-                        />
-                      )}
-
+                      >
+                        <PlusCircle className="w-4 h-4" />
+                      </button>
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+
+                    {/* Color Customizer */}
+                    {showColorCustomizer && (
+                      <ColorCustomizer
+                        initialHex={customColorHex}
+                        t={t}
+                        onClose={() => setShowColorCustomizer(false)}
+                        onSave={(selectedHex) => {
+                          const cleanHex = selectedHex.replace('#', '').toLowerCase();
+                          const newId = `custom-${cleanHex}`;
+                          const existing = highlightColorsList?.find(c => c.hex.toLowerCase() === selectedHex.toLowerCase());
+                          const idToApply = existing ? existing.id : newId;
+                          if (!existing) {
+                            setHighlightColorsList(prev => [...prev, { id: newId, hex: selectedHex }]);
+                          }
+                          setCustomColorHex(selectedHex);
+                          handleApplyHighlight(idToApply);
+                          setShowColorCustomizer(false);
+                        }}
+                      />
+                    )}
+
+                  </div>
+                </div>
+              )}
 
 
               {/* Smart Progress Indicator */}

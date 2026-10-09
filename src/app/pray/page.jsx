@@ -943,12 +943,6 @@ export default function PrayPage() {
                                     <div key={entry._id} className="p-4 sm:p-5 rounded-2xl border transition-all duration-200 bg-white/[0.03] border-white/10 hover:border-[#00C2FF]/30">
                                         <div className="flex items-start justify-between gap-3 mb-2">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="text-[11px] text-slate-400 font-medium">
-                                                    Shared with <span className="text-[#00C2FF] font-semibold">@{targetUsername}</span>
-                                                </span>
-                                                {entry.prayType && entry.prayType !== 'general' && (
-                                                    <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
-                                                )}
                                                 <span className="text-[10px] text-slate-500 font-bold">{formatDate(entry.date, 'N/A', language)}</span>
                                             </div>
                                             <div className="flex gap-2">
@@ -960,8 +954,8 @@ export default function PrayPage() {
                                         {isConfirmed && entry.sharedWith?.responseWords && (
                                             <div className="mt-3 pt-2.5 border-t border-white/10 flex flex-col gap-1 text-xs text-slate-400 bg-white/[0.02] p-3 rounded-xl border border-white/5">
                                                 <span className="text-[11px] text-[#00C2FF] font-semibold flex items-center gap-1">
-                                                    <Sparkles className="w-3 h-3 text-[#00C2FF]" />
-                                                    @{targetUsername}&apos;s prayer response:
+
+                                                    @{targetUsername} replay:
                                                 </span>
                                                 <p className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
                                                     {entry.sharedWith.responseWords}
