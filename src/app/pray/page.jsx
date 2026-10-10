@@ -3,25 +3,17 @@
 import { useCallback, useEffect, useState, useContext } from 'react';
 import localforage from 'localforage';
 import { UserContext } from '../context/User_Context';
-import { Check, Edit3, Heart, Loader2, Trash2, X, Share2, Search, Users, ChevronRight, ArrowRight, Send, Inbox, Lock, Clock, Sparkles, Layers, CheckCheck } from 'lucide-react';
+import { Check, Edit3, Heart, Loader2, Trash2, X, Share2, Search, Users, ChevronRight, ArrowRight, Send, Inbox, Lock, Layers, CheckCheck } from 'lucide-react';
 import Portal from '../Portal/Portal';
-import { queueOfflineAction } from '../utils/offlineQueue';
 import { showToast } from '../components/ToastContainer';
 import { getApiBaseUrl } from '../utils/apiBase';
 import {
-    addGuestPray, addRecordings, deleteGuestPray, deleteRecordingsForPray, getGuestPrays, getRecordingsIndex, reconcileTempRecordings, updateGuestPray,
+    addGuestPray, addRecordings, deleteGuestPray, getGuestPrays, getRecordingsIndex, updateGuestPray, addExternalRecording, extensionForMime
 } from '../utils/prayRecordings';
 import { MyPraysBackup, SavedPrayRecordings, VoiceRecorderPanel, usePrayRecorder } from './PrayRecordings';
 import { useLanguage } from '../context/LanguageContext';
 
 const API_URL = getApiBaseUrl();
-
-
-const PRAY_TYPES = [
-    { id: 'general', key: 'generalPrayer' },
-    { id: 'prayer for me', key: 'prayerForMe' },
-    { id: 'prayer for other', key: 'prayerForOthers' },
-];
 
 const GENERAL_BLOCK_ID = 'general';
 
@@ -94,6 +86,20 @@ const groupRecordingsBySection = (sections, recordings = []) => {
     return { grouped, leftovers };
 };
 
+const blobToBase64 = (blob) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        const result = reader.result;
+        if (typeof result === 'string') {
+            resolve(result.split(',')[1] || result);
+        } else {
+            resolve('');
+        }
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+});
+
 function PrayEntryContent({ entry, recordings, onRecordingsChanged, getPrayTypeLabel }) {
     const sections = parsePraySections(entry.words);
     const { grouped, leftovers } = groupRecordingsBySection(sections, recordings);
@@ -109,43 +115,6 @@ function PrayEntryContent({ entry, recordings, onRecordingsChanged, getPrayTypeL
             <SavedPrayRecordings prayId={entry._id} recordings={leftovers} getBlockLabel={getPrayTypeLabel} onChanged={onRecordingsChanged} />
         </div>
     );
-}
-
-function getUsersEndpointCandidates(apiUrl, path) {
-    const normalizedPath = String(path || '').replace(/^\/+/, '');
-    const withApi = apiUrl;
-    const withoutApi = apiUrl.replace(/\/api$/i, '');
-    return [...new Set([
-        `${withApi}/users/${normalizedPath}`,
-        `${withoutApi}/api/users/${normalizedPath}`,
-        `${withoutApi}/users/${normalizedPath}`,
-        `${withApi}/api/users/${normalizedPath}`,
-    ].map((url) => url.replace(/([^:]\/)\/+/g, '$1')))];
-}
-
-async function fetchUsersWithFallback(apiUrl, path, method, token, payload) {
-    const urls = getUsersEndpointCandidates(apiUrl, path);
-    let lastResponse = null;
-    for (const url of urls) {
-        const response = await fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: payload ? JSON.stringify(payload) : undefined,
-        });
-        lastResponse = response;
-        if (response.status === 404) continue;
-        const contentType = response.headers.get('content-type') || '';
-        const data = contentType.includes('application/json')
-            ? await response.json().catch(() => ({}))
-            : { message: `Unexpected non-JSON response from ${url}` };
-        return { response, data };
-    }
-    if (!lastResponse) return { response: null, data: { message: 'No response from server' } };
-    const fallbackType = lastResponse.headers.get('content-type') || '';
-    const fallbackData = fallbackType.includes('application/json')
-        ? await lastResponse.json().catch(() => ({}))
-        : { message: 'Endpoint not found on available API routes' };
-    return { response: lastResponse, data: fallbackData };
 }
 
 function ListPanel({ title, icon: Icon, iconBgClass, items, emptyText, recordsLabel, renderItem }) {
@@ -266,36 +235,35 @@ export default function PrayPage() {
         const responseText = (rawText || 'Amen 🙏').trim();
         try {
             setIsConfirmingShare((prev) => ({ ...prev, [prayId]: true }));
-            const res = await fetch(`${API_URL}/users/pray-time/confirm-share`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    prayId,
-                    responseWords: responseText
-                })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.msg || 'Failed to confirm prayer');
+            const currentEntry = guestPrays.find((p) => String(p._id) === String(prayId));
+            const shareId = currentEntry?.sharedFrom?.shareId || currentEntry?.sharedFrom?.originalPrayId || prayId;
 
-            updateProfileState((prev) => ({
-                ...prev,
-                prayTime: (prev?.prayTime || []).map((p) => {
-                    if (String(p._id) === String(prayId) && p.sharedFrom) {
-                        return {
-                            ...p,
-                            sharedFrom: {
-                                ...p.sharedFrom,
-                                status: 'confirmed',
-                                responseWords: responseText
-                            }
-                        };
-                    }
-                    return p;
-                })
-            }));
+            if (token) {
+                const res = await fetch(`${API_URL}/users/pray-time/confirm-share`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        shareId,
+                        prayId,
+                        responseWords: responseText
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.msg || 'Failed to confirm prayer');
+            }
+
+            await updateGuestPray(prayId, {
+                sharedFrom: {
+                    ...(currentEntry?.sharedFrom || {}),
+                    status: 'confirmed',
+                    responseWords: responseText
+                }
+            });
+            setGuestPrays(await getGuestPrays());
+
             setResponseInputs((prev) => {
                 const next = { ...prev };
                 delete next[prayId];
@@ -381,10 +349,10 @@ export default function PrayPage() {
     const [prayBlocks, setPrayBlocks] = useState([]);
     const [recordingsIndex, setRecordingsIndex] = useState({});
     const [generalRecordings, setGeneralRecordings] = useState([]);
-    // Without an account, prayers are stored only on this device
+    // All prayers are stored 100% on this device
     const isGuest = !token || !userId;
     const [guestPrays, setGuestPrays] = useState([]);
-    const rawPrayList = isGuest ? guestPrays : (profile?.prayTime || []);
+    const rawPrayList = guestPrays;
     const prayList = Array.from(
         new Map(rawPrayList.map((item) => [String(item._id || item.date), item])).values()
     );
@@ -455,15 +423,139 @@ export default function PrayPage() {
     useEffect(() => { refreshRecordings(); }, [refreshRecordings]);
 
     useEffect(() => {
-        if (!isGuest) return;
         getGuestPrays().then(setGuestPrays).catch((err) => console.warn('Could not load local prayers:', err));
-    }, [isGuest]);
+    }, []);
 
-    // Re-link recordings of prayers saved offline once they sync and get a real _id
+    // One-time import for existing users who already had prayers in MongoDB
     useEffect(() => {
-        if (isGuest || !profile?.prayTime?.length) return;
-        reconcileTempRecordings(profile.prayTime).then((changed) => { if (changed) refreshRecordings(); }).catch(() => { });
-    }, [isGuest, profile?.prayTime, refreshRecordings]);
+        if (!profile?.prayTime?.length) return;
+        getGuestPrays().then(async (locals) => {
+            const localWords = new Set(locals.map((p) => (p.words || '').trim()));
+            const toMigrate = profile.prayTime.filter((r) => r?.words && !localWords.has((r.words || '').trim()));
+            if (toMigrate.length > 0) {
+                for (const item of toMigrate) {
+                    await addGuestPray({
+                        _id: item._id,
+                        words: item.words,
+                        prayType: item.prayType || 'general',
+                        date: item.date,
+                        sharedWith: item.sharedWith,
+                        sharedFrom: item.sharedFrom
+                    });
+                }
+                setGuestPrays(await getGuestPrays());
+            }
+        }).catch(() => {});
+    }, [profile?.prayTime]);
+
+    // Check for incoming shared prayers from Cloudflare R2
+    const checkIncomingSharedPrayers = useCallback(async () => {
+        if (!token || !userId) return;
+        try {
+            const res = await fetch(`${API_URL}/users/pray-time/inbox`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) return;
+            const { inbox } = await res.json();
+            if (!Array.isArray(inbox) || !inbox.length) return;
+
+            let receivedCount = 0;
+            for (const bundle of inbox) {
+                const localId = `received-${bundle.shareId}`;
+                await addGuestPray({
+                    _id: localId,
+                    words: bundle.words,
+                    prayType: bundle.prayType || 'general',
+                    date: bundle.date || new Date().toISOString(),
+                    sharedFrom: {
+                        userId: bundle.senderId,
+                        username: bundle.senderUsername,
+                        shareId: bundle.shareId,
+                        originalPrayId: bundle.shareId,
+                        status: 'pending'
+                    }
+                });
+
+                if (Array.isArray(bundle.recordings) && bundle.recordings.length > 0) {
+                    for (const rec of bundle.recordings) {
+                        if (rec.data) {
+                            await addExternalRecording(localId, rec, rec.data);
+                        }
+                    }
+                }
+
+                // Acknowledge -> deletes payload from Cloudflare R2!
+                await fetch(`${API_URL}/users/pray-time/ack`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ shareId: bundle.shareId })
+                }).catch(() => {});
+
+                receivedCount++;
+            }
+
+            if (receivedCount > 0) {
+                const updated = await getGuestPrays();
+                setGuestPrays(updated);
+                refreshRecordings();
+                showToast({ message: `Received ${receivedCount} new shared prayer(s)!`, type: 'info' });
+            }
+        } catch (err) {
+            console.warn('Inbox check error:', err);
+        }
+    }, [token, userId, refreshRecordings]);
+
+    // Check for confirmations of prayers sent to others
+    const checkSentPrayUpdates = useCallback(async () => {
+        if (!token || !userId) return;
+        try {
+            const res = await fetch(`${API_URL}/users/pray-time/sent-updates`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) return;
+            const { updates } = await res.json();
+            if (!Array.isArray(updates) || !updates.length) return;
+
+            let updatedAny = false;
+            for (const update of updates) {
+                const matchingPray = guestPrays.find((p) => p.sharedWith?.shareId === update.shareId);
+                if (matchingPray) {
+                    await updateGuestPray(matchingPray._id, {
+                        sharedWith: {
+                            ...matchingPray.sharedWith,
+                            status: 'confirmed',
+                            responseWords: update.responseWords,
+                            respondedAt: update.respondedAt
+                        }
+                    });
+                    updatedAny = true;
+                }
+
+                await fetch(`${API_URL}/users/pray-time/sent-ack`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ shareId: update.shareId })
+                }).catch(() => {});
+            }
+
+            if (updatedAny) {
+                setGuestPrays(await getGuestPrays());
+            }
+        } catch (err) {
+            console.warn('Sent updates check error:', err);
+        }
+    }, [token, userId, guestPrays]);
+
+    useEffect(() => {
+        checkIncomingSharedPrayers();
+        checkSentPrayUpdates();
+        const interval = setInterval(() => {
+            checkIncomingSharedPrayers();
+            checkSentPrayUpdates();
+        }, 15000);
+        return () => clearInterval(interval);
+    }, [checkIncomingSharedPrayers, checkSentPrayUpdates]);
+
 
     const recorder = usePrayRecorder((blockId, recording) => {
         if (blockId === GENERAL_BLOCK_ID) {
@@ -526,39 +618,86 @@ export default function PrayPage() {
         if (!finalWords) return;
         setIsSubmittingPray(true);
 
-        if (selectedShareUser && !prayEditId && !isGuest) {
+        // Case 1: Sharing with a user via Cloudflare R2
+        if (selectedShareUser && !prayEditId) {
             try {
-                const res = await fetch(`${API_URL}/users/pray-time/share`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        words: finalWords,
-                        prayType: 'general',
-                        targetUserId: selectedShareUser._id
-                    })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.msg || 'Failed to share prayer');
+                const blockOffset = generalText ? 1 : 0;
+                const pendingRecordings = [
+                    ...generalRecordings.map((rec) => ({ ...rec, blockType: 'general', sectionIndex: 0 })),
+                    ...prayBlocks.filter(hasBlockContent).flatMap((block, index) => (block.recordings || []).map((rec) => ({ ...rec, blockType: block.prayType, sectionIndex: blockOffset + index }))),
+                ];
 
-                const savedPrayTime = data.prayTime || [];
-                const createdPray = data.entry || savedPrayTime[savedPrayTime.length - 1];
+                const serializedRecordings = [];
+                for (const rec of pendingRecordings) {
+                    let base64 = null;
+                    if (rec.blob) {
+                        base64 = await blobToBase64(rec.blob);
+                    }
+                    if (base64) {
+                        serializedRecordings.push({
+                            id: rec.id || `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                            blockType: rec.blockType || 'general',
+                            sectionIndex: rec.sectionIndex,
+                            mimeType: rec.blob?.type || 'audio/webm',
+                            ext: extensionForMime(rec.blob?.type || 'audio/webm'),
+                            duration: Math.round(rec.duration || 0),
+                            data: base64
+                        });
+                    }
+                }
+
+                // 1. Save locally on sender device first
+                const targetUsername = selectedShareUser.username || selectedShareUser.Name || 'friend';
+                const createdPray = await addGuestPray({
+                    words: finalWords,
+                    prayType: 'general',
+                    sharedWith: {
+                        userId: selectedShareUser._id,
+                        username: targetUsername,
+                        status: 'sent',
+                        shareId: null
+                    }
+                });
+
                 if (createdPray?._id) {
                     await savePendingRecordings(createdPray._id, undefined, Boolean(generalText));
                 }
 
-                updateProfileState((previous) => ({
-                    ...previous,
-                    prayTime: [...savedPrayTime].sort((a, b) => new Date(b.date) - new Date(a.date))
-                }));
+                // 2. Upload prayer bundle to Cloudflare R2 via backend transit route
+                if (token) {
+                    const res = await fetch(`${API_URL}/users/pray-time/share`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            words: finalWords,
+                            prayType: 'general',
+                            targetUserId: selectedShareUser._id,
+                            recordings: serializedRecordings
+                        })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.msg || 'Failed to share prayer');
 
-                const targetUsername = selectedShareUser.username;
+                    if (data.shareId) {
+                        await updateGuestPray(createdPray._id, {
+                            sharedWith: {
+                                userId: selectedShareUser._id,
+                                username: targetUsername,
+                                status: 'sent',
+                                shareId: data.shareId
+                            }
+                        });
+                    }
+                }
+
+                setGuestPrays(await getGuestPrays());
                 resetPrayForm();
                 setActivePrayTab('shared');
                 setCircleFilter('sent');
-                showToast({ message: `Prayer saved & shared with @${targetUsername}!`, type: 'success' });
+                showToast({ message: `Prayer saved on device & shared with @${targetUsername}!`, type: 'success' });
             } catch (shareError) {
                 console.error('Share error:', shareError);
                 showToast({ message: shareError.message || 'Failed to share prayer', type: 'error' });
@@ -568,59 +707,20 @@ export default function PrayPage() {
             return;
         }
 
-        if (isGuest) {
-            try {
-                if (prayEditId) {
-                    setGuestPrays(await updateGuestPray(prayEditId, { words: finalWords }));
-                } else {
-                    const entry = await addGuestPray({ words: finalWords, prayType: 'general' });
-                    await savePendingRecordings(entry._id, undefined, Boolean(generalText));
-                    setGuestPrays(await getGuestPrays());
-                }
-                resetPrayForm();
-            } catch (localError) {
-                console.error('Local prayer save error:', localError);
-                alert(t('couldNotSaveLocalPrayer'));
-            } finally {
-                setIsSubmittingPray(false);
-            }
-            return;
-        }
+        // Case 2: Personal Prayer (saved 100% locally on user phone)
         try {
-            const isEditMode = Boolean(prayEditId);
-            const method = isEditMode ? 'PATCH' : 'POST';
-            const body = isEditMode
-                ? { prayId: prayEditId, words: finalWords, prayType: 'general' }
-                : { userid: userId, words: finalWords, prayType: 'general' };
-            const { response, data } = await fetchUsersWithFallback(API_URL, `pray-time${isEditMode ? `/${userId}` : ''}`, method, token, body);
-            if (!response?.ok) throw new Error(data?.message || t('savePrayerError'));
-            const savedPrayTime = data.user?.prayTime || [];
-            // The server $pushes the new prayer, so it is the last entry before sorting
-            if (!isEditMode) await savePendingRecordings(savedPrayTime[savedPrayTime.length - 1]?._id, undefined, Boolean(generalText));
-            updateProfileState((previous) => ({ ...previous, prayTime: [...savedPrayTime].sort((a, b) => new Date(b.date) - new Date(a.date)) }));
-            resetPrayForm();
-        } catch (submitError) {
-            const isNetworkError = !navigator.onLine || submitError.message?.includes('Failed to fetch') || submitError.message?.includes('Network Error') || submitError.message?.includes('Load failed');
-            if (isNetworkError) {
-                const isEditMode = Boolean(prayEditId);
-                const method = isEditMode ? 'PATCH' : 'POST';
-                const body = isEditMode
-                    ? { prayId: prayEditId, words: finalWords, prayType: 'general' }
-                    : { userid: userId, words: finalWords, prayType: 'general' };
-                await queueOfflineAction(`${API_URL}/users/pray-time${isEditMode ? `/${userId}` : ''}`, method, body, { Authorization: `Bearer ${token}` });
-                const tempId = `temp-${Date.now()}`;
-                if (!isEditMode) await savePendingRecordings(tempId, finalWords, Boolean(generalText));
-                updateProfileState((previous) => {
-                    const newEntry = isEditMode ? { ...body, _id: prayEditId, date: new Date().toISOString() } : { ...body, _id: tempId, date: new Date().toISOString() };
-                    const existing = isEditMode ? (previous.prayTime || []).map((entry) => entry._id === prayEditId ? { ...entry, ...newEntry } : entry) : [newEntry, ...(previous.prayTime || [])];
-                    return { ...previous, prayTime: existing };
-                });
-                resetPrayForm();
-                showToast({ message: t('offlinePrayerSaved'), type: 'offline', duration: 6000 });
-                return;
+            if (prayEditId) {
+                setGuestPrays(await updateGuestPray(prayEditId, { words: finalWords }));
+            } else {
+                const entry = await addGuestPray({ words: finalWords, prayType: 'general' });
+                await savePendingRecordings(entry._id, undefined, Boolean(generalText));
+                setGuestPrays(await getGuestPrays());
             }
-            console.error('Pray time save error:', submitError);
-            alert(submitError.message || t('savePrayerError'));
+            resetPrayForm();
+            showToast({ message: prayEditId ? t('updateNoteBtn') : t('saveNote'), type: 'success' });
+        } catch (localError) {
+            console.error('Local prayer save error:', localError);
+            alert(t('couldNotSaveLocalPrayer') || 'Failed to save prayer locally');
         } finally {
             setIsSubmittingPray(false);
         }
@@ -635,38 +735,15 @@ export default function PrayPage() {
 
     const handleDeletePrayTime = async (prayId) => {
         if (!window.confirm(t('deletePrayerConfirm'))) return;
-        if (isGuest) {
-            try {
-                await deleteGuestPray(prayId);
-                setGuestPrays(await getGuestPrays());
-                refreshRecordings();
-                if (prayEditId === prayId) resetPrayForm();
-            } catch (localError) {
-                console.error('Local prayer delete error:', localError);
-                alert(t('couldNotDeleteLocalPrayer'));
-            }
-            return;
-        }
         try {
-            const { response, data } = await fetchUsersWithFallback(API_URL, `pray-time/${userId}`, 'DELETE', token, { prayId });
-            if (!response?.ok) throw new Error(data?.message || t('deletePrayerError'));
-            updateProfileState((previous) => ({ ...previous, prayTime: (previous?.prayTime || []).filter((entry) => entry._id !== prayId) }));
-            await deleteRecordingsForPray(prayId).catch(() => { });
+            await deleteGuestPray(prayId);
+            setGuestPrays(await getGuestPrays());
             refreshRecordings();
             if (prayEditId === prayId) resetPrayForm();
-        } catch (deleteError) {
-            const isNetworkError = !navigator.onLine || deleteError.message?.includes('Failed to fetch') || deleteError.message?.includes('Network Error') || deleteError.message?.includes('Load failed');
-            if (isNetworkError) {
-                await queueOfflineAction(`${API_URL}/users/pray-time/${userId}`, 'DELETE', { prayId }, { Authorization: `Bearer ${token}` });
-                updateProfileState((previous) => ({ ...previous, prayTime: (previous?.prayTime || []).filter((entry) => entry._id !== prayId) }));
-                await deleteRecordingsForPray(prayId).catch(() => { });
-                refreshRecordings();
-                if (prayEditId === prayId) resetPrayForm();
-                showToast({ message: t('offlinePrayerDelete'), type: 'offline', duration: 6000 });
-                return;
-            }
-            console.error('Pray time delete error:', deleteError);
-            alert(deleteError.message || t('deletePrayerError'));
+            showToast({ message: 'Prayer deleted', type: 'info' });
+        } catch (localError) {
+            console.error('Local prayer delete error:', localError);
+            alert(t('couldNotDeleteLocalPrayer') || 'Failed to delete prayer');
         }
     };
 

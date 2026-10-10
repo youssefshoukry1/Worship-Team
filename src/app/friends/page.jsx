@@ -293,8 +293,12 @@ export default function FriendsPage() {
                     className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] transition-colors"
                   >
                     <div className="flex items-center gap-3 min-w-0 pr-2">
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-sky-500/30 to-blue-600/30 border border-sky-400/20 flex items-center justify-center font-bold text-xs text-sky-300 uppercase shrink-0">
-                        {user.Name?.charAt(0) || 'U'}
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-sky-500/30 to-blue-600/30 border border-sky-400/20 flex items-center justify-center font-bold text-xs text-sky-300 uppercase shrink-0 overflow-hidden">
+                        {user.profilePhoto ? (
+                          <img src={user.profilePhoto} alt={user.Name} className="w-full h-full object-cover" />
+                        ) : (
+                          user.Name?.charAt(0) || 'U'
+                        )}
                       </div>
                       <div className="min-w-0">
                         <div className="text-xs sm:text-sm font-semibold text-white truncate">
@@ -424,8 +428,12 @@ export default function FriendsPage() {
                       className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-white/20 transition-all"
                     >
                       <div className="flex items-center gap-3 min-w-0 pr-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-500/20 to-blue-600/30 border border-sky-400/20 flex items-center justify-center font-bold text-sm text-sky-300 shrink-0">
-                          {sender.Name?.charAt(0) || 'U'}
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-500/20 to-blue-600/30 border border-sky-400/20 flex items-center justify-center font-bold text-sm text-sky-300 shrink-0 overflow-hidden">
+                          {sender.profilePhoto ? (
+                            <img src={sender.profilePhoto} alt={sender.Name} className="w-full h-full object-cover" />
+                          ) : (
+                            sender.Name?.charAt(0) || 'U'
+                          )}
                         </div>
                         <div className="min-w-0">
                           <div className="text-xs sm:text-sm font-semibold text-white truncate">
@@ -485,8 +493,12 @@ export default function FriendsPage() {
                       className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] border border-white/10"
                     >
                       <div className="flex items-center gap-3 min-w-0 pr-3">
-                        <div className="w-10 h-10 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center font-bold text-sm text-slate-300 shrink-0">
-                          {target.Name?.charAt(0) || 'U'}
+                        <div className="w-10 h-10 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center font-bold text-sm text-slate-300 shrink-0 overflow-hidden">
+                          {target.profilePhoto ? (
+                            <img src={target.profilePhoto} alt={target.Name} className="w-full h-full object-cover" />
+                          ) : (
+                            target.Name?.charAt(0) || 'U'
+                          )}
                         </div>
                         <div className="min-w-0">
                           <div className="text-xs sm:text-sm font-semibold text-white truncate">
@@ -534,8 +546,12 @@ export default function FriendsPage() {
                     className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-white/20 transition-all"
                   >
                     <div className="flex items-center gap-3 min-w-0 pr-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#00C2FF]/20 to-blue-600/30 border border-[#00C2FF]/30 flex items-center justify-center font-bold text-sm text-[#00C2FF] shrink-0">
-                        {friend.Name?.charAt(0) || 'U'}
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#00C2FF]/20 to-blue-600/30 border border-[#00C2FF]/30 flex items-center justify-center font-bold text-sm text-[#00C2FF] shrink-0 overflow-hidden">
+                        {friend.profilePhoto ? (
+                          <img src={friend.profilePhoto} alt={friend.Name} className="w-full h-full object-cover" />
+                        ) : (
+                          friend.Name?.charAt(0) || 'U'
+                        )}
                       </div>
                       <div className="min-w-0">
                         <div className="text-xs sm:text-sm font-semibold text-white truncate">

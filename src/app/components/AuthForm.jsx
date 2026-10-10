@@ -67,6 +67,12 @@ export default function AuthForm() {
       if (setUsername) setUsername(user.username);
     }
 
+    if (user?.profilePhoto) {
+      localStorage.setItem("user_Taspe7_ProfilePhoto", user.profilePhoto);
+    } else {
+      localStorage.removeItem("user_Taspe7_ProfilePhoto");
+    }
+
     setLogin(token);
     if (setTeams) setTeams(teams);
     window.location.href = "/";

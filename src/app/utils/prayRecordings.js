@@ -99,7 +99,7 @@ const writeAudio = async (rec, bytes) => {
     }
 };
 
-const readAudioBytes = async (rec) => {
+export const readAudioBytes = async (rec) => {
     if (isNative()) {
         const file = await Filesystem.readFile({ path: audioPath(rec), directory: Directory.Data });
         return typeof file.data === 'string' ? base64ToUint8(file.data) : new Uint8Array(await file.data.arrayBuffer());
@@ -107,6 +107,36 @@ const readAudioBytes = async (rec) => {
     const blob = await webStore().getItem(`audio_${rec.id}`);
     return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
 };
+
+export async function getRecordingBase64(rec) {
+    try {
+        const bytes = await readAudioBytes(rec);
+        return bytes ? uint8ToBase64(bytes) : null;
+    } catch {
+        return null;
+    }
+}
+
+export async function addExternalRecording(prayId, recInfo, base64OrBytes) {
+    if (!prayId || !recInfo || !base64OrBytes) return null;
+    const bytes = typeof base64OrBytes === 'string' ? base64ToUint8(base64OrBytes) : base64OrBytes;
+    const mimeType = recInfo.mimeType || 'audio/webm';
+    const rec = {
+        id: recInfo.id || `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+        blockType: recInfo.blockType || 'general',
+        sectionIndex: Number.isInteger(recInfo.sectionIndex) ? recInfo.sectionIndex : null,
+        mimeType,
+        ext: recInfo.ext || extensionForMime(mimeType),
+        duration: Math.round(recInfo.duration || 0),
+        size: bytes.length,
+        createdAt: recInfo.createdAt || new Date().toISOString(),
+    };
+    await writeAudio(rec, bytes);
+    await updateIndex((index) => {
+        index.recordings[prayId] = [...(index.recordings[prayId] || []).filter(r => r.id !== rec.id), rec];
+    });
+    return rec;
+}
 
 const removeAudio = async (rec) => {
     try {
@@ -153,7 +183,7 @@ export async function addRecordings(prayId, items, pendingWords) {
     });
 }
 
-// ─── Guest prayers (no account) ─────────────────────────────────────────────
+// ─── Local prayers (stored on device) ────────────────────────────────────────
 const byNewest = (a, b) => new Date(b.date) - new Date(a.date);
 
 export async function getGuestPrays() {
@@ -161,26 +191,39 @@ export async function getGuestPrays() {
 }
 
 /** @returns {Promise<object>} the saved entry (with a local `_id`) */
-export async function addGuestPray({ words, prayType }) {
+export async function addGuestPray({ words, prayType, sharedWith, sharedFrom, _id, date, feeling }) {
     const entry = {
-        _id: `local-${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        words, prayType, date: new Date().toISOString(),
+        _id: _id || `local-${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        words,
+        prayType: prayType || 'general',
+        date: date || new Date().toISOString(),
+        ...(feeling ? { feeling } : {}),
+        ...(sharedWith ? { sharedWith } : {}),
+        ...(sharedFrom ? { sharedFrom } : {}),
     };
-    await updateIndex((index) => { index.guestPrays = [...(index.guestPrays || []), entry]; });
+    await updateIndex((index) => {
+        index.guestPrays = [entry, ...(index.guestPrays || []).filter((e) => String(e._id) !== String(entry._id))];
+    });
     return entry;
 }
 
 export async function updateGuestPray(prayId, changes) {
     return updateIndex((index) => {
-        index.guestPrays = (index.guestPrays || []).map((entry) => entry._id === prayId ? { ...entry, ...changes, date: new Date().toISOString() } : entry);
+        index.guestPrays = (index.guestPrays || []).map((entry) => String(entry._id) === String(prayId) ? { ...entry, ...changes } : entry);
         return [...index.guestPrays].sort(byNewest);
     });
 }
 
 export async function deleteGuestPray(prayId) {
-    await updateIndex((index) => { index.guestPrays = (index.guestPrays || []).filter((entry) => entry._id !== prayId); });
+    await updateIndex((index) => { index.guestPrays = (index.guestPrays || []).filter((entry) => String(entry._id) !== String(prayId)); });
     await deleteRecordingsForPray(prayId);
 }
+
+export const getLocalPrays = getGuestPrays;
+export const saveLocalPray = addGuestPray;
+export const updateLocalPray = updateGuestPray;
+export const deleteLocalPray = deleteGuestPray;
+
 
 /** Playable URL. On web the caller must URL.revokeObjectURL() it when done. */
 export async function getRecordingUrl(rec) {
@@ -330,7 +373,32 @@ export async function restoreMyPraysZip(zipBytes, onProgress = () => {}) {
             index.recordings[prayId] = [...(index.recordings[prayId] || []), rec];
             if (pendingWords) index.pendingWords[prayId] = pendingWords;
         }
+
+        if (Array.isArray(manifest.prays) && manifest.prays.length > 0) {
+            const currentPrays = index.guestPrays || [];
+            const currentIds = new Set(currentPrays.map((p) => String(p._id)));
+            const restoredPrays = manifest.prays
+                .filter((p) => p && p.words)
+                .map((p) => ({
+                    _id: String(p._id || `local-${Date.now()}`),
+                    words: p.words,
+                    prayType: p.prayType || 'general',
+                    date: p.date || new Date().toISOString(),
+                    feeling: p.feeling,
+                    sharedWith: p.sharedWith,
+                    sharedFrom: p.sharedFrom,
+                }));
+            const mergedPrays = [
+                ...currentPrays,
+                ...restoredPrays.filter((p) => !currentIds.has(p._id))
+            ].sort(byNewest);
+            index.guestPrays = mergedPrays;
+        }
     });
 
-    return { restored: toAdd.length, prays: new Set(toAdd.map((item) => item.prayId)).size };
+    const totalPraysCount = Math.max(
+        new Set(toAdd.map((item) => item.prayId)).size,
+        Array.isArray(manifest.prays) ? manifest.prays.length : 0
+    );
+    return { restored: toAdd.length, prays: totalPraysCount };
 }
