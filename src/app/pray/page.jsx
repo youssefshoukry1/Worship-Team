@@ -133,7 +133,8 @@ function UserAvatar({ photo, name, username, size = 'sm', className = '' }) {
 }
 
 function PrayEntryContent({ entry, recordings, onRecordingsChanged, getPrayTypeLabel }) {
-    const sections = parsePraySections(entry.words);
+    const rawWords = (entry.words && typeof entry.words === 'string' && entry.words.startsWith('enc:v1:')) ? '' : entry.words;
+    const sections = parsePraySections(rawWords);
     const { grouped, leftovers } = groupRecordingsBySection(sections, recordings);
     return (
         <div className="mt-2 flex flex-col gap-3">
@@ -168,9 +169,12 @@ function ListPanel({ title, icon: Icon, iconBgClass, items, emptyText, recordsLa
 }
 
 export default function PrayPage() {
-    const { user_id: userId, isLogin: token } = useContext(UserContext);
+    const { user_id: userId, isLogin: token, username: contextUsername, profilePhoto: contextProfilePhoto } = useContext(UserContext);
     const [profile, setProfile] = useState(null);
     const [pageLoading, setPageLoading] = useState(true);
+
+    const myUsername = profile?.user?.username || contextUsername || (typeof window !== 'undefined' ? localStorage.getItem('user_Taspe7_Username') : null) || 'me';
+    const myProfilePhoto = profile?.user?.profilePhoto || contextProfilePhoto || (typeof window !== 'undefined' ? localStorage.getItem('user_Taspe7_ProfilePhoto') : null) || null;
 
     const [isShareOpen, setIsShareOpen] = useState(false);
     const [selectedShareUser, setSelectedShareUser] = useState(null);
@@ -479,17 +483,84 @@ export default function PrayPage() {
     useEffect(() => { refreshRecordings(); }, [refreshRecordings]);
 
     useEffect(() => {
-        getGuestPrays().then(setGuestPrays).catch((err) => console.warn('Could not load local prayers:', err));
-    }, []);
+        let isCancelled = false;
+        const loadAndRepairPrays = async () => {
+            try {
+                const locals = await getGuestPrays();
+                if (!isCancelled) setGuestPrays(locals);
+
+                if (token && Array.isArray(locals)) {
+                    const encryptedItems = [];
+                    locals.forEach((p) => {
+                        if (typeof p.words === 'string' && p.words.startsWith('enc:v1:')) {
+                            encryptedItems.push({ id: p._id, field: 'words', text: p.words });
+                        }
+                        if (typeof p.sharedFrom?.responseWords === 'string' && p.sharedFrom.responseWords.startsWith('enc:v1:')) {
+                            encryptedItems.push({ id: p._id, field: 'sharedFrom.responseWords', text: p.sharedFrom.responseWords });
+                        }
+                        if (typeof p.sharedWith?.responseWords === 'string' && p.sharedWith.responseWords.startsWith('enc:v1:')) {
+                            encryptedItems.push({ id: p._id, field: 'sharedWith.responseWords', text: p.sharedWith.responseWords });
+                        }
+                    });
+
+                    if (encryptedItems.length > 0) {
+                        const res = await fetch(`${API_URL}/users/pray-time/decrypt`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ texts: encryptedItems.map((item) => item.text) })
+                        });
+                        if (res.ok) {
+                            const { decrypted } = await res.json();
+                            let changed = false;
+                            for (let i = 0; i < encryptedItems.length; i++) {
+                                const item = encryptedItems[i];
+                                const plain = decrypted?.[i];
+                                if (plain && plain !== item.text) {
+                                    changed = true;
+                                    if (item.field === 'words') {
+                                        await updateGuestPray(item.id, { words: plain });
+                                    } else if (item.field === 'sharedFrom.responseWords') {
+                                        const current = (await getGuestPrays()).find((e) => String(e._id) === String(item.id));
+                                        await updateGuestPray(item.id, {
+                                            sharedFrom: { ...(current?.sharedFrom || {}), responseWords: plain }
+                                        });
+                                    } else if (item.field === 'sharedWith.responseWords') {
+                                        const current = (await getGuestPrays()).find((e) => String(e._id) === String(item.id));
+                                        await updateGuestPray(item.id, {
+                                            sharedWith: { ...(current?.sharedWith || {}), responseWords: plain }
+                                        });
+                                    }
+                                }
+                            }
+                            if (changed && !isCancelled) {
+                                setGuestPrays(await getGuestPrays());
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn('Could not load or decrypt local prayers:', err);
+            }
+        };
+
+        loadAndRepairPrays();
+        return () => { isCancelled = true; };
+    }, [token]);
 
     // One-time import for existing users who already had prayers in MongoDB
     useEffect(() => {
         if (!profile?.prayTime?.length) return;
         getGuestPrays().then(async (locals) => {
-            const localWords = new Set(locals.map((p) => (p.words || '').trim()));
-            const toMigrate = profile.prayTime.filter((r) => r?.words && !localWords.has((r.words || '').trim()));
-            if (toMigrate.length > 0) {
-                for (const item of toMigrate) {
+            const localMap = new Map(locals.map((p) => [String(p._id), p]));
+            let changed = false;
+
+            for (const item of profile.prayTime) {
+                if (!item?.words) continue;
+                const existing = localMap.get(String(item._id));
+                if (!existing) {
                     await addGuestPray({
                         _id: item._id,
                         words: item.words,
@@ -498,7 +569,14 @@ export default function PrayPage() {
                         sharedWith: item.sharedWith,
                         sharedFrom: item.sharedFrom
                     });
+                    changed = true;
+                } else if (typeof existing.words === 'string' && existing.words.startsWith('enc:v1:') && !item.words.startsWith('enc:v1:')) {
+                    await updateGuestPray(existing._id, { words: item.words });
+                    changed = true;
                 }
+            }
+
+            if (changed) {
                 setGuestPrays(await getGuestPrays());
             }
         }).catch(() => {});
@@ -859,14 +937,9 @@ export default function PrayPage() {
                                             size="sm"
                                         />
                                         <div className="min-w-0">
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                <span className="text-xs font-semibold text-white truncate">
-                                                    {selectedShareUser.Name || selectedShareUser.username}
-                                                </span>
-                                                <span className="text-[11px] text-[#00C2FF] font-medium truncate">
-                                                    @{selectedShareUser.username}
-                                                </span>
-                                            </div>
+                                            <span className="text-xs font-semibold text-[#00C2FF] truncate block">
+                                                @{selectedShareUser.username}
+                                            </span>
                                             <div className="text-[10px] text-slate-400 flex items-center gap-1">
                                                 <Share2 className="w-3 h-3 text-[#00C2FF]" />
                                                 <span>Will send prayer to friend</span>
@@ -1120,31 +1193,14 @@ export default function PrayPage() {
                                         <div className="flex items-start justify-between gap-3 mb-2.5">
                                             <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                                 <UserAvatar
-                                                    photo={targetInfo.profilePhoto}
-                                                    name={targetInfo.name}
-                                                    username={targetInfo.username}
+                                                    photo={myProfilePhoto}
+                                                    username={myUsername}
                                                     size="md"
                                                 />
                                                 <div className="min-w-0 flex flex-col">
-                                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                                        <span className="text-xs sm:text-sm font-bold text-white truncate">
-                                                            {targetInfo.name ? targetInfo.name : `@${targetUsername}`}
-                                                        </span>
-                                                        <span className="text-[11px] text-[#00C2FF] font-medium truncate">
-                                                            @{targetUsername}
-                                                        </span>
-                                                        {isConfirmed ? (
-                                                            <span className="inline-flex items-center gap-1 bg-emerald-500/15 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-500/30">
-                                                                <CheckCheck className="w-3 h-3" />
-                                                                Prayed & Confirmed
-                                                            </span>
-                                                        ) : (
-                                                            <span className="inline-flex items-center gap-1 bg-sky-500/15 text-sky-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-sky-500/30">
-                                                                <Send className="w-3 h-3" />
-                                                                Sent
-                                                            </span>
-                                                        )}
-                                                    </div>
+                                                    <span className="text-xs sm:text-sm font-bold text-white truncate">
+                                                        You:
+                                                    </span>
                                                     <span className="text-[10px] text-slate-500 font-medium">
                                                         {formatDate(entry.date, 'N/A', language)}
                                                     </span>
@@ -1201,10 +1257,7 @@ export default function PrayPage() {
                                                 </div>
                                                 <div className="flex flex-col min-w-0">
                                                     <div className="flex items-center gap-2 flex-wrap min-w-0">
-                                                        <span className="text-xs sm:text-sm font-bold text-white truncate">
-                                                            {senderInfo.name ? senderInfo.name : `@${senderUsername}`}
-                                                        </span>
-                                                        <span className="text-[11px] text-[#00C2FF] font-medium truncate">
+                                                        <span className="text-xs sm:text-sm font-bold text-[#00C2FF] truncate">
                                                             @{senderUsername}
                                                         </span>
                                                         <span className="bg-[#00C2FF]/15 text-[#00C2FF] text-[10px] font-bold px-2 py-0.5 rounded-md border border-[#00C2FF]/30">
@@ -1239,20 +1292,12 @@ export default function PrayPage() {
                                                     />
                                                     <div className="min-w-0 flex flex-col">
                                                         <div className="flex items-center gap-1.5 flex-wrap">
-                                                            <span className="text-xs sm:text-sm font-bold text-white truncate">
-                                                                {senderInfo.name ? senderInfo.name : `@${senderUsername}`}
-                                                            </span>
-                                                            <span className="text-[11px] text-[#00C2FF] font-medium truncate">
+                                                            <span className="text-xs sm:text-sm font-bold text-[#00C2FF] truncate">
                                                                 @{senderUsername}
                                                             </span>
-                                                            {isPendingConfirmation ? (
+                                                            {isPendingConfirmation && (
                                                                 <span className="bg-[#00C2FF]/15 text-[#00C2FF] text-[10px] font-bold px-2 py-0.5 rounded-md border border-[#00C2FF]/30">
                                                                     Awaiting Response
-                                                                </span>
-                                                            ) : (
-                                                                <span className="inline-flex items-center gap-1 bg-emerald-500/15 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-500/30">
-                                                                    <CheckCheck className="w-3 h-3" />
-                                                                    Prayed
                                                                 </span>
                                                             )}
                                                         </div>
@@ -1268,32 +1313,33 @@ export default function PrayPage() {
 
                                             {isConfirmedReceived ? (
                                                 <>
-                                                    <div className="mt-2 text-sm text-slate-200 font-medium leading-relaxed whitespace-pre-wrap">
-                                                        {entry.sharedFrom?.responseWords}
+                                                    <div className="mt-2 text-sm text-slate-100 font-medium leading-relaxed whitespace-pre-wrap">
+                                                        {(typeof entry.words === 'string' && entry.words.startsWith('enc:v1:')) ? '...' : stripVoiceOnlyText(entry.words).trim()}
                                                     </div>
+                                                    <SavedPrayRecordings prayId={entry._id} recordings={recordingsIndex[entry._id]} onChanged={refreshRecordings} />
 
-                                                    <div className="mt-3.5 pt-2.5 border-t border-white/10 flex flex-col gap-2 text-xs text-slate-400 bg-white/[0.02] p-3 rounded-xl border border-white/5">
-                                                        <div className="flex items-center gap-2">
-                                                            <UserAvatar
-                                                                photo={senderInfo.profilePhoto}
-                                                                name={senderInfo.name}
-                                                                username={senderInfo.username}
-                                                                size="xs"
-                                                            />
-                                                            <span className="text-[11px] text-[#00C2FF] font-semibold">
-                                                                Shared by @{senderUsername}:
-                                                            </span>
+                                                    {entry.sharedFrom?.responseWords && (
+                                                        <div className="mt-3.5 pt-3 border-t border-white/10 flex flex-col gap-2 text-xs bg-white/[0.02] p-3 rounded-xl border border-white/5">
+                                                            <div className="flex items-center gap-2">
+                                                                <UserAvatar
+                                                                    photo={myProfilePhoto}
+                                                                    username={myUsername}
+                                                                    size="xs"
+                                                                />
+                                                                <span className="text-[11px] text-[#00C2FF] font-semibold flex items-center gap-1.5">
+                                                                    You:
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
+                                                                {entry.sharedFrom?.responseWords}
+                                                            </p>
                                                         </div>
-                                                        <p className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
-                                                            {stripVoiceOnlyText(entry.words).trim()}
-                                                        </p>
-                                                        <SavedPrayRecordings prayId={entry._id} recordings={recordingsIndex[entry._id]} onChanged={refreshRecordings} />
-                                                    </div>
+                                                    )}
                                                 </>
                                             ) : (
                                                 <>
                                                     <div className="mt-2 text-sm text-slate-100 font-medium leading-relaxed whitespace-pre-wrap">
-                                                        {stripVoiceOnlyText(entry.words).trim()}
+                                                        {(typeof entry.words === 'string' && entry.words.startsWith('enc:v1:')) ? '...' : stripVoiceOnlyText(entry.words).trim()}
                                                     </div>
                                                     <SavedPrayRecordings prayId={entry._id} recordings={recordingsIndex[entry._id]} onChanged={refreshRecordings} />
 
@@ -1324,9 +1370,8 @@ export default function PrayPage() {
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <UserAvatar
-                                                                photo={senderInfo.profilePhoto}
-                                                                name={senderInfo.name}
-                                                                username={senderInfo.username}
+                                                                photo={myProfilePhoto}
+                                                                username={myUsername}
                                                                 size="xs"
                                                             />
                                                             <input
@@ -1434,8 +1479,8 @@ export default function PrayPage() {
                                                 />
                                                 <div className="min-w-0">
                                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                                        <span className="text-xs font-semibold text-white truncate max-w-[130px]">
-                                                            {user.Name}
+                                                        <span className="text-xs font-bold text-[#00C2FF] truncate max-w-[150px]">
+                                                            @{user.username || 'user'}
                                                         </span>
                                                         {user.isExact && (
                                                             <span className="text-[9px] px-1.5 py-0.2 bg-sky-500/20 text-sky-300 rounded border border-sky-400/30 font-bold">
@@ -1447,9 +1492,6 @@ export default function PrayPage() {
                                                                 Friend
                                                             </span>
                                                         )}
-                                                    </div>
-                                                    <div className="text-[11px] text-slate-400 truncate">
-                                                        @{user.username || 'user'}
                                                     </div>
                                                 </div>
                                             </div>
