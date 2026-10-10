@@ -100,6 +100,38 @@ const blobToBase64 = (blob) => new Promise((resolve, reject) => {
     reader.readAsDataURL(blob);
 });
 
+function UserAvatar({ photo, name, username, size = 'sm', className = '' }) {
+    const [imgFailed, setImgFailed] = useState(false);
+    const initial = (name || username || 'U').charAt(0).toUpperCase();
+
+    const sizeClasses = {
+        xs: 'w-5 h-5 text-[10px]',
+        sm: 'w-7 h-7 text-xs',
+        md: 'w-9 h-9 text-xs',
+        lg: 'w-11 h-11 text-sm'
+    }[size] || 'w-7 h-7 text-xs';
+
+    if (photo && !imgFailed) {
+        return (
+            <div className={`relative rounded-full overflow-hidden shrink-0 border border-sky-400/30 bg-sky-950/40 shadow-sm ${sizeClasses} ${className}`}>
+                <img
+                    src={photo}
+                    alt={name || username || 'User'}
+                    onError={() => setImgFailed(true)}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                />
+            </div>
+        );
+    }
+
+    return (
+        <div className={`relative rounded-full bg-gradient-to-tr from-sky-500/25 via-blue-600/30 to-indigo-600/30 border border-sky-400/30 flex items-center justify-center font-bold text-sky-200 uppercase shrink-0 shadow-sm select-none ${sizeClasses} ${className}`}>
+            {initial}
+        </div>
+    );
+}
+
 function PrayEntryContent({ entry, recordings, onRecordingsChanged, getPrayTypeLabel }) {
     const sections = parsePraySections(entry.words);
     const { grouped, leftovers } = groupRecordingsBySection(sections, recordings);
@@ -148,26 +180,50 @@ export default function PrayPage() {
     const [systemSearchResults, setSystemSearchResults] = useState([]);
     const [isSearchingUsers, setIsSearchingUsers] = useState(false);
 
-    useEffect(() => {
-        if (!isShareOpen || !token) return;
-        const fetchFriends = async () => {
-            try {
-                setLoadingFriends(true);
-                const res = await fetch(`${API_URL}/users/friends`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    setFriends(data.friends || []);
-                }
-            } catch (err) {
-                console.error('Failed to load friends:', err);
-            } finally {
-                setLoadingFriends(false);
+    const fetchFriends = useCallback(async () => {
+        if (!token) return;
+        try {
+            setLoadingFriends(true);
+            const res = await fetch(`${API_URL}/users/friends`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setFriends(data.friends || []);
             }
-        };
+        } catch (err) {
+            console.error('Failed to load friends:', err);
+        } finally {
+            setLoadingFriends(false);
+        }
+    }, [token]);
+
+    useEffect(() => {
         fetchFriends();
-    }, [isShareOpen, token]);
+    }, [fetchFriends]);
+
+    const resolveFriendProfile = useCallback((party) => {
+        if (!party) return { username: 'friend', name: '', profilePhoto: null, status: 'pending' };
+        const pUserId = party.userId ? party.userId.toString() : null;
+        const pUsername = party.username ? party.username.toLowerCase() : null;
+
+        const matched = friends.find((f) => {
+            const fId = (f._id || f.id)?.toString();
+            const fUser = f.username?.toLowerCase();
+            return (pUserId && fId === pUserId) || (pUsername && fUser === pUsername);
+        });
+
+        return {
+            userId: party.userId || matched?._id || matched?.id,
+            username: party.username || matched?.username || 'friend',
+            name: party.name || matched?.Name || party.username || '',
+            profilePhoto: party.profilePhoto || matched?.profilePhoto || null,
+            status: party.status || 'pending',
+            responseWords: party.responseWords || '',
+            respondedAt: party.respondedAt || null,
+            shareId: party.shareId || null
+        };
+    }, [friends]);
 
     useEffect(() => {
         const clean = shareSearchQuery.trim().replace(/^@/, '');
@@ -470,6 +526,8 @@ export default function PrayPage() {
                     sharedFrom: {
                         userId: bundle.senderId,
                         username: bundle.senderUsername,
+                        name: bundle.senderName || bundle.senderUsername,
+                        profilePhoto: bundle.senderProfilePhoto || null,
                         shareId: bundle.shareId,
                         originalPrayId: bundle.shareId,
                         status: 'pending'
@@ -525,7 +583,9 @@ export default function PrayPage() {
                             ...matchingPray.sharedWith,
                             status: 'confirmed',
                             responseWords: update.responseWords,
-                            respondedAt: update.respondedAt
+                            respondedAt: update.respondedAt,
+                            profilePhoto: update.recipientProfilePhoto || matchingPray.sharedWith?.profilePhoto || null,
+                            name: update.recipientName || matchingPray.sharedWith?.name || ''
                         }
                     });
                     updatedAny = true;
@@ -654,6 +714,8 @@ export default function PrayPage() {
                     sharedWith: {
                         userId: selectedShareUser._id,
                         username: targetUsername,
+                        name: selectedShareUser.Name || selectedShareUser.username,
+                        profilePhoto: selectedShareUser.profilePhoto || null,
                         status: 'sent',
                         shareId: null
                     }
@@ -686,6 +748,8 @@ export default function PrayPage() {
                             sharedWith: {
                                 userId: selectedShareUser._id,
                                 username: targetUsername,
+                                name: selectedShareUser.Name || selectedShareUser.username,
+                                profilePhoto: selectedShareUser.profilePhoto || null,
                                 status: 'sent',
                                 shareId: data.shareId
                             }
@@ -764,26 +828,58 @@ export default function PrayPage() {
                         <div className="mb-3.5 flex items-center gap-2 flex-wrap">
                             <button
                                 onClick={() => setIsShareOpen(true)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/25 text-xs font-semibold text-sky-300 hover:text-white transition-all shadow-sm"
+                                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/25 text-xs font-semibold text-sky-300 hover:text-white transition-all shadow-sm"
                             >
-                                <Share2 className="w-3.5 h-3.5" />
-                                <span>{selectedShareUser ? 'Change recipient' : 'Share with friend...'}</span>
+                                {selectedShareUser ? (
+                                    <>
+                                        <UserAvatar
+                                            photo={selectedShareUser.profilePhoto}
+                                            name={selectedShareUser.Name}
+                                            username={selectedShareUser.username}
+                                            size="xs"
+                                        />
+                                        <span>Change recipient (@{selectedShareUser.username})</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Share2 className="w-3.5 h-3.5" />
+                                        <span>Share with friend...</span>
+                                    </>
+                                )}
                             </button>
                         </div>
                         <div className={`w-full bg-white/[0.04] border ${selectedShareUser ? 'border-[#00C2FF]/50 ring-1 ring-[#00C2FF]/30 shadow-[0_0_16px_rgba(0,194,255,0.08)]' : 'border-white/10'} rounded-2xl p-3 sm:p-4 transition-all flex flex-col gap-3.5 mb-4`}>
                             {selectedShareUser && (
-                                <div className="flex items-center justify-between pb-2 border-b border-[#00C2FF]/20 text-xs">
-                                    <span className="flex items-center gap-1.5 text-[#00C2FF] font-semibold">
-                                        <Share2 className="w-3.5 h-3.5 shrink-0" />
-                                        <span>Will send to: <strong className="underline underline-offset-2">@{selectedShareUser.username}</strong></span>
-                                    </span>
+                                <div className="flex items-center justify-between pb-2.5 border-b border-[#00C2FF]/20 text-xs">
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <UserAvatar
+                                            photo={selectedShareUser.profilePhoto}
+                                            name={selectedShareUser.Name}
+                                            username={selectedShareUser.username}
+                                            size="sm"
+                                        />
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span className="text-xs font-semibold text-white truncate">
+                                                    {selectedShareUser.Name || selectedShareUser.username}
+                                                </span>
+                                                <span className="text-[11px] text-[#00C2FF] font-medium truncate">
+                                                    @{selectedShareUser.username}
+                                                </span>
+                                            </div>
+                                            <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                                                <Share2 className="w-3 h-3 text-[#00C2FF]" />
+                                                <span>Will send prayer to friend</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <button
                                         type="button"
                                         onClick={() => setSelectedShareUser(null)}
-                                        className="p-1 rounded-md text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 transition-colors"
+                                        className="p-1.5 rounded-lg text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 transition-colors shrink-0"
                                         title="Cancel share"
                                     >
-                                        <X className="w-3.5 h-3.5" />
+                                        <X className="w-4 h-4" />
                                     </button>
                                 </div>
                             )}
@@ -991,8 +1087,11 @@ export default function PrayPage() {
                             const isSnapRow = isReceived && isPendingConfirmation;
                             const isExpanded = expandedFriendPrayers.has(entry._id);
                             const isUnopened = !openedFriendPrayers.has(entry._id) && isPendingConfirmation;
-                            const senderUsername = entry.sharedFrom?.username || 'friend';
-                            const targetUsername = entry.sharedWith?.username || 'friend';
+
+                            const senderInfo = resolveFriendProfile(entry.sharedFrom);
+                            const targetInfo = resolveFriendProfile(entry.sharedWith);
+                            const senderUsername = senderInfo.username || 'friend';
+                            const targetUsername = targetInfo.username || 'friend';
 
                             if (isPersonal) {
                                 return (
@@ -1015,27 +1114,63 @@ export default function PrayPage() {
                             }
 
                             if (isSent) {
-                                const isConfirmed = entry.sharedWith?.status === 'confirmed';
+                                const isConfirmed = (targetInfo.status || entry.sharedWith?.status) === 'confirmed';
                                 return (
                                     <div key={entry._id} className="p-4 sm:p-5 rounded-2xl border transition-all duration-200 bg-white/[0.03] border-white/10 hover:border-[#00C2FF]/30">
-                                        <div className="flex items-start justify-between gap-3 mb-2">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="text-[10px] text-slate-500 font-bold">{formatDate(entry.date, 'N/A', language)}</span>
+                                        <div className="flex items-start justify-between gap-3 mb-2.5">
+                                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                                <UserAvatar
+                                                    photo={targetInfo.profilePhoto}
+                                                    name={targetInfo.name}
+                                                    username={targetInfo.username}
+                                                    size="md"
+                                                />
+                                                <div className="min-w-0 flex flex-col">
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <span className="text-xs sm:text-sm font-bold text-white truncate">
+                                                            {targetInfo.name ? targetInfo.name : `@${targetUsername}`}
+                                                        </span>
+                                                        <span className="text-[11px] text-[#00C2FF] font-medium truncate">
+                                                            @{targetUsername}
+                                                        </span>
+                                                        {isConfirmed ? (
+                                                            <span className="inline-flex items-center gap-1 bg-emerald-500/15 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-500/30">
+                                                                <CheckCheck className="w-3 h-3" />
+                                                                Prayed & Confirmed
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1 bg-sky-500/15 text-sky-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-sky-500/30">
+                                                                <Send className="w-3 h-3" />
+                                                                Sent
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-[10px] text-slate-500 font-medium">
+                                                        {formatDate(entry.date, 'N/A', language)}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 shrink-0">
                                                 <button onClick={() => handleEditPrayTime(entry)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-sky-300 hover:bg-sky-500/10 transition-all border border-white/5" title={t('editNote')}><Edit3 className="w-4 h-4" /></button>
                                                 <button onClick={() => handleDeletePrayTime(entry._id)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5" title={t('deleteNote')}><Trash2 className="w-4 h-4" /></button>
                                             </div>
                                         </div>
                                         <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
-                                        {isConfirmed && entry.sharedWith?.responseWords && (
-                                            <div className="mt-3 pt-2.5 border-t border-white/10 flex flex-col gap-1 text-xs text-slate-400 bg-white/[0.02] p-3 rounded-xl border border-white/5">
-                                                <span className="text-[11px] text-[#00C2FF] font-semibold flex items-center gap-1">
-
-                                                    @{targetUsername} replay:
-                                                </span>
+                                        {isConfirmed && (entry.sharedWith?.responseWords || targetInfo.responseWords) && (
+                                            <div className="mt-3.5 pt-3 border-t border-white/10 flex flex-col gap-2 text-xs bg-white/[0.02] p-3 rounded-xl border border-white/5">
+                                                <div className="flex items-center gap-2">
+                                                    <UserAvatar
+                                                        photo={targetInfo.profilePhoto}
+                                                        name={targetInfo.name}
+                                                        username={targetInfo.username}
+                                                        size="xs"
+                                                    />
+                                                    <span className="text-[11px] text-[#00C2FF] font-semibold flex items-center gap-1.5">
+                                                        @{targetUsername} replay:
+                                                    </span>
+                                                </div>
                                                 <p className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
-                                                    {entry.sharedWith.responseWords}
+                                                    {entry.sharedWith?.responseWords || targetInfo.responseWords}
                                                 </p>
                                             </div>
                                         )}
@@ -1050,26 +1185,39 @@ export default function PrayPage() {
                                             onClick={() => toggleFriendPrayerExpand(entry._id)}
                                             className="flex items-center justify-between p-3.5 sm:p-4 cursor-pointer hover:bg-white/[0.04] transition-colors gap-3 select-none"
                                         >
-                                            <div className="flex items-center gap-2.5 min-w-0">
-                                                {isUnopened ? (
-                                                    <span className="w-2.5 h-2.5 rounded-full bg-[#00C2FF] shadow-[0_0_8px_#00C2FF] shrink-0 animate-pulse" title="Unread prayer" />
-                                                ) : (
-                                                    <span className="w-2 h-2 rounded-full bg-slate-500 shrink-0" />
-                                                )}
-                                                <div className="flex items-center gap-2 flex-wrap min-w-0">
-                                                    <span className="text-xs sm:text-sm font-bold text-white truncate">
-                                                        @{senderUsername} sent you a prayer
-                                                    </span>
-                                                    <span className="bg-[#00C2FF]/15 text-[#00C2FF] text-[10px] font-bold px-2 py-0.5 rounded-md border border-[#00C2FF]/30">
-                                                        Awaiting Response
-                                                    </span>
-                                                    {entry.prayType && entry.prayType !== 'general' && (
-                                                        <span className="bg-white/10 text-white/70 text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-md border border-white/10 shrink-0">
-                                                            {getPrayTypeLabel(entry.prayType)}
-                                                        </span>
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="relative shrink-0">
+                                                    <UserAvatar
+                                                        photo={senderInfo.profilePhoto}
+                                                        name={senderInfo.name}
+                                                        username={senderInfo.username}
+                                                        size="md"
+                                                    />
+                                                    {isUnopened ? (
+                                                        <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#00C2FF] ring-2 ring-slate-900 shadow-[0_0_8px_#00C2FF] animate-pulse" title="Unread prayer" />
+                                                    ) : (
+                                                        <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-slate-500 ring-2 ring-slate-900" />
                                                     )}
-                                                    <span className="text-[10px] text-slate-500 font-medium shrink-0">
-                                                        {formatDate(entry.date, 'N/A', language)}
+                                                </div>
+                                                <div className="flex flex-col min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                                        <span className="text-xs sm:text-sm font-bold text-white truncate">
+                                                            {senderInfo.name ? senderInfo.name : `@${senderUsername}`}
+                                                        </span>
+                                                        <span className="text-[11px] text-[#00C2FF] font-medium truncate">
+                                                            @{senderUsername}
+                                                        </span>
+                                                        <span className="bg-[#00C2FF]/15 text-[#00C2FF] text-[10px] font-bold px-2 py-0.5 rounded-md border border-[#00C2FF]/30">
+                                                            Awaiting Response
+                                                        </span>
+                                                        {entry.prayType && entry.prayType !== 'general' && (
+                                                            <span className="bg-white/10 text-white/70 text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-md border border-white/10 shrink-0">
+                                                                {getPrayTypeLabel(entry.prayType)}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-[10px] text-slate-500 font-medium">
+                                                        Sent you a prayer • {formatDate(entry.date, 'N/A', language)}
                                                     </span>
                                                 </div>
                                             </div>
@@ -1081,12 +1229,39 @@ export default function PrayPage() {
 
                                     {(!isSnapRow || isExpanded) && (
                                         <div className={isSnapRow ? 'p-4 sm:p-5 pt-0 border-t border-white/5 mt-1' : ''}>
-                                            <div className="flex items-start justify-between gap-3 mb-2">
-                                                <div className="flex items-center gap-2 flex-wrap">
-
-                                                    <span className="text-[10px] text-slate-500 font-bold">{formatDate(entry.date, 'N/A', language)}</span>
+                                            <div className="flex items-start justify-between gap-3 mb-2.5">
+                                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                                    <UserAvatar
+                                                        photo={senderInfo.profilePhoto}
+                                                        name={senderInfo.name}
+                                                        username={senderInfo.username}
+                                                        size="md"
+                                                    />
+                                                    <div className="min-w-0 flex flex-col">
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <span className="text-xs sm:text-sm font-bold text-white truncate">
+                                                                {senderInfo.name ? senderInfo.name : `@${senderUsername}`}
+                                                            </span>
+                                                            <span className="text-[11px] text-[#00C2FF] font-medium truncate">
+                                                                @{senderUsername}
+                                                            </span>
+                                                            {isPendingConfirmation ? (
+                                                                <span className="bg-[#00C2FF]/15 text-[#00C2FF] text-[10px] font-bold px-2 py-0.5 rounded-md border border-[#00C2FF]/30">
+                                                                    Awaiting Response
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center gap-1 bg-emerald-500/15 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-500/30">
+                                                                    <CheckCheck className="w-3 h-3" />
+                                                                    Prayed
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[10px] text-slate-500 font-medium">
+                                                            {formatDate(entry.date, 'N/A', language)}
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                                <div className="flex gap-2">
+                                                <div className="flex gap-2 shrink-0">
                                                     <button onClick={() => handleDeletePrayTime(entry._id)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5" title={t('deleteNote')}><Trash2 className="w-4 h-4" /></button>
                                                 </div>
                                             </div>
@@ -1097,10 +1272,18 @@ export default function PrayPage() {
                                                         {entry.sharedFrom?.responseWords}
                                                     </div>
 
-                                                    <div className="mt-3 pt-2.5 border-t border-white/10 flex flex-col gap-1 text-xs text-slate-400 bg-white/[0.02] p-3 rounded-xl border border-white/5">
-                                                        <span className="text-[11px] text-[#00C2FF] font-semibold">
-                                                            Shared by @{senderUsername}:
-                                                        </span>
+                                                    <div className="mt-3.5 pt-2.5 border-t border-white/10 flex flex-col gap-2 text-xs text-slate-400 bg-white/[0.02] p-3 rounded-xl border border-white/5">
+                                                        <div className="flex items-center gap-2">
+                                                            <UserAvatar
+                                                                photo={senderInfo.profilePhoto}
+                                                                name={senderInfo.name}
+                                                                username={senderInfo.username}
+                                                                size="xs"
+                                                            />
+                                                            <span className="text-[11px] text-[#00C2FF] font-semibold">
+                                                                Shared by @{senderUsername}:
+                                                            </span>
+                                                        </div>
                                                         <p className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
                                                             {stripVoiceOnlyText(entry.words).trim()}
                                                         </p>
@@ -1140,6 +1323,12 @@ export default function PrayPage() {
                                                             </button>
                                                         </div>
                                                         <div className="flex items-center gap-2">
+                                                            <UserAvatar
+                                                                photo={senderInfo.profilePhoto}
+                                                                name={senderInfo.name}
+                                                                username={senderInfo.username}
+                                                                size="xs"
+                                                            />
                                                             <input
                                                                 type="text"
                                                                 value={responseInputs[entry._id] || ''}
@@ -1237,9 +1426,12 @@ export default function PrayPage() {
                                             className="flex items-center justify-between p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 transition-all"
                                         >
                                             <div className="flex items-center gap-3 min-w-0 pr-2">
-                                                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-sky-500/20 to-blue-600/30 border border-sky-400/20 flex items-center justify-center font-bold text-xs text-sky-300 uppercase shrink-0">
-                                                    {user.Name?.charAt(0) || 'U'}
-                                                </div>
+                                                <UserAvatar
+                                                    photo={user.profilePhoto}
+                                                    name={user.Name}
+                                                    username={user.username}
+                                                    size="md"
+                                                />
                                                 <div className="min-w-0">
                                                     <div className="flex items-center gap-1.5 flex-wrap">
                                                         <span className="text-xs font-semibold text-white truncate max-w-[130px]">
