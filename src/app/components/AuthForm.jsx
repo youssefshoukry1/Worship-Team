@@ -1,15 +1,28 @@
 "use client";
 
 import React, { useContext, useEffect, useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Script from "next/script";
 import axios from "axios";
+import { Loader2 } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { GoogleSignIn } from "@capawesome/capacitor-google-sign-in";
 import { UserContext } from "../context/User_Context";
 import ClaimUsernameModal from "./ClaimUsernameModal";
 
 export default function AuthForm() {
-  const { setLogin, setTeams, setUsername, setProfilePhoto } = useContext(UserContext);
+  const router = useRouter();
+  const {
+    setLogin,
+    setTeams,
+    setUsername,
+    setProfilePhoto,
+    setUserRole,
+    setSubRole,
+    setUser_id,
+    setChurchId,
+    setUserStatus,
+  } = useContext(UserContext);
 
   const [isNative, setIsNative] = useState(false);
   const [otpStep, setOtpStep] = useState(1); // 1: enter email, 2: enter code
@@ -42,6 +55,7 @@ export default function AuthForm() {
 
     // Defer persistence if user needs to choose username
     if (data?.needsUsername || !user?.username) {
+      setIsLoading(false);
       setPendingToken(token);
       const emailPrefix = (data?.email || user?.email || "").split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
       const nameClean = (data?.name || user?.Name || "").replace(/[^a-zA-Z0-9_]/g, "");
@@ -66,7 +80,6 @@ export default function AuthForm() {
 
     if (user?.username) {
       localStorage.setItem("user_Taspe7_Username", user.username);
-      if (setUsername) setUsername(user.username);
     }
 
     if (user?.profilePhoto) {
@@ -75,10 +88,31 @@ export default function AuthForm() {
       localStorage.removeItem("user_Taspe7_ProfilePhoto");
     }
 
-    setLogin(token);
+    // Update all UserContext states synchronously
+    if (setUser_id) setUser_id(user?.id || user?._id || "");
+    if (setUserRole) setUserRole(user?.global_role || "USER");
+    if (setSubRole) setSubRole(user?.sub_role || "");
+    if (setChurchId) setChurchId(user?.churchId || "");
+    if (setUserStatus) setUserStatus(user?.status || "approved");
+    if (setUsername && user?.username) setUsername(user.username);
+    if (setProfilePhoto) setProfilePhoto(user?.profilePhoto || null);
     if (setTeams) setTeams(teams);
-    window.location.href = "/";
-  }, [setLogin, setTeams, setUsername]);
+
+    // Directly login and go straight to home
+    setLogin(token);
+    router.replace("/");
+  }, [
+    router,
+    setLogin,
+    setTeams,
+    setUsername,
+    setProfilePhoto,
+    setUserRole,
+    setSubRole,
+    setUser_id,
+    setChurchId,
+    setUserStatus,
+  ]);
 
   // Google credential callback
   const handleGoogleCallback = useCallback(async (response) => {
@@ -348,13 +382,16 @@ export default function AuthForm() {
             <button
               type="submit"
               disabled={isLoading}
-              className={`w-full py-3 rounded-xl font-semibold text-sm transition-all shadow-md ${
-                isLoading
-                  ? "bg-slate-800 text-slate-500 cursor-not-allowed"
-                  : "bg-sky-500 hover:bg-sky-400 text-white cursor-pointer active:scale-98"
-              }`}
+              className="w-full py-3 rounded-xl font-semibold text-sm transition-all shadow-md flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-400 text-white cursor-pointer active:scale-98 disabled:opacity-85 disabled:cursor-wait"
             >
-              {isLoading ? "Sending code..." : "Continue with Email Code"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Loading...</span>
+                </>
+              ) : (
+                "Continue with Email Code"
+              )}
             </button>
           </form>
         ) : (
@@ -393,13 +430,20 @@ export default function AuthForm() {
             <button
               type="submit"
               disabled={isLoading || otpCode.length < 6}
-              className={`w-full py-3 rounded-xl font-semibold text-sm transition-all shadow-md ${
-                isLoading || otpCode.length < 6
+              className={`w-full py-3 rounded-xl font-semibold text-sm transition-all shadow-md flex items-center justify-center gap-2 ${
+                otpCode.length < 6 && !isLoading
                   ? "bg-slate-800 text-slate-500 cursor-not-allowed"
-                  : "bg-sky-500 hover:bg-sky-400 text-white cursor-pointer active:scale-98"
+                  : "bg-sky-500 hover:bg-sky-400 text-white cursor-pointer active:scale-98 disabled:opacity-85 disabled:cursor-wait"
               }`}
             >
-              {isLoading ? "Verifying..." : "Verify & Continue"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Verifying...</span>
+                </>
+              ) : (
+                "Verify & Continue"
+              )}
             </button>
 
             <div className="text-center pt-1">
@@ -433,7 +477,11 @@ export default function AuthForm() {
             if (resData?.token) {
               handleAuthSuccess(resData);
             } else {
-              window.location.href = "/";
+              const currentToken = localStorage.getItem("user_Taspe7_Token") || pendingToken;
+              if (currentToken) {
+                setLogin(currentToken);
+              }
+              router.replace("/");
             }
           }}
           onCancel={() => {

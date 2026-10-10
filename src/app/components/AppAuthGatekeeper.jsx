@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useContext, useRef, useEffect, useSyncExternalStore } from "react";
-import { usePathname } from "next/navigation";
+import React, { useContext, useRef, useState, useEffect, useSyncExternalStore } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import axios from "axios";
 import { UserContext } from "../context/User_Context";
 import AuthForm from "./AuthForm";
@@ -22,9 +22,24 @@ export default function AppAuthGatekeeper({ children }) {
   const isMounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const { isLogin, username, setUsername, profilePhoto, setProfilePhoto } = useContext(UserContext);
   const pathname = usePathname();
+  const router = useRouter();
   const isCheckingRef = useRef(false);
 
+  const [isSyncingProfile, setIsSyncingProfile] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const token = localStorage.getItem("user_Taspe7_Token");
+    const name = localStorage.getItem("user_Taspe7_Username");
+    return Boolean(token && !name);
+  });
+
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://worship-team-api.onrender.com/api";
+
+  // Redirect authenticated user if they land on sign-in routes
+  useEffect(() => {
+    if (isLogin && (pathname === "/login" || pathname === "/Register")) {
+      router.replace("/");
+    }
+  }, [isLogin, pathname, router]);
 
   // Sync username from backend if missing in context but token exists
   useEffect(() => {
@@ -32,10 +47,12 @@ export default function AppAuthGatekeeper({ children }) {
       const storedUsername = localStorage.getItem("user_Taspe7_Username");
       if (storedUsername) {
         setUsername(storedUsername);
+        setIsSyncingProfile(false);
         return;
       }
 
       isCheckingRef.current = true;
+      setIsSyncingProfile(true);
       axios
         .get(`${apiBase}/users/my-profile`, {
           headers: { Authorization: `Bearer ${isLogin}` },
@@ -53,6 +70,9 @@ export default function AppAuthGatekeeper({ children }) {
         })
         .catch((err) => {
           console.error("Profile sync error:", err);
+        })
+        .finally(() => {
+          setIsSyncingProfile(false);
         });
     }
   }, [isLogin, username, setUsername, setProfilePhoto, apiBase]);
@@ -84,6 +104,24 @@ export default function AppAuthGatekeeper({ children }) {
     );
   }
 
+  // Brief loading spinner while redirecting away from sign-in routes
+  if (pathname === "/login" || pathname === "/Register") {
+    return (
+      <div className="min-h-screen bg-[#020617] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // In the middle of syncing profile token
+  if (isSyncingProfile) {
+    return (
+      <div className="min-h-screen bg-[#020617] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   // Case 2: Logged in, but has not chosen an @username -> Global Gatekeeper Modal (unclosable, locks app)
   if (!username) {
     return (
@@ -102,7 +140,9 @@ export default function AppAuthGatekeeper({ children }) {
           }}
           onCancel={() => {
             localStorage.clear();
-            window.location.reload();
+            setLogin(null);
+            setUsername(null);
+            setProfilePhoto(null);
           }}
         />
       </div>

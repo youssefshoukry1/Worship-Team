@@ -141,7 +141,7 @@ function PrayEntryContent({ entry, recordings, onRecordingsChanged, getPrayTypeL
             {sections.map((section, index) => (
                 <div key={index} className="text-sm text-slate-200 font-medium leading-relaxed">
                     {section.marker && section.type !== 'general' && <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black border mb-1 ${section.markerClass}`}>{getPrayTypeLabel ? getPrayTypeLabel(section.type) : section.marker}</span>}
-                    {stripVoiceOnlyText(section.text).trim() && <p className="opacity-90 whitespace-pre-wrap">{stripVoiceOnlyText(section.text).trim()}</p>}
+                    {stripVoiceOnlyText(section.text).trim() && <p dir="auto" className="opacity-90 whitespace-pre-wrap">{stripVoiceOnlyText(section.text).trim()}</p>}
                     <SavedPrayRecordings prayId={entry._id} recordings={grouped[index]} onChanged={onRecordingsChanged} />
                 </div>
             ))}
@@ -956,7 +956,7 @@ export default function PrayPage() {
                                     </button>
                                 </div>
                             )}
-                            {(!prayEditId || prayWords || prayBlocks.length === 0) && <textarea value={prayWords} onChange={(event) => setPrayWords(event.target.value)} placeholder={t('writePrayerPlaceholder')} rows={4} className="w-full bg-transparent border-none text-white placeholder-white/20 focus:outline-none focus:ring-0 resize-y min-h-[90px] text-sm leading-relaxed p-0 m-0" />}
+                            {(!prayEditId || prayWords || prayBlocks.length === 0) && <textarea dir="auto" value={prayWords} onChange={(event) => setPrayWords(event.target.value)} placeholder={t('writePrayerPlaceholder')} rows={4} className="w-full bg-transparent border-none text-white placeholder-white/20 focus:outline-none focus:ring-0 resize-y min-h-[90px] text-sm leading-relaxed p-0 m-0" />}
                             {!prayEditId && (
                                 <VoiceRecorderPanel blockId={GENERAL_BLOCK_ID} recorder={recorder} recordings={generalRecordings} onRemove={removeGeneralRecording} prayType="general" />
                             )}
@@ -970,7 +970,7 @@ export default function PrayPage() {
                                                     <span className={`text-[10px] px-2 py-0.5 rounded-md border uppercase font-bold tracking-wider ${blockStyle.badge}`}>{getPrayTypeLabel(block.prayType)}</span>
                                                     {!prayEditId && <button onClick={() => removeBlock(block.id)} className="p-1 rounded-md text-slate-400 hover:text-red-400 hover:bg-red-500/20 transition-all" title={t('removeSection')}><X className="w-3.5 h-3.5" /></button>}
                                                 </div>
-                                                <textarea value={block.words} onChange={(event) => updateBlockWords(block.id, event.target.value)} placeholder={t('writeSectionPrayerPlaceholder')} rows={3} className="w-full bg-transparent border-none text-white placeholder-white/30 focus:outline-none focus:ring-0 resize-y min-h-[60px] text-sm leading-relaxed p-0 m-0" />
+                                                <textarea dir="auto" value={block.words} onChange={(event) => updateBlockWords(block.id, event.target.value)} placeholder={t('writeSectionPrayerPlaceholder')} rows={3} className="w-full bg-transparent border-none text-white placeholder-white/30 focus:outline-none focus:ring-0 resize-y min-h-[60px] text-sm leading-relaxed p-0 m-0" />
                                                 {!prayEditId && <VoiceRecorderPanel blockId={block.id} recorder={recorder} recordings={block.recordings} onRemove={(recId) => removePendingRecording(block.id, recId)} prayType={block.prayType} />}
                                             </div>
                                         );
@@ -1225,7 +1225,7 @@ export default function PrayPage() {
                                                         @{targetUsername} replay:
                                                     </span>
                                                 </div>
-                                                <p className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
+                                                <p dir="auto" className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
                                                     {entry.sharedWith?.responseWords || targetInfo.responseWords}
                                                 </p>
                                             </div>
@@ -1330,7 +1330,7 @@ export default function PrayPage() {
                                                                     You:
                                                                 </span>
                                                             </div>
-                                                            <p className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
+                                                            <p dir="auto" className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
                                                                 {entry.sharedFrom?.responseWords}
                                                             </p>
                                                         </div>
@@ -1338,7 +1338,7 @@ export default function PrayPage() {
                                                 </>
                                             ) : (
                                                 <>
-                                                    <div className="mt-2 text-sm text-slate-100 font-medium leading-relaxed whitespace-pre-wrap">
+                                                    <div dir="auto" className="mt-2 text-sm text-slate-100 font-medium leading-relaxed whitespace-pre-wrap">
                                                         {(typeof entry.words === 'string' && entry.words.startsWith('enc:v1:')) ? '...' : stripVoiceOnlyText(entry.words).trim()}
                                                     </div>
                                                     <SavedPrayRecordings prayId={entry._id} recordings={recordingsIndex[entry._id]} onChanged={refreshRecordings} />
@@ -1376,6 +1376,7 @@ export default function PrayPage() {
                                                             />
                                                             <input
                                                                 type="text"
+                                                                dir="auto"
                                                                 value={responseInputs[entry._id] || ''}
                                                                 onChange={(e) => setResponseInputs((prev) => ({ ...prev, [entry._id]: e.target.value }))}
                                                                 placeholder={`Write prayer response to @${senderUsername}...`}

@@ -6,8 +6,9 @@ import Portal from '../Portal/Portal';
 import { UserContext } from '../context/User_Context';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { showToast } from '../components/ToastContainer';
-import { Sparkles, X, Check, Search, FileText, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Loader2, Copy, Lightbulb, FolderPlus, Monitor, PlusCircle, Link2, List, AlignJustify } from 'lucide-react';
+import { Sparkles, X, Check, Search, FileText, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Loader2, Copy, Lightbulb, FolderPlus, Monitor, PlusCircle, Link2, List, AlignJustify, Download } from 'lucide-react';
 import { normalizeBibleBooksFromApi } from '../utils/bibleBooks';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { useRouter } from 'next/navigation';
@@ -155,6 +156,7 @@ const VerseItem = React.memo(({
   highlightColor,
   highlightColorsList,
   hasNote,
+  isDark = true,
   onClick,
   onNoteClick
 }) => {
@@ -167,9 +169,13 @@ const VerseItem = React.memo(({
         ...highlightStyle
       }}
       className={`group relative cursor-pointer p-4 rounded-xl transition-all duration-200 ${!highlightStyle && isSelected
-        ? 'bg-white/5 border border-white/10'
+        ? isDark
+          ? 'bg-white/5 border border-white/10'
+          : 'bg-sky-500/15 border border-sky-400/30'
         : !highlightStyle
-          ? 'hover:bg-white/5 border border-white/0 hover:border-white/10'
+          ? isDark
+            ? 'hover:bg-white/5 border border-white/0 hover:border-white/10'
+            : 'hover:bg-sky-500/10 border border-transparent hover:border-sky-400/20'
           : ''
         }`}
     >
@@ -276,6 +282,7 @@ const TRANSLATION_LABELS = {
   AVD: 'فان دايك',
   KEH: 'كتاب الحياة',
   ERV_AR: 'الترجمة العربية',
+  'ERV-AR': 'الترجمة العربية',
 };
 
 const UNIFIED_THEME = {
@@ -383,6 +390,7 @@ function ColorCustomizer({
   onClose,
   t
 }) {
+  const { isDark } = useTheme();
   const [hsv, setHsv] = useState(() => hexToHsv(initialHex));
   const [hexInput, setHexInput] = useState(() => initialHex.toUpperCase());
   const satValRef = useRef(null);
@@ -437,7 +445,11 @@ function ColorCustomizer({
     <div
       onPointerDown={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
-      className="flex flex-col sm:flex-row gap-4 bg-[#141824]/95 backdrop-blur-2xl text-white rounded-2xl p-4 shadow-[0_15px_50px_rgba(0,0,0,0.7)] border border-white/10 w-full max-w-[500px] select-none"
+      className={`flex flex-col sm:flex-row gap-4 backdrop-blur-2xl text-white rounded-2xl p-4 border w-full max-w-[500px] select-none transition-colors ${
+        isDark
+          ? 'bg-[#141824]/95 border-white/10 shadow-[0_15px_50px_rgba(0,0,0,0.7)]'
+          : 'bg-[#002238]/95 border-sky-400/25 shadow-[0_15px_50px_rgba(0,20,35,0.7)]'
+      }`}
       dir="rtl"
     >
       {/* 2D Saturation / Value Box & Hue Slider */}
@@ -799,7 +811,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   const [bibleTranslation, setBibleTranslationRaw] = useState(getInitialTranslation);
   // Pre-seeded with known translations so all pills appear immediately,
   // even before the /translations endpoint responds.
-  const [availableTranslations, setAvailableTranslations] = useState(['AVD', 'ERV_AR', 'KEH']);
+  const [availableTranslations, setAvailableTranslations] = useState(['AVD', 'ERV-AR', 'KEH']);
   const setBibleTranslation = (t) => {
     setBibleTranslationRaw(t);
     if (typeof window !== 'undefined') localStorage.setItem('taspe7_bible_translation', t);
@@ -814,6 +826,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   // --- Offline Translation Downloads State ---
   const [downloadedTranslations, setDownloadedTranslations] = useState(new Set());
   const [isDownloadingTranslation, setIsDownloadingTranslation] = useState(null);
+  const [isCheckingOffline, setIsCheckingOffline] = useState(true);
 
   // Initialize the local Bible cache independently from the hymns page.
   useEffect(() => {
@@ -828,27 +841,36 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     }).catch(() => { });
   }, []);
 
-
-
-
   // Check which translations are offline when modal opens or available translations change
   useEffect(() => {
     if (!isOpen) return;
+    let cancelled = false;
     const checkOffline = async () => {
-      const active = new Set();
-      for (const tr of availableTranslations) {
-        const downloaded = await isTranslationDownloaded(tr);
-        if (downloaded) {
-          active.add(tr);
+      try {
+        const active = new Set();
+        for (const tr of availableTranslations) {
+          const downloaded = await isTranslationDownloaded(tr);
+          if (downloaded) {
+            active.add(tr);
+          }
         }
+        if (!cancelled) {
+          setDownloadedTranslations(active);
+          setIsCheckingOffline(false);
+        }
+      } catch {
+        if (!cancelled) setIsCheckingOffline(false);
       }
-      setDownloadedTranslations(active);
     };
     checkOffline();
+    return () => { cancelled = true; };
   }, [isOpen, availableTranslations]);
 
-  const toggleDownloadTranslation = async (tr) => {
+  const toggleDownloadTranslation = async (tr, autoSelect = false) => {
     if (downloadedTranslations.has(tr) || isDownloadingTranslation === tr) {
+      if (autoSelect && tr !== bibleTranslation) {
+        setBibleTranslation(tr);
+      }
       return;
     }
     setIsDownloadingTranslation(tr);
@@ -861,6 +883,9 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
           return next;
         });
         showToast(language === 'ar' ? 'تم تحميل الترجمة بنجاح للتشغيل بدون إنترنت!' : 'Translation downloaded successfully for offline use!');
+        if (autoSelect || bibleTranslation === tr) {
+          setBibleTranslation(tr);
+        }
       }
     } catch (error) {
       if (error?.isNotFound) {
@@ -915,9 +940,8 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     try {
       const targetTranslations = translations && translations.length > 0 ? translations : availableTranslations;
       const finalCompareData = {};
-      const onlineTranslations = [];
 
-      // 1. Fetch downloaded translations locally (Fast & Offline)
+      // Fetch downloaded translations locally (Fast & Offline)
       for (const t of targetTranslations) {
         const isDownloaded = downloadedTranslations.has(t) || (await isTranslationDownloaded(t));
         if (isDownloaded) {
@@ -929,30 +953,10 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
               const numsSet = new Set(verseNumbers.map(Number));
               const matched = allVerses.filter(v => numsSet.has(Number(v.verseNumber)));
               finalCompareData[t] = matched;
-            } else {
-              onlineTranslations.push(t);
             }
           } catch (localErr) {
-            console.warn(`Local fetch failed for ${t}, falling back to online:`, localErr);
-            onlineTranslations.push(t);
+            console.warn(`Local fetch failed for ${t}:`, localErr);
           }
-        } else {
-          onlineTranslations.push(t);
-        }
-      }
-
-      // 2. Fetch the rest online (only if online and there are pending translations)
-      if (onlineTranslations.length > 0 && navigator.onLine) {
-        try {
-          const trsParam = `&translations=${onlineTranslations.join(',')}`;
-          const { data } = await axios.get(
-            `${BIBLE_API}/compare?bookName=${encodeURIComponent(bibleModalBook.bookName)}&chapter=${bibleModalChapter}&verseNumbers=${verseNumbers.join(',')}${trsParam}`
-          );
-          if (data && typeof data === 'object') {
-            Object.assign(finalCompareData, data);
-          }
-        } catch (apiErr) {
-          console.error('Online compare fetch error for', onlineTranslations, apiErr);
         }
       }
 
@@ -1090,7 +1094,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     (async () => {
       setBibleModalBrowseLoading(true);
       try {
-        const isDownloaded = downloadedTranslations.has(bibleTranslation);
+        const isDownloaded = downloadedTranslations.has(bibleTranslation) || (await isTranslationDownloaded(bibleTranslation));
         if (isDownloaded) {
           // use local index for instant offline-first response
           const index = await getLocalBibleIndex(bibleTranslation);
@@ -1103,11 +1107,8 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
             return;
           }
         }
-        // Other translations or when local index is absent → hit the API
-        const { data } = await axios.get(
-          `${BIBLE_API}/chapters/${encodeURIComponent(bibleModalBook.bookName)}?lang=arabic&translation=${bibleTranslation}`
-        );
-        if (!cancelled) setBibleModalChapters(Array.isArray(data) ? data : []);
+        // If not downloaded, do not hit API. Only downloaded translations are used.
+        if (!cancelled) setBibleModalChapters([]);
       } catch {
         if (!cancelled) setBibleModalChapters([]);
       } finally {
@@ -1128,7 +1129,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     (async () => {
       setBibleModalBrowseLoading(true);
       try {
-        const isDownloaded = downloadedTranslations.has(bibleTranslation);
+        const isDownloaded = downloadedTranslations.has(bibleTranslation) || (await isTranslationDownloaded(bibleTranslation));
         if (isDownloaded) {
           // use local index for instant offline-first response
           const index = await getLocalBibleIndex(bibleTranslation);
@@ -1142,15 +1143,8 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
             return;
           }
         }
-        // Other translations or when local index is absent → hit the API
-        const { data } = await axios.get(
-          `${BIBLE_API}/verses/${encodeURIComponent(bibleModalBook.bookName)}/${bibleModalChapter}?lang=arabic&translation=${bibleTranslation}`
-        );
-        if (!cancelled) {
-          const verses = Array.isArray(data) ? data : [];
-          setBibleModalVerses(verses);
-          saveLastCachedVerses(bibleModalBook.bookName, bibleModalChapter, verses);
-        }
+        // If not downloaded, do not hit API. Only downloaded translations are used.
+        if (!cancelled && bibleModalVerses.length === 0) setBibleModalVerses([]);
       } catch {
         if (!cancelled && bibleModalVerses.length === 0) setBibleModalVerses([]);
       } finally {
@@ -1172,30 +1166,12 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       }
       setIsSearchingBible(true);
       try {
-        let searchedOnline = false;
-
-        // Try Online (MongoDB) First if the device is connected
-        if (navigator.onLine) {
-          try {
-            const { data } = await axios.get(
-              `${BIBLE_API}/search?q=${encodeURIComponent(bibleSearchQuery)}&lang=arabic&translation=${bibleTranslation}`
-            );
-            if (!cancelled) setBibleSearchResults(Array.isArray(data) ? data : []);
-            searchedOnline = true;
-          } catch (err) {
-            console.warn("Online Bible search failed, falling back to offline search", err);
-          }
-        }
-
-        // Fallback to Offline if Online failed or if device is offline
-        if (!searchedOnline) {
-          const isDownloaded = downloadedTranslations.has(bibleTranslation);
-          if (isDownloaded) {
-            const localResults = await searchLocalBible(bibleSearchQuery, bibleTranslation);
-            if (!cancelled) setBibleSearchResults(localResults || []);
-          } else {
-            if (!cancelled) setBibleSearchResults([]);
-          }
+        const isDownloaded = downloadedTranslations.has(bibleTranslation) || (await isTranslationDownloaded(bibleTranslation));
+        if (isDownloaded) {
+          const localResults = await searchLocalBible(bibleSearchQuery, bibleTranslation);
+          if (!cancelled) setBibleSearchResults(localResults || []);
+        } else {
+          if (!cancelled) setBibleSearchResults([]);
         }
       } catch (error) {
         console.error("Bible search error:", error);
@@ -1471,10 +1447,10 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       }
 
       if (!list.length) {
-        const { data } = await axios.get(
-          `${BIBLE_API}/verses/${encodeURIComponent(hit.bookName)}/${hit.chapter}?&lang=arabic`
-        );
-        list = Array.isArray(data) ? data : [];
+        const avdIndex = await getLocalBibleIndex('AVD');
+        if (avdIndex) {
+          list = avdIndex.versesMap.get(`${hit.bookName}_${parseInt(hit.chapter)}`) || [];
+        }
       }
 
       if (!list.length) return;
@@ -1589,6 +1565,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     availableTranslations,
     downloadedTranslations,
     isDownloadingTranslation,
+    isCheckingOffline,
     toggleDownloadTranslation,
     compareModal, setCompareModal,
     compareData, isLoadingCompare,
@@ -1623,6 +1600,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
 
 export function BibleForm({ controller }) {
   const router = useRouter();
+  const { isDark } = useTheme();
   const { isLogin } = useContext(UserContext);
   const { t, language } = useLanguage();
   const {
@@ -1640,7 +1618,7 @@ export function BibleForm({ controller }) {
     showColorCustomizer, setShowColorCustomizer, customColorHex, setCustomColorHex,
     colorInputRef, handleTriggerColorPicker, handleColorPickerChange, handleApplyHighlight,
     handleVerseClick, handleVerseNoteClick, bibleTranslation, setBibleTranslation,
-    availableTranslations, downloadedTranslations, isDownloadingTranslation,
+    availableTranslations, downloadedTranslations, isDownloadingTranslation, isCheckingOffline,
     toggleDownloadTranslation, compareModal, setCompareModal, compareData, isLoadingCompare, compareVerseNums,
     compareSelectedTranslations, setCompareSelectedTranslations, compareMobileTab,
     setCompareMobileTab, compareDesktopPage, setCompareDesktopPage, allColumns,
@@ -1757,66 +1735,31 @@ export function BibleForm({ controller }) {
             className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-6 overflow-hidden"
           >
             {/* Dynamic Background Blur */}
-            <div className="absolute inset-0 bg-[#050505]/80 backdrop-blur-xl" onClick={closeBibleModal} />
+            <div
+              className={`absolute inset-0 backdrop-blur-xl transition-colors duration-200 ${
+                isDark ? 'bg-[#050505]/80' : 'bg-[#001424]/80'
+              }`}
+              onClick={closeBibleModal}
+            />
 
             <div
-              className="relative w-full h-full sm:h-[85vh] max-w-4xl bg-white/[0.02] border border-white/10 sm:rounded-[2.5rem] shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden backdrop-blur-2xl"
+              className={`relative w-full h-full sm:h-[85vh] max-w-4xl border sm:rounded-[2.5rem] flex flex-col overflow-hidden backdrop-blur-2xl transition-colors duration-200 ${
+                isDark
+                  ? 'bg-[#060b13]/90 sm:bg-[#060b13]/85 border-white/10 shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)]'
+                  : 'bg-[#001f33]/95 sm:bg-[#002238]/90 border-sky-400/25 shadow-[0_0_60px_-12px_rgba(14,165,233,0.25)]'
+              }`}
             >
-              {/* ── Top Bar ── */}
-              <div className="Top Bar shrink-0 flex items-center gap-2 px-3 py-2 border-b border-white/[0.07] bg-black/50 backdrop-blur-md rounded-t-xl">
-
-                {/* Offline */}
-                <button
-                  onClick={() => !downloadedTranslations.has(bibleTranslation) && isDownloadingTranslation !== bibleTranslation && toggleDownloadTranslation(bibleTranslation)}
-                  disabled={downloadedTranslations.has(bibleTranslation) || isDownloadingTranslation === bibleTranslation}
-                  className={`w-7 h-7 shrink-0 flex items-center justify-center rounded-full border transition-all duration-150
-      ${downloadedTranslations.has(bibleTranslation) ? "bg-emerald-500/10 border-emerald-500/20 cursor-default" : "bg-white/[0.05] border-white/10 active:scale-90 cursor-pointer"}
-      ${isDownloadingTranslation === bibleTranslation ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  {isDownloadingTranslation === bibleTranslation ? (
-                    <Loader2 className="w-3 h-3 animate-spin text-sky-400" />
-                  ) : downloadedTranslations.has(bibleTranslation) ? (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.7)]" />
-                  ) : (
-                    <svg className="w-3 h-3 text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 15V3m0 12-4-4m4 4 4-4" />
-                      <path d="M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17" />
-                    </svg>
-                  )}
-                </button>
-
-                {/* Pill — compact, fits content only */}
-                <div className="relative flex items-center mx-auto bg-white/[0.08] rounded-full border border-white/[0.1] p-[3px]">
-                  <div
-                    className="absolute top-[3px] bottom-[3px] rounded-full bg-sky-500 shadow-[0_2px_8px_rgba(14,165,233,0.3)]"
-                    style={{
-                      width: `calc((100% - 6px) / ${availableTranslations.length})`,
-                      transform: `translateX(calc(${availableTranslations.indexOf(bibleTranslation)} * 100%))`,
-                      transition: "transform 0.18s cubic-bezier(0.4,0,0.2,1)",
-                      willChange: "transform",
-                    }}
-                  />
-                  {availableTranslations.map((tr) => (
-                    <button
-                      key={tr}
-                      onClick={() => setBibleTranslation(tr)}
-                      className={`relative z-10 px-3 py-1 text-[11px] font-bold tracking-wide rounded-full transition-colors duration-150 cursor-pointer whitespace-nowrap
-          ${bibleTranslation === tr ? "text-white" : "text-white/40 hover:text-white/70"}`}
-                    >
-                      {tr}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Close */}
-                <button
-                  onClick={closeBibleModal}
-                  className="w-7 h-7 shrink-0 flex items-center justify-center rounded-full bg-white/[0.05] border border-white/10 text-white/40 hover:text-white/80 hover:bg-white/10 transition-all duration-150 active:scale-90 cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-
-              </div>
+              {/* Background Glows matching project light/dark theme */}
+              <div
+                className={`absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,${
+                  isDark ? '0.06' : '0.14'
+                }),transparent_70%)] pointer-events-none`}
+              />
+              <div
+                className={`absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,${
+                  isDark ? '0.04' : '0.10'
+                }),transparent_70%)] pointer-events-none`}
+              />
 
               {/* --- MAIN SCROLL AREA - FIXED HEIGHT --- */}
               {/* Added 'overscroll-contain' to stop the website from scrolling when this reaches the end */}
@@ -1829,6 +1772,97 @@ export function BibleForm({ controller }) {
                   window.dispatchEvent(new CustomEvent('internalScroll', { detail: { scrollY: e.currentTarget.scrollTop } }));
                 }}
               >
+                {/* ── Top Bar (Placed inside scroll container so it stays in its place and does not scroll down with the user) ── */}
+                <div
+                  className={`w-full flex items-center justify-center px-3 py-2.5 border-b backdrop-blur-md transition-colors duration-200 ${
+                    isDark
+                      ? 'border-white/[0.07] bg-black/50'
+                      : 'border-sky-400/20 bg-[#001726]/60'
+                  }`}
+                >
+                  {/* Translation Selector Pill */}
+                  <div
+                    dir="ltr"
+                    className={`relative flex items-center rounded-full border p-[3px] max-w-md w-auto transition-colors ${
+                      isDark
+                        ? 'bg-white/[0.08] border-white/[0.1]'
+                        : 'bg-[#001424]/70 border-sky-400/25'
+                    }`}
+                  >
+                    {availableTranslations.includes(bibleTranslation) && (
+                      <div
+                        className="absolute top-[3px] bottom-[3px] rounded-full bg-sky-500 shadow-[0_2px_8px_rgba(14,165,233,0.3)] pointer-events-none"
+                        style={{
+                          width: `calc((100% - 6px) / ${availableTranslations.length})`,
+                          transform: `translateX(calc(${availableTranslations.indexOf(bibleTranslation)} * 100%))`,
+                          transition: "transform 0.18s cubic-bezier(0.4, 0, 0.2, 1)",
+                          willChange: "transform",
+                        }}
+                      />
+                    )}
+                    {availableTranslations.map((tr) => {
+                      const isDownloaded = downloadedTranslations.has(tr);
+                      const isDownloading = isDownloadingTranslation === tr;
+                      const isSelected = bibleTranslation === tr;
+
+                      return (
+                        <button
+                          key={tr}
+                          type="button"
+                          onClick={() => {
+                            if (isDownloaded) {
+                              setBibleTranslation(tr);
+                            } else {
+                              setBibleTranslation(tr);
+                              if (!isDownloading) {
+                                showToast(
+                                  language === 'ar'
+                                    ? `جاري تحميل ترجمة ${tr}...`
+                                    : `Downloading ${tr} translation...`
+                                );
+                                toggleDownloadTranslation(tr, true);
+                              }
+                            }
+                          }}
+                          className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 px-3.5 py-1 text-[11px] font-bold tracking-wide rounded-full transition-colors duration-150 cursor-pointer whitespace-nowrap min-w-[70px] ${isSelected
+                              ? "text-white"
+                              : isDownloaded
+                                ? "text-white/50 hover:text-white/80"
+                                : "text-white/40 hover:text-white/70"
+                            }`}
+                          title={
+                            !isDownloaded
+                              ? (language === 'ar' ? `تحميل ترجمة ${tr}` : `Download ${tr} translation`)
+                              : tr
+                          }
+                        >
+                          <span>{tr}</span>
+                          {isDownloading ? (
+                            <Loader2 className="w-3 h-3 animate-spin text-sky-200 shrink-0" />
+                          ) : !isDownloaded ? (
+                            <span
+                              className="inline-flex items-center justify-center p-0.5 rounded-full hover:bg-white/20 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!isDownloading) {
+                                  showToast(
+                                    language === 'ar'
+                                      ? `جاري تحميل ترجمة ${tr}...`
+                                      : `Downloading ${tr} translation...`
+                                  );
+                                  toggleDownloadTranslation(tr, true);
+                                }
+                              }}
+                            >
+                              <Download className={`w-3 h-3 shrink-0 ${isSelected ? 'text-white' : 'text-sky-400 group-hover:text-white'}`} />
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="p-4 sm:p-12 max-w-3xl mx-auto space-y-6">
                   {/* Smart Navigation Hub */}
                   <div className="space-y-3 pb-2" dir="rtl">
@@ -1905,7 +1939,13 @@ export function BibleForm({ controller }) {
                       className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out overflow-hidden ${biblePickerOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
                         }`}
                     >
-                      <div className="min-h-0 bg-white/[0.02] border border-white/5 rounded-3xl overflow-hidden shadow-2xl relative">
+                      <div
+                        className={`min-h-0 rounded-3xl overflow-hidden shadow-2xl relative border transition-colors ${
+                          isDark
+                            ? 'bg-white/[0.02] border-white/5'
+                            : 'bg-[#001829]/90 border-sky-400/20 shadow-[0_15px_40px_rgba(0,18,34,0.6)]'
+                        }`}
+                      >
                         <div
                           className="flex transition-transform duration-300 ease-out w-[200%]"
                           style={{
@@ -2141,7 +2181,48 @@ export function BibleForm({ controller }) {
                         )}
 
                         {/* Verses Display */}
-                        {bibleModalVerses.length === 0 && bibleModalBrowseLoading ? (
+                        {isCheckingOffline ? (
+                          <div className="flex items-center justify-center py-24">
+                            <Loader2 className="w-6 h-6 animate-spin text-sky-400" />
+                          </div>
+                        ) : !downloadedTranslations.has(bibleTranslation) ? (
+                          <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
+                            <div className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(14,165,233,0.15)]">
+                              {isDownloadingTranslation === bibleTranslation ? (
+                                <Loader2 className="w-7 h-7 text-sky-400 animate-spin" />
+                              ) : (
+                                <Download className="w-7 h-7 text-sky-400" />
+                              )}
+                            </div>
+                            <h3 className="text-base sm:text-lg font-bold text-white mb-2 font-arabic" dir="rtl">
+                              {isDownloadingTranslation === bibleTranslation
+                                ? (language === 'ar' ? `جاري تحميل ترجمة ${bibleTranslation}...` : `Downloading ${bibleTranslation}...`)
+                                : (language === 'ar' ? `ترجمة ${bibleTranslation} غير محملة` : `${bibleTranslation} translation is not downloaded`)}
+                            </h3>
+                            <p className="text-xs sm:text-sm text-white/50 max-w-sm mb-5 leading-relaxed font-arabic" dir="rtl">
+                              {isDownloadingTranslation === bibleTranslation
+                                ? (language === 'ar' ? 'يرجى الانتظار حتى يكتمل التحميل للتشغيل بدون إنترنت.' : 'Please wait while the translation is being downloaded for offline use.')
+                                : (language === 'ar' ? 'يجب تحميل هذه الترجمة أولاً للتمكن من قراءتها بدون إنترنت.' : 'You must download this translation to read it offline.')}
+                            </p>
+                            {isDownloadingTranslation !== bibleTranslation && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  showToast(
+                                    language === 'ar'
+                                      ? `جاري تحميل ترجمة ${bibleTranslation}...`
+                                      : `Downloading ${bibleTranslation} translation...`
+                                  );
+                                  toggleDownloadTranslation(bibleTranslation, true);
+                                }}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] active:scale-95 cursor-pointer"
+                              >
+                                <Download className="w-4 h-4" />
+                                <span>{language === 'ar' ? 'تحميل الترجمة الآن' : 'Download Translation Now'}</span>
+                              </button>
+                            )}
+                          </div>
+                        ) : bibleModalVerses.length === 0 && bibleModalBrowseLoading ? (
                           <div className="flex items-center justify-center py-24">
                             <Loader2 className="w-6 h-6 animate-spin text-sky-400" />
                           </div>
@@ -2224,8 +2305,8 @@ export function BibleForm({ controller }) {
                                 >
                                   <span
                                     className={`inline-flex items-center justify-center text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-md ml-1 mr-0 select-none border transition-colors leading-none ${curr.isSelected
-                                      ? 'text-sky-500/70 bg-white/5 border-white/10'
-                                      : 'text-white/30 bg-white/5 border-white/10'
+                                      ? isDark ? 'text-sky-500/70 bg-white/5 border-white/10' : 'text-sky-400 bg-sky-500/20 border-sky-400/30'
+                                      : isDark ? 'text-white/30 bg-white/5 border-white/10' : 'text-sky-300/60 bg-sky-500/10 border-sky-400/15'
                                       }`}
                                     style={{ verticalAlign: 'middle', transform: 'translateY(-1px)' }}
                                   >
@@ -2261,6 +2342,7 @@ export function BibleForm({ controller }) {
                                 highlightColor={highlightColor}
                                 highlightColorsList={highlightColorsList}
                                 hasNote={existingNote}
+                                isDark={isDark}
                                 onClick={onVerseClick}
                                 onNoteClick={handleVerseNoteClick}
                               />
@@ -2279,7 +2361,11 @@ export function BibleForm({ controller }) {
                   <button
                     onClick={goToPrevChapter}
                     disabled={!hasPrevChapter}
-                    className={`pointer-events-auto w-9 h-9 rounded-full bg-black/90 hover:bg-black/80 backdrop-blur-md border border-white/10 flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 ${!hasPrevChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
+                    className={`pointer-events-auto w-9 h-9 rounded-full backdrop-blur-md border flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 ${
+                      isDark
+                        ? 'bg-black/90 hover:bg-black/80 border-white/10'
+                        : 'bg-[#002238]/95 hover:bg-[#002d4a] border-sky-400/30 text-sky-100 shadow-[0_4px_20px_rgba(0,34,56,0.6)]'
+                    } ${!hasPrevChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
                     title="الأصحاح السابق"
                   >
                     <ChevronLeft className="w-4 h-4 text-white" />
@@ -2287,7 +2373,11 @@ export function BibleForm({ controller }) {
                   <button
                     onClick={goToNextChapter}
                     disabled={!hasNextChapter}
-                    className={`pointer-events-auto w-9 h-9 rounded-full bg-black/90 hover:bg-black/80 backdrop-blur-md border border-white/10 flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 ${!hasNextChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
+                    className={`pointer-events-auto w-9 h-9 rounded-full backdrop-blur-md border flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 ${
+                      isDark
+                        ? 'bg-black/90 hover:bg-black/80 border-white/10'
+                        : 'bg-[#002238]/95 hover:bg-[#002d4a] border-sky-400/30 text-sky-100 shadow-[0_4px_20px_rgba(0,34,56,0.6)]'
+                    } ${!hasNextChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
                     title="الأصحاح التالي"
                   >
                     <ChevronRight className="w-4 h-4 text-white" />
@@ -2307,7 +2397,11 @@ export function BibleForm({ controller }) {
                     }
                   }}
                   style={{ willChange: 'transform' }}
-                  className="animate-sheet-slide-up absolute bottom-0 left-0 right-0 z-50 bg-[#0d0e15] border-t border-white/10 rounded-t-[1.5rem] shadow-[0_-15px_35px_rgba(0,0,0,0.6)] flex flex-col text-white overflow-hidden"
+                  className={`animate-sheet-slide-up absolute bottom-0 left-0 right-0 z-50 border-t rounded-t-[1.5rem] flex flex-col text-white overflow-hidden transition-colors ${
+                    isDark
+                      ? 'bg-[#0d0e15] border-white/10 shadow-[0_-15px_35px_rgba(0,0,0,0.6)]'
+                      : 'bg-[#001e33] border-sky-400/25 shadow-[0_-15px_35px_rgba(0,20,35,0.7)]'
+                  }`}
                   dir="rtl"
                 >
                   {/* Pull bar */}
@@ -2541,7 +2635,9 @@ export function BibleForm({ controller }) {
                 >
                   {/* ── Modern Backdrop with Blur ── */}
                   <div
-                    className="absolute inset-0 bg-[#020205]/80 backdrop-blur-sm transition-opacity"
+                    className={`absolute inset-0 backdrop-blur-sm transition-opacity ${
+                      isDark ? 'bg-[#020205]/80' : 'bg-[#001424]/80'
+                    }`}
                     onClick={() => setCompareModal(false)}
                   />
 
@@ -2551,7 +2647,11 @@ export function BibleForm({ controller }) {
                     exit={{ y: 30, opacity: 0, scale: 0.98 }}
                     transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
                     style={{ willChange: 'transform, opacity' }}
-                    className="relative w-full sm:max-w-6xl h-[92vh] sm:h-[85vh] rounded-t-[2rem] sm:rounded-[2rem] bg-[#0A0A14]/95 backdrop-blur-2xl border-t sm:border border-white/[0.08] shadow-2xl sm:shadow-[0_0_60px_-15px_rgba(14,165,233,0.15)] flex flex-col overflow-hidden ring-1 ring-white/5"
+                    className={`relative w-full sm:max-w-6xl h-[92vh] sm:h-[85vh] rounded-t-[2rem] sm:rounded-[2rem] backdrop-blur-2xl border-t sm:border shadow-2xl flex flex-col overflow-hidden ring-1 transition-colors ${
+                      isDark
+                        ? 'bg-[#0A0A14]/95 border-white/[0.08] ring-white/5 sm:shadow-[0_0_60px_-15px_rgba(14,165,233,0.15)]'
+                        : 'bg-[#002238]/95 border-sky-400/20 ring-sky-400/10 shadow-[0_0_60px_-15px_rgba(14,165,233,0.25)]'
+                    }`}
                   >
                     {/* ── Compare Modal Header ── */}
                     <div className="shrink-0 px-5 sm:px-8 py-5 border-b border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent">
@@ -2637,7 +2737,7 @@ export function BibleForm({ controller }) {
                     )}
 
                     {/* ── Compare Body ── */}
-                    <div className="flex-1 overflow-hidden flex min-h-0 bg-[#0A0A14]/50">
+                    <div className={`flex-1 overflow-hidden flex min-h-0 ${isDark ? 'bg-[#0A0A14]/50' : 'bg-[#001829]/60'}`}>
                       {isLoadingCompare ? (
                         <div className="flex-1 flex flex-col sm:flex-row gap-0 min-h-0">
                           {[...Array(Math.min(3, compareSelectedTranslations.length || 2))].map((_, i) => (
@@ -2669,7 +2769,11 @@ export function BibleForm({ controller }) {
                             ))}
 
                             {totalPages > 1 && (
-                              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-[#12121A]/80 backdrop-blur-xl border border-white/10 rounded-full p-1.5 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] z-10 ring-1 ring-white/5">
+                              <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1.5 backdrop-blur-xl border rounded-full p-1.5 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] z-10 ring-1 ${
+                                isDark
+                                  ? 'bg-[#12121A]/80 border-white/10 ring-white/5'
+                                  : 'bg-[#001524]/85 border-sky-400/25 ring-sky-400/10'
+                              }`}>
                                 <button
                                   onClick={() => setCompareDesktopPage(p => Math.max(0, p - 1))}
                                   disabled={dpSafe === 0}
@@ -2783,11 +2887,15 @@ export function BibleForm({ controller }) {
           >
             {/* Backdrop - stopPropagation prevents bible modal from reacting */}
             <div
-              className="absolute inset-0 bg-black/70 backdrop-blur-md"
+              className={`absolute inset-0 backdrop-blur-md ${isDark ? 'bg-black/70' : 'bg-[#001424]/75'}`}
               onClick={(e) => { e.stopPropagation(); setNoteModalConfig(null); setNoteText(''); }}
             />
             <div
-              className="relative w-full sm:max-w-lg bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border border-indigo-500/20 rounded-t-3xl sm:rounded-3xl shadow-[0_0_60px_-10px_rgba(99,102,241,0.3)] overflow-hidden flex flex-col"
+              className={`relative w-full sm:max-w-lg border rounded-t-3xl sm:rounded-3xl shadow-[0_0_60px_-10px_rgba(99,102,241,0.3)] overflow-hidden flex flex-col ${
+                isDark
+                  ? 'bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border-indigo-500/20'
+                  : 'bg-gradient-to-b from-[#002238] to-[#001726] border-sky-400/30'
+              }`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Decorative top bar mobile */}
@@ -2866,9 +2974,13 @@ export function BibleForm({ controller }) {
             style={{ isolation: 'isolate' }}
             onClick={(e) => { e.stopPropagation(); setViewNoteConfig(null); }}
           >
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
+            <div className={`absolute inset-0 backdrop-blur-xl ${isDark ? 'bg-black/80' : 'bg-[#001424]/80'}`} />
             <div
-              className="relative w-full max-w-md bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border border-indigo-500/30 rounded-3xl shadow-[0_0_80px_-10px_rgba(99,102,241,0.4)] overflow-hidden"
+              className={`relative w-full max-w-md border rounded-3xl shadow-[0_0_80px_-10px_rgba(99,102,241,0.4)] overflow-hidden ${
+                isDark
+                  ? 'bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border-indigo-500/30'
+                  : 'bg-gradient-to-b from-[#002238] to-[#001726] border-sky-400/35'
+              }`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Ambient glow */}

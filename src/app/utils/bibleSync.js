@@ -72,9 +72,13 @@ export async function initLocalBible() {
 export async function isTranslationDownloaded(translation) {
   if (typeof window === 'undefined') return false;
   try {
-    const cacheKey = getCacheKey(translation);
+    const clean = String(translation || '').toUpperCase();
     await storageReady;
-    const existing = await localforage.getItem(cacheKey);
+    let existing = await localforage.getItem(getCacheKey(clean));
+    if (!existing || existing.length === 0) {
+      const alt = clean.includes('-') ? clean.replace(/-/g, '_') : clean.replace(/_/g, '-');
+      existing = await localforage.getItem(getCacheKey(alt));
+    }
     return !!(existing && existing.length > 0);
   } catch {
     return false;
@@ -151,8 +155,12 @@ export async function getLocalBibleIndex(translation = 'AVD') {
 
   const cacheKey = getCacheKey(cleanTranslation);
   await storageReady;
-  const bibles = memoryBiblesCaches[cleanTranslation] || await localforage.getItem(cacheKey) || [];
-  if (bibles.length === 0) return null;
+  let bibles = memoryBiblesCaches[cleanTranslation] || await localforage.getItem(cacheKey);
+  if (!bibles || bibles.length === 0) {
+    const alt = cleanTranslation.includes('-') ? cleanTranslation.replace(/-/g, '_') : cleanTranslation.replace(/_/g, '-');
+    bibles = memoryBiblesCaches[alt] || await localforage.getItem(getCacheKey(alt)) || [];
+  }
+  if (!bibles || bibles.length === 0) return null;
 
   if (!memoryBiblesCaches[cleanTranslation]) memoryBiblesCaches[cleanTranslation] = bibles;
 

@@ -92,7 +92,7 @@ export default function WaslaSplashIntro() {
                             transition={{ duration: 0.5, delay: 1.4, ease: "easeOut" }}
                             className="mt-6 text-sm sm:text-base text-gray-300 font-medium tracking-wide text-center"
                         >
-                            تسبيحنا يرتفع للسماء
+                           new update downloaded
                         </motion.p>
                     </motion.div>
                 </motion.div>

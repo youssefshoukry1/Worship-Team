@@ -70,7 +70,7 @@ export default function BottomNav() {
       } else {
         currentScrollY = window.scrollY;
       }
-      
+
       if (currentScrollY > lastScrollY && currentScrollY > 50) {
         setIsVisible(false);
       } else if (currentScrollY < lastScrollY || currentScrollY <= 50) {
@@ -92,13 +92,11 @@ export default function BottomNav() {
   return (
     <div
       data-lenis-prevent
-      className={`fixed bottom-0 left-0 right-0 z-[10000] border-t backdrop-blur-xl transition-all duration-200 ease-out touch-manipulation select-none ${
-        shouldShow ? 'translate-y-0' : 'translate-y-full'
-      } ${
-        isDark
+      className={`fixed bottom-0 left-0 right-0 z-[10000] border-t backdrop-blur-xl transition-all duration-200 ease-out touch-manipulation select-none ${shouldShow ? 'translate-y-0' : 'translate-y-full'
+        } ${isDark
           ? 'bg-[#060b13]/95 border-white/[0.06] shadow-[0_-10px_30px_rgba(6,11,19,0.8)]'
           : 'bg-[#002238]/95 border-sky-400/20 shadow-[0_-10px_30px_rgba(0,34,56,0.5)]'
-      }`}
+        }`}
     >
       <nav className="flex justify-around items-center h-[58px] max-w-md mx-auto" aria-label="Primary navigation">
         {NAV_ITEMS.map((item) => {
@@ -138,9 +136,8 @@ export default function BottomNav() {
               className="group relative flex h-full w-full touch-manipulation flex-col items-center justify-center gap-0.5 outline-none transition-transform duration-150 ease-out active:scale-[0.94]"
             >
               <div
-                className={`pointer-events-none absolute top-[5px] h-8 w-12 rounded-2xl bg-sky-400/12 transition-[opacity,transform] duration-200 ease-out ${
-                  isActive ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
-                }`}
+                className={`pointer-events-none absolute top-[5px] h-8 w-12 rounded-2xl bg-sky-400/12 transition-[opacity,transform] duration-200 ease-out ${isActive ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+                  }`}
               />
               <div className={`relative flex h-8 w-10 items-center justify-center pointer-events-none transition-transform duration-200 ease-out ${isActive ? '-translate-y-0.5 scale-105' : 'translate-y-0 scale-100'}`}>
                 <item.icon
@@ -153,9 +150,8 @@ export default function BottomNav() {
                 {item.label}
               </span>
               <span
-                className={`pointer-events-none absolute bottom-0 h-0.5 w-5 rounded-full bg-[#00C2FF] transition-[opacity,transform] duration-200 ease-out ${
-                  isActive ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0'
-                }`}
+                className={`pointer-events-none absolute bottom-0 h-0.5 w-5 rounded-full bg-[#00C2FF] transition-[opacity,transform] duration-200 ease-out ${isActive ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0'
+                  }`}
               />
             </Link>
           );
