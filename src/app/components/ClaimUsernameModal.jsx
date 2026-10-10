@@ -449,7 +449,7 @@ export default function ClaimUsernameModal({
 
             {/* Username Input Field */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              <label className="block text-xs font-semibold  tracking-wider text-slate-400 mb-1.5">
                 Username
               </label>
               <div className="relative flex items-center">
@@ -487,7 +487,7 @@ export default function ClaimUsernameModal({
 
               {/* Recommended suggestions chips */}
               <div className="mt-3.5 pt-3 border-t border-slate-800/80">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
+                <span className="text-[11px] font-semibold text-slate-400  tracking-wider block mb-2">
                   Recommended for you:
                 </span>
                 <div className="flex flex-wrap gap-2">
