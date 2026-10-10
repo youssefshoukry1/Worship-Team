@@ -20,7 +20,7 @@ const getServerSnapshot = () => false;
 
 export default function AppAuthGatekeeper({ children }) {
   const isMounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const { isLogin, username, setUsername } = useContext(UserContext);
+  const { isLogin, username, setUsername, profilePhoto, setProfilePhoto } = useContext(UserContext);
   const pathname = usePathname();
   const isCheckingRef = useRef(false);
 
@@ -46,12 +46,16 @@ export default function AppAuthGatekeeper({ children }) {
             localStorage.setItem("user_Taspe7_Username", profileUser.username);
             setUsername(profileUser.username);
           }
+          if (profileUser?.profilePhoto) {
+            localStorage.setItem("user_Taspe7_ProfilePhoto", profileUser.profilePhoto);
+            setProfilePhoto(profileUser.profilePhoto);
+          }
         })
         .catch((err) => {
           console.error("Profile sync error:", err);
         });
     }
-  }, [isLogin, username, setUsername, apiBase]);
+  }, [isLogin, username, setUsername, setProfilePhoto, apiBase]);
 
   // Initial SSR / mount loader
   if (!isMounted) {
@@ -86,9 +90,14 @@ export default function AppAuthGatekeeper({ children }) {
       <div className="fixed inset-0 z-[99999] bg-[#020617] flex items-center justify-center p-4">
         <ClaimUsernameModal
           token={isLogin}
+          initialPhoto={profilePhoto}
           onSuccess={(resData) => {
             const handle = resData?.username || resData;
             localStorage.setItem("user_Taspe7_Username", handle);
+            if (resData?.profilePhoto) {
+              localStorage.setItem("user_Taspe7_ProfilePhoto", resData.profilePhoto);
+              setProfilePhoto(resData.profilePhoto);
+            }
             setUsername(handle);
           }}
           onCancel={() => {

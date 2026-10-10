@@ -9,7 +9,7 @@ import { UserContext } from "../context/User_Context";
 import ClaimUsernameModal from "./ClaimUsernameModal";
 
 export default function AuthForm() {
-  const { setLogin, setTeams, setUsername } = useContext(UserContext);
+  const { setLogin, setTeams, setUsername, setProfilePhoto } = useContext(UserContext);
 
   const [isNative, setIsNative] = useState(false);
   const [otpStep, setOtpStep] = useState(1); // 1: enter email, 2: enter code
@@ -25,6 +25,7 @@ export default function AuthForm() {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [pendingToken, setPendingToken] = useState(null);
   const [suggestedUsername, setSuggestedUsername] = useState("");
+  const [suggestedPhoto, setSuggestedPhoto] = useState(null);
 
   const googleBtnRef = useRef(null);
   const cooldownTimer = useRef(null);
@@ -46,6 +47,7 @@ export default function AuthForm() {
       const nameClean = (data?.name || user?.Name || "").replace(/[^a-zA-Z0-9_]/g, "");
       const bestSuggestion = data?.suggestedUsername || nameClean || emailPrefix || "user";
       setSuggestedUsername(bestSuggestion);
+      setSuggestedPhoto(data?.suggestedPhoto || user?.profilePhoto || null);
       setShowUsernameModal(true);
       return;
     }
@@ -421,8 +423,13 @@ export default function AuthForm() {
         <ClaimUsernameModal
           token={pendingToken}
           initialSuggestion={suggestedUsername}
+          initialPhoto={suggestedPhoto}
           onSuccess={(resData) => {
             setShowUsernameModal(false);
+            if (resData?.profilePhoto) {
+              localStorage.setItem("user_Taspe7_ProfilePhoto", resData.profilePhoto);
+              if (setProfilePhoto) setProfilePhoto(resData.profilePhoto);
+            }
             if (resData?.token) {
               handleAuthSuccess(resData);
             } else {
