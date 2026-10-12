@@ -12,6 +12,7 @@ import {
 } from '../utils/prayRecordings';
 import { MyPraysBackup, SavedPrayRecordings, VoiceRecorderPanel, usePrayRecorder } from './PrayRecordings';
 import { useLanguage } from '../context/LanguageContext';
+import { useOfflineAvatar } from '../hooks/useOfflineAvatar';
 
 const API_URL = getApiBaseUrl();
 
@@ -101,7 +102,7 @@ const blobToBase64 = (blob) => new Promise((resolve, reject) => {
 });
 
 function UserAvatar({ photo, name, username, size = 'sm', className = '' }) {
-    const [imgFailed, setImgFailed] = useState(false);
+    const { src, markFailed } = useOfflineAvatar(username || name || photo, photo);
     const initial = (name || username || 'U').charAt(0).toUpperCase();
 
     const sizeClasses = {
@@ -111,13 +112,13 @@ function UserAvatar({ photo, name, username, size = 'sm', className = '' }) {
         lg: 'w-11 h-11 text-sm'
     }[size] || 'w-7 h-7 text-xs';
 
-    if (photo && !imgFailed) {
+    if (src) {
         return (
             <div className={`relative rounded-full overflow-hidden shrink-0 border border-sky-400/30 bg-sky-950/40 shadow-sm ${sizeClasses} ${className}`}>
                 <img
-                    src={photo}
+                    src={src}
                     alt={name || username || 'User'}
-                    onError={() => setImgFailed(true)}
+                    onError={markFailed}
                     className="w-full h-full object-cover"
                     loading="lazy"
                 />
@@ -188,19 +189,31 @@ export default function PrayPage() {
         if (!token) return;
         try {
             setLoadingFriends(true);
+            const cacheKey = `friends_data_${userId}`;
+            const cached = await localforage.getItem(cacheKey);
+            if (cached?.friends) {
+                setFriends(cached.friends);
+                setLoadingFriends(false);
+            }
             const res = await fetch(`${API_URL}/users/friends`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.ok) {
                 const data = await res.json();
-                setFriends(data.friends || []);
+                const freshFriends = data.friends || [];
+                setFriends(freshFriends);
+                await localforage.setItem(cacheKey, {
+                    ...(cached || {}),
+                    friends: freshFriends,
+                    updatedAt: Date.now()
+                });
             }
         } catch (err) {
             console.error('Failed to load friends:', err);
         } finally {
             setLoadingFriends(false);
         }
-    }, [token]);
+    }, [token, userId]);
 
     useEffect(() => {
         fetchFriends();

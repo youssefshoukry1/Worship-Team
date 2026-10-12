@@ -13,7 +13,7 @@ import { normalizeBibleBooksFromApi } from '../utils/bibleBooks';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { useRouter } from 'next/navigation';
 import { isApp } from '../utils/platform';
-import { initLocalBible, getLocalBibleIndex, searchLocalBible, isTranslationDownloaded, downloadTranslationToLocal } from '../utils/bibleSync';
+import { initLocalBible, getLocalBibleIndex, searchLocalBible, isTranslationDownloaded, downloadTranslationToLocal, getKnownDownloadedTranslations, getDownloadedTranslations } from '../utils/bibleSync';
 import { queueOfflineAction } from '../utils/offlineQueue';
 
 
@@ -31,10 +31,12 @@ function getInitialBibleData() {
     const rawVerses = localStorage.getItem(BIBLE_LAST_VERSES_KEY);
     const pos = rawPos ? JSON.parse(rawPos) : null;
     const cached = rawVerses ? JSON.parse(rawVerses) : null;
+    const translation = localStorage.getItem('taspe7_bible_translation') || 'AVD';
+    const cachedTranslation = cached?.translation || 'AVD';
     const bookName = pos?.bookName || cached?.bookName || 'تكوين';
     const chapter = pos?.chapter ?? cached?.chapter ?? 1;
     let verses = [];
-    if (cached && cached.bookName === bookName && Number(cached.chapter) === Number(chapter) && Array.isArray(cached.verses)) {
+    if (cached && cachedTranslation === translation && cached.bookName === bookName && Number(cached.chapter) === Number(chapter) && Array.isArray(cached.verses)) {
       verses = cached.verses;
     }
     return {
@@ -57,10 +59,10 @@ function getInitialBibleBooks() {
   }
 }
 
-function saveLastCachedVerses(bookName, chapter, verses) {
+function saveLastCachedVerses(bookName, chapter, verses, translation = 'AVD') {
   if (typeof window === 'undefined' || !bookName || chapter == null || !Array.isArray(verses) || verses.length === 0) return;
   try {
-    localStorage.setItem(BIBLE_LAST_VERSES_KEY, JSON.stringify({ bookName, chapter, verses }));
+    localStorage.setItem(BIBLE_LAST_VERSES_KEY, JSON.stringify({ bookName, chapter, verses, translation }));
   } catch { }
 }
 
@@ -824,9 +826,9 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   };
 
   // --- Offline Translation Downloads State ---
-  const [downloadedTranslations, setDownloadedTranslations] = useState(new Set());
+  const [downloadedTranslations, setDownloadedTranslations] = useState(() => new Set(getKnownDownloadedTranslations()));
   const [isDownloadingTranslation, setIsDownloadingTranslation] = useState(null);
-  const [isCheckingOffline, setIsCheckingOffline] = useState(true);
+  const [isCheckingOffline, setIsCheckingOffline] = useState(() => !getKnownDownloadedTranslations().includes(getInitialTranslation()));
 
   // Initialize the local Bible cache independently from the hymns page.
   useEffect(() => {
@@ -837,6 +839,9 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
           next.add('AVD');
           return next;
         });
+        if ((localStorage.getItem('taspe7_bible_translation') || 'AVD') === 'AVD') {
+          setIsCheckingOffline(false);
+        }
       }
     }).catch(() => { });
   }, []);
@@ -847,13 +852,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     let cancelled = false;
     const checkOffline = async () => {
       try {
-        const active = new Set();
-        for (const tr of availableTranslations) {
-          const downloaded = await isTranslationDownloaded(tr);
-          if (downloaded) {
-            active.add(tr);
-          }
-        }
+        const active = await getDownloadedTranslations(availableTranslations);
         if (!cancelled) {
           setDownloadedTranslations(active);
           setIsCheckingOffline(false);
@@ -1137,7 +1136,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
             const verses = index.versesMap.get(`${bibleModalBook.bookName}_${parseInt(bibleModalChapter)}`) || [];
             if (!cancelled) {
               setBibleModalVerses(verses);
-              saveLastCachedVerses(bibleModalBook.bookName, bibleModalChapter, verses);
+              saveLastCachedVerses(bibleModalBook.bookName, bibleModalChapter, verses, bibleTranslation);
               setBibleModalBrowseLoading(false);
             }
             return;
@@ -1305,13 +1304,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     setBibleSearchQuery('');
     setBibleSearchResults([]);
     setShowBibleSearchBar(false);
-    setBibleModalBooks([]);
-    setBibleModalBook(null);
-    setBibleModalChapters([]);
-    setBibleModalChapter(null);
     setBibleSelectedVerseIds(new Set());
-    setBibleModalVerses([]);
-    setBibleModalBooksReady(false);
     setBiblePickerOpen(null);
     setCompareModal(false);
     setCompareData(null);
@@ -2181,11 +2174,11 @@ export function BibleForm({ controller }) {
                         )}
 
                         {/* Verses Display */}
-                        {isCheckingOffline ? (
+                        {isCheckingOffline && bibleModalVerses.length === 0 ? (
                           <div className="flex items-center justify-center py-24">
                             <Loader2 className="w-6 h-6 animate-spin text-sky-400" />
                           </div>
-                        ) : !downloadedTranslations.has(bibleTranslation) ? (
+                        ) : !downloadedTranslations.has(bibleTranslation) && bibleModalVerses.length === 0 ? (
                           <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
                             <div className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(14,165,233,0.15)]">
                               {isDownloadingTranslation === bibleTranslation ? (

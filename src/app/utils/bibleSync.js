@@ -4,10 +4,58 @@ import { isApp, storageReady } from './platform';
 
 // Map translation key helper
 const getCacheKey = (translation) => `taspe7_bible_db_${String(translation || 'AVD').toUpperCase()}`;
+const DOWNLOADED_TRANSLATIONS_KEY = 'taspe7_bible_downloaded_translations';
 
 // In-memory caches for all downloaded translations
 const memoryBiblesCaches = {}; // { AVD: [...], KEH: [...] }
 const memoryIndexCaches = {};  // { AVD: index, KEH: index }
+let bibleStorageKeysPromise = null;
+
+function getTranslationCacheKeys(translation) {
+  const clean = String(translation || '').toUpperCase();
+  const alt = clean.includes('-') ? clean.replace(/-/g, '_') : clean.replace(/_/g, '-');
+  return [getCacheKey(clean), getCacheKey(alt)];
+}
+
+async function getBibleStorageKeys() {
+  if (!bibleStorageKeysPromise) {
+    bibleStorageKeysPromise = storageReady
+      .then(() => localforage.keys())
+      .then(keys => new Set(keys))
+      .catch((error) => {
+        bibleStorageKeysPromise = null;
+        throw error;
+      });
+  }
+  return bibleStorageKeysPromise;
+}
+
+function invalidateBibleStorageKeys() {
+  bibleStorageKeysPromise = null;
+}
+
+export function getKnownDownloadedTranslations() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const saved = JSON.parse(localStorage.getItem(DOWNLOADED_TRANSLATIONS_KEY) || '[]');
+    return Array.isArray(saved) ? saved.map(value => String(value).toUpperCase()) : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberDownloadedTranslation(translation, isDownloaded = true) {
+  if (typeof window === 'undefined') return;
+  try {
+    const clean = String(translation || '').toUpperCase();
+    const known = new Set(getKnownDownloadedTranslations());
+    if (isDownloaded) known.add(clean);
+    else known.delete(clean);
+    localStorage.setItem(DOWNLOADED_TRANSLATIONS_KEY, JSON.stringify([...known]));
+  } catch {
+    // IndexedDB remains the source of truth when localStorage is unavailable.
+  }
+}
 
 /**
  * Hydrates IndexedDB with standard packaged AVD (Van Dyke) if empty.
@@ -23,6 +71,7 @@ export async function initLocalBible() {
     if (existing && existing.length > 0) {
       console.log(`[BibleSync] AVD cache hydrated with ${existing.length} verses.`);
       memoryBiblesCaches['AVD'] = existing;
+      rememberDownloadedTranslation('AVD');
       return existing;
     }
 
@@ -40,8 +89,10 @@ export async function initLocalBible() {
       }));
 
       await localforage.setItem(cacheKey, normalized);
+      invalidateBibleStorageKeys();
       console.log(`[BibleSync] App: AVD hydrated with ${normalized.length} verses.`);
       memoryBiblesCaches['AVD'] = normalized;
+      rememberDownloadedTranslation('AVD');
       return normalized;
     } else {
       // Web: fetch from the server download endpoint in the background
@@ -51,7 +102,9 @@ export async function initLocalBible() {
         const { data } = await axios.get(`${apiBase}/download?translation=AVD`);
         if (Array.isArray(data) && data.length > 0) {
           await localforage.setItem(cacheKey, data);
+          invalidateBibleStorageKeys();
           memoryBiblesCaches['AVD'] = data;
+          rememberDownloadedTranslation('AVD');
           console.log(`[BibleSync] Web: AVD downloaded and cached with ${data.length} verses.`);
           return data;
         }
@@ -73,15 +126,29 @@ export async function isTranslationDownloaded(translation) {
   if (typeof window === 'undefined') return false;
   try {
     const clean = String(translation || '').toUpperCase();
-    await storageReady;
-    let existing = await localforage.getItem(getCacheKey(clean));
-    if (!existing || existing.length === 0) {
-      const alt = clean.includes('-') ? clean.replace(/-/g, '_') : clean.replace(/_/g, '-');
-      existing = await localforage.getItem(getCacheKey(alt));
-    }
-    return !!(existing && existing.length > 0);
+    const keys = await getBibleStorageKeys();
+    const downloaded = getTranslationCacheKeys(clean).some(key => keys.has(key));
+    rememberDownloadedTranslation(clean, downloaded);
+    return downloaded;
   } catch {
     return false;
+  }
+}
+
+export async function getDownloadedTranslations(translations) {
+  if (typeof window === 'undefined' || !Array.isArray(translations)) return new Set();
+  try {
+    const keys = await getBibleStorageKeys();
+    const downloaded = new Set();
+    translations.forEach((translation) => {
+      const clean = String(translation || '').toUpperCase();
+      const exists = getTranslationCacheKeys(clean).some(key => keys.has(key));
+      rememberDownloadedTranslation(clean, exists);
+      if (exists) downloaded.add(translation);
+    });
+    return downloaded;
+  } catch {
+    return new Set(getKnownDownloadedTranslations().filter(value => translations.includes(value)));
   }
 }
 
@@ -101,11 +168,13 @@ export async function downloadTranslationToLocal(translation, apiBase) {
     }
 
     await localforage.setItem(cacheKey, data);
+    invalidateBibleStorageKeys();
     console.log(`[BibleSync] Cached translation ${cleanTranslation} with ${data.length} verses.`);
 
     // Update memory cache
     memoryBiblesCaches[cleanTranslation] = data;
     delete memoryIndexCaches[cleanTranslation]; // Reset index to force build
+    rememberDownloadedTranslation(cleanTranslation);
 
     return true;
   } catch (error) {
@@ -132,9 +201,11 @@ export async function deleteTranslationFromLocal(translation) {
     const cacheKey = getCacheKey(cleanTranslation);
     await storageReady; // otherwise the migration could copy the legacy copy back afterwards
     await localforage.removeItem(cacheKey);
+    invalidateBibleStorageKeys();
 
     delete memoryBiblesCaches[cleanTranslation];
     delete memoryIndexCaches[cleanTranslation];
+    rememberDownloadedTranslation(cleanTranslation, false);
 
     console.log(`[BibleSync] Removed translation ${cleanTranslation} from local database.`);
     return true;
@@ -189,7 +260,7 @@ export async function getLocalBibleIndex(translation = 'AVD') {
     chaptersMap.set(bookName, Array.from(chaptersSet).sort((a, b) => a - b));
   }
 
-  for (const [key, versesArray] of versesMap.entries()) {
+  for (const versesArray of versesMap.values()) {
     versesArray.sort((a, b) => a.verseNumber - b.verseNumber);
   }
 

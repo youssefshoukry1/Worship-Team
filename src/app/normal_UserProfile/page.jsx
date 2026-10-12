@@ -8,6 +8,8 @@ import localforage from 'localforage';
 import Portal from '../Portal/Portal';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { showToast } from '../components/ToastContainer';
+import { useOfflineAvatar } from '../hooks/useOfflineAvatar';
+import { removeCachedAvatar, saveAvatarBlob } from '../utils/avatarStorage';
 import {
     Activity,
     Book,
@@ -191,6 +193,7 @@ const groupHighlights = (highlights) => {
 
 export default function NormalUserProfile() {
     const { user_id, isLogin, profilePhoto, setProfilePhoto } = useContext(UserContext);
+    const { src: profileAvatarSrc, markFailed: markProfileAvatarFailed } = useOfflineAvatar(user_id, profilePhoto);
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -333,7 +336,10 @@ export default function NormalUserProfile() {
             // 2. Upload to R2
             const uploadRes = await fetch(urlData.uploadUrl, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'image/webp' },
+                headers: {
+                    'Content-Type': 'image/webp',
+                    'Cache-Control': 'public, max-age=31536000, immutable'
+                },
                 body: blob
             });
             if (!uploadRes.ok) throw new Error('Failed to upload image to storage');
@@ -350,6 +356,11 @@ export default function NormalUserProfile() {
             const confirmData = await confirmRes.json();
             if (!confirmRes.ok) throw new Error(confirmData.message || 'Failed to confirm upload');
 
+            try {
+                await saveAvatarBlob(user_id, confirmData.profilePhoto, blob);
+            } catch (cacheError) {
+                console.warn('Profile photo was uploaded but could not be cached:', cacheError);
+            }
             setProfilePhoto(confirmData.profilePhoto);
             localStorage.setItem("user_Taspe7_ProfilePhoto", confirmData.profilePhoto);
             showToast({ message: 'Profile photo updated!', type: 'success' });
@@ -371,6 +382,11 @@ export default function NormalUserProfile() {
             });
             if (!res.ok) throw new Error('Failed to remove photo');
             
+            try {
+                await removeCachedAvatar(user_id, profilePhoto);
+            } catch (cacheError) {
+                console.warn('Profile photo cache cleanup failed:', cacheError);
+            }
             setProfilePhoto(null);
             localStorage.removeItem("user_Taspe7_ProfilePhoto");
             showToast({ message: 'Profile photo removed', type: 'success' });
@@ -672,8 +688,8 @@ export default function NormalUserProfile() {
                                     }
                                 }}
                             >
-                                {profilePhoto ? (
-                                    <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                                {profileAvatarSrc ? (
+                                    <img src={profileAvatarSrc} alt="Profile" onError={markProfileAvatarFailed} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
                                 ) : (
                                     <span className="text-3xl sm:text-4xl font-bold text-sky-400/50">
                                         {profile?.user?.Name?.charAt(0) || 'U'}
@@ -1050,9 +1066,10 @@ export default function NormalUserProfile() {
                                     initial={{ scale: 0.9, opacity: 0 }}
                                     animate={{ scale: 1, opacity: 1 }}
                                     exit={{ scale: 0.9, opacity: 0 }}
-                                    src={profilePhoto}
+                                    src={profileAvatarSrc || profilePhoto}
                                     alt="Profile"
                                     className="max-w-full max-h-full object-contain"
+                                    onError={markProfileAvatarFailed}
                                     onClick={(e) => e.stopPropagation()}
                                 />
                             </div>

@@ -330,7 +330,10 @@ export default function ClaimUsernameModal({
 
         if (urlRes.data?.uploadUrl) {
           await axios.put(urlRes.data.uploadUrl, photoBlob, {
-            headers: { "Content-Type": photoBlob.type },
+            headers: {
+              "Content-Type": photoBlob.type,
+              "Cache-Control": "public, max-age=31536000, immutable",
+            },
           });
           finalPhotoUrl = urlRes.data.fileUrl;
         }
