@@ -19,8 +19,8 @@ import { UserContext } from '../context/User_Context';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { showToast } from '../components/ToastContainer';
 import OfflineAvatar from '../components/OfflineAvatar';
-import localforage from 'localforage';
 import { cacheAvatarsInBackground } from '../utils/avatarStorage';
+import { getFriendsCacheKey, isFriendsCacheFresh, readFriendsCache, writeFriendsCache } from '../utils/friendsCache';
 
 const API_URL = getApiBaseUrl();
 
@@ -41,7 +41,8 @@ export default function FriendsPage() {
 
   const debounceTimerRef = useRef(null);
   const cacheReadyRef = useRef(false);
-  const friendsCacheKey = `friends_data_${user_id || 'anonymous'}`;
+  const syncTimesRef = useRef({ friendsSyncedAt: 0, requestsSyncedAt: 0 });
+  const friendsCacheKey = getFriendsCacheKey(user_id);
 
   // Fetch pending requests and friends list
   const loadData = useCallback(async () => {
@@ -49,32 +50,47 @@ export default function FriendsPage() {
     cacheReadyRef.current = false;
     try {
       setLoading(true);
-      const cached = await localforage.getItem(friendsCacheKey);
+      const cached = await readFriendsCache(user_id);
       if (cached) {
         setIncomingRequests(cached.incomingRequests || []);
         setOutgoingRequests(cached.outgoingRequests || []);
         setFriends(cached.friends || []);
+        syncTimesRef.current = {
+          friendsSyncedAt: cached.friendsSyncedAt || 0,
+          requestsSyncedAt: cached.requestsSyncedAt || 0,
+        };
         setLoading(false);
       }
       cacheReadyRef.current = true;
 
+      const now = Date.now();
+      const shouldRefreshRequests = !isFriendsCacheFresh(syncTimesRef.current.requestsSyncedAt, now);
+      const shouldRefreshFriends = !isFriendsCacheFresh(syncTimesRef.current.friendsSyncedAt, now);
+      if (!shouldRefreshRequests && !shouldRefreshFriends) return;
+
       const [reqRes, friendsRes] = await Promise.all([
-        fetch(`${API_URL}/users/friend-requests`, {
-          headers: { Authorization: `Bearer ${isLogin}` }
-        }),
-        fetch(`${API_URL}/users/friends`, {
-          headers: { Authorization: `Bearer ${isLogin}` }
-        })
+        shouldRefreshRequests
+          ? fetch(`${API_URL}/users/friend-requests`, {
+              headers: { Authorization: `Bearer ${isLogin}` }
+            })
+          : Promise.resolve(null),
+        shouldRefreshFriends
+          ? fetch(`${API_URL}/users/friends`, {
+              headers: { Authorization: `Bearer ${isLogin}` }
+            })
+          : Promise.resolve(null)
       ]);
 
-      if (reqRes.ok) {
+      if (reqRes?.ok) {
         const reqData = await reqRes.json();
+        syncTimesRef.current.requestsSyncedAt = Date.now();
         setIncomingRequests(reqData.incoming || []);
         setOutgoingRequests(reqData.outgoing || []);
       }
 
-      if (friendsRes.ok) {
+      if (friendsRes?.ok) {
         const friendsData = await friendsRes.json();
+        syncTimesRef.current.friendsSyncedAt = Date.now();
         setFriends(friendsData.friends || []);
       }
     } catch {
@@ -82,7 +98,7 @@ export default function FriendsPage() {
     } finally {
       setLoading(false);
     }
-  }, [isLogin, friendsCacheKey]);
+  }, [isLogin, user_id]);
 
   useEffect(() => {
     loadData();
@@ -90,10 +106,12 @@ export default function FriendsPage() {
 
   useEffect(() => {
     if (!cacheReadyRef.current || !user_id) return;
-    localforage.setItem(friendsCacheKey, {
+    writeFriendsCache(user_id, {
       incomingRequests,
       outgoingRequests,
       friends,
+      friendsSyncedAt: syncTimesRef.current.friendsSyncedAt,
+      requestsSyncedAt: syncTimesRef.current.requestsSyncedAt,
       updatedAt: Date.now(),
     }).catch((error) => console.warn('Failed to cache friends data:', error));
   }, [friends, incomingRequests, outgoingRequests, friendsCacheKey, user_id]);

@@ -13,6 +13,7 @@ import {
 import { MyPraysBackup, SavedPrayRecordings, VoiceRecorderPanel, usePrayRecorder } from './PrayRecordings';
 import { useLanguage } from '../context/LanguageContext';
 import { useOfflineAvatar } from '../hooks/useOfflineAvatar';
+import { isFriendsCacheFresh, readFriendsCache, writeFriendsCache } from '../utils/friendsCache';
 
 const API_URL = getApiBaseUrl();
 
@@ -189,12 +190,13 @@ export default function PrayPage() {
         if (!token) return;
         try {
             setLoadingFriends(true);
-            const cacheKey = `friends_data_${userId}`;
-            const cached = await localforage.getItem(cacheKey);
+            const cached = await readFriendsCache(userId);
             if (cached?.friends) {
                 setFriends(cached.friends);
                 setLoadingFriends(false);
             }
+            if (isFriendsCacheFresh(cached?.friendsSyncedAt)) return;
+
             const res = await fetch(`${API_URL}/users/friends`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -202,9 +204,10 @@ export default function PrayPage() {
                 const data = await res.json();
                 const freshFriends = data.friends || [];
                 setFriends(freshFriends);
-                await localforage.setItem(cacheKey, {
+                await writeFriendsCache(userId, {
                     ...(cached || {}),
                     friends: freshFriends,
+                    friendsSyncedAt: Date.now(),
                     updatedAt: Date.now()
                 });
             }
