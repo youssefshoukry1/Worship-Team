@@ -1424,24 +1424,6 @@ export default function Category_Humns() {
   // Helper to check permission
   const canEdit = UserRole === 'LYRICS_ADMIN' || UserRole === 'PROGRAMER';
 
-  // Animation Variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.05
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    show: { y: 0, opacity: 1 }
-  };
-
-
-
   // ── Helper: extract plain-text lyrics with verse/chorus labels ──
   const getLyricsPlainText = () => {
     if (!selectedLyricsHymn) return '';
@@ -1895,6 +1877,8 @@ export default function Category_Humns() {
               <Virtuoso
                 useWindowScroll
                 data={humns}
+                initialItemCount={Math.min(15, humns.length)}
+                computeItemKey={(_index, hymn) => hymn._id}
                 endReached={() => {
                   if (!isApp) {
                     if (hasNextPage && !isFetchingNextPage) {
