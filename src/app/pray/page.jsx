@@ -1405,7 +1405,7 @@ export default function PrayPage() {
                                             <div className="flex items-center gap-3 min-w-0">
                                                 <div className="relative shrink-0">
                                                     {isAnonReceived ? (
-                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0 shadow-sm" title="Anonymous Friend">
+                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0 shadow-sm" title="Anonymous">
                                                             <EyeOff className="w-4 h-4" />
                                                         </div>
                                                     ) : (
@@ -1428,13 +1428,14 @@ export default function PrayPage() {
                                                 </div>
                                                 <div className="flex flex-col min-w-0">
                                                     <div className="flex items-center gap-2 flex-wrap min-w-0">
-                                                        <span className={`text-xs sm:text-sm font-bold truncate ${isAnonReceived ? 'text-indigo-300' : 'text-[#00C2FF]'}`}>
-                                                            {isAnonReceived ? 'Anonymous Friend' : `@${senderUsername}`}
-                                                        </span>
-                                                        {isAnonReceived && (
-                                                            <span className="bg-indigo-500/15 text-indigo-300 text-[9px] font-semibold px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 inline-flex items-center gap-1">
-                                                                <EyeOff className="w-2.5 h-2.5" />
+                                                        {isAnonReceived ? (
+                                                            <span className="bg-indigo-500/15 text-indigo-300 text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 inline-flex items-center gap-1">
+                                                                <EyeOff className="w-3 h-3" />
                                                                 Anonymous
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs sm:text-sm font-bold text-[#00C2FF] truncate">
+                                                                @{senderUsername}
                                                             </span>
                                                         )}
                                                         {entry.prayType && entry.prayType !== 'general' && (
@@ -1471,7 +1472,7 @@ export default function PrayPage() {
                                                 <div className="flex items-start justify-between gap-3 mb-2.5">
                                                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                                         {isAnonReceived ? (
-                                                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0 shadow-sm" title="Anonymous Friend">
+                                                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0 shadow-sm" title="Anonymous">
                                                                 <EyeOff className="w-4 h-4" />
                                                             </div>
                                                         ) : (
@@ -1484,13 +1485,14 @@ export default function PrayPage() {
                                                     )}
                                                         <div className="min-w-0 flex flex-col">
                                                             <div className="flex items-center gap-1.5 flex-wrap">
-                                                                <span className={`text-xs sm:text-sm font-bold truncate ${isAnonReceived ? 'text-indigo-300' : 'text-[#00C2FF]'}`}>
-                                                                    {isAnonReceived ? 'Anonymous Friend' : `@${senderUsername}`}
-                                                                </span>
-                                                                {isAnonReceived && (
-                                                                    <span className="bg-indigo-500/15 text-indigo-300 text-[9px] font-semibold px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 inline-flex items-center gap-1">
-                                                                        <EyeOff className="w-2.5 h-2.5" />
+                                                                {isAnonReceived ? (
+                                                                    <span className="bg-indigo-500/15 text-indigo-300 text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 inline-flex items-center gap-1">
+                                                                        <EyeOff className="w-3 h-3" />
                                                                         Anonymous
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-xs sm:text-sm font-bold text-[#00C2FF] truncate">
+                                                                        @{senderUsername}
                                                                     </span>
                                                                 )}
                                                             </div>
