@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, useContext } from 'react';
 import localforage from 'localforage';
 import { UserContext } from '../context/User_Context';
-import { Check, Edit3, Heart, Loader2, Trash2, X, Share2, Search, Users, ChevronRight, ArrowRight, Send, Inbox, Lock, Layers, CheckCheck } from 'lucide-react';
+import { Check, Edit3, Heart, Loader2, Trash2, X, Share2, Search, Users, ChevronRight, ArrowRight, Send, Inbox, Lock, Layers, CheckCheck, EyeOff, SlidersHorizontal } from 'lucide-react';
 import Portal from '../Portal/Portal';
 import { showToast } from '../components/ToastContainer';
 import { getApiBaseUrl } from '../utils/apiBase';
@@ -180,6 +180,8 @@ export default function PrayPage() {
 
     const [isShareOpen, setIsShareOpen] = useState(false);
     const [selectedShareUser, setSelectedShareUser] = useState(null);
+    const [isAnonymousShare, setIsAnonymousShare] = useState(false);
+    const [showShareSettings, setShowShareSettings] = useState(false);
     const [friends, setFriends] = useState([]);
     const [loadingFriends, setLoadingFriends] = useState(false);
     const [shareSearchQuery, setShareSearchQuery] = useState('');
@@ -224,6 +226,19 @@ export default function PrayPage() {
 
     const resolveFriendProfile = useCallback((party) => {
         if (!party) return { username: 'friend', name: '', profilePhoto: null, status: 'pending' };
+        if (party.isAnonymous) {
+            return {
+                userId: null,
+                username: 'Anonymous',
+                name: 'Anonymous Friend',
+                profilePhoto: null,
+                status: party.status || 'pending',
+                responseWords: party.responseWords || '',
+                respondedAt: party.respondedAt || null,
+                shareId: party.shareId || null,
+                isAnonymous: true
+            };
+        }
         const pUserId = party.userId ? party.userId.toString() : null;
         const pUsername = party.username ? party.username.toLowerCase() : null;
 
@@ -303,6 +318,7 @@ export default function PrayPage() {
 
     const handleSelectShareUser = (targetUser) => {
         setSelectedShareUser(targetUser);
+        setShowShareSettings(false);
         setIsShareOpen(false);
     };
 
@@ -628,7 +644,8 @@ export default function PrayPage() {
                         profilePhoto: bundle.senderProfilePhoto || null,
                         shareId: bundle.shareId,
                         originalPrayId: bundle.shareId,
-                        status: 'pending'
+                        status: 'pending',
+                        isAnonymous: Boolean(bundle.isAnonymous)
                     }
                 });
 
@@ -740,7 +757,7 @@ export default function PrayPage() {
     const resetPrayForm = () => {
         if (recorder.isRecording) recorder.cancel();
         revokeBlockUrls([...prayBlocks, { recordings: generalRecordings }]);
-        setPrayWords(''); setPrayBlocks([]); setGeneralRecordings([]); setPrayEditId(null); setSelectedShareUser(null);
+        setPrayWords(''); setPrayBlocks([]); setGeneralRecordings([]); setPrayEditId(null); setSelectedShareUser(null); setIsAnonymousShare(false); setShowShareSettings(false);
     };
     const removeGeneralRecording = (recId) => setGeneralRecordings((recordings) => {
         recordings.filter((rec) => rec.id === recId).forEach((rec) => URL.revokeObjectURL(rec.url));
@@ -825,7 +842,8 @@ export default function PrayPage() {
                         name: selectedShareUser.Name || selectedShareUser.username,
                         profilePhoto: selectedShareUser.profilePhoto || null,
                         status: 'sent',
-                        shareId: null
+                        shareId: null,
+                        isAnonymous: isAnonymousShare
                     }
                 });
 
@@ -845,7 +863,8 @@ export default function PrayPage() {
                             words: finalWords,
                             prayType: 'general',
                             targetUserId: selectedShareUser._id,
-                            recordings: serializedRecordings
+                            recordings: serializedRecordings,
+                            isAnonymous: isAnonymousShare
                         })
                     });
                     const data = await res.json();
@@ -859,7 +878,8 @@ export default function PrayPage() {
                                 name: selectedShareUser.Name || selectedShareUser.username,
                                 profilePhoto: selectedShareUser.profilePhoto || null,
                                 status: 'sent',
-                                shareId: data.shareId
+                                shareId: data.shareId,
+                                isAnonymous: isAnonymousShare
                             }
                         });
                     }
@@ -869,7 +889,12 @@ export default function PrayPage() {
                 resetPrayForm();
                 setActivePrayTab('shared');
                 setCircleFilter('sent');
-                showToast({ message: `Prayer saved on device & shared with @${targetUsername}!`, type: 'success' });
+                showToast({
+                    message: isAnonymousShare
+                        ? `Prayer saved on device & shared anonymously with @${targetUsername}!`
+                        : `Prayer saved on device & shared with @${targetUsername}!`,
+                    type: 'success'
+                });
             } catch (shareError) {
                 console.error('Share error:', shareError);
                 showToast({ message: shareError.message || 'Failed to share prayer', type: 'error' });
@@ -958,7 +983,8 @@ export default function PrayPage() {
                         </div>
                         <div className={`w-full bg-white/[0.04] border ${selectedShareUser ? 'border-[#00C2FF]/50 ring-1 ring-[#00C2FF]/30 shadow-[0_0_16px_rgba(0,194,255,0.08)]' : 'border-white/10'} rounded-2xl p-3 sm:p-4 transition-all flex flex-col gap-3.5 mb-4`}>
                             {selectedShareUser && (
-                                <div className="flex items-center justify-between pb-2.5 border-b border-[#00C2FF]/20 text-xs">
+                                <div className="flex flex-col gap-2.5 pb-2.5 border-b border-[#00C2FF]/20 text-xs">
+                                    <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2.5 min-w-0">
                                         <UserAvatar
                                             photo={selectedShareUser.profilePhoto}
@@ -976,14 +1002,65 @@ export default function PrayPage() {
                                             </div>
                                         </div>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedShareUser(null)}
-                                        className="p-1.5 rounded-lg text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 transition-colors shrink-0"
-                                        title="Cancel share"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowShareSettings((prev) => !prev)}
+                                            className={`relative p-1.5 rounded-lg transition-colors ${showShareSettings || isAnonymousShare ? 'bg-indigo-500/20 text-indigo-300' : 'text-slate-400 hover:text-sky-300 hover:bg-white/5'}`}
+                                            title="Hidden settings"
+                                        >
+                                            <SlidersHorizontal className="w-3.5 h-3.5" />
+                                            {isAnonymousShare && (
+                                                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-indigo-400 ring-2 ring-slate-900" />
+                                            )}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setSelectedShareUser(null); setIsAnonymousShare(false); setShowShareSettings(false); }}
+                                            className="p-1.5 rounded-lg text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 transition-colors shrink-0"
+                                            title="Cancel share"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    </div>
+                                    {showShareSettings && (
+                                        <div className="flex items-center justify-between pt-2 border-t border-white/5 bg-white/[0.02] -mx-1 px-2.5 py-1.5 rounded-xl animate-in fade-in duration-150">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <div className={`p-1 rounded-lg ${isAnonymousShare ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white/5 text-slate-400'}`}>
+                                                    <EyeOff className="w-3.5 h-3.5" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-xs font-medium text-slate-200">
+                                                            Send anonymously
+                                                        </span>
+                                                        {isAnonymousShare && (
+                                                            <span className="text-[9px] px-1.5 py-0.2 bg-indigo-500/20 text-indigo-300 rounded font-semibold border border-indigo-500/30">
+                                                                Hidden Identity
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-[10px] text-slate-400 block truncate">
+                                                        @{selectedShareUser.username} won&apos;t know who sent this prayer
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsAnonymousShare((prev) => !prev)}
+                                                className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isAnonymousShare ? 'bg-indigo-500' : 'bg-slate-700'}`}
+                                                role="switch"
+                                                aria-checked={isAnonymousShare}
+                                                title={isAnonymousShare ? 'Anonymous mode enabled' : 'Enable anonymous mode'}
+                                            >
+                                                <span
+                                                    aria-hidden="true"
+                                                    className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isAnonymousShare ? 'translate-x-3' : 'translate-x-0'}`}
+                                                />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                             {(!prayEditId || prayWords || prayBlocks.length === 0) && <textarea dir="auto" value={prayWords} onChange={(event) => setPrayWords(event.target.value)} placeholder={t('writePrayerPlaceholder')} rows={4} className="w-full bg-transparent border-none text-white placeholder-white/20 focus:outline-none focus:ring-0 resize-y min-h-[90px] text-sm leading-relaxed p-0 m-0" />}
@@ -1013,7 +1090,7 @@ export default function PrayPage() {
                             <div className="flex items-center gap-2">
                                 {prayEditId && <button onClick={resetPrayForm} className="px-3 py-2 rounded-lg border border-white/10 text-xs font-semibold text-slate-300 hover:bg-white/5">{t('cancelEdit')}</button>}
                                 <button onClick={handleSubmitPrayTime} disabled={isSubmittingPray || recorder.isRecording || (!prayWords.trim() && !generalRecordings.length && !prayBlocks.some(hasBlockContent))} className={`px-4 py-2 rounded-lg text-xs font-bold ${selectedShareUser ? 'bg-[#00C2FF] text-[#020817] hover:brightness-110 shadow-[#00C2FF]/20' : 'bg-sky-500 hover:bg-sky-400 text-white shadow-sky-500/20'} transition-all disabled:opacity-40 flex items-center gap-2 shadow-lg`}>
-                                    {isSubmittingPray ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{prayEditId ? t('updateNoteBtn') : (selectedShareUser ? `Save & Send to @${selectedShareUser.username}` : t('saveNote'))}
+                                    {isSubmittingPray ? <Loader2 className="w-4 h-4 animate-spin" /> : (isAnonymousShare ? <EyeOff className="w-4 h-4" /> : <Check className="w-4 h-4" />)}{prayEditId ? t('updateNoteBtn') : (selectedShareUser ? 'Send' : t('saveNote'))}
                                 </button>
                             </div>
                         </div>
@@ -1195,6 +1272,7 @@ export default function PrayPage() {
                             const targetInfo = resolveFriendProfile(entry.sharedWith);
                             const senderUsername = senderInfo.username || 'friend';
                             const targetUsername = targetInfo.username || 'friend';
+                            const isAnonReceived = Boolean(senderInfo.isAnonymous || entry.sharedFrom?.isAnonymous);
 
                             if (isPersonal) {
                                 return (
@@ -1218,6 +1296,7 @@ export default function PrayPage() {
 
                             if (isSent) {
                                 const isConfirmed = (targetInfo.status || entry.sharedWith?.status) === 'confirmed';
+                                const isAnonSent = Boolean(entry.sharedWith?.isAnonymous);
                                 return (
                                     <div key={entry._id} className="rounded-2xl border transition-all duration-300 bg-white/[0.03] border-white/10 hover:border-[#00C2FF]/30 overflow-hidden">
                                         <div
@@ -1244,6 +1323,12 @@ export default function PrayPage() {
                                                         <span className="text-xs sm:text-sm font-bold text-white truncate">
                                                             You:
                                                         </span>
+                                                        {isAnonSent && (
+                                                            <span className="bg-indigo-500/15 text-indigo-300 text-[9px] font-semibold px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 inline-flex items-center gap-1">
+                                                                <EyeOff className="w-2.5 h-2.5" />
+                                                                Anonymous
+                                                            </span>
+                                                        )}
                                                         {entry.prayType && entry.prayType !== 'general' && (
                                                             <span className="bg-white/10 text-white/70 text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-md border border-white/10 shrink-0">
                                                                 {getPrayTypeLabel(entry.prayType)}
@@ -1251,7 +1336,7 @@ export default function PrayPage() {
                                                         )}
                                                     </div>
                                                     <span className="text-[10px] text-slate-500 font-medium">
-                                                        Sent to @{targetUsername} • {formatDate(entry.date, 'N/A', language)}
+                                                        {isAnonSent ? <span className="text-indigo-300/90 font-semibold">Sent anonymously to @{targetUsername}</span> : `Sent to @${targetUsername}`} • {formatDate(entry.date, 'N/A', language)}
                                                     </span>
                                                 </div>
                                             </div>
@@ -1318,12 +1403,18 @@ export default function PrayPage() {
                                         >
                                             <div className="flex items-center gap-3 min-w-0">
                                                 <div className="relative shrink-0">
-                                                    <UserAvatar
+                                                    {isAnonReceived ? (
+                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0 shadow-sm" title="Anonymous Friend">
+                                                            <EyeOff className="w-4 h-4" />
+                                                        </div>
+                                                    ) : (
+                                                        <UserAvatar
                                                         photo={senderInfo.profilePhoto}
                                                         name={senderInfo.name}
                                                         username={senderInfo.username}
                                                         size="md"
                                                     />
+                                                )}
                                                     {isConfirmedReceived ? (
                                                         <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center ring-2 ring-slate-900 shadow-sm" title="Replied">
                                                             <Check className="w-2.5 h-2.5 stroke-[3]" />
@@ -1336,9 +1427,15 @@ export default function PrayPage() {
                                                 </div>
                                                 <div className="flex flex-col min-w-0">
                                                     <div className="flex items-center gap-2 flex-wrap min-w-0">
-                                                        <span className="text-xs sm:text-sm font-bold text-[#00C2FF] truncate">
-                                                            @{senderUsername}
+                                                        <span className={`text-xs sm:text-sm font-bold truncate ${isAnonReceived ? 'text-indigo-300' : 'text-[#00C2FF]'}`}>
+                                                            {isAnonReceived ? 'Anonymous Friend' : `@${senderUsername}`}
                                                         </span>
+                                                        {isAnonReceived && (
+                                                            <span className="bg-indigo-500/15 text-indigo-300 text-[9px] font-semibold px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 inline-flex items-center gap-1">
+                                                                <EyeOff className="w-2.5 h-2.5" />
+                                                                Anonymous
+                                                            </span>
+                                                        )}
                                                         {entry.prayType && entry.prayType !== 'general' && (
                                                             <span className="bg-white/10 text-white/70 text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-md border border-white/10 shrink-0">
                                                                 {getPrayTypeLabel(entry.prayType)}
@@ -1346,7 +1443,7 @@ export default function PrayPage() {
                                                         )}
                                                     </div>
                                                     <span className="text-[10px] text-slate-500 font-medium">
-                                                        Sent you a prayer • {formatDate(entry.date, 'N/A', language)}
+                                                        {isAnonReceived ? 'Sent you an anonymous prayer' : 'Sent you a prayer'} • {formatDate(entry.date, 'N/A', language)}
                                                     </span>
                                                 </div>
                                             </div>
@@ -1372,17 +1469,29 @@ export default function PrayPage() {
                                             {!isSnapRow && (
                                                 <div className="flex items-start justify-between gap-3 mb-2.5">
                                                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                                        <UserAvatar
+                                                        {isAnonReceived ? (
+                                                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0 shadow-sm" title="Anonymous Friend">
+                                                                <EyeOff className="w-4 h-4" />
+                                                            </div>
+                                                        ) : (
+                                                            <UserAvatar
                                                             photo={senderInfo.profilePhoto}
                                                             name={senderInfo.name}
                                                             username={senderInfo.username}
                                                             size="md"
                                                         />
+                                                    )}
                                                         <div className="min-w-0 flex flex-col">
                                                             <div className="flex items-center gap-1.5 flex-wrap">
-                                                                <span className="text-xs sm:text-sm font-bold text-[#00C2FF] truncate">
-                                                                    @{senderUsername}
+                                                                <span className={`text-xs sm:text-sm font-bold truncate ${isAnonReceived ? 'text-indigo-300' : 'text-[#00C2FF]'}`}>
+                                                                    {isAnonReceived ? 'Anonymous Friend' : `@${senderUsername}`}
                                                                 </span>
+                                                                {isAnonReceived && (
+                                                                    <span className="bg-indigo-500/15 text-indigo-300 text-[9px] font-semibold px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 inline-flex items-center gap-1">
+                                                                        <EyeOff className="w-2.5 h-2.5" />
+                                                                        Anonymous
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                             <span className="text-[10px] text-slate-500 font-medium">
                                                                 {formatDate(entry.date, 'N/A', language)}
@@ -1440,7 +1549,7 @@ export default function PrayPage() {
                                                                     rows={3}
                                                                     value={responseInputs[entry._id] || ''}
                                                                     onChange={(e) => setResponseInputs((prev) => ({ ...prev, [entry._id]: e.target.value }))}
-                                                                    placeholder={`Write prayer response to @${senderUsername}...`}
+                                                                    placeholder={`Write prayer response to ${isAnonReceived ? 'Anonymous Friend' : `@${senderUsername}`}...`}
                                                                     className="w-full px-3.5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#00C2FF]/60 transition-all resize-none leading-relaxed"
                                                                 />
                                                                 <div className="flex justify-end">
