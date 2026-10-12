@@ -224,9 +224,9 @@ export default function PrayPage() {
         fetchFriends();
     }, [fetchFriends]);
 
-    const resolveFriendProfile = useCallback((party) => {
+    const resolveFriendProfile = useCallback((party, isSender = false) => {
         if (!party) return { username: 'friend', name: '', profilePhoto: null, status: 'pending' };
-        if (party.isAnonymous) {
+        if (isSender && party.isAnonymous) {
             return {
                 userId: null,
                 username: 'Anonymous',
@@ -240,7 +240,7 @@ export default function PrayPage() {
             };
         }
         const pUserId = party.userId ? party.userId.toString() : null;
-        const pUsername = party.username ? party.username.toLowerCase() : null;
+        const pUsername = party.username && party.username !== 'Anonymous' ? party.username.toLowerCase() : null;
 
         const matched = friends.find((f) => {
             const fId = (f._id || f.id)?.toString();
@@ -250,9 +250,9 @@ export default function PrayPage() {
 
         return {
             userId: party.userId || matched?._id || matched?.id,
-            username: party.username || matched?.username || 'friend',
-            name: party.name || matched?.Name || party.username || '',
-            profilePhoto: party.profilePhoto || matched?.profilePhoto || null,
+            username: (matched?.username || (party.username !== 'Anonymous' ? party.username : null)) || 'friend',
+            name: matched?.Name || (party.name !== 'Anonymous Friend' ? party.name : '') || matched?.username || '',
+            profilePhoto: matched?.profilePhoto || party.profilePhoto || null,
             status: party.status || 'pending',
             responseWords: party.responseWords || '',
             respondedAt: party.respondedAt || null,
@@ -710,7 +710,8 @@ export default function PrayPage() {
                             responseWords: update.responseWords,
                             respondedAt: update.respondedAt,
                             profilePhoto: update.recipientProfilePhoto || matchingPray.sharedWith?.profilePhoto || null,
-                            name: update.recipientName || matchingPray.sharedWith?.name || ''
+                            name: update.recipientName || matchingPray.sharedWith?.name || '',
+                            username: (update.recipientUsername && update.recipientUsername !== 'Anonymous') ? update.recipientUsername : (matchingPray.sharedWith?.username || 'friend')
                         }
                     });
                     updatedAny = true;
@@ -981,9 +982,9 @@ export default function PrayPage() {
                                 )}
                             </button>
                         </div>
-                        <div className={`w-full bg-white/[0.04] border ${selectedShareUser ? 'border-[#00C2FF]/50 ring-1 ring-[#00C2FF]/30 shadow-[0_0_16px_rgba(0,194,255,0.08)]' : 'border-white/10'} rounded-2xl p-3 sm:p-4 transition-all flex flex-col gap-3.5 mb-4`}>
+                        <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3 sm:p-4 transition-all flex flex-col gap-3.5 mb-4">
                             {selectedShareUser && (
-                                <div className="flex flex-col gap-2.5 pb-2.5 border-b border-[#00C2FF]/20 text-xs">
+                                <div className="flex flex-col gap-2.5 pb-2.5 border-b border-white/10 text-xs">
                                     <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2.5 min-w-0">
                                         <UserAvatar
@@ -1268,8 +1269,8 @@ export default function PrayPage() {
                             const isExpanded = expandedFriendPrayers.has(entry._id);
                             const isUnopened = !openedFriendPrayers.has(entry._id) && !openedFriendPrayers.has(String(entry._id)) && isPendingConfirmation;
 
-                            const senderInfo = resolveFriendProfile(entry.sharedFrom);
-                            const targetInfo = resolveFriendProfile(entry.sharedWith);
+                            const senderInfo = resolveFriendProfile(entry.sharedFrom, true);
+                            const targetInfo = resolveFriendProfile(entry.sharedWith, false);
                             const senderUsername = senderInfo.username || 'friend';
                             const targetUsername = targetInfo.username || 'friend';
                             const isAnonReceived = Boolean(senderInfo.isAnonymous || entry.sharedFrom?.isAnonymous);
