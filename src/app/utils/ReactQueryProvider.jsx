@@ -1,10 +1,11 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 // Imported here (the root layout's client boundary) so localforage is configured
 // before any page touches storage.
-import './platform';
+import { isApp } from './platform';
+import { downloadedHymnsQueryOptions } from './hymnsCache';
 
 // Kept for older imports; new code should import from './platform'.
 export { isApp } from './platform';
@@ -24,6 +25,12 @@ export default function ReactQueryProvider({ children }) {
       },
     },
   }));
+
+  useEffect(() => {
+    if (isApp) {
+      void queryClient.prefetchQuery(downloadedHymnsQueryOptions);
+    }
+  }, [queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>

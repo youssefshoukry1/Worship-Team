@@ -20,6 +20,7 @@ import { usePresentation } from '../hooks/usePresentation';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { useRouter } from 'next/navigation';
 import { isApp, storageReady } from '../utils/platform';
+import { downloadedHymnsQueryOptions } from '../utils/hymnsCache';
 import StanzaSlideControls from '../components/StanzaSlideControls';
 import {
   buildHymnPresentationSlides,
@@ -55,44 +56,6 @@ export default function Category_Humns() {
   const { isLogin, UserRole, vocalsMode, user_id } = useContext(UserContext);
   const { addToWorkspace, isHymnInWorkspace } = useContext(HymnsContext)
   const { t, language, setLanguage } = useLanguage();
-
-  // Initialize the hymns offline cache on startup
-  useEffect(() => {
-    // Hymns: on native app, pre-load bundled hymns.json into localforage if empty
-    if (isApp) {
-      (async () => {
-        const localforage_ = (await import('localforage')).default;
-        const HYMNS_CACHE_KEY = 'taspe7_hymns_json';
-        const resolveId = (id) => {
-          if (!id) return '';
-          if (typeof id === 'string') return id;
-          if (typeof id === 'object' && id.$oid) return id.$oid;
-          return String(id);
-        };
-        try {
-          await storageReady;
-          const existing = await localforage_.getItem(HYMNS_CACHE_KEY);
-          if (!existing || existing.length === 0) {
-            const res = await fetch('/hymns.json');
-            if (res.ok) {
-              const json = await res.json();
-              if (Array.isArray(json) && json.length > 0) {
-                const normalized = json.map(h => ({
-                  ...h,
-                  _id: resolveId(h._id),
-                  lyrics: Array.isArray(h.lyrics) ? h.lyrics.map(l => ({ ...l, _id: resolveId(l._id) })) : h.lyrics
-                }));
-                await localforage_.setItem(HYMNS_CACHE_KEY, normalized);
-                console.log('[HymnsInit] App: hymns.json cached to localforage:', normalized.length);
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('[HymnsInit] App: failed to cache hymns.json', e.message);
-        }
-      })();
-    }
-  }, []);
 
   // Product tour
   useCategoryHymnsTour(language);
@@ -1086,48 +1049,8 @@ export default function Category_Humns() {
 
   // ── APP: offline-first load from localforage (no network on open) ─────
   const { data: allHymns = [], isLoading: isLoadingApp } = useQuery({
-    queryKey: ["hymns", "app"],
+    ...downloadedHymnsQueryOptions,
     enabled: isApp,
-    staleTime: Infinity,
-    // Reads local storage, not the network — must not be paused while the device is offline.
-    networkMode: 'offlineFirst',
-    queryFn: async () => {
-      const HYMNS_CACHE_KEY = 'taspe7_hymns_json';
-      const localforage_ = (await import('localforage')).default;
-      await storageReady;
-
-      const resolveId = (id) => {
-        if (!id) return '';
-        if (typeof id === 'string') return id;
-        if (typeof id === 'object' && id.$oid) return id.$oid;
-        return String(id);
-      };
-      const normalizeIds = (hymns) => hymns.map(h => ({
-        ...h,
-        _id: resolveId(h._id),
-        lyrics: Array.isArray(h.lyrics)
-          ? h.lyrics.map(l => ({ ...l, _id: resolveId(l._id) }))
-          : h.lyrics
-      }));
-
-      // 1. Try localforage cache (instant, offline)
-      const cached = await localforage_.getItem(HYMNS_CACHE_KEY);
-      if (Array.isArray(cached) && cached.length > 0) return normalizeIds(cached);
-
-      // 2. Seed from bundled hymns.json (first install)
-      try {
-        const res = await fetch('/hymns.json');
-        if (res.ok) {
-          const json = await res.json();
-          if (Array.isArray(json) && json.length > 0) {
-            const normalized = normalizeIds(json);
-            await localforage_.setItem(HYMNS_CACHE_KEY, normalized);
-            return normalized;
-          }
-        }
-      } catch { }
-      return [];
-    }
   });
 
   // ── APP: background sync — runs after mount, only when needed ──────────
@@ -1261,7 +1184,6 @@ export default function Category_Humns() {
 
   const {
     data: appOnlineSearchResults,
-    isLoading: isLoadingAppSearch,
     isError: isAppSearchError
   } = useQuery({
     queryKey: ["hymns", "app-search", debouncedSearch],
@@ -1275,7 +1197,7 @@ export default function Category_Humns() {
     retry: 1
   });
 
-  const isLoading = isApp ? (isLoadingApp || (isSearchingOnline && isLoadingAppSearch)) : isLoadingWeb;
+  const isLoading = isApp ? isLoadingApp : isLoadingWeb;
 
   const fullFilteredAppHymns = React.useMemo(() => {
     if (!isApp) return [];
