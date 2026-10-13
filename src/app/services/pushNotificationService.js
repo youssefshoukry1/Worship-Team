@@ -1,6 +1,8 @@
 'use client';
 
 import { getApiBaseUrl } from '../utils/apiBase';
+import { navigateDocumentFallback } from '../utils/appNavigation';
+import { prayerNotificationHref } from '../utils/prayerNotificationNavigation';
 
 let isInitialized = false;
 let isInitializing = false;
@@ -19,13 +21,16 @@ export async function syncFcmTokenWithBackend(fcmToken) {
     if (!token || !tokenToSync) return;
 
     try {
+        const core = await import('@capacitor/core');
+        const androidAvatar = core.Capacitor.getPlatform() === 'android'
+            && Boolean(core.Capacitor.isPluginAvailable?.('PrayerNotifications'));
         const response = await fetch(`${API_URL}/users/fcm-token`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token}`
             },
-            body: JSON.stringify({ fcmToken: tokenToSync })
+            body: JSON.stringify({ fcmToken: tokenToSync, androidAvatar })
         });
         if (!response.ok) throw new Error(`Token registration failed: HTTP ${response.status}`);
         clearTimeout(retryTimer);
@@ -104,8 +109,12 @@ export async function initPushNotifications() {
         // Handle notification click -> navigate to target URL
         listenerHandles.push(await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
             const data = action.notification?.data;
-            if (data?.url && typeof window !== 'undefined') {
-                window.location.href = data.url;
+            if (typeof window === 'undefined') return;
+            const prayerHref = prayerNotificationHref(data);
+            if (prayerHref) {
+                navigateDocumentFallback(prayerHref);
+            } else if (typeof data?.url === 'string' && data.url.startsWith('/') && !data.url.startsWith('//')) {
+                navigateDocumentFallback(data.url);
             }
         }));
 

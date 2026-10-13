@@ -14,6 +14,8 @@ function service(fetch) {
     Event: class { constructor(type) { this.type = type; } },
     setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; }, clearTimeout() {},
     getApiBaseUrl: () => 'https://example.test/api',
+    navigateDocumentFallback: href => calls.push(href),
+    prayerNotificationHref: data => data?.type === 'PRAY_SHARED' || data?.type === 'PRAY_CONFIRMED' ? '/pray/?notificationType=' + data.type + '&shareId=' + encodeURIComponent(data.shareId) : null,
     Capacitor: { isNativePlatform: () => true, getPlatform: () => 'android' },
     PushNotifications: {
       createChannel: async () => {}, checkPermissions: async () => ({ receive: 'granted' }),
@@ -22,8 +24,8 @@ function service(fetch) {
     }
   };
   let source = fs.readFileSync(path.join(__dirname, '../src/app/services/pushNotificationService.js'), 'utf8');
-  source = source.replace(/import .*from .*;/, '').replaceAll('export async function', 'async function')
-    .replace("await import('@capacitor/core')", '({ Capacitor })')
+  source = source.replace(/^import .*from .*;$/gm, '').replaceAll('export async function', 'async function')
+    .replaceAll("await import('@capacitor/core')", '({ Capacitor })')
     .replace("await import('@capacitor/push-notifications')", '({ PushNotifications })');
   // Avoid shadowing the mocked imports when replacing the dynamic import expressions.
   source = source.replace('const { Capacitor } = ({ Capacitor });', '')
@@ -49,4 +51,26 @@ test('listeners attach before native registration; concurrent initialization reg
   assert.equal(s.calls.at(-1), 'register'); assert.equal(s.calls.filter(c => c === 'register').length, 1);
   s.listeners.pushNotificationReceived({ data: { type: 'PRAY_SHARED' } });
   assert.deepEqual(s.events, ['taspe7:prayer-push']);
+});
+
+test('avatar capability is registered only when the native plugin exists', async () => {
+  let body;
+  const s = service(async (url, options) => { body = JSON.parse(options.body); return { ok: true }; });
+  await s.api.syncFcmTokenWithBackend(); assert.equal(body.androidAvatar, false);
+  s.Capacitor.isPluginAvailable = name => name === 'PrayerNotifications';
+  await s.api.syncFcmTokenWithBackend(); assert.equal(body.androidAvatar, true);
+});
+
+test('notification taps use native navigation with the exact share ID', async () => {
+  const s = service(async () => ({ ok: true })); await s.api.initPushNotifications();
+  s.listeners.pushNotificationActionPerformed({ notification: { data: { type: 'PRAY_SHARED', shareId: 'abc', url: '/pray' } } });
+  assert.equal(s.calls.at(-1), '/pray/?notificationType=PRAY_SHARED&shareId=abc');
+  s.listeners.pushNotificationActionPerformed({ notification: { data: { type: 'PRAY_CONFIRMED', shareId: 'reply' } } });
+  assert.equal(s.calls.at(-1), '/pray/?notificationType=PRAY_CONFIRMED&shareId=reply');
+});
+test('non-prayer notifications cannot navigate to an external website', async () => {
+  const s = service(async () => ({ ok: true })); await s.api.initPushNotifications();
+  const count = s.calls.length;
+  s.listeners.pushNotificationActionPerformed({ notification: { data: { url: '//example.com' } } });
+  assert.equal(s.calls.length, count);
 });

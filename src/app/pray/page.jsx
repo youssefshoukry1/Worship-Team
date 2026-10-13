@@ -13,6 +13,7 @@ import { MyPraysBackup, SavedPrayRecordings, VoiceRecorderPanel, usePrayRecorder
 import { useLanguage } from '../context/LanguageContext';
 import { useOfflineAvatar } from '../hooks/useOfflineAvatar';
 import { isFriendsCacheFresh, readFriendsCache, writeFriendsCache } from '../utils/friendsCache';
+import { readPrayerNotificationTarget, findNotificationPrayer } from '../utils/prayerNotificationNavigation';
 
 const API_URL = getApiBaseUrl();
 
@@ -470,6 +471,10 @@ export default function PrayPage() {
     const allSharedCount = receivedPrayList.length + sentPrayList.length;
 
     const [activePrayTab, setActivePrayTab] = useState('personal');
+    const [notificationTarget, setNotificationTarget] = useState(null);
+    const [notificationWaitExpired, setNotificationWaitExpired] = useState(false);
+    const [highlightedPrayerId, setHighlightedPrayerId] = useState(null);
+    const notificationOpenedRef = useRef(false);
     const [circleFilter, setCircleFilter] = useState('all');
     const [expandedFriendPrayers, setExpandedFriendPrayers] = useState(() => new Set());
     const [openedFriendPrayers, setOpenedFriendPrayers] = useState(() => {
@@ -483,6 +488,42 @@ export default function PrayPage() {
     });
 
     const unreadPendingPrayCount = pendingPrayList.filter((entry) => !openedFriendPrayers.has(entry._id) && !openedFriendPrayers.has(String(entry._id))).length;
+
+    useEffect(() => {
+        const target = readPrayerNotificationTarget(window.location.search);
+        if (!target) return;
+        setNotificationTarget(target);
+        setActivePrayTab('shared');
+        setCircleFilter('all');
+        const timeout = setTimeout(() => setNotificationWaitExpired(true), 20000);
+        return () => clearTimeout(timeout);
+    }, []);
+
+    useEffect(() => {
+        if (notificationOpenedRef.current || !notificationTarget?.shareId) return;
+        const entry = findNotificationPrayer(guestPrays, notificationTarget);
+        if (!entry) return;
+        notificationOpenedRef.current = true;
+        setHighlightedPrayerId(String(entry._id));
+        setExpandedFriendPrayers(prev => new Set(prev).add(entry._id));
+        setOpenedFriendPrayers(prev => {
+            const next = new Set(prev).add(entry._id).add(String(entry._id));
+            localStorage.setItem('taspe7_opened_friend_prayers', JSON.stringify(Array.from(next)));
+            return next;
+        });
+    }, [guestPrays, notificationTarget]);
+
+    useEffect(() => {
+        if (!highlightedPrayerId || activePrayTab !== 'shared') return;
+        const frame = requestAnimationFrame(() => {
+            const card = Array.from(document.querySelectorAll('[data-prayer-id]'))
+                .find(element => element.dataset.prayerId === highlightedPrayerId);
+            if (!card) return;
+            card.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+            card.focus({ preventScroll: true });
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [highlightedPrayerId, activePrayTab]);
 
     const toggleFriendPrayerExpand = (id) => {
         setExpandedFriendPrayers((prev) => {
@@ -1198,6 +1239,24 @@ export default function PrayPage() {
                         </div>
                     </div>
 
+                    {notificationTarget?.shareId && !highlightedPrayerId && activePrayTab === 'shared' && (
+                        <div role="status" aria-live="polite" className="flex items-center justify-between gap-3 rounded-2xl border border-sky-400/20 bg-sky-500/5 px-4 py-3 text-sm text-slate-200">
+                            <span>{notificationWaitExpired
+                                ? 'This prayer could not be found on this device. You can try refreshing.'
+                                : 'Opening the prayer from your notification…'}</span>
+                            {notificationWaitExpired ? (
+                                <button type="button" className="shrink-0 rounded-xl bg-sky-500/15 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/25"
+                                    onClick={async () => {
+                                        setNotificationWaitExpired(false);
+                                        try {
+                                            await Promise.all([checkIncomingSharedPrayers(), checkSentPrayUpdates()]);
+                                        } finally {
+                                            setNotificationWaitExpired(true);
+                                        }
+                                    }}>Refresh</button>
+                            ) : <Loader2 className="h-4 w-4 shrink-0 animate-spin" />}
+                        </div>
+                    )}
                     <ListPanel
                         title={
                             activePrayTab === 'personal'
@@ -1305,7 +1364,8 @@ export default function PrayPage() {
                                 const isConfirmed = (targetInfo.status || entry.sharedWith?.status) === 'confirmed';
                                 const isAnonSent = Boolean(entry.sharedWith?.isAnonymous);
                                 return (
-                                    <div key={entry._id} className="rounded-2xl border transition-all duration-300 bg-white/[0.03] border-white/10 hover:border-[#00C2FF]/30 overflow-hidden">
+                                    <div key={entry._id} data-prayer-id={String(entry._id)} tabIndex={-1}
+                                        className={`rounded-2xl border transition-all duration-300 bg-white/[0.03] border-white/10 hover:border-[#00C2FF]/30 overflow-hidden ${highlightedPrayerId === String(entry._id) ? 'ring-2 ring-sky-400/60 ring-offset-2 ring-offset-slate-950' : ''}`}>
                                         <div
                                             onClick={() => toggleFriendPrayerExpand(entry._id)}
                                             className="flex items-center justify-between p-3.5 sm:p-4 cursor-pointer hover:bg-white/[0.04] transition-colors gap-3 select-none"
@@ -1402,7 +1462,8 @@ export default function PrayPage() {
                             }
 
                             return (
-                                <div key={entry._id} className={`rounded-2xl border transition-all duration-300 ${isSnapRow ? (isConfirmedReceived ? 'bg-white/[0.03] border-white/10 hover:border-[#00C2FF]/30 overflow-hidden' : 'bg-white/[0.03] border-[#00C2FF]/30 hover:border-[#00C2FF]/50 overflow-hidden') : 'p-4 sm:p-5 bg-white/[0.03] border-white/10'}`}>
+                                <div key={entry._id} data-prayer-id={String(entry._id)} tabIndex={-1}
+                                    className={`rounded-2xl border transition-all duration-300 ${highlightedPrayerId === String(entry._id) ? 'ring-2 ring-sky-400/60 ring-offset-2 ring-offset-slate-950' : ''} ${isSnapRow ? (isConfirmedReceived ? 'bg-white/[0.03] border-white/10 hover:border-[#00C2FF]/30 overflow-hidden' : 'bg-white/[0.03] border-[#00C2FF]/30 hover:border-[#00C2FF]/50 overflow-hidden') : 'p-4 sm:p-5 bg-white/[0.03] border-white/10'}`}>
                                     {isSnapRow && (
                                         <div
                                             onClick={() => toggleFriendPrayerExpand(entry._id)}
