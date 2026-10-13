@@ -5,7 +5,6 @@ import localforage from 'localforage';
 import { UserContext } from '../context/User_Context';
 import { Check, Edit3, Heart, Loader2, Trash2, X, Share2, Search, Users, ChevronRight, ArrowRight, Send, Inbox, Lock, Layers, CheckCheck, EyeOff, SlidersHorizontal } from 'lucide-react';
 import Portal from '../Portal/Portal';
-import { showToast } from '../components/ToastContainer';
 import { getApiBaseUrl } from '../utils/apiBase';
 import {
     addGuestPray, addRecordings, deleteGuestPray, getGuestPrays, getRecordingsIndex, updateGuestPray, addExternalRecording, extensionForMime
@@ -363,9 +362,9 @@ export default function PrayPage() {
                 delete next[prayId];
                 return next;
             });
-            showToast({ message: 'Prayer confirmed!', type: 'success' });
+            // Confirmed silently
         } catch (err) {
-            showToast({ message: err.message, type: 'error' });
+            console.error('Confirm prayer error:', err);
         } finally {
             setIsConfirmingShare((prev) => ({ ...prev, [prayId]: false }));
         }
@@ -671,7 +670,6 @@ export default function PrayPage() {
                 const updated = await getGuestPrays();
                 setGuestPrays(updated);
                 refreshRecordings();
-                showToast({ message: `Received ${receivedCount} new shared prayer(s)!`, type: 'info' });
             }
         } catch (err) {
             console.warn('Inbox check error:', err);
@@ -792,7 +790,6 @@ export default function PrayPage() {
             refreshRecordings();
         } catch (err) {
             console.error('Saving prayer recordings failed:', err);
-            showToast({ message: t('prayerSavedAudioError'), type: 'error', duration: 6000 });
         }
     };
 
@@ -890,15 +887,8 @@ export default function PrayPage() {
                 resetPrayForm();
                 setActivePrayTab('shared');
                 setCircleFilter('sent');
-                showToast({
-                    message: isAnonymousShare
-                        ? `Prayer saved on device & shared anonymously with @${targetUsername}!`
-                        : `Prayer saved on device & shared with @${targetUsername}!`,
-                    type: 'success'
-                });
             } catch (shareError) {
                 console.error('Share error:', shareError);
-                showToast({ message: shareError.message || 'Failed to share prayer', type: 'error' });
             } finally {
                 setIsSubmittingPray(false);
             }
@@ -915,7 +905,6 @@ export default function PrayPage() {
                 setGuestPrays(await getGuestPrays());
             }
             resetPrayForm();
-            showToast({ message: prayEditId ? t('updateNoteBtn') : t('saveNote'), type: 'success' });
         } catch (localError) {
             console.error('Local prayer save error:', localError);
             alert(t('couldNotSaveLocalPrayer') || 'Failed to save prayer locally');
@@ -938,7 +927,6 @@ export default function PrayPage() {
             setGuestPrays(await getGuestPrays());
             refreshRecordings();
             if (prayEditId === prayId) resetPrayForm();
-            showToast({ message: 'Prayer deleted', type: 'info' });
         } catch (localError) {
             console.error('Local prayer delete error:', localError);
             alert(t('couldNotDeleteLocalPrayer') || 'Failed to delete prayer');
