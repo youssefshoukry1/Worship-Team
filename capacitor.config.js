@@ -7,6 +7,9 @@ const config = {
     androidScheme: 'https'
   },
   plugins: {
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"]
+    },
     CapacitorUpdater: {
       autoUpdate: false,
       directUpdate: false

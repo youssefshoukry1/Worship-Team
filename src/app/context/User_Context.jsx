@@ -2,6 +2,7 @@
 
 import { createContext, useState, useEffect } from "react";
 import axios from "axios";
+import { syncFcmTokenWithBackend } from "../services/pushNotificationService";
 
 export const UserContext = createContext();
 
@@ -81,7 +82,9 @@ export default function UserContextProvider({ children }) {
 
   useEffect(() => {
     if (isLogin) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshTeams();
+      syncFcmTokenWithBackend();
     }
   }, [isLogin]);
 
