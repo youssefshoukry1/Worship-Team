@@ -1,8 +1,13 @@
 'use client';
 
-let isInitialized = false;
+import { getApiBaseUrl } from '../utils/apiBase';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://worship-team-api.onrender.com/api';
+let isInitialized = false;
+let isInitializing = false;
+let retryTimer;
+let retryCount = 0;
+
+const API_URL = getApiBaseUrl();
 
 /**
  * Syncs the current FCM registration token with the backend for the logged-in user
@@ -14,7 +19,7 @@ export async function syncFcmTokenWithBackend(fcmToken) {
     if (!token || !tokenToSync) return;
 
     try {
-        await fetch(`${API_URL}/users/fcm-token`, {
+        const response = await fetch(`${API_URL}/users/fcm-token`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -22,9 +27,19 @@ export async function syncFcmTokenWithBackend(fcmToken) {
             },
             body: JSON.stringify({ fcmToken: tokenToSync })
         });
+        if (!response.ok) throw new Error(`Token registration failed: HTTP ${response.status}`);
+        clearTimeout(retryTimer);
+        retryCount = 0;
         console.log('[Push] Token synced with backend');
+        return true;
     } catch (err) {
         console.warn('[Push] Failed to sync token with backend:', err);
+        if (retryCount < 3) {
+            clearTimeout(retryTimer);
+            retryCount++;
+            retryTimer = setTimeout(() => syncFcmTokenWithBackend(), 15000 * retryCount);
+        }
+        return false;
     }
 }
 
@@ -32,7 +47,9 @@ export async function syncFcmTokenWithBackend(fcmToken) {
  * Initializes native push notifications, creates Android notification channel & registers listeners
  */
 export async function initPushNotifications() {
-    if (isInitialized) return;
+    if (isInitialized || isInitializing) return;
+    isInitializing = true;
+    const listenerHandles = [];
 
     try {
         const { Capacitor } = await import('@capacitor/core');
@@ -64,38 +81,45 @@ export async function initPushNotifications() {
             return;
         }
 
-        // Register device
-        await PushNotifications.register();
-
         // Listen for token registration
-        PushNotifications.addListener('registration', async (token) => {
-            console.log('[Push] Device token registered:', token.value);
+        listenerHandles.push(await PushNotifications.addListener('registration', async (token) => {
+            console.log('[Push] Device token registered');
             if (typeof window !== 'undefined') {
                 localStorage.setItem('taspe7_fcm_token', token.value);
             }
             await syncFcmTokenWithBackend(token.value);
-        });
+        }));
 
-        PushNotifications.addListener('registrationError', (error) => {
+        listenerHandles.push(await PushNotifications.addListener('registrationError', (error) => {
             console.error('[Push] Registration error:', error);
-        });
+        }));
 
         // Handle foreground notifications
-        PushNotifications.addListener('pushNotificationReceived', (notification) => {
-            console.log('[Push] Notification received in foreground:', notification);
-        });
+        listenerHandles.push(await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+            if (['PRAY_SHARED', 'PRAY_CONFIRMED'].includes(notification.data?.type)) {
+                window.dispatchEvent(new Event('taspe7:prayer-push'));
+            }
+        }));
 
         // Handle notification click -> navigate to target URL
-        PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-            console.log('[Push] Notification clicked:', action);
+        listenerHandles.push(await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
             const data = action.notification?.data;
             if (data?.url && typeof window !== 'undefined') {
                 window.location.href = data.url;
             }
-        });
+        }));
 
+        await PushNotifications.register();
+        const resync = () => {
+            if (document.visibilityState === 'visible') syncFcmTokenWithBackend();
+        };
+        window.addEventListener('online', resync);
+        document.addEventListener('visibilitychange', resync);
         isInitialized = true;
     } catch (error) {
         console.error('[Push] Initialization failed:', error);
+        await Promise.all(listenerHandles.map(handle => handle.remove()));
+    } finally {
+        isInitializing = false;
     }
 }

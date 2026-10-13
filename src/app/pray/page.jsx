@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useContext } from 'react';
+import { useCallback, useEffect, useState, useContext, useRef } from 'react';
 import localforage from 'localforage';
 import { UserContext } from '../context/User_Context';
 import { Check, Edit3, Heart, Loader2, Trash2, X, Share2, Search, Users, ChevronRight, ArrowRight, Send, Inbox, Lock, Layers, CheckCheck, EyeOff, SlidersHorizontal } from 'lucide-react';
@@ -170,6 +170,8 @@ function ListPanel({ title, icon: Icon, iconBgClass, items, emptyText, recordsLa
 }
 
 export default function PrayPage() {
+    const inboxCheckRunning = useRef(false);
+    const sentCheckRunning = useRef(false);
     const { user_id: userId, isLogin: token, username: contextUsername, profilePhoto: contextProfilePhoto } = useContext(UserContext);
     const [profile, setProfile] = useState(null);
     const [pageLoading, setPageLoading] = useState(true);
@@ -619,7 +621,8 @@ export default function PrayPage() {
 
     // Check for incoming shared prayers from Cloudflare R2
     const checkIncomingSharedPrayers = useCallback(async () => {
-        if (!token || !userId) return;
+        if (!token || !userId || inboxCheckRunning.current) return;
+        inboxCheckRunning.current = true;
         try {
             const res = await fetch(`${API_URL}/users/pray-time/inbox`, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -673,12 +676,15 @@ export default function PrayPage() {
             }
         } catch (err) {
             console.warn('Inbox check error:', err);
+        } finally {
+            inboxCheckRunning.current = false;
         }
     }, [token, userId, refreshRecordings]);
 
     // Check for confirmations of prayers sent to others
     const checkSentPrayUpdates = useCallback(async () => {
-        if (!token || !userId) return;
+        if (!token || !userId || sentCheckRunning.current) return;
+        sentCheckRunning.current = true;
         try {
             const res = await fetch(`${API_URL}/users/pray-time/sent-updates`, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -727,17 +733,29 @@ export default function PrayPage() {
             }
         } catch (err) {
             console.warn('Sent updates check error:', err);
+        } finally {
+            sentCheckRunning.current = false;
         }
     }, [token, userId]);
 
     useEffect(() => {
         checkIncomingSharedPrayers();
         checkSentPrayUpdates();
-        const interval = setInterval(() => {
+        const refresh = () => {
             checkIncomingSharedPrayers();
             checkSentPrayUpdates();
-        }, 15000);
-        return () => clearInterval(interval);
+        };
+        const refreshWhenVisible = () => {
+            if (document.visibilityState === 'visible') refresh();
+        };
+        const interval = setInterval(refresh, 15000);
+        window.addEventListener('taspe7:prayer-push', refresh);
+        document.addEventListener('visibilitychange', refreshWhenVisible);
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('taspe7:prayer-push', refresh);
+            document.removeEventListener('visibilitychange', refreshWhenVisible);
+        };
     }, [checkIncomingSharedPrayers, checkSentPrayUpdates]);
 
 
