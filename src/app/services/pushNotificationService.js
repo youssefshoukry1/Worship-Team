@@ -17,11 +17,21 @@ const API_URL = getApiBaseUrl();
 export async function syncFcmTokenWithBackend(fcmToken) {
     if (typeof window === 'undefined') return;
     const token = localStorage.getItem('user_Taspe7_Token');
-    const tokenToSync = fcmToken || localStorage.getItem('taspe7_fcm_token');
-    if (!token || !tokenToSync) return;
+    let tokenToSync = fcmToken || localStorage.getItem('taspe7_fcm_token');
+    if (!token) return;
 
     try {
         const core = await import('@capacitor/core');
+        if (core.Capacitor.getPlatform() === 'ios') {
+            // Read Firebase's actual token, never send Capacitor's default APNs token to FCM.
+            if (!core.Capacitor.isPluginAvailable?.('PrayerNotifications')) return false;
+            const native = core.registerPlugin('PrayerNotifications');
+            const registration = await native.getFcmToken();
+            tokenToSync = registration.token;
+            if (typeof tokenToSync !== 'string' || !tokenToSync) throw new Error('FCM token is not ready');
+            localStorage.setItem('taspe7_fcm_token', tokenToSync);
+        }
+        if (!tokenToSync) return;
         const androidAvatar = core.Capacitor.getPlatform() === 'android'
             && Boolean(core.Capacitor.isPluginAvailable?.('PrayerNotifications'));
         const response = await fetch(`${API_URL}/users/fcm-token`, {

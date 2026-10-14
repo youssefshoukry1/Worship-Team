@@ -15,8 +15,10 @@ function service(fetch) {
     setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; }, clearTimeout() {},
     getApiBaseUrl: () => 'https://example.test/api',
     navigateDocumentFallback: href => calls.push(href),
-    prayerNotificationHref: data => data?.type === 'PRAY_SHARED' || data?.type === 'PRAY_CONFIRMED' ? '/pray/?notificationType=' + data.type + '&shareId=' + encodeURIComponent(data.shareId) : null,
+    prayerNotificationHref: data => data?.type === 'PRAY_SHARED' || data?.type === 'PRAY_CONFIRMED' ? '/pray/' : null,
     Capacitor: { isNativePlatform: () => true, getPlatform: () => 'android' },
+    nativeRegistration: { getFcmToken: async () => ({ token: 'ios-fcm-token' }) },
+    registerPlugin: () => context.nativeRegistration,
     PushNotifications: {
       createChannel: async () => {}, checkPermissions: async () => ({ receive: 'granted' }),
       addListener: async (name, callback) => { listeners[name] = callback; calls.push(name); return { remove: async () => {} }; },
@@ -25,10 +27,10 @@ function service(fetch) {
   };
   let source = fs.readFileSync(path.join(__dirname, '../src/app/services/pushNotificationService.js'), 'utf8');
   source = source.replace(/^import .*from .*;$/gm, '').replaceAll('export async function', 'async function')
-    .replaceAll("await import('@capacitor/core')", '({ Capacitor })')
+    .replaceAll("await import('@capacitor/core')", '({ Capacitor, registerPlugin })')
     .replace("await import('@capacitor/push-notifications')", '({ PushNotifications })');
   // Avoid shadowing the mocked imports when replacing the dynamic import expressions.
-  source = source.replace('const { Capacitor } = ({ Capacitor });', '')
+  source = source.replace('const { Capacitor } = ({ Capacitor, registerPlugin });', '')
     .replace('const { PushNotifications } = ({ PushNotifications });', '');
   vm.runInNewContext(source + ';globalThis.api = { syncFcmTokenWithBackend, initPushNotifications };', context);
   return { ...context, listeners, calls, timers, events };
@@ -61,16 +63,34 @@ test('avatar capability is registered only when the native plugin exists', async
   await s.api.syncFcmTokenWithBackend(); assert.equal(body.androidAvatar, true);
 });
 
-test('notification taps use native navigation with the exact share ID', async () => {
+test('notification taps open only the prayer page', async () => {
   const s = service(async () => ({ ok: true })); await s.api.initPushNotifications();
   s.listeners.pushNotificationActionPerformed({ notification: { data: { type: 'PRAY_SHARED', shareId: 'abc', url: '/pray' } } });
-  assert.equal(s.calls.at(-1), '/pray/?notificationType=PRAY_SHARED&shareId=abc');
+  assert.equal(s.calls.at(-1), '/pray/');
   s.listeners.pushNotificationActionPerformed({ notification: { data: { type: 'PRAY_CONFIRMED', shareId: 'reply' } } });
-  assert.equal(s.calls.at(-1), '/pray/?notificationType=PRAY_CONFIRMED&shareId=reply');
+  assert.equal(s.calls.at(-1), '/pray/');
 });
 test('non-prayer notifications cannot navigate to an external website', async () => {
   const s = service(async () => ({ ok: true })); await s.api.initPushNotifications();
   const count = s.calls.length;
   s.listeners.pushNotificationActionPerformed({ notification: { data: { url: '//example.com' } } });
   assert.equal(s.calls.length, count);
+});
+
+test('iOS registration replaces cached APNs tokens with the native Firebase token', async () => {
+  let body;
+  const s = service(async (url, options) => { body = JSON.parse(options.body); return { ok: true }; });
+  s.Capacitor.getPlatform = () => 'ios'; s.Capacitor.isPluginAvailable = () => true;
+  s.localStorage.setItem('taspe7_fcm_token', 'cached-apns-token');
+  await s.api.syncFcmTokenWithBackend();
+  assert.equal(body.fcmToken, 'ios-fcm-token'); assert.equal(body.androidAvatar, false);
+  assert.equal(s.localStorage.getItem('taspe7_fcm_token'), 'ios-fcm-token');
+});
+test('iOS does not upload a token before APNs/FCM registration is ready', async () => {
+  let called = false;
+  const s = service(async () => { called = true; return { ok: true }; });
+  s.Capacitor.getPlatform = () => 'ios'; s.Capacitor.isPluginAvailable = () => true;
+  s.nativeRegistration.getFcmToken = async () => { throw new Error('not ready'); };
+  assert.equal(await s.api.syncFcmTokenWithBackend(), false); assert.equal(called, false);
+  assert.equal(s.timers.length, 1);
 });

@@ -14,6 +14,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.Robolectric;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
@@ -55,6 +56,28 @@ public class PrayerNotificationRenderingTest {
         Bitmap bitmap = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888);
         bitmap.eraseColor(Color.RED);
         return bitmap;
+    }
+
+    // Skip WebView setup while exercising MainActivity's actual lifecycle behavior.
+    public static class NativeLifecycleActivity extends MainActivity {
+        @Override protected void load() { }
+    }
+
+    @Test public void normalLaunchAndForegroundReturnClearDeliveredNotifications() {
+        var activity = Robolectric.buildActivity(NativeLifecycleActivity.class).create().start();
+        NotificationManager manager = context.getSystemService(NotificationManager.class);
+        PrayerNotificationRenderer.show(context, data(false), "before-launch", 1234, photo());
+        assertEquals(1, manager.getActiveNotifications().length);
+        activity.resume();
+        assertEquals(0, manager.getActiveNotifications().length);
+        PrayerNotificationRenderer.show(context, data(false), "late-photo-update", 1234, photo());
+        assertEquals(0, manager.getActiveNotifications().length);
+        activity.pause().stop();
+        PrayerNotificationRenderer.show(context, data(false), "while-backgrounded", 1234, photo());
+        assertEquals(1, manager.getActiveNotifications().length);
+        activity.restart().start().resume();
+        assertEquals(0, manager.getActiveNotifications().length);
+        activity.pause().stop().destroy();
     }
 
     @Test public void photoAndShortcutAreAttachedForCollapsedAndExpandedNotification() {

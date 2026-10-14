@@ -29,6 +29,9 @@ final class PrayerNotificationRenderer {
     static final int ID = 1;
 
     static void show(Context context, Map<String, String> data, String tag, long timestamp, Bitmap photo) {
+        // A message/photo finishing after the app opens must not bring its alert back.
+        // The service still forwards the message to the page for silent refresh.
+        if (MainActivity.isForeground()) return;
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context,
             Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return;
         NotificationManager manager = context.getSystemService(NotificationManager.class);

@@ -15,6 +15,12 @@
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
+		23E21D88E7FF4A779CA23C1E /* PrayerBridgeViewController.swift in build phase */ = {isa = PBXBuildFile; fileRef = 5B9C77182DCD4EB88A6E9533 /* PrayerBridgeViewController.swift */; };
+		0C909BFC2ADC4C40BB3A892E /* GoogleService-Info.plist in build phase */ = {isa = PBXBuildFile; fileRef = D463C8D26C644440AD5F601A /* GoogleService-Info.plist */; };
+		E8E8D272ABD044ABAFE2581D /* NotificationService.swift in build phase */ = {isa = PBXBuildFile; fileRef = A01FE05B5CCB49709F364B5C /* NotificationService.swift */; };
+		6CF3CE71F67840C7BB3B46DE /* PrayerNotificationService.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = F8539AA3AB774DB68F9539AB /* PrayerNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, CodeSignOnCopy, ); }; };
+		0471EFB108474347BAA300D5 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 37BBFA4612D84D3E9846FA03 /* FirebaseCore */; };
+		F9D80D6EEBB24D38ABFC6558 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 00D8472A78894069923150D0 /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +34,13 @@
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		5B9C77182DCD4EB88A6E9533 /* PrayerBridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerBridgeViewController.swift; sourceTree = "<group>"; };
+		D463C8D26C644440AD5F601A /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = GoogleService-Info.plist; sourceTree = "<group>"; };
+		BDCE63EE4D144B37863B529B /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
+		A01FE05B5CCB49709F364B5C /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		A1BB2C830C9C4052921162BE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		0DCA53D1F7874D19BE19351B /* PrayerNotificationService.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PrayerNotificationService.entitlements; sourceTree = "<group>"; };
+		F8539AA3AB774DB68F9539AB /* PrayerNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PrayerNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -36,6 +49,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */,
+				0471EFB108474347BAA300D5 /* FirebaseCore in Frameworks */,
+				F9D80D6EEBB24D38ABFC6558 /* FirebaseMessaging in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		75E454C761CD458998BE69F2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -48,6 +70,7 @@
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
 				504EC3051FED79650016851F /* Products */,
+				7AAF3F5ED7D4404EA4825972 /* PrayerNotificationService */,
 			);
 			sourceTree = "<group>";
 		};
@@ -55,6 +78,7 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* App.app */,
+				F8539AA3AB774DB68F9539AB /* PrayerNotificationService.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -70,8 +94,21 @@
 				504EC3131FED79650016851F /* Info.plist */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
+				5B9C77182DCD4EB88A6E9533 /* PrayerBridgeViewController.swift */,
+				D463C8D26C644440AD5F601A /* GoogleService-Info.plist */,
+				BDCE63EE4D144B37863B529B /* App.entitlements */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		7AAF3F5ED7D4404EA4825972 /* PrayerNotificationService */ = {
+			isa = PBXGroup;
+			children = (
+				A01FE05B5CCB49709F364B5C /* NotificationService.swift */,
+				A1BB2C830C9C4052921162BE /* Info.plist */,
+				0DCA53D1F7874D19BE19351B /* PrayerNotificationService.entitlements */,
+			);
+			path = PrayerNotificationService;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -84,18 +121,39 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
+				98BB03E9E01C4FF3A2240D78 /* Embed App Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1CE717D248E441518A50A7F5 /* PBXTargetDependency */,
+			);
+			name = App;
+			packageProductDependencies = (
+				4D22ABE82AF431CB00220026 /* CapApp-SPM */,
+				37BBFA4612D84D3E9846FA03 /* FirebaseCore */,
+				00D8472A78894069923150D0 /* FirebaseMessaging */,
+			);
+			productName = App;
+			productReference = 504EC3041FED79650016851F /* App.app */;
+			productType = "com.apple.product-type.application";
+		};
+		704E4A2813C646C8B34AB013 /* PrayerNotificationService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BE3750C44D594F34899FEE78 /* Build configuration list for PBXNativeTarget "PrayerNotificationService" */;
+			buildPhases = (
+				62809740AE7D4D8395C8542C /* Sources */,
+				75E454C761CD458998BE69F2 /* Frameworks */,
+				0A2F50A9E56343AD86853D5A /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = App;
-			packageProductDependencies = (
-				4D22ABE82AF431CB00220026 /* CapApp-SPM */,
-			);
-			productName = App;
-			productReference = 504EC3041FED79650016851F /* App.app */;
-			productType = "com.apple.product-type.application";
+			name = PrayerNotificationService;
+			productName = PrayerNotificationService;
+			productReference = F8539AA3AB774DB68F9539AB /* PrayerNotificationService.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -109,6 +167,15 @@
 					504EC3031FED79650016851F = {
 						CreatedOnToolsVersion = 9.2;
 						LastSwiftMigration = 1100;
+						ProvisioningStyle = Automatic;
+						SystemCapabilities = {
+							com.apple.Push = {
+								enabled = 1;
+							};
+						};
+					};
+					704E4A2813C646C8B34AB013 = {
+						CreatedOnToolsVersion = 26.2;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -124,12 +191,14 @@
 			mainGroup = 504EC2FB1FED79650016851F;
 			packageReferences = (
 				D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */,
+				6C9F5EC0F7184032B7FE9301 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			productRefGroup = 504EC3051FED79650016851F /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
+				704E4A2813C646C8B34AB013 /* PrayerNotificationService */,
 			);
 		};
 /* End PBXProject section */
@@ -145,6 +214,14 @@
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
+				0C909BFC2ADC4C40BB3A892E /* GoogleService-Info.plist in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0A2F50A9E56343AD86853D5A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -156,6 +233,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				23E21D88E7FF4A779CA23C1E /* PrayerBridgeViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		62809740AE7D4D8395C8542C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E8E8D272ABD044ABAFE2581D /* NotificationService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -310,6 +396,8 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
+				APS_ENVIRONMENT = development;
 			};
 			name = Debug;
 		};
@@ -329,6 +417,56 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.wasla.wasla;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
+				APS_ENVIRONMENT = production;
+			};
+			name = Release;
+		};
+		3BF2FDDD79E54A6CA28E5023 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = PrayerNotificationService/PrayerNotificationService.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 1.0;
+				INFOPLIST_FILE = PrayerNotificationService/Info.plist;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.wasla.wasla.PrayerNotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		ECF23B72D387470C87560841 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = PrayerNotificationService/PrayerNotificationService.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 1.0;
+				INFOPLIST_FILE = PrayerNotificationService/Info.plist;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.wasla.wasla.PrayerNotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -355,6 +493,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		BE3750C44D594F34899FEE78 /* Build configuration list for PBXNativeTarget "PrayerNotificationService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3BF2FDDD79E54A6CA28E5023 /* Debug */,
+				ECF23B72D387470C87560841 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -370,7 +517,60 @@
 			package = D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */;
 			productName = "CapApp-SPM";
 		};
+		37BBFA4612D84D3E9846FA03 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6C9F5EC0F7184032B7FE9301 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		00D8472A78894069923150D0 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6C9F5EC0F7184032B7FE9301 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
 /* End XCSwiftPackageProductDependency section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		98BB03E9E01C4FF3A2240D78 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				6CF3CE71F67840C7BB3B46DE /* PrayerNotificationService.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXContainerItemProxy section */
+		C83BE35048B74490B69CA160 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 704E4A2813C646C8B34AB013;
+			remoteInfo = PrayerNotificationService;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		1CE717D248E441518A50A7F5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 704E4A2813C646C8B34AB013 /* PrayerNotificationService */;
+			targetProxy = C83BE35048B74490B69CA160 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		6C9F5EC0F7184032B7FE9301 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = exactVersion;
+                version = 12.19.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
 	};
 	rootObject = 504EC2FC1FED79650016851F /* Project object */;
 }

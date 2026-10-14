@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useContext, useRef, useLayoutEffect } from 'react';
+import { useCallback, useEffect, useState, useContext, useRef } from 'react';
 import localforage from 'localforage';
 import { UserContext } from '../context/User_Context';
 import { Check, Edit3, Heart, Loader2, Trash2, X, Share2, Search, Users, ChevronRight, ArrowRight, Send, Inbox, Lock, Layers, CheckCheck, EyeOff, SlidersHorizontal } from 'lucide-react';
@@ -13,7 +13,6 @@ import { MyPraysBackup, SavedPrayRecordings, VoiceRecorderPanel, usePrayRecorder
 import { useLanguage } from '../context/LanguageContext';
 import { useOfflineAvatar } from '../hooks/useOfflineAvatar';
 import { isFriendsCacheFresh, readFriendsCache, writeFriendsCache } from '../utils/friendsCache';
-import { readPrayerNotificationTarget, findNotificationPrayer } from '../utils/prayerNotificationNavigation';
 
 const API_URL = getApiBaseUrl();
 
@@ -471,9 +470,6 @@ export default function PrayPage() {
     const allSharedCount = receivedPrayList.length + sentPrayList.length;
 
     const [activePrayTab, setActivePrayTab] = useState('personal');
-    const [notificationTarget, setNotificationTarget] = useState(null);
-    const [openedNotificationPrayerId, setOpenedNotificationPrayerId] = useState(null);
-    const notificationOpenedRef = useRef(false);
     const [circleFilter, setCircleFilter] = useState('all');
     const [expandedFriendPrayers, setExpandedFriendPrayers] = useState(() => new Set());
     const [openedFriendPrayers, setOpenedFriendPrayers] = useState(() => {
@@ -487,35 +483,6 @@ export default function PrayPage() {
     });
 
     const unreadPendingPrayCount = pendingPrayList.filter((entry) => !openedFriendPrayers.has(entry._id) && !openedFriendPrayers.has(String(entry._id))).length;
-
-    useLayoutEffect(() => {
-        const target = readPrayerNotificationTarget(window.location.search);
-        if (!target) return;
-        setNotificationTarget(target);
-        setActivePrayTab('shared');
-        setCircleFilter('all');
-    }, []);
-
-    useLayoutEffect(() => {
-        if (notificationOpenedRef.current || !notificationTarget?.shareId) return;
-        const entry = findNotificationPrayer(guestPrays, notificationTarget);
-        if (!entry) return;
-        notificationOpenedRef.current = true;
-        setOpenedNotificationPrayerId(String(entry._id));
-        setExpandedFriendPrayers(prev => new Set(prev).add(entry._id));
-        setOpenedFriendPrayers(prev => {
-            const next = new Set(prev).add(entry._id).add(String(entry._id));
-            localStorage.setItem('taspe7_opened_friend_prayers', JSON.stringify(Array.from(next)));
-            return next;
-        });
-    }, [guestPrays, notificationTarget]);
-
-    useLayoutEffect(() => {
-        if (!openedNotificationPrayerId || activePrayTab !== 'shared') return;
-        const card = Array.from(document.querySelectorAll('[data-prayer-id]'))
-            .find(element => element.dataset.prayerId === openedNotificationPrayerId);
-        if (card) card.scrollIntoView({ behavior: 'instant', block: 'center' });
-    }, [openedNotificationPrayerId, activePrayTab]);
 
     const toggleFriendPrayerExpand = (id) => {
         setExpandedFriendPrayers((prev) => {
@@ -1338,7 +1305,7 @@ export default function PrayPage() {
                                 const isConfirmed = (targetInfo.status || entry.sharedWith?.status) === 'confirmed';
                                 const isAnonSent = Boolean(entry.sharedWith?.isAnonymous);
                                 return (
-                                    <div key={entry._id} data-prayer-id={String(entry._id)}
+                                    <div key={entry._id}
                                         className="rounded-2xl border transition-all duration-300 bg-white/[0.03] border-white/10 hover:border-[#00C2FF]/30 overflow-hidden">
                                         <div
                                             onClick={() => toggleFriendPrayerExpand(entry._id)}
@@ -1436,7 +1403,7 @@ export default function PrayPage() {
                             }
 
                             return (
-                                <div key={entry._id} data-prayer-id={String(entry._id)}
+                                <div key={entry._id}
                                     className={`rounded-2xl border transition-all duration-300 ${isSnapRow ? (isConfirmedReceived ? 'bg-white/[0.03] border-white/10 hover:border-[#00C2FF]/30 overflow-hidden' : 'bg-white/[0.03] border-[#00C2FF]/30 hover:border-[#00C2FF]/50 overflow-hidden') : 'p-4 sm:p-5 bg-white/[0.03] border-white/10'}`}>
                                     {isSnapRow && (
                                         <div
