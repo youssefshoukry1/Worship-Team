@@ -14,11 +14,13 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Shader;
-import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Build;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.Person;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.pm.ShortcutInfoCompat;
+import androidx.core.content.pm.ShortcutManagerCompat;
 import androidx.core.graphics.drawable.IconCompat;
 import java.util.Map;
 
@@ -37,13 +39,22 @@ final class PrayerNotificationRenderer {
         String body = data.getOrDefault("body", "Shared a prayer with you");
         boolean anonymous = PrayerNotificationIdentity.isAnonymous(data);
         Bitmap avatar = avatar(context, title, anonymous, anonymous ? null : photo);
-        Person sender = new Person.Builder().setName(title).setIcon(IconCompat.createWithBitmap(avatar)).build();
+        Person sender = new Person.Builder().setName(title).setKey(tag)
+            .setIcon(IconCompat.createWithBitmap(avatar)).build();
         Intent intent = new Intent(context, MainActivity.class)
+            .setAction(Intent.ACTION_VIEW).setData(Uri.parse("wasla://prayer/" + Uri.encode(tag)))
             .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         for (Map.Entry<String, String> entry : data.entrySet()) intent.putExtra(entry.getKey(), entry.getValue());
         intent.putExtra("google.message_id", tag);
         // Fixed internal destination, handled by Capacitor's existing push-tap listener.
         intent.putExtra("url", "/pray");
+        // A valid long-lived conversation shortcut makes Android use the sender's avatar
+        // in the collapsed notification and add the application's own badge to it.
+        String shortcutId = "prayer-" + tag;
+        ShortcutInfoCompat shortcut = new ShortcutInfoCompat.Builder(context, shortcutId)
+            .setShortLabel(title).setLongLived(true).setPerson(sender)
+            .setIcon(IconCompat.createWithAdaptiveBitmap(avatar)).setIntent(intent).build();
+        ShortcutManagerCompat.pushDynamicShortcut(context, shortcut);
         PendingIntent tap = PendingIntent.getActivity(context, tag.hashCode(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.MessagingStyle style = new NotificationCompat.MessagingStyle(
@@ -52,6 +63,7 @@ final class PrayerNotificationRenderer {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_wasla).setColor(Color.rgb(0, 194, 255))
             .setContentTitle(title).setContentText(body).setLargeIcon(avatar).setStyle(style)
+            .setShortcutId(shortcutId).addPerson(sender)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE).setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(tap).setAutoCancel(true).setOnlyAlertOnce(true)
             .setWhen(timestamp).setShowWhen(true).setVisibility(NotificationCompat.VISIBILITY_PRIVATE);
@@ -65,7 +77,7 @@ final class PrayerNotificationRenderer {
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setColor(Color.rgb(16, 47, 66));
         canvas.drawCircle(64, 64, 64, paint);
-        if (photo != null) {
+        if (photo != null && !anonymous) {
             float scale = Math.max(128f / photo.getWidth(), 128f / photo.getHeight());
             android.graphics.Matrix matrix = new android.graphics.Matrix();
             matrix.setScale(scale, scale);
@@ -99,17 +111,8 @@ final class PrayerNotificationRenderer {
             canvas.drawText(PrayerNotificationIdentity.initial(title), 64,
                 64 - (paint.ascent() + paint.descent()) / 2, paint);
         }
-        // Use the existing colored Wasla app logo for the small badge.
-        paint.setColor(Color.WHITE);
-        canvas.drawCircle(101, 101, 26, paint);
-        Drawable logo = ContextCompat.getDrawable(context, R.mipmap.ic_launcher_round);
-        if (logo != null) {
-            canvas.save();
-            Path clip = new Path(); clip.addCircle(101, 101, 23, Path.Direction.CW);
-            canvas.clipPath(clip);
-            logo.setBounds(78, 78, 124, 124); logo.draw(canvas);
-            canvas.restore();
-        }
+        // Android adds the Wasla app badge for a conversation. Baking it into the
+        // person's photo as well would produce two badges and shrink the portrait.
         return result;
     }
 }
