@@ -208,16 +208,17 @@ export default function NormalUserProfile() {
     const [completedCrop, setCompletedCrop] = useState(null);
     const imgRef = useRef(null);
 
-    // Hide bottom nav when cropper or viewer is open
+    // The viewer covers the nav without triggering its slide animation.
+    // Keep the existing nav lock for the cropper.
     useEffect(() => {
-        const hidden = !!(isViewingPhoto || photoToCrop);
+        const hidden = !!photoToCrop;
         window.dispatchEvent(new CustomEvent('lockBottomNav', { detail: { hidden } }));
         return () => {
             if (hidden) {
                 window.dispatchEvent(new CustomEvent('lockBottomNav', { detail: { hidden: false } }));
             }
         };
-    }, [isViewingPhoto, photoToCrop]);
+    }, [photoToCrop]);
 
     const [localPrayCount, setLocalPrayCount] = useState(0);
     useEffect(() => {
@@ -1020,63 +1021,55 @@ export default function NormalUserProfile() {
             </AnimatePresence>
 
             {/* --- FULL IMAGE VIEWER MODAL --- */}
-            <AnimatePresence>
+            <Portal>
                 {isViewingPhoto && profilePhoto && (
-                    <Portal>
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setIsViewingPhoto(false)}
-                            className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-sm"
-                        >
-                            <div className="flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent">
+                    <div
+                        onClick={() => setIsViewingPhoto(false)}
+                        className="fixed inset-0 z-[10001] flex flex-col bg-black"
+                    >
+                        <div className="flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent">
+                            <button
+                                onClick={() => setIsViewingPhoto(false)}
+                                className="p-2 text-white hover:bg-white/10 rounded-full transition-colors"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                            <div className="flex items-center gap-4">
                                 <button
-                                    onClick={() => setIsViewingPhoto(false)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        fileInputRef.current?.click();
+                                    }}
                                     className="p-2 text-white hover:bg-white/10 rounded-full transition-colors"
+                                    title="Change Photo"
                                 >
-                                    <X className="w-6 h-6" />
+                                    <Edit3 className="w-5 h-5" />
                                 </button>
-                                <div className="flex items-center gap-4">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            fileInputRef.current?.click();
-                                        }}
-                                        className="p-2 text-white hover:bg-white/10 rounded-full transition-colors"
-                                        title="Change Photo"
-                                    >
-                                        <Edit3 className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsViewingPhoto(false);
-                                            handlePhotoRemove();
-                                        }}
-                                        className="p-2 text-rose-500 hover:bg-white/10 rounded-full transition-colors"
-                                        title="Remove Photo"
-                                    >
-                                        <Trash2 className="w-5 h-5" />
-                                    </button>
-                                </div>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsViewingPhoto(false);
+                                        handlePhotoRemove();
+                                    }}
+                                    className="p-2 text-rose-500 hover:bg-white/10 rounded-full transition-colors"
+                                    title="Remove Photo"
+                                >
+                                    <Trash2 className="w-5 h-5" />
+                                </button>
                             </div>
-                            <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
-                                <motion.img
-                                    initial={{ scale: 0.9, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    exit={{ scale: 0.9, opacity: 0 }}
-                                    src={profileAvatarSrc || profilePhoto}
-                                    alt="Profile"
-                                    className="max-w-full max-h-full object-contain"
-                                    onError={markProfileAvatarFailed}
-                                    onClick={(e) => e.stopPropagation()}
-                                />
-                            </div>
-                        </motion.div>
-                    </Portal>
+                        </div>
+                        <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
+                            <img
+                                src={profileAvatarSrc || profilePhoto}
+                                alt="Profile"
+                                className="max-w-full max-h-full object-contain"
+                                onError={markProfileAvatarFailed}
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        </div>
+                    </div>
                 )}
-            </AnimatePresence>
+            </Portal>
 
             {/* --- IMAGE CROPPER MODAL --- */}
             <AnimatePresence>
@@ -1086,7 +1079,7 @@ export default function NormalUserProfile() {
                             initial={{ opacity: 0, y: 50 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 50 }}
-                            className="fixed inset-0 z-[110] flex flex-col bg-black"
+                            className="fixed inset-0 z-[10002] flex flex-col bg-black"
                         >
                             {/* Single black flex container — image is centered, black gaps appear naturally top + bottom */}
                             <div className="flex-1 flex items-center justify-center bg-black overflow-hidden">

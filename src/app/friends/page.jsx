@@ -19,6 +19,7 @@ import { UserContext } from '../context/User_Context';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { showToast } from '../components/ToastContainer';
 import OfflineAvatar from '../components/OfflineAvatar';
+import FriendPhotoViewer from '../components/FriendPhotoViewer';
 import { cacheAvatarsInBackground } from '../utils/avatarStorage';
 import { getFriendsCacheKey, isFriendsCacheFresh, readFriendsCache, writeFriendsCache } from '../utils/friendsCache';
 
@@ -38,6 +39,8 @@ export default function FriendsPage() {
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState({});
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const closePhoto = useCallback(() => setSelectedPhoto(null), []);
 
   const debounceTimerRef = useRef(null);
   const cacheReadyRef = useRef(false);
@@ -595,12 +598,25 @@ export default function FriendsPage() {
                     className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-white/20 transition-all"
                   >
                     <div className="flex items-center gap-3 min-w-0 pr-3">
-                      <OfflineAvatar
-                        userKey={friend._id || friend.username}
-                        remoteUrl={friend.profilePhoto}
-                        name={friend.Name}
-                        className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#00C2FF]/20 to-blue-600/30 border border-[#00C2FF]/30 flex items-center justify-center font-bold text-sm text-[#00C2FF] shrink-0 overflow-hidden"
-                      />
+                      <button
+                        type="button"
+                        disabled={!friend.profilePhoto}
+                        aria-label={`View ${friend.Name || 'friend'} profile picture`}
+                        className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-[#00C2FF]"
+                        onClick={(event) => {
+                          const image = event.currentTarget.querySelector('img');
+                          if (!image?.complete || !image.naturalWidth) return;
+                          // Reuse the already loaded (and potentially offline) avatar.
+                          setSelectedPhoto({ name: friend.Name, src: image.currentSrc || image.src, fullScreen: false });
+                        }}
+                      >
+                        <OfflineAvatar
+                          userKey={friend._id || friend.username}
+                          remoteUrl={friend.profilePhoto}
+                          name={friend.Name}
+                          className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#00C2FF]/20 to-blue-600/30 border border-[#00C2FF]/30 flex items-center justify-center font-bold text-sm text-[#00C2FF] shrink-0 overflow-hidden"
+                        />
+                      </button>
                       <div className="min-w-0">
                         <div className="text-xs sm:text-sm font-semibold text-white truncate">
                           {friend.Name}
@@ -626,6 +642,11 @@ export default function FriendsPage() {
           )}
         </div>
       )}
+      <FriendPhotoViewer
+        photo={selectedPhoto}
+        onClose={closePhoto}
+        onExpand={() => setSelectedPhoto((photo) => photo ? { ...photo, fullScreen: true } : null)}
+      />
     </div>
   );
 }
