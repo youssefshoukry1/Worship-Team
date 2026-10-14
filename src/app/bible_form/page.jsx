@@ -1630,6 +1630,8 @@ export function BibleForm({ controller }) {
   const actionLastTime = useRef(0);
   const actionVelocity = useRef(0);
   const actionPullDistance = useRef(0);
+  const actionDragEnabled = useRef(false);
+  const actionResponseScroller = useRef(null);
 
   const isClosingActionPanel = useRef(false);
 
@@ -1656,7 +1658,14 @@ export function BibleForm({ controller }) {
   };
 
   const handleActionTouchStart = (e) => {
-    if (showColorCustomizer) return;
+    const response = e.target.closest('[data-ai-response]');
+    const scroller = response?.querySelector('[data-ai-response-scroll]') || null;
+    actionResponseScroller.current = scroller;
+    // A response gesture may dismiss only if it starts at the top.
+    actionDragEnabled.current = !showColorCustomizer && (!scroller || scroller.scrollTop <= 0);
+    actionVelocity.current = 0;
+    actionPullDistance.current = 0;
+    if (!actionDragEnabled.current) return;
     const y = e.touches[0].clientY;
     actionTouchStartY.current = y;
     actionLastY.current = y;
@@ -1670,15 +1679,26 @@ export function BibleForm({ controller }) {
   };
 
   const handleActionTouchMove = (e) => {
-    if (showColorCustomizer) return;
+    if (showColorCustomizer || !actionDragEnabled.current) return;
     const currentY = e.touches[0].clientY;
+    const deltaY = currentY - actionTouchStartY.current;
+    const scroller = actionResponseScroller.current;
+    if (scroller && (scroller.scrollTop > 0 || deltaY < -5)) {
+      // Once the user scrolls, reaching the top cannot turn this gesture into a drag.
+      actionDragEnabled.current = false;
+      actionPullDistance.current = 0;
+      actionVelocity.current = 0;
+      if (actionCardRef.current) {
+        actionCardRef.current.style.transform = 'translate3d(0, 0, 0)';
+      }
+      return;
+    }
     const now = Date.now();
     const dt = now - actionLastTime.current || 1;
     actionVelocity.current = (currentY - actionLastY.current) / dt;
     actionLastY.current = currentY;
     actionLastTime.current = now;
 
-    const deltaY = currentY - actionTouchStartY.current;
     if (deltaY > 0) {
       actionPullDistance.current = deltaY;
       if (actionCardRef.current) {
@@ -1692,13 +1712,19 @@ export function BibleForm({ controller }) {
     }
   };
 
-  const handleActionTouchEnd = () => {
+  const handleActionTouchEnd = (e) => {
     if (showColorCustomizer) return;
     const pullDist = actionPullDistance.current;
     const vel = actionVelocity.current;
 
-    // Fast & sensitive dismissal matching user's touch
-    const shouldDismiss = pullDist > 25 || vel > 0.18 || (pullDist > 12 && vel > 0.1);
+    // Require a deliberate pull on the response; a short flick must not dismiss it.
+    const shouldDismiss = actionDragEnabled.current && e.type !== 'touchcancel' && (
+      actionResponseScroller.current
+        ? pullDist > 80
+        : pullDist > 25 || vel > 0.18 || (pullDist > 12 && vel > 0.1)
+    );
+    actionDragEnabled.current = false;
+    actionResponseScroller.current = null;
 
     if (shouldDismiss) {
       closeSelectionPanel();
@@ -2384,6 +2410,7 @@ export function BibleForm({ controller }) {
                   onTouchStart={handleActionTouchStart}
                   onTouchMove={handleActionTouchMove}
                   onTouchEnd={handleActionTouchEnd}
+                  onTouchCancel={handleActionTouchEnd}
                   onAnimationEnd={() => {
                     if (actionCardRef.current) {
                       actionCardRef.current.style.animation = 'none';
@@ -2460,11 +2487,7 @@ export function BibleForm({ controller }) {
                           setShowAiOptions(p => !p);
                           setAiAnalysis({ loading: false, type: null, text: '', error: null });
                         }}
-                        className={`flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95
-              ${showAiOptions
-                            ? 'bg-violet-500/20 border-violet-400/50 text-violet-300 shadow-[0_0_12px_rgba(139,92,246,0.3)]'
-                            : 'bg-white/5 hover:bg-white/10 border-white/10 text-white'
-                          }`}
+                        className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 bg-white/5 hover:bg-white/10 border-white/10 text-white"
                       >
                         <Sparkles className="w-3.5 h-3.5" /> {t('Ai')}
                       </button>
@@ -2474,15 +2497,15 @@ export function BibleForm({ controller }) {
                     {showAiOptions && (
                       <div className="flex gap-2 shrink-0 animate-in fade-in slide-in-from-bottom-1 duration-150" dir="rtl">
                         {[
-                          { type: 'explain', label: 'تفسير', icon: BookOpen, color: 'text-violet-400', border: 'border-violet-500/20 hover:border-violet-400/50 hover:bg-violet-500/5', glow: 'shadow-[0_0_15px_rgba(139,92,246,0.15)] hover:shadow-[0_0_22px_rgba(139,92,246,0.25)]' },
-                          { type: 'cross_reference', label: 'مراجع', icon: Link2, color: 'text-sky-400', border: 'border-sky-500/20 hover:border-sky-400/50 hover:bg-sky-500/5', glow: 'shadow-[0_0_15px_rgba(14,165,233,0.15)] hover:shadow-[0_0_22px_rgba(14,165,233,0.25)]' },
-                          { type: 'practical', label: 'تطبيق', icon: Lightbulb, color: 'text-amber-400', border: 'border-amber-500/20 hover:border-amber-400/50 hover:bg-amber-500/5', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:shadow-[0_0_22px_rgba(245,158,11,0.25)]' },
-                        ].map(({ type, label, icon: IconComponent, color, border, glow }) => (
+                          { type: 'explain', label: 'تفسير', icon: BookOpen, color: 'text-sky-400' },
+                          { type: 'cross_reference', label: 'مراجع', icon: Link2, color: 'text-sky-400' },
+                          { type: 'practical', label: 'تطبيق', icon: Lightbulb, color: 'text-sky-400' },
+                        ].map(({ type, label, icon: IconComponent, color }) => (
                           <button
                             key={type}
                             onClick={() => handleAiAnalysis(type)}
                             disabled={aiAnalysis.loading}
-                            className={`flex-1 py-3 px-4 rounded-2xl bg-[#111322]/50 border ${border} ${glow} transition-all duration-300 flex flex-col items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 group`}
+                            className={`flex-1 py-3 px-4 rounded-2xl bg-[#0b1b2a]/50 hover:bg-black/20 transition-all duration-300 flex flex-col items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 group`}
                           >
                             <IconComponent className={`w-5 h-5 ${color} group-hover:scale-110 group-active:scale-95 transition-transform duration-300`} />
                             <span className="text-[11px] font-black text-slate-300 group-hover:text-white transition-colors duration-300">{label}</span>
@@ -2493,12 +2516,15 @@ export function BibleForm({ controller }) {
 
                     {/* AI Response — no header bar, floating dismiss pill */}
                     {(aiAnalysis.loading || aiAnalysis.text || aiAnalysis.error) && (
-                      <div className="relative rounded-2xl overflow-hidden border border-violet-500/20 bg-[#0c0f1e]/80 backdrop-blur-md shadow-[0_4px_24px_rgba(139,92,246,0.12)]">
+                      <div
+                        className={`relative rounded-2xl overflow-hidden ${isDark ? 'bg-[#060b13]' : 'bg-[#001829]'}`}
+                        data-ai-response
+                      >
 
                         <div className="flex items-center justify-between px-4 pt-3 pb-1">
                           <div className="flex items-center gap-1.5">
-                            <Sparkles className="w-3 h-3 text-violet-400" />
-                            <span className="text-[10px] font-black text-violet-300 tracking-widest uppercase">
+                            <Sparkles className="w-3 h-3 text-sky-400" />
+                            <span className="text-[10px] font-black text-sky-300 tracking-widest uppercase">
                               {aiAnalysis.type === 'explain' ? 'تفسير روحي' : aiAnalysis.type === 'cross_reference' ? 'مراجع كتابية' : 'تطبيق عملي'}
                             </span>
                           </div>
@@ -2510,12 +2536,12 @@ export function BibleForm({ controller }) {
                           </button>
                         </div>
 
-                        <div className="px-4 pb-4 max-h-52 overflow-y-auto custom-scrollbar-thin" dir="rtl">
+                        <div className="px-4 pb-4" dir="rtl">
                           {aiAnalysis.loading ? (
                             <div className="flex items-center justify-center gap-2 py-6">
                               <div className="relative w-7 h-7">
-                                <div className="absolute inset-0 rounded-full border-2 border-violet-500/30 border-t-violet-400 animate-spin" />
-                                <Sparkles className="absolute inset-0 m-auto w-3 h-3 text-violet-400 animate-pulse" />
+                                <div className="absolute inset-0 rounded-full border-2 border-sky-500/30 border-t-sky-400 animate-spin" />
+                                <Sparkles className="absolute inset-0 m-auto w-3 h-3 text-sky-400 animate-pulse" />
                               </div>
                             </div>
                           ) : aiAnalysis.error ? (
@@ -2533,7 +2559,12 @@ export function BibleForm({ controller }) {
                               )}
                             </>
                           ) : (
-                            <p className="text-[13px] leading-loose text-slate-200/90 font-arabic whitespace-pre-line">
+                            <p
+                              lang="ar"
+                              dir="rtl"
+                              data-ai-response-scroll
+                              className="mx-auto max-w-[65ch] max-h-[10em] overflow-y-auto overscroll-y-contain touch-pan-y custom-scrollbar-thin font-arabic text-[13px] font-normal leading-[2] tracking-normal text-right text-slate-100 whitespace-pre-line break-words antialiased"
+                            >
                               {aiAnalysis.text}
                             </p>
                           )}
