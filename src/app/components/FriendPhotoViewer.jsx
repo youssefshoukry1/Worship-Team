@@ -172,6 +172,9 @@ export default function FriendPhotoViewer({ photo, onExpand, onClose }) {
                 draggable={false}
                 className="relative max-h-[calc(100dvh-8rem)] max-w-full object-contain select-none"
                 style={{ y: swipeY }}
+                initial={{ opacity: reduceMotion ? 1 : 0, scale: reduceMotion ? 1 : 0.94 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ ...openingTransition, duration: reduceMotion ? 0 : 0.4 }}
               />
             </>
           ) : (
