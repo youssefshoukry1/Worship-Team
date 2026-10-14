@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import axios from "axios";
 import ReactCrop, { centerCrop, makeAspectCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
@@ -13,7 +13,6 @@ import {
   Edit3,
   Trash2,
   RotateCcw,
-  BadgeCheck,
 } from "lucide-react";
 
 // Validation rules: only letters, numbers, and underscores (no spaces, @, ^, ~, !, ?, etc.)
@@ -59,8 +58,10 @@ export default function ClaimUsernameModal({
   }, [baseSuggestion]);
 
   const [username, setUsername] = useState(baseSuggestion);
-  const [status, setStatus] = useState("idle"); // idle | checking | available | taken | invalid
+  const [status, setStatus] = useState("idle"); // idle | checking | available | taken | invalid | error
   const [statusMsg, setStatusMsg] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [checkAttempt, setCheckAttempt] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
@@ -75,7 +76,8 @@ export default function ClaimUsernameModal({
 
   const fileInputRef = useRef(null);
   const imgRef = useRef(null);
-  const checkTimer = useRef(null);
+  const availabilityRequest = useRef(0);
+  const submittingRef = useRef(false);
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://worship-team-api.onrender.com/api";
 
   // Clean up object URLs on unmount
@@ -87,8 +89,10 @@ export default function ClaimUsernameModal({
     };
   }, [photoPreview]);
 
-  const checkAvailability = useCallback(async (name) => {
-    const check = validateUsernameFormat(name);
+  useEffect(() => {
+    const requestId = ++availabilityRequest.current;
+    const controller = new AbortController();
+    const check = validateUsernameFormat(username);
     if (!check.valid) {
       setStatus("invalid");
       setStatusMsg(check.reason);
@@ -98,58 +102,46 @@ export default function ClaimUsernameModal({
     setStatus("checking");
     setStatusMsg("Checking availability...");
 
-    try {
-      const res = await axios.get(`${apiBase}/users/check-username?q=${encodeURIComponent(name)}`);
-      if (res.data.available) {
-        setStatus("available");
-        setStatusMsg(`@${name} is available!`);
-      } else {
-        setStatus("taken");
-        setStatusMsg(res.data.reason || `@${name} is already taken`);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await axios.get(`${apiBase}/users/check-username?q=${encodeURIComponent(username)}`, {
+          signal: controller.signal,
+          timeout: 30000,
+        });
+        if (controller.signal.aborted || requestId !== availabilityRequest.current) return;
+        if (res.data.available) {
+          setStatus("available");
+          setStatusMsg(`@${username} is available!`);
+        } else {
+          setStatus("taken");
+          setStatusMsg(res.data.reason || `@${username} is already taken`);
+        }
+      } catch (err) {
+        if (controller.signal.aborted || requestId !== availabilityRequest.current) return;
+        setStatus("error");
+        setStatusMsg(err.response?.data?.reason || err.response?.data?.msg || "Could not check availability. Please try again.");
       }
-    } catch (err) {
-      const msg = err.response?.data?.reason || err.response?.data?.msg || "Unavailable";
-      setStatus("taken");
-      setStatusMsg(msg);
-    }
-  }, [apiBase]);
-
-  const handleInputChange = (e) => {
-    const val = e.target.value.toLowerCase().replace(/\s+/g, "");
-    setUsername(val);
-
-    if (checkTimer.current) clearTimeout(checkTimer.current);
-
-    const check = validateUsernameFormat(val);
-    if (!check.valid) {
-      setStatus("invalid");
-      setStatusMsg(check.reason);
-      return;
-    }
-
-    checkTimer.current = setTimeout(() => {
-      checkAvailability(val);
     }, 300);
-  };
-
-  const handlePickSuggestion = (handle) => {
-    setUsername(handle);
-    if (checkTimer.current) clearTimeout(checkTimer.current);
-    checkAvailability(handle);
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (username) {
-        checkAvailability(username);
-      }
-    }, 50);
 
     return () => {
       clearTimeout(timer);
-      if (checkTimer.current) clearTimeout(checkTimer.current);
+      controller.abort();
     };
-  }, [checkAvailability, username]);
+  }, [apiBase, username, checkAttempt]);
+
+  const handlePickSuggestion = (handle) => {
+    // Invalidate in-flight results immediately, before the next render/effect.
+    ++availabilityRequest.current;
+    setUsername(handle);
+    setSubmitError("");
+    setStatus("checking");
+    setStatusMsg("Checking availability...");
+    setCheckAttempt((attempt) => attempt + 1);
+  };
+
+  const handleInputChange = (e) => {
+    handlePickSuggestion(e.target.value.toLowerCase().replace(/\s+/g, ""));
+  };
 
   // Image Selection (identical to normal_UserProfile)
   const handleFileSelect = (e) => {
@@ -304,9 +296,11 @@ export default function ClaimUsernameModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (status !== "available" || isSubmitting) return;
+    if (status !== "available" || submittingRef.current) return;
 
+    submittingRef.current = true;
     setIsSubmitting(true);
+    setSubmitError("");
 
     const authToken = token || (typeof window !== "undefined" ? localStorage.getItem("user_Taspe7_Token") : "");
     let finalPhotoUrl = photoPreview && !photoPreview.startsWith("blob:") ? photoPreview : null;
@@ -325,11 +319,13 @@ export default function ClaimUsernameModal({
           },
           {
             headers: { Authorization: `Bearer ${authToken}` },
+            timeout: 30000,
           }
         );
 
         if (urlRes.data?.uploadUrl) {
           await axios.put(urlRes.data.uploadUrl, photoBlob, {
+            timeout: 30000,
             headers: {
               "Content-Type": photoBlob.type,
               "Cache-Control": "public, max-age=31536000, immutable",
@@ -353,6 +349,7 @@ export default function ClaimUsernameModal({
           profilePhoto: finalPhotoUrl,
         },
         {
+          timeout: 30000,
           headers: {
             Authorization: `Bearer ${authToken}`,
           },
@@ -374,8 +371,14 @@ export default function ClaimUsernameModal({
 
       if (onSuccess) onSuccess(res.data);
     } catch (err) {
-      setStatus("taken");
-      setStatusMsg(err.response?.data?.msg || "Failed to set username");
+      if (err.response?.status === 409) {
+        setStatus("taken");
+        setStatusMsg(err.response?.data?.msg || "Username is already taken");
+      } else {
+        setSubmitError(err.response?.data?.msg || "Could not save your username. Please try again.");
+      }
+    } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
       setIsUploadingPhoto(false);
     }
@@ -383,7 +386,8 @@ export default function ClaimUsernameModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+      <Portal>
+      <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
         <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl text-white my-auto">
           {/* Profile Picture Controls at the TOP */}
           <div className="flex flex-col items-center justify-center pt-1 pb-4">
@@ -452,7 +456,7 @@ export default function ClaimUsernameModal({
 
             {/* Username Input Field */}
             <div>
-              <label className="block text-xs font-semibold  tracking-wider text-slate-400 mb-1.5">
+              <label htmlFor="claim-username" className="block text-xs font-semibold  tracking-wider text-slate-400 mb-1.5">
                 Username
               </label>
               <div className="relative flex items-center">
@@ -460,12 +464,20 @@ export default function ClaimUsernameModal({
                   @
                 </span>
                 <input
+                  id="claim-username"
+                  name="username"
                   type="text"
                   value={username}
                   onChange={handleInputChange}
                   maxLength={30}
                   required
                   autoFocus
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  autoComplete="off"
+                  spellCheck={false}
+                  disabled={isSubmitting}
+                  enterKeyHint="done"
                   placeholder="username"
                   className="w-full pl-8 pr-10 py-3 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-sky-500 transition-colors text-sm font-mono"
                 />
@@ -487,6 +499,11 @@ export default function ClaimUsernameModal({
                   {statusMsg}
                 </p>
               )}
+              {status === "error" && (
+                <button type="button" onClick={() => handlePickSuggestion(username)} className="text-xs text-sky-400 mt-2">
+                  Retry availability check
+                </button>
+              )}
 
               {/* Recommended suggestions chips */}
               <div className="mt-3.5 pt-3 border-t border-slate-800/80">
@@ -498,6 +515,7 @@ export default function ClaimUsernameModal({
                     <button
                       key={handle}
                       type="button"
+                      disabled={isSubmitting}
                       onClick={() => handlePickSuggestion(handle)}
                       className={`text-xs px-2.5 py-1 rounded-lg border font-mono transition-colors ${
                         username === handle
@@ -512,6 +530,7 @@ export default function ClaimUsernameModal({
               </div>
             </div>
 
+            {submitError && <p role="alert" className="text-xs text-rose-400">{submitError}</p>}
             <button
               type="submit"
               disabled={status !== "available" || isSubmitting}
@@ -546,6 +565,7 @@ export default function ClaimUsernameModal({
           </form>
         </div>
       </div>
+      </Portal>
 
       {/* --- FULL IMAGE VIEWER MODAL (Identical to normal_UserProfile) --- */}
       <AnimatePresence>
@@ -556,7 +576,7 @@ export default function ClaimUsernameModal({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsViewingPhoto(false)}
-              className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-sm"
+              className="fixed inset-0 z-[100001] flex flex-col bg-black/95 backdrop-blur-sm"
             >
               <div className="flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent">
                 <button
@@ -616,7 +636,7 @@ export default function ClaimUsernameModal({
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 50 }}
-              className="fixed inset-0 z-[110] flex flex-col bg-black"
+              className="fixed inset-0 z-[100002] flex flex-col bg-black"
             >
               <div className="flex-1 flex items-center justify-center bg-black overflow-hidden">
                 <ReactCrop
