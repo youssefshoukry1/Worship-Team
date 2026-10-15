@@ -8,14 +8,15 @@ function service(fetch) {
   const storage = new Map([['user_Taspe7_Token', 'login'], ['taspe7_fcm_token', 'device']]);
   const context = {
     console: { log() {}, warn() {}, error() {} }, fetch,
-    window: { addEventListener() {}, dispatchEvent: event => events.push(event.type), location: {} },
+    window: { addEventListener() {}, dispatchEvent: event => { events.push(event.type); return true; }, location: {} },
     document: { visibilityState: 'visible', addEventListener() {} },
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
     Event: class { constructor(type) { this.type = type; } },
+    CustomEvent: class { constructor(type, options) { this.type = type; Object.assign(this, options); } },
     setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; }, clearTimeout() {},
     getApiBaseUrl: () => 'https://example.test/api',
     navigateDocumentFallback: href => calls.push(href),
-    prayerNotificationHref: data => data?.type === 'PRAY_SHARED' || data?.type === 'PRAY_CONFIRMED' ? '/pray/' : null,
+    URLSearchParams,
     Capacitor: { isNativePlatform: () => true, getPlatform: () => 'android' },
     nativeRegistration: { getFcmToken: async () => ({ token: 'ios-fcm-token' }) },
     registerPlugin: () => context.nativeRegistration,
@@ -32,7 +33,9 @@ function service(fetch) {
   // Avoid shadowing the mocked imports when replacing the dynamic import expressions.
   source = source.replace('const { Capacitor } = ({ Capacitor, registerPlugin });', '')
     .replace('const { PushNotifications } = ({ PushNotifications });', '');
-  vm.runInNewContext(source + ';globalThis.api = { syncFcmTokenWithBackend, initPushNotifications };', context);
+  const navigationSource = fs.readFileSync(path.join(__dirname, '../src/app/utils/prayerNotificationNavigation.js'), 'utf8')
+    .replaceAll('export function', 'function');
+  vm.runInNewContext(navigationSource + '\n' + source + ';globalThis.api = { syncFcmTokenWithBackend, initPushNotifications };', context);
   return { ...context, listeners, calls, timers, events };
 }
 test('HTTP failures return false and schedule a retry rather than reporting success', async () => {
@@ -63,18 +66,36 @@ test('avatar capability is registered only when the native plugin exists', async
   await s.api.syncFcmTokenWithBackend(); assert.equal(body.androidAvatar, true);
 });
 
-test('notification taps open only the prayer page', async () => {
+test('notification taps pass the exact prayer or reply target to navigation', async () => {
   const s = service(async () => ({ ok: true })); await s.api.initPushNotifications();
   s.listeners.pushNotificationActionPerformed({ notification: { data: { type: 'PRAY_SHARED', shareId: 'abc', url: '/pray' } } });
-  assert.equal(s.calls.at(-1), '/pray/');
+  assert.equal(s.calls.at(-1), '/pray/?notificationType=PRAY_SHARED&shareId=abc');
   s.listeners.pushNotificationActionPerformed({ notification: { data: { type: 'PRAY_CONFIRMED', shareId: 'reply' } } });
-  assert.equal(s.calls.at(-1), '/pray/');
+  assert.equal(s.calls.at(-1), '/pray/?notificationType=PRAY_CONFIRMED&shareId=reply');
 });
 test('non-prayer notifications cannot navigate to an external website', async () => {
   const s = service(async () => ({ ok: true })); await s.api.initPushNotifications();
   const count = s.calls.length;
   s.listeners.pushNotificationActionPerformed({ notification: { data: { url: '//example.com' } } });
   assert.equal(s.calls.length, count);
+});
+
+test('a mounted prayer page handles taps synchronously without reloading or waiting for network', async () => {
+  const s = service(() => new Promise(() => {}));
+  await s.api.initPushNotifications();
+  const count = s.calls.length;
+  s.window.dispatchEvent = event => {
+    s.events.push(event.type);
+    if (event.type === 'taspe7:open-prayer') {
+      assert.equal(event.detail.href, '/pray/?notificationType=PRAY_SHARED&shareId=abc');
+      assert.equal(event.cancelable, true);
+      return false;
+    }
+    return true;
+  };
+  s.listeners.pushNotificationActionPerformed({ notification: { data: { type: 'PRAY_SHARED', shareId: 'abc' } } });
+  assert.equal(s.calls.length, count);
+  assert.deepEqual(s.events, ['taspe7:open-prayer', 'taspe7:prayer-push']);
 });
 
 test('iOS registration replaces cached APNs tokens with the native Firebase token', async () => {
@@ -93,4 +114,48 @@ test('iOS does not upload a token before APNs/FCM registration is ready', async 
   s.nativeRegistration.getFcmToken = async () => { throw new Error('not ready'); };
   assert.equal(await s.api.syncFcmTokenWithBackend(), false); assert.equal(called, false);
   assert.equal(s.timers.length, 1);
+});
+
+test('iOS launch taps open the exact prayer before permission checks or FCM registration finish', async () => {
+  const s = service(() => new Promise(() => {}));
+  s.Capacitor.getPlatform = () => 'ios';
+  let checked, finishPermissions;
+  const permissionStarted = new Promise(resolve => { checked = resolve; });
+  const permissions = new Promise(resolve => { finishPermissions = resolve; });
+  s.PushNotifications.checkPermissions = () => { checked(); return permissions; };
+  const initialization = s.api.initPushNotifications();
+  await permissionStarted;
+  assert.equal(typeof s.listeners.pushNotificationActionPerformed, 'function');
+  assert.equal(s.calls.includes('register'), false);
+  s.listeners.pushNotificationActionPerformed({ actionId: 'tap', notification: { data: {
+    type: 'PRAY_SHARED', shareId: 'ios-share', aps: { alert: { title: 'Friend', body: 'Shared a prayer' } },
+  } } });
+  assert.equal(s.calls.at(-1), '/pray/?notificationType=PRAY_SHARED&shareId=ios-share');
+  finishPermissions({ receive: 'denied' });
+  await initialization;
+  await s.api.initPushNotifications();
+  assert.equal(s.calls.filter(call => call === 'pushNotificationActionPerformed').length, 1);
+});
+
+test('iOS reply taps open the card without reloading a mounted page; dismissing never navigates', async () => {
+  const s = service(() => new Promise(() => {}));
+  s.Capacitor.getPlatform = () => 'ios';
+  await s.api.initPushNotifications();
+  const count = s.calls.length;
+  const action = { actionId: 'tap', notification: { data: { type: 'PRAY_CONFIRMED', shareId: 'ios-reply' } } };
+  s.window.dispatchEvent = event => {
+    s.events.push(event.type);
+    if (event.type === 'taspe7:open-prayer') {
+      assert.equal(event.detail.href, '/pray/?notificationType=PRAY_CONFIRMED&shareId=ios-reply');
+      return false;
+    }
+    return true;
+  };
+  s.listeners.pushNotificationActionPerformed(action);
+  assert.equal(s.calls.length, count);
+  assert.deepEqual(s.events, ['taspe7:open-prayer', 'taspe7:prayer-push']);
+  s.events.length = 0;
+  s.listeners.pushNotificationActionPerformed({ ...action, actionId: 'dismiss' });
+  assert.equal(s.calls.length, count);
+  assert.equal(s.events.length, 0);
 });

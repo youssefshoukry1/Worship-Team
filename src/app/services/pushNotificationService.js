@@ -8,6 +8,7 @@ let isInitialized = false;
 let isInitializing = false;
 let retryTimer;
 let retryCount = 0;
+let notificationActionListener;
 
 const API_URL = getApiBaseUrl();
 
@@ -72,6 +73,27 @@ export async function initPushNotifications() {
 
         const { PushNotifications } = await import('@capacitor/push-notifications');
 
+        // iOS retains taps received during launch. Consume them immediately;
+        // permission checks and APNs/FCM registration must not block navigation.
+        // Keep this listener across permission retries to avoid handling a tap twice.
+        if (!notificationActionListener) {
+            notificationActionListener = await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+                if (action.actionId === 'dismiss' || typeof window === 'undefined') return;
+                const data = action.notification?.data;
+                const prayerHref = prayerNotificationHref(data);
+                if (prayerHref) {
+                    // An already mounted page opens the card without reloading the WebView.
+                    const open = new CustomEvent('taspe7:open-prayer', {
+                        detail: { href: prayerHref }, cancelable: true,
+                    });
+                    if (window.dispatchEvent(open)) navigateDocumentFallback(prayerHref);
+                    else window.dispatchEvent(new Event('taspe7:prayer-push'));
+                } else if (typeof data?.url === 'string' && data.url.startsWith('/') && !data.url.startsWith('//')) {
+                    navigateDocumentFallback(data.url);
+                }
+            });
+        }
+
         // Android high-importance notification channel for prayer & reply banners with avatars
         if (Capacitor.getPlatform() === 'android') {
             await PushNotifications.createChannel({
@@ -113,18 +135,6 @@ export async function initPushNotifications() {
         listenerHandles.push(await PushNotifications.addListener('pushNotificationReceived', (notification) => {
             if (['PRAY_SHARED', 'PRAY_CONFIRMED'].includes(notification.data?.type)) {
                 window.dispatchEvent(new Event('taspe7:prayer-push'));
-            }
-        }));
-
-        // Handle notification click -> navigate to target URL
-        listenerHandles.push(await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-            const data = action.notification?.data;
-            if (typeof window === 'undefined') return;
-            const prayerHref = prayerNotificationHref(data);
-            if (prayerHref) {
-                navigateDocumentFallback(prayerHref);
-            } else if (typeof data?.url === 'string' && data.url.startsWith('/') && !data.url.startsWith('//')) {
-                navigateDocumentFallback(data.url);
             }
         }));
 
