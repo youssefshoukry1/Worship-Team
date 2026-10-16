@@ -41,6 +41,7 @@ public class PrayerNotificationRenderingTest {
 
     @Before public void setup() {
         context = RuntimeEnvironment.getApplication();
+        PrayerNotificationRenderer.clear(context);
         Shadows.shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(Manifest.permission.POST_NOTIFICATIONS);
     }
 
@@ -67,7 +68,8 @@ public class PrayerNotificationRenderingTest {
         var activity = Robolectric.buildActivity(NativeLifecycleActivity.class).create().start();
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         PrayerNotificationRenderer.show(context, data(false), "before-launch", 1234, photo());
-        assertEquals(1, manager.getActiveNotifications().length);
+        PrayerNotificationRenderer.show(context, data(false), "before-launch-second", 1235, photo());
+        assertEquals(3, manager.getActiveNotifications().length); // Two children plus their summary.
         activity.resume();
         assertEquals(0, manager.getActiveNotifications().length);
         PrayerNotificationRenderer.show(context, data(false), "late-photo-update", 1234, photo());
@@ -75,6 +77,8 @@ public class PrayerNotificationRenderingTest {
         activity.pause().stop();
         PrayerNotificationRenderer.show(context, data(false), "while-backgrounded", 1234, photo());
         assertEquals(1, manager.getActiveNotifications().length);
+        PrayerNotificationRenderer.show(context, data(false), "while-backgrounded-second", 1235, photo());
+        assertEquals(3, manager.getActiveNotifications().length);
         activity.restart().start().resume();
         assertEquals(0, manager.getActiveNotifications().length);
         activity.pause().stop().destroy();

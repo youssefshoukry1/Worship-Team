@@ -23,12 +23,13 @@ import androidx.core.content.pm.ShortcutInfoCompat;
 import androidx.core.content.pm.ShortcutManagerCompat;
 import androidx.core.graphics.drawable.IconCompat;
 import java.util.Map;
+import java.util.Locale;
 
 final class PrayerNotificationRenderer {
     static final String CHANNEL = "prays_channel";
     static final int ID = 1;
 
-    static void show(Context context, Map<String, String> data, String tag, long timestamp, Bitmap photo) {
+    static synchronized void show(Context context, Map<String, String> data, String tag, long timestamp, Bitmap photo) {
         // A message/photo finishing after the app opens must not bring its alert back.
         // The service still forwards the message to the page for silent refresh.
         if (MainActivity.isForeground()) return;
@@ -67,10 +68,22 @@ final class PrayerNotificationRenderer {
             .setSmallIcon(R.drawable.ic_stat_wasla).setColor(Color.rgb(0, 194, 255))
             .setContentTitle(title).setContentText(body).setLargeIcon(avatar).setStyle(style)
             .setShortcutId(shortcutId).addPerson(sender)
+            .setGroup(PrayerNotificationGroup.KEY)
+            .setSortKey(String.format(Locale.ROOT, "%019d", Long.MAX_VALUE - timestamp))
+            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE).setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(tap).setAutoCancel(true).setOnlyAlertOnce(true)
+            .setDeleteIntent(PrayerNotificationGroup.deleteIntent(context, tag))
             .setWhen(timestamp).setShowWhen(true).setVisibility(NotificationCompat.VISIBILITY_PRIVATE);
-        manager.notify(tag, ID, builder.build());
+        PrayerNotificationGroup.post(context, tag, builder.build());
+    }
+
+    static synchronized void dismiss(Context context, String tag) {
+        PrayerNotificationGroup.dismiss(context, tag);
+    }
+
+    static synchronized void clear(Context context) {
+        PrayerNotificationGroup.clear(context);
     }
 
     static Bitmap avatar(Context context, String title, boolean anonymous, Bitmap photo) {

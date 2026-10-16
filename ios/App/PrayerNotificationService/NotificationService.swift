@@ -5,6 +5,7 @@ import ImageIO
 import CryptoKit
 
 final class NotificationService: UNNotificationServiceExtension, URLSessionDataDelegate {
+    private static let prayerThread = "wasla.prayers"
     private let limit = 5 * 1024 * 1024
     private let completionLock = NSLock()
     private var contentHandler: ((UNNotificationContent) -> Void)?
@@ -38,11 +39,13 @@ final class NotificationService: UNNotificationServiceExtension, URLSessionDataD
         content.userInfo["url"] = "/pray"
         if anonymous { content.userInfo["avatarUrl"] = "" }
         conversationID = "prayer-\(type)-\(info["shareId"] as? String ?? request.identifier)"
-        content.threadIdentifier = conversationID
+        // One native expandable stack for prayers and replies, while userInfo
+        // and the communication intent retain each prayer's own identity.
+        content.threadIdentifier = Self.prayerThread
 
         let fallback = fallbackAvatar()
         // Keep an avatar-ready fallback available if iOS ends the extension's time budget.
-        bestAttempt = (try? content.updating(from: messageIntent(image: fallback))) ?? content
+        bestAttempt = groupedContent((try? content.updating(from: messageIntent(image: fallback))) ?? content)
         guard !anonymous, let value = info["avatarUrl"] as? String,
               let url = URL(string: value), url.scheme?.lowercased() == "https" else {
             deliver(image: fallback); return
@@ -101,9 +104,17 @@ final class NotificationService: UNNotificationServiceExtension, URLSessionDataD
         interaction.direction = .incoming
         interaction.donate { [weak self] _ in
             guard let self = self else { return }
-            let updated = (try? content.updating(from: intent)) ?? content
+            let updated = self.groupedContent((try? content.updating(from: intent)) ?? content)
             self.finish(updated)
         }
+    }
+
+    private func groupedContent(_ content: UNNotificationContent) -> UNNotificationContent {
+        guard let grouped = content.mutableCopy() as? UNMutableNotificationContent else { return content }
+        // Communication styling can rewrite thread metadata; restore our shared
+        // grouping key after styling, including the extension-timeout fallback.
+        grouped.threadIdentifier = Self.prayerThread
+        return grouped
     }
 
     private func messageIntent(image: UIImage) -> INSendMessageIntent {
