@@ -16,6 +16,7 @@ function service(fetch) {
     setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; }, clearTimeout() {},
     getApiBaseUrl: () => 'https://example.test/api',
     navigateDocumentFallback: href => calls.push(href),
+    markFriendsCacheDirty: () => storage.set('friends-dirty', '1'),
     URLSearchParams,
     Capacitor: { isNativePlatform: () => true, getPlatform: () => 'android' },
     nativeRegistration: { getFcmToken: async () => ({ token: 'ios-fcm-token' }) },
@@ -35,7 +36,9 @@ function service(fetch) {
     .replace('const { PushNotifications } = ({ PushNotifications });', '');
   const navigationSource = fs.readFileSync(path.join(__dirname, '../src/app/utils/prayerNotificationNavigation.js'), 'utf8')
     .replaceAll('export function', 'function');
-  vm.runInNewContext(navigationSource + '\n' + source + ';globalThis.api = { syncFcmTokenWithBackend, initPushNotifications };', context);
+  const friendSource = fs.readFileSync(path.join(__dirname, '../src/app/utils/friendNotificationNavigation.js'), 'utf8')
+    .replaceAll('export function', 'function');
+  vm.runInNewContext(navigationSource + '\n' + friendSource + '\n' + source + ';globalThis.api = { syncFcmTokenWithBackend, initPushNotifications };', context);
   return { ...context, listeners, calls, timers, events };
 }
 test('HTTP failures return false and schedule a retry rather than reporting success', async () => {
@@ -158,4 +161,35 @@ test('iOS reply taps open the card without reloading a mounted page; dismissing 
   s.listeners.pushNotificationActionPerformed({ ...action, actionId: 'dismiss' });
   assert.equal(s.calls.length, count);
   assert.equal(s.events.length, 0);
+});
+
+test('friend taps route to the right section on both platforms and bypass a stale friends cache', async () => {
+  for (const platform of ['android', 'ios']) {
+    const s = service(async () => ({ ok: true })); s.Capacitor.getPlatform = () => platform;
+    await s.api.initPushNotifications();
+    for (const type of ['FRIEND_REQUEST_RECEIVED', 'FRIEND_REQUEST_ACCEPTED']) {
+      s.listeners.pushNotificationActionPerformed({ actionId: 'tap', notification: { data: { type, actorId: 'friend' } } });
+      assert.equal(s.calls.at(-1), `/friends/?notificationType=${type}&actorId=friend`);
+      assert.equal(s.localStorage.getItem('friends-dirty'), '1');
+    }
+    s.listeners.pushNotificationReceived({ data: { type: 'FRIEND_REQUEST_RECEIVED' } });
+    assert.equal(s.events.at(-1), 'taspe7:friends-push');
+  }
+});
+
+test('friend taps on an already mounted page avoid navigation and request an immediate refresh', async () => {
+  const s = service(async () => ({ ok: true })); await s.api.initPushNotifications();
+  const count = s.calls.length;
+  s.window.dispatchEvent = event => { assert.equal(event.type, 'taspe7:open-friends'); return false; };
+  s.listeners.pushNotificationActionPerformed({ notification: { data: { type: 'FRIEND_REQUEST_ACCEPTED', actorId: 'friend' } } });
+  assert.equal(s.calls.length, count);
+});
+
+test('old APKs retain standard friend alerts while a rebuilt Android renderer advertises avatar support', async () => {
+  let body;
+  const s = service(async (url, options) => { body = JSON.parse(options.body); return { ok: true }; });
+  s.Capacitor.isPluginAvailable = () => true;
+  await s.api.syncFcmTokenWithBackend(); assert.equal(body.androidFriendAvatar, false);
+  s.nativeRegistration.getCapabilities = async () => ({ friendAvatar: true });
+  await s.api.syncFcmTokenWithBackend(); assert.equal(body.androidFriendAvatar, true);
 });

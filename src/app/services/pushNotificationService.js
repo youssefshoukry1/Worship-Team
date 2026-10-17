@@ -3,6 +3,8 @@
 import { getApiBaseUrl } from '../utils/apiBase';
 import { navigateDocumentFallback } from '../utils/appNavigation';
 import { prayerNotificationHref } from '../utils/prayerNotificationNavigation';
+import { friendNotificationHref } from '../utils/friendNotificationNavigation';
+import { markFriendsCacheDirty } from '../utils/friendsCache';
 
 let isInitialized = false;
 let isInitializing = false;
@@ -35,13 +37,20 @@ export async function syncFcmTokenWithBackend(fcmToken) {
         if (!tokenToSync) return;
         const androidAvatar = core.Capacitor.getPlatform() === 'android'
             && Boolean(core.Capacitor.isPluginAvailable?.('PrayerNotifications'));
+        let androidFriendAvatar = false;
+        if (androidAvatar) {
+            try {
+                const capabilities = await core.registerPlugin('PrayerNotifications').getCapabilities();
+                androidFriendAvatar = capabilities.friendAvatar === true;
+            } catch { /* Older APKs receive standard FCM friend alerts. */ }
+        }
         const response = await fetch(`${API_URL}/users/fcm-token`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token}`
             },
-            body: JSON.stringify({ fcmToken: tokenToSync, androidAvatar })
+            body: JSON.stringify({ fcmToken: tokenToSync, androidAvatar, androidFriendAvatar })
         });
         if (!response.ok) throw new Error(`Token registration failed: HTTP ${response.status}`);
         clearTimeout(retryTimer);
@@ -80,6 +89,15 @@ export async function initPushNotifications() {
             notificationActionListener = await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
                 if (action.actionId === 'dismiss' || typeof window === 'undefined') return;
                 const data = action.notification?.data;
+                const friendHref = friendNotificationHref(data);
+                if (friendHref) {
+                    markFriendsCacheDirty(localStorage.getItem('user_Taspe7_ID'));
+                    const open = new CustomEvent('taspe7:open-friends', {
+                        detail: { href: friendHref }, cancelable: true,
+                    });
+                    if (window.dispatchEvent(open)) navigateDocumentFallback(friendHref);
+                    return;
+                }
                 const prayerHref = prayerNotificationHref(data);
                 if (prayerHref) {
                     // An already mounted page opens the card without reloading the WebView.
@@ -98,8 +116,8 @@ export async function initPushNotifications() {
         if (Capacitor.getPlatform() === 'android') {
             await PushNotifications.createChannel({
                 id: 'prays_channel',
-                name: 'Prayers & Replies',
-                description: 'Notifications for shared prayers and replies',
+                name: 'Wasla activity',
+                description: 'Prayers, replies and friend requests',
                 importance: 5,
                 visibility: 1,
                 sound: 'default',
@@ -133,6 +151,10 @@ export async function initPushNotifications() {
 
         // Handle foreground notifications
         listenerHandles.push(await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+            if (friendNotificationHref(notification.data)) {
+                markFriendsCacheDirty(localStorage.getItem('user_Taspe7_ID'));
+                window.dispatchEvent(new Event('taspe7:friends-push'));
+            }
             if (['PRAY_SHARED', 'PRAY_CONFIRMED'].includes(notification.data?.type)) {
                 window.dispatchEvent(new Event('taspe7:prayer-push'));
             }

@@ -20,11 +20,11 @@ public class PrayerMessagingService extends MessagingService {
         Map<String, String> data = message.getData();
         String type = data.get("type");
         if (!"avatar-v1".equals(data.get("notificationStyle")) ||
-            !("PRAY_SHARED".equals(type) || "PRAY_CONFIRMED".equals(type))) {
+            !PrayerNotificationIdentity.supports(type)) {
             super.onMessageReceived(message);
             return;
         }
-        String tag = "prayer:" + type + ":" + data.getOrDefault("shareId", message.getMessageId());
+        String tag = PrayerNotificationIdentity.notificationTag(data, message.getMessageId());
         long timestamp = message.getSentTime() > 0 ? message.getSentTime() : System.currentTimeMillis();
         boolean anonymous = PrayerNotificationIdentity.isAnonymous(data);
         String avatarUrl = data.getOrDefault("avatarUrl", "");

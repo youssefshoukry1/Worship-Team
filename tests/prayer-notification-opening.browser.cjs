@@ -120,3 +120,126 @@ test('uncached prayers and replies appear before acknowledgement requests finish
     await page.locator('[data-prayer-id="sent-789"]').getByText('New reply', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
   } finally { release(); await context.close(); }
 });
+
+async function seedFriends(page, cache) {
+  await seed(page, []);
+  await page.evaluate(async cache => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('taspe7_app', 2);
+      request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('bible_store')) request.result.createObjectStore('bible_store'); };
+      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('bible_store', 'readwrite');
+      tx.objectStore('bible_store').put({ ...cache, requestsSyncedAt: Date.now(), friendsSyncedAt: Date.now() }, 'friends_data_tester');
+      tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  }, cache);
+}
+
+test('friend notifications select the right cached section with a stalled backend and no warm-page reload', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let release;
+  const stalled = new Promise(resolve => { release = resolve; });
+  const fetched = [];
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', async route => {
+      const url = route.request().url();
+      if (url.startsWith(base)) return route.continue();
+      if (!['fetch', 'xhr'].includes(route.request().resourceType())) return route.abort();
+      fetched.push(url); await stalled;
+      return route.fulfill({ json: {} }).catch(() => {});
+    });
+    await seedFriends(page, { friends: [{ _id: 'alice', Name: 'Alice', username: 'alice' }],
+      incomingRequests: [{ _id: 'request-bob', from: { _id: 'bob', Name: 'Bob', username: 'bob' } }], outgoingRequests: [] });
+    await page.goto(base + '/friends/index.html?notificationType=FRIEND_REQUEST_ACCEPTED&actorId=alice', { waitUntil: 'domcontentloaded' });
+    await page.locator('[data-friend-id="alice"]').getByText('Alice', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+    assert.equal(await page.getByText('Loading connections...', { exact: true }).count(), 0);
+    const href = page.url();
+    const handled = await page.evaluate(() => !window.dispatchEvent(new CustomEvent('taspe7:open-friends', {
+      detail: { href: '/friends/?notificationType=FRIEND_REQUEST_RECEIVED&actorId=bob' }, cancelable: true,
+    })));
+    assert.equal(handled, true);
+    const row = page.locator('[data-friend-id="bob"]');
+    await row.getByRole('button', { name: 'Accept', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+    assert.equal(await row.evaluate(el => getComputedStyle(el).outlineStyle), 'none');
+    assert.equal(page.url(), href);
+    assert.ok(fetched.some(url => url.endsWith('/friend-requests')), 'Notification must bypass the fresh cache TTL');
+  } finally { release(); await context.close(); }
+});
+
+test('a new incoming request appears before a slow friends-list response completes', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let release;
+  const stalled = new Promise(resolve => { release = resolve; });
+  let requests = 0;
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', async route => {
+      const url = route.request().url();
+      if (url.startsWith(base)) return route.continue();
+      if (!['fetch', 'xhr'].includes(route.request().resourceType())) return route.abort();
+      if (url.endsWith('/users/friends')) { await stalled; return route.fulfill({ json: { friends: [] } }).catch(() => {}); }
+      if (url.endsWith('/users/friend-requests')) {
+        requests++;
+        return route.fulfill({ json: { incoming: [{ from: { _id: requests === 1 ? 'new-friend' : 'later-friend', Name: 'New Friend', username: 'newfriend' } }], outgoing: [] } });
+      }
+      return route.fulfill({ json: { user: { username: 'tester' } } });
+    });
+    await seedFriends(page, { friends: [], incomingRequests: [], outgoingRequests: [] });
+    // A push received while on another page invalidates this otherwise fresh cache.
+    await page.evaluate(() => localStorage.setItem('taspe7_friends_dirty_tester', '1'));
+    await page.goto(base + '/friends/', { waitUntil: 'domcontentloaded' });
+    await page.locator('[data-friend-id="new-friend"]').getByText('New Friend', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+    assert.equal(await page.getByText('Loading connections...', { exact: true }).count(), 0);
+    assert.equal(await page.evaluate(() => localStorage.getItem('taspe7_friends_dirty_tester')), '1');
+    await page.evaluate(() => window.dispatchEvent(new Event('taspe7:friends-push')));
+    await page.locator('[data-friend-id="later-friend"]').getByText('New Friend', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+  } finally { release(); await context.close(); }
+});
+
+test('a late background response cannot restore a request that the user has already accepted', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const alice = { _id: 'alice', Name: 'Alice', username: 'alice' };
+  let release, firstStarted, secondStarted, accepted = false, count = 0;
+  const first = new Promise(resolve => { firstStarted = resolve; });
+  const second = new Promise(resolve => { secondStarted = resolve; });
+  const stale = new Promise(resolve => { release = resolve; });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', async route => {
+      const url = route.request().url();
+      if (url.startsWith(base)) return route.continue();
+      if (!['fetch', 'xhr'].includes(route.request().resourceType())) return route.abort();
+      if (url.endsWith('/friend-request/accept/alice')) { accepted = true; return route.fulfill({ json: { success: true } }); }
+      if (url.endsWith('/users/friend-requests')) {
+        count++;
+        if (count === 1) {
+          firstStarted(); await stale;
+          return route.fulfill({ json: { incoming: [{ from: alice }], outgoing: [] } }).catch(() => {});
+        }
+        secondStarted();
+        return route.fulfill({ json: { incoming: accepted ? [] : [{ from: alice }], outgoing: [] } });
+      }
+      if (url.endsWith('/users/friends')) return route.fulfill({ json: { friends: accepted ? [alice] : [] } });
+      return route.fulfill({ json: { user: { username: 'tester' } } });
+    });
+    await seedFriends(page, { friends: [], incomingRequests: [{ from: alice }], outgoingRequests: [] });
+    await page.goto(base + '/friends/', { waitUntil: 'domcontentloaded' });
+    await first;
+    await page.locator('[data-friend-id="alice"]').getByRole('button', { name: 'Accept', exact: true }).click();
+    await page.getByText('No pending incoming requests', { exact: true }).waitFor({ state: 'visible' });
+    await page.evaluate(() => {
+      window.requestRestored = false;
+      new MutationObserver(() => { if (document.querySelector('[data-friend-id="alice"]')) window.requestRestored = true; })
+        .observe(document.body, { childList: true, subtree: true });
+    });
+    release(); await second;
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.equal(await page.evaluate(() => window.requestRestored), false);
+    await page.getByRole('button', { name: /My Friends/ }).click();
+    await page.locator('[data-friend-id="alice"]').getByText('Alice', { exact: true }).waitFor({ state: 'visible' });
+  } finally { release(); await context.close(); }
+});

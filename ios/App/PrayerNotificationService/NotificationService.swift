@@ -28,7 +28,8 @@ final class NotificationService: UNNotificationServiceExtension, URLSessionDataD
         original = content
         bestAttempt = content
         let info = content.userInfo
-        guard let type = info["type"] as? String, ["PRAY_SHARED", "PRAY_CONFIRMED"].contains(type) else {
+        guard let type = info["type"] as? String,
+              ["PRAY_SHARED", "PRAY_CONFIRMED", "FRIEND_REQUEST_RECEIVED", "FRIEND_REQUEST_ACCEPTED"].contains(type) else {
             finish(content); return
         }
         anonymous = type == "PRAY_SHARED" && (info["isAnonymous"] as? String == "true" || info["isAnonymous"] as? Bool == true)
@@ -36,11 +37,13 @@ final class NotificationService: UNNotificationServiceExtension, URLSessionDataD
         senderName = anonymous ? "anonymously user" : (name.isEmpty ? "A friend" : name)
         content.title = senderName
         content.userInfo["title"] = senderName
-        content.userInfo["url"] = "/pray"
+        let friendActivity = type == "FRIEND_REQUEST_RECEIVED" || type == "FRIEND_REQUEST_ACCEPTED"
+        content.userInfo["url"] = friendActivity ? "/friends" : "/pray"
         if anonymous { content.userInfo["avatarUrl"] = "" }
-        conversationID = "prayer-\(type)-\(info["shareId"] as? String ?? request.identifier)"
-        // One native expandable stack for prayers and replies, while userInfo
-        // and the communication intent retain each prayer's own identity.
+        let targetID = info[friendActivity ? "actorId" : "shareId"] as? String ?? request.identifier
+        conversationID = "activity-\(type)-\(targetID)"
+        // Share the existing activity stack with prayers and replies, while
+        // retaining each notification's type and target in userInfo.
         content.threadIdentifier = Self.prayerThread
 
         let fallback = fallbackAvatar()

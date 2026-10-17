@@ -36,9 +36,11 @@ final class PrayerNotificationRenderer {
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context,
             Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return;
         NotificationManager manager = context.getSystemService(NotificationManager.class);
-        NotificationChannel channel = new NotificationChannel(CHANNEL, "Prayers & Replies", NotificationManager.IMPORTANCE_HIGH);
-        channel.enableVibration(true);
-        manager.createNotificationChannel(channel);
+        if (Build.VERSION.SDK_INT >= 26) {
+            NotificationChannel channel = new NotificationChannel(CHANNEL, "Wasla activity", NotificationManager.IMPORTANCE_HIGH);
+            channel.enableVibration(true);
+            manager.createNotificationChannel(channel);
+        }
         String title = PrayerNotificationIdentity.title(data);
         String body = data.getOrDefault("body", "Shared a prayer with you");
         boolean anonymous = PrayerNotificationIdentity.isAnonymous(data);
@@ -51,7 +53,7 @@ final class PrayerNotificationRenderer {
         for (Map.Entry<String, String> entry : data.entrySet()) intent.putExtra(entry.getKey(), entry.getValue());
         intent.putExtra("google.message_id", tag);
         // Fixed internal destination, handled by Capacitor's existing push-tap listener.
-        intent.putExtra("url", "/pray");
+        intent.putExtra("url", PrayerNotificationIdentity.destination(data));
         // A valid long-lived conversation shortcut makes Android use the sender's avatar
         // in the collapsed notification and add the application's own badge to it.
         String shortcutId = "prayer-" + tag;
