@@ -32,9 +32,10 @@ const compressor = (ctx, { threshold, knee, ratio, attack, release }) => {
 const getMicStream = async () => {
     const audio = {
         echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
+        noiseSuppression: false,
+        autoGainControl: false,
         channelCount: 1,
+        sampleRate: 48000,
     };
     try {
         return await navigator.mediaDevices.getUserMedia({ audio });
@@ -58,19 +59,19 @@ export async function openVoiceInput() {
         const source = ctx.createMediaStreamSource(mic);
 
         // Low-cut rumble filter
-        const lowCut = filter(ctx, 'highpass', 60, { Q: 0.707 });
+        const lowCut = filter(ctx, 'highpass', 80, { Q: 0.707 });
 
         // Normal unity volume
         const volume = ctx.createGain();
         volume.gain.value = 1.0;
 
-        // Transparent peak safety limiter
-        const limiter = compressor(ctx, {
-            threshold: -1,
-            knee: 4,
-            ratio: 12,
-            attack: 0.002,
-            release: 0.1,
+        // Smooth vocal leveling compressor
+        const vocalCompressor = compressor(ctx, {
+            threshold: -18,
+            knee: 24,
+            ratio: 3.0,
+            attack: 0.005,
+            release: 0.22,
         });
 
         const destination = ctx.createMediaStreamDestination();
@@ -78,8 +79,8 @@ export async function openVoiceInput() {
 
         source.connect(lowCut);
         lowCut.connect(volume);
-        volume.connect(limiter);
-        limiter.connect(destination);
+        volume.connect(vocalCompressor);
+        vocalCompressor.connect(destination);
 
         let closed = false;
         return {

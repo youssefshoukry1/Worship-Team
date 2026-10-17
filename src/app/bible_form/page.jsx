@@ -8,10 +8,10 @@ import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { showToast } from '../components/ToastContainer';
-import { Sparkles, X, Check, Search, FileText, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Loader2, Copy, Lightbulb, FolderPlus, Monitor, PlusCircle, Link2, List, AlignJustify, Download } from 'lucide-react';
+import { Sparkles, X, Check, Search, FileText, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Loader2, Copy, Lightbulb, FolderPlus, Monitor, PlusCircle, Link2, List, AlignJustify, Download, SlidersHorizontal } from 'lucide-react';
 import { normalizeBibleBooksFromApi } from '../utils/bibleBooks';
 import { getApiBaseUrl } from '../utils/apiBase';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { isApp } from '../utils/platform';
 import { initLocalBible, getLocalBibleIndex, searchLocalBible, isTranslationDownloaded, downloadTranslationToLocal, getKnownDownloadedTranslations, getDownloadedTranslations } from '../utils/bibleSync';
 import { queueOfflineAction } from '../utils/offlineQueue';
@@ -447,11 +447,10 @@ function ColorCustomizer({
     <div
       onPointerDown={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
-      className={`flex flex-col sm:flex-row gap-4 backdrop-blur-2xl text-white rounded-2xl p-4 border w-full max-w-[500px] select-none transition-colors ${
-        isDark
-          ? 'bg-[#141824]/95 border-white/10 shadow-[0_15px_50px_rgba(0,0,0,0.7)]'
-          : 'bg-[#002238]/95 border-sky-400/25 shadow-[0_15px_50px_rgba(0,20,35,0.7)]'
-      }`}
+      className={`flex flex-col sm:flex-row gap-4 backdrop-blur-2xl text-white rounded-2xl p-4 border w-full max-w-[500px] select-none transition-colors ${isDark
+        ? 'bg-[#141824]/95 border-white/10 shadow-[0_15px_50px_rgba(0,0,0,0.7)]'
+        : 'bg-[#002238]/95 border-sky-400/25 shadow-[0_15px_50px_rgba(0,20,35,0.7)]'
+        }`}
       dir="rtl"
     >
       {/* 2D Saturation / Value Box & Hue Slider */}
@@ -881,20 +880,27 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
           next.add(tr);
           return next;
         });
-        showToast(language === 'ar' ? 'تم تحميل الترجمة بنجاح للتشغيل بدون إنترنت!' : 'Translation downloaded successfully for offline use!');
+        showToast({
+          message: language === 'ar' ? `تم تحميل ترجمة ${tr} بنجاح!` : `${tr} downloaded successfully!`,
+          type: 'success',
+        });
         if (autoSelect || bibleTranslation === tr) {
           setBibleTranslation(tr);
         }
       }
     } catch (error) {
       if (error?.isNotFound) {
-        showToast(
-          language === 'ar'
-            ? `ترجمة ${tr} غير متوفرة في قاعدة البيانات حالياً.`
-            : `Translation ${tr} is not available in the database yet.`
-        );
+        showToast({
+          message: language === 'ar'
+            ? `ترجمة ${tr} غير متوفرة حالياً.`
+            : `Translation ${tr} is not available.`,
+          type: 'error',
+        });
       } else {
-        showToast(language === 'ar' ? 'فشل تحميل الترجمة. تأكد من اتصالك بالإنترنت.' : 'Failed to download translation. Check your connection.');
+        showToast({
+          message: language === 'ar' ? 'فشل تحميل الترجمة. تأكد من اتصالك بالإنترنت.' : 'Failed to download translation. Check your connection.',
+          type: 'error',
+        });
       }
     } finally {
       setIsDownloadingTranslation(null);
@@ -1591,8 +1597,47 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   };
 }
 
-export function BibleForm({ controller }) {
+function BibleReaderWrapper({ isPage, isDark, onClose, children }) {
+  if (isPage) {
+    return (
+      <div className="w-full flex items-center justify-center p-0 sm:p-6 h-[calc(100dvh-5rem)] overflow-hidden">
+        {children}
+      </div>
+    );
+  }
+  return (
+    <Portal>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-6 overflow-hidden app-page-transition">
+        <div
+          className={`absolute inset-0 backdrop-blur-xl transition-colors duration-200 ${isDark ? 'bg-[#050505]/80' : 'bg-[#001424]/80'
+            }`}
+          onClick={onClose}
+        />
+        {children}
+      </div>
+    </Portal>
+  );
+}
+
+export function BibleForm({ controller, isPage = false }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isStandalonePage = isPage || pathname?.startsWith('/bible_form');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const settingsPanelRef = useRef(null);
+  const settingsBtnRef = useRef(null);
+
+  useEffect(() => {
+    if (!isSettingsOpen) return;
+    const handleOutsideClick = (e) => {
+      if (settingsBtnRef.current && settingsBtnRef.current.contains(e.target)) return;
+      if (settingsPanelRef.current && !settingsPanelRef.current.contains(e.target)) {
+        setIsSettingsOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handleOutsideClick);
+    return () => document.removeEventListener('pointerdown', handleOutsideClick);
+  }, [isSettingsOpen]);
   const { isDark } = useTheme();
   const { isLogin } = useContext(UserContext);
   const { t, language } = useLanguage();
@@ -1748,1160 +1793,1172 @@ export function BibleForm({ controller }) {
     <>
       {/* This is the Bible search and reader */}
       {isOpen && (
-        <Portal>
-          {/* Fixed the wrapper by adding overflow-hidden to prevent background interaction */}
+        <BibleReaderWrapper isPage={isStandalonePage} isDark={isDark} onClose={closeBibleModal}>
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-6 overflow-hidden"
-          >
-            {/* Dynamic Background Blur */}
-            <div
-              className={`absolute inset-0 backdrop-blur-xl transition-colors duration-200 ${
-                isDark ? 'bg-[#050505]/80' : 'bg-[#001424]/80'
+            className={`relative w-full h-full sm:h-[85vh] max-w-4xl border sm:rounded-[2.5rem] flex flex-col overflow-hidden backdrop-blur-2xl transition-colors duration-200 ${isDark
+              ? 'bg-[#060b13]/90 sm:bg-[#060b13]/85 border-white/10 shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)]'
+              : 'bg-[#001f33]/95 sm:bg-[#002238]/90 border-sky-400/25 shadow-[0_0_60px_-12px_rgba(14,165,233,0.25)]'
               }`}
-              onClick={closeBibleModal}
+          >
+            {/* Background Glows matching project light/dark theme */}
+            <div
+              className={`absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,${isDark ? '0.06' : '0.14'
+                }),transparent_70%)] pointer-events-none`}
+            />
+            <div
+              className={`absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,${isDark ? '0.04' : '0.10'
+                }),transparent_70%)] pointer-events-none`}
             />
 
+            {/* --- MAIN SCROLL AREA - FIXED HEIGHT --- */}
+            {/* Added 'overscroll-contain' to stop the website from scrolling when this reaches the end */}
             <div
-              className={`relative w-full h-full sm:h-[85vh] max-w-4xl border sm:rounded-[2.5rem] flex flex-col overflow-hidden backdrop-blur-2xl transition-colors duration-200 ${
-                isDark
-                  ? 'bg-[#060b13]/90 sm:bg-[#060b13]/85 border-white/10 shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)]'
-                  : 'bg-[#001f33]/95 sm:bg-[#002238]/90 border-sky-400/25 shadow-[0_0_60px_-12px_rgba(14,165,233,0.25)]'
-              }`}
+              ref={bibleScrollContainerRef}
+              className="flex-1 overflow-y-auto min-h-0 overscroll-contain custom-scrollbar-thin"
+              dir="rtl"
+              data-lenis-prevent-wheel
+              onScroll={(e) => {
+                window.dispatchEvent(new CustomEvent('internalScroll', { detail: { scrollY: e.currentTarget.scrollTop } }));
+              }}
             >
-              {/* Background Glows matching project light/dark theme */}
-              <div
-                className={`absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,${
-                  isDark ? '0.06' : '0.14'
-                }),transparent_70%)] pointer-events-none`}
-              />
-              <div
-                className={`absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,${
-                  isDark ? '0.04' : '0.10'
-                }),transparent_70%)] pointer-events-none`}
-              />
 
-              {/* --- MAIN SCROLL AREA - FIXED HEIGHT --- */}
-              {/* Added 'overscroll-contain' to stop the website from scrolling when this reaches the end */}
-              <div
-                ref={bibleScrollContainerRef}
-                className="flex-1 overflow-y-auto min-h-0 overscroll-contain custom-scrollbar-thin"
-                dir="rtl"
-                data-lenis-prevent-wheel
-                onScroll={(e) => {
-                  window.dispatchEvent(new CustomEvent('internalScroll', { detail: { scrollY: e.currentTarget.scrollTop } }));
-                }}
-              >
-                {/* ── Top Bar (Placed inside scroll container so it stays in its place and does not scroll down with the user) ── */}
-                <div
-                  className={`w-full flex items-center justify-center px-3 py-2.5 border-b backdrop-blur-md transition-colors duration-200 ${
-                    isDark
-                      ? 'border-white/[0.07] bg-black/50'
-                      : 'border-sky-400/20 bg-[#001726]/60'
-                  }`}
-                >
-                  {/* Translation Selector Pill */}
-                  <div
-                    dir="ltr"
-                    className={`relative flex items-center rounded-full border p-[3px] max-w-md w-auto transition-colors ${
-                      isDark
-                        ? 'bg-white/[0.08] border-white/[0.1]'
-                        : 'bg-[#001424]/70 border-sky-400/25'
-                    }`}
-                  >
-                    {availableTranslations.includes(bibleTranslation) && (
-                      <div
-                        className="absolute top-[3px] bottom-[3px] rounded-full bg-sky-500 shadow-[0_2px_8px_rgba(14,165,233,0.3)] pointer-events-none"
-                        style={{
-                          width: `calc((100% - 6px) / ${availableTranslations.length})`,
-                          transform: `translateX(calc(${availableTranslations.indexOf(bibleTranslation)} * 100%))`,
-                          transition: "transform 0.18s cubic-bezier(0.4, 0, 0.2, 1)",
-                          willChange: "transform",
+
+              <div className="p-4 sm:p-12 max-w-3xl mx-auto space-y-6 pb-20 sm:pb-6">
+                {/* Smart Navigation Hub */}
+                <div className="space-y-3 pb-2" dir="rtl">
+                  <div className="flex items-center justify-between gap-2 sm:gap-3 w-full">
+                    {/* Search Toggle & Input */}
+                    <div className="flex items-center gap-2 sm:gap-3 relative z-20 h-10 flex-1 min-w-0">
+                      {/* Search Toggle (Icon Only) */}
+                      <button
+                        onClick={() => {
+                          setShowBibleSearchBar(!showBibleSearchBar);
+                          if (showBibleSearchBar) {
+                            setBibleSearchQuery('');
+                          }
                         }}
-                      />
-                    )}
-                    {availableTranslations.map((tr) => {
-                      const isDownloaded = downloadedTranslations.has(tr);
-                      const isDownloading = isDownloadingTranslation === tr;
-                      const isSelected = bibleTranslation === tr;
+                        className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-full transition-all duration-300 border backdrop-blur-xl relative overflow-hidden group shadow-lg z-30
+                           ${showBibleSearchBar
+                            ? 'bg-red-500/10 border-red-500/20 text-red-400 rotate-90 scale-90'
+                            : 'bg-white/5 border-white/20 text-sky-200 hover:bg-white/10 hover:text-white hover:border-sky-400/30 hover:shadow-[0_0_15px_rgba(56,189,248,0.3)]'
+                          }`}
+                        title={showBibleSearchBar ? (language === 'ar' ? "إغلاق البحث" : "Close Search") : (language === 'ar' ? "البحث في الكتاب المقدس" : "Search Bible")}
+                      >
+                        {showBibleSearchBar ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+                      </button>
 
+                      {/* Search Input Bar */}
+                      {showBibleSearchBar && (
+                        <div className="relative h-10 flex-1 min-w-0 max-w-[260px] flex items-center search-fade-in">
+                          <div className="absolute inset-0 bg-white/5 border border-white/10 rounded-full backdrop-blur-md shadow-inner" />
+
+                          <input
+                            autoFocus
+                            type="text"
+                            value={bibleSearchQuery}
+                            onChange={(e) => setBibleSearchQuery(e.target.value)}
+                            placeholder="ابحث بعمق..."
+                            className="w-full h-full pl-4 pr-8 py-2 bg-transparent text-sm text-white placeholder-gray-400/70 
+                                 outline-none relative z-10 font-light tracking-wide"
+                          />
+                          {bibleSearchQuery && (
+                            <button
+                              onClick={() => setBibleSearchQuery('')}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-white/20 text-gray-400 hover:text-white transition-all z-20"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Compact Selectors */}
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => setBiblePickerOpen(o => o === 'book' ? null : 'book')}
+                        className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 text-white text-xs font-bold transition-all flex items-center gap-2 ${biblePickerOpen === 'book' ? 'bg-sky-500/20 border-sky-500/50' : ''}`}
+                      >
+                        <span className="opacity-50 tracking-tighter">{t("book")}:</span>
+                        <span className="truncate max-w-[80px]">{bibleModalBook?.bookName || '...'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => setBiblePickerOpen(o => o === 'chapter' ? null : 'chapter')}
+                        disabled={!bibleModalBook}
+                        className={`px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 text-white text-xs font-bold transition-all flex items-center gap-2 ${biblePickerOpen === 'chapter' ? 'bg-sky-500/20 border-sky-500/50' : ''}`}
+                      >
+                        <span className="opacity-50">{t("chapter")}:</span>
+                        <span>{bibleModalChapter || '0'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Smart Floating Pickers Area - Facebook-style CSS Accordion & Sliding Navigation */}
+                  <div
+                    className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out overflow-hidden ${biblePickerOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
+                      }`}
+                  >
+                    <div
+                      className={`min-h-0 rounded-3xl overflow-hidden shadow-2xl relative border transition-colors ${isDark
+                        ? 'bg-white/[0.02] border-white/5'
+                        : 'bg-[#001829]/90 border-sky-400/20 shadow-[0_15px_40px_rgba(0,18,34,0.6)]'
+                        }`}
+                    >
+                      <div
+                        className="flex transition-transform duration-300 ease-out w-[200%]"
+                        style={{
+                          transform: biblePickerOpen === 'chapter' ? 'translateX(50%)' : 'translateX(0%)',
+                        }}
+                      >
+                        {/* Books Pane */}
+                        <div
+                          className="w-1/2 p-4 max-h-[30vh] overflow-y-auto custom-scrollbar"
+                          data-lenis-prevent-wheel
+                        >
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                            {bibleModalBooks.map((book) => (
+                              <button
+                                key={book._id}
+                                className={`px-3 py-2 rounded-xl text-right text-[11px] font-medium transition-colors ${bibleModalBook?.bookName === book.bookName ? 'bg-slate-700/80 text-slate-100 border border-slate-500/30 shadow-lg shadow-black/30' : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10 hover:text-white'}`}
+                                onClick={() => { setBibleModalBook(book); setBibleModalChapter(null); setBiblePickerOpen('chapter'); if (typeof window !== 'undefined') localStorage.setItem(BIBLE_LAST_POS_KEY, JSON.stringify({ bookName: book.bookName, chapter: null })); }}
+                              >
+                                {book.bookName}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Chapters Pane */}
+                        <div
+                          className="w-1/2 p-4 max-h-[30vh] overflow-y-auto custom-scrollbar"
+                          data-lenis-prevent-wheel
+                        >
+                          <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
+                            {bibleModalChapters.map((ch) => (
+                              <button
+                                key={ch}
+                                className={`h-10 rounded-xl flex items-center justify-center text-xs font-black transition-colors ${bibleModalChapter === ch ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20' : 'bg-white/5 text-white/40 hover:text-white'}`}
+                                onClick={() => { setBibleModalChapter(ch); setBiblePickerOpen(null); if (typeof window !== 'undefined' && bibleModalBook) localStorage.setItem(BIBLE_LAST_POS_KEY, JSON.stringify({ bookName: bibleModalBook.bookName, chapter: ch })); }}
+                              >
+                                {ch}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {isSearchingBible ? (
+                  <div className="flex flex-col items-center justify-center py-20 opacity-40 animate-pulse">
+                    <div className="w-12 h-12 border-2 border-sky-500/30 border-t-sky-500 rounded-full animate-spin mb-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white">Neural Search...</span>
+                  </div>
+                ) : bibleSearchQuery.trim() ? (
+                  <div className="space-y-6 pb-20">
+                    {bibleSearchResults.length > 0 ? (
+                      <>
+                        <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-6">
+                          <div className="w-1 h-6 bg-sky-500 rounded-full" />
+                          <h2 className="text-xl font-bold text-white">نتائج البحث ({bibleSearchResults.length})</h2>
+                        </div>
+                        <div className="grid gap-4">
+                          {bibleSearchResults.map((hit, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => goToChapterFromSearch(hit)}
+                              className="group p-4 rounded-2xl bg-white/[0.03] border border-white/0 hover:border-sky-500/30 hover:bg-sky-500/5 transition-all cursor-pointer"
+                            >
+                              <div className="flex justify-between items-start gap-4 mb-2">
+                                <span className="text-sky-400 font-bold text-sm">
+                                  {hit.bookName} {hit.chapter}:{hit.verseNumber}
+                                </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    presentBibleFromSearchHit(hit);
+                                  }}
+                                  className="p-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 transition-all active:scale-90"
+                                  title="Data Show"
+                                >
+                                  <Monitor className="w-4 h-4" />
+                                </button>
+                              </div>
+                              <p
+                                className="text-white/80 group-hover:text-white text-base leading-relaxed font-arabic transition-all [&_b]:text-sky-400 [&_b]:font-black"
+                                dangerouslySetInnerHTML={{ __html: hit.text }}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="py-20 text-center opacity-30">
+                        <Search className="w-12 h-12 mx-auto mb-4" />
+                        <p className="text-sm font-bold uppercase tracking-widest">
+                          {language === 'arabic' ? 'لم يتم العثور على نتائج' : 'No results found'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (bibleModalVerses.length > 0 || bibleModalBook) ? (
+                  <div className="space-y-10">
+                    {/* Modern Chapter Indicator */}
+                    <div className="flex items-end justify-between border-b border-white/5 pb-6">
+                      <div>
+                        <h1 className="text-3xl sm:text-5xl font-black text-white leading-none">
+                          {bibleModalBook.bookName}
+                        </h1>
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="h-[2px] w-8 bg-sky-500" />
+                          <span className="text-xs font-bold text-sky-400 uppercase tracking-tighter">{t("chapter")} {bibleModalChapter}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          ref={settingsBtnRef}
+                          onClick={() => setIsSettingsOpen(prev => !prev)}
+                          className="p-3 hover:bg-sky-500/20 text-white rounded-2xl transition-all active:scale-90 group"
+                          title={language === 'ar' ? 'الإعدادات' : 'Settings'}
+                        >
+                          <SlidersHorizontal className="w-5 h-5 group-hover:scale-110 transition-transform text-sky-400" />
+                        </button>
+                        <button
+                          onClick={() => openBiblePresentation({ bookName: bibleModalBook.bookName, chapter: bibleModalChapter, verses: bibleModalVerses, startIndex: 0 })}
+                          className="p-3 bg-white/5 hover:bg-sky-500 text-white rounded-2xl transition-all active:scale-90 group"
+                          title="Data Show"
+                        >
+                          <Monitor className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* The Reading Experience - Optimized for performance */}
+                    <div className="space-y-6 pb-20">
+                      {/* Verses Display */}
+                      {isCheckingOffline && bibleModalVerses.length === 0 ? (
+                        <div className="flex items-center justify-center py-24">
+                          <Loader2 className="w-6 h-6 animate-spin text-sky-400" />
+                        </div>
+                      ) : !downloadedTranslations.has(bibleTranslation) && bibleModalVerses.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
+                          <div className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(14,165,233,0.15)]">
+                            {isDownloadingTranslation === bibleTranslation ? (
+                              <Loader2 className="w-7 h-7 text-sky-400 animate-spin" />
+                            ) : (
+                              <Download className="w-7 h-7 text-sky-400" />
+                            )}
+                          </div>
+                          <h3 className="text-base sm:text-lg font-bold text-white mb-2 font-arabic" dir="rtl">
+                            {isDownloadingTranslation === bibleTranslation
+                              ? (language === 'ar' ? `جاري تحميل ترجمة ${bibleTranslation}...` : `Downloading ${bibleTranslation}...`)
+                              : (language === 'ar' ? `ترجمة ${bibleTranslation} غير محملة` : `${bibleTranslation} translation is not downloaded`)}
+                          </h3>
+                          <p className="text-xs sm:text-sm text-white/50 max-w-sm mb-5 leading-relaxed font-arabic" dir="rtl">
+                            {isDownloadingTranslation === bibleTranslation
+                              ? (language === 'ar' ? 'يرجى الانتظار حتى يكتمل التحميل للتشغيل بدون إنترنت.' : 'Please wait while the translation is being downloaded for offline use.')
+                              : (language === 'ar' ? 'يجب تحميل هذه الترجمة أولاً للتمكن من قراءتها بدون إنترنت.' : 'You must download this translation to read it offline.')}
+                          </p>
+                          {isDownloadingTranslation !== bibleTranslation && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                showToast(
+                                  language === 'ar'
+                                    ? `جاري تحميل ترجمة ${bibleTranslation}...`
+                                    : `Downloading ${bibleTranslation} translation...`
+                                );
+                                toggleDownloadTranslation(bibleTranslation, true);
+                              }}
+                              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] active:scale-95 cursor-pointer"
+                            >
+                              <Download className="w-4 h-4" />
+                              <span>{language === 'ar' ? 'تحميل الترجمة الآن' : 'Download Translation Now'}</span>
+                            </button>
+                          )}
+                        </div>
+                      ) : bibleModalVerses.length === 0 && bibleModalBrowseLoading ? (
+                        <div className="flex items-center justify-center py-24">
+                          <Loader2 className="w-6 h-6 animate-spin text-sky-400" />
+                        </div>
+                      ) : bibleViewMode === 'paragraph' ? (
+                        <div
+                          className="font-arabic text-right transition-all"
+                          dir="rtl"
+                          style={{
+                            fontSize: `${bibleVerseFontSize}px`,
+                            lineHeight: `${1.8 + (bibleVerseSpacing / 30)}`,
+                          }}
+                        >
+                          {bibleModalVerses.map((verse, idx) => {
+                            const getVerseInlineState = (v) => {
+                              if (!v) return { bg: 'transparent', hex: null, isSelected: false };
+                              const isSel = bibleSelectedVerseIds.has(v._id);
+                              const hl = bibleHighlights[v._id];
+                              let h = null;
+                              if (hl) {
+                                const colorObj = highlightColorsList?.find(c => c.id === hl);
+                                h = colorObj ? (colorObj.hex.startsWith('#') ? colorObj.hex : `#${colorObj.hex}`) : null;
+                                if (!h) {
+                                  if (hl.startsWith('#')) h = hl;
+                                  else if (hl.startsWith('custom-')) {
+                                    const raw = hl.replace('custom-', '');
+                                    if (/^[0-9a-fA-F]{3,8}$/.test(raw)) h = '#' + raw;
+                                  } else if (LEGACY_COLOR_MAP[hl]) {
+                                    h = LEGACY_COLOR_MAP[hl];
+                                  }
+                                }
+                              }
+                              let b = 'transparent';
+                              if (h) {
+                                b = `${h}26`;
+                              } else if (isSel) {
+                                b = 'rgba(255, 255, 255, 0.05)';
+                              }
+                              return { bg: b, hex: h, isSelected: isSel };
+                            };
+
+                            const curr = getVerseInlineState(verse);
+                            const prev = idx > 0 ? getVerseInlineState(bibleModalVerses[idx - 1]) : null;
+                            const next = idx < bibleModalVerses.length - 1 ? getVerseInlineState(bibleModalVerses[idx + 1]) : null;
+
+                            const isConnectedRight = prev && prev.bg !== 'transparent' && prev.bg === curr.bg;
+                            const isConnectedLeft = next && next.bg !== 'transparent' && next.bg === curr.bg;
+
+                            let borderRadius = '5px';
+                            let padding = '2px 5px';
+
+                            if (curr.bg !== 'transparent') {
+                              if (isConnectedRight && isConnectedLeft) {
+                                borderRadius = '0px';
+                                padding = '2px 0px';
+                              } else if (isConnectedRight && !isConnectedLeft) {
+                                borderRadius = '5px 0 0 5px';
+                                padding = '2px 0px 2px 5px';
+                              } else if (!isConnectedRight && isConnectedLeft) {
+                                borderRadius = '0 5px 5px 0';
+                                padding = '2px 5px 2px 0px';
+                              }
+                            }
+
+                            const existingNote = verseNotes[verse._id];
+
+                            return (
+                              <span
+                                key={verse._id}
+                                onClick={() => onVerseClick(verse._id)}
+                                style={{
+                                  backgroundColor: curr.bg,
+                                  border: 'none',
+                                  padding,
+                                  margin: '0',
+                                  borderRadius,
+                                  boxDecorationBreak: 'clone',
+                                  WebkitBoxDecorationBreak: 'clone',
+                                }}
+                                className={`inline cursor-pointer transition-all duration-200 ${!curr.hex && !curr.isSelected ? 'hover:bg-white/5' : ''} ${curr.bg !== 'transparent' ? 'text-white' : 'text-white/80 hover:text-white'}`}
+                              >
+                                <span
+                                  className={`inline-flex items-center justify-center text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-md ml-1 mr-0 select-none border transition-colors leading-none ${curr.isSelected
+                                    ? isDark ? 'text-sky-500/70 bg-white/5 border-white/10' : 'text-sky-400 bg-sky-500/20 border-sky-400/30'
+                                    : isDark ? 'text-white/30 bg-white/5 border-white/10' : 'text-sky-300/60 bg-sky-500/10 border-sky-400/15'
+                                    }`}
+                                  style={{ verticalAlign: 'middle', transform: 'translateY(-1px)' }}
+                                >
+                                  {verse.verseNumber}
+                                  {existingNote && (
+                                    <span
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleVerseNoteClick(verse, existingNote);
+                                      }}
+                                      className="inline-block w-1.5 h-1.5 rounded-full bg-[#6366f1] mr-1 animate-pulse"
+                                      title="Has note"
+                                    />
+                                  )}
+                                </span>
+                                <span>{verse.text?.trim()} </span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        bibleModalVerses.map((verse) => {
+                          const isSelectedIndividual = bibleSelectedVerseIds.has(verse._id);
+                          const existingNote = verseNotes[verse._id];
+                          const highlightColor = bibleHighlights[verse._id];
+                          return (
+                            <VerseItem
+                              key={verse._id}
+                              verse={verse}
+                              isSelected={isSelectedIndividual}
+                              fontSize={bibleVerseFontSize}
+                              spacing={bibleVerseSpacing}
+                              highlightColor={highlightColor}
+                              highlightColorsList={highlightColorsList}
+                              hasNote={existingNote}
+                              isDark={isDark}
+                              onClick={onVerseClick}
+                              onNoteClick={handleVerseNoteClick}
+                            />
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            {/* Chapter Navigation Buttons */}
+            {bibleSelectedVerseIds.size === 0 && !bibleSearchQuery.trim() && bibleModalVerses.length > 0 && (
+              <div className="absolute bottom-4 inset-x-4 sm:inset-x-6 flex items-center justify-between pointer-events-none z-30" dir="ltr">
+                <button
+                  onClick={goToPrevChapter}
+                  disabled={!hasPrevChapter}
+                  className={`pointer-events-auto w-9 h-9 rounded-full backdrop-blur-md border flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 ${isDark
+                    ? 'bg-black/90 hover:bg-black/80 border-white/10'
+                    : 'bg-[#002238]/95 hover:bg-[#002d4a] border-sky-400/30 text-sky-100 shadow-[0_4px_20px_rgba(0,34,56,0.6)]'
+                    } ${!hasPrevChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
+                  title="الأصحاح السابق"
+                >
+                  <ChevronLeft className="w-4 h-4 text-white" />
+                </button>
+                <button
+                  onClick={goToNextChapter}
+                  disabled={!hasNextChapter}
+                  className={`pointer-events-auto w-9 h-9 rounded-full backdrop-blur-md border flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 ${isDark
+                    ? 'bg-black/90 hover:bg-black/80 border-white/10'
+                    : 'bg-[#002238]/95 hover:bg-[#002d4a] border-sky-400/30 text-sky-100 shadow-[0_4px_20px_rgba(0,34,56,0.6)]'
+                    } ${!hasNextChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
+                  title="الأصحاح التالي"
+                >
+                  <ChevronRight className="w-4 h-4 text-white" />
+                </button>
+              </div>
+            )}
+
+            {bibleSelectedVerseIds.size > 0 && (
+              <div
+                ref={actionCardRef}
+                onTouchStart={handleActionTouchStart}
+                onTouchMove={handleActionTouchMove}
+                onTouchEnd={handleActionTouchEnd}
+                onTouchCancel={handleActionTouchEnd}
+                onAnimationEnd={() => {
+                  if (actionCardRef.current) {
+                    actionCardRef.current.style.animation = 'none';
+                  }
+                }}
+                style={{ willChange: 'transform' }}
+                className={`animate-sheet-slide-up absolute bottom-0 left-0 right-0 z-50 border-t rounded-t-[1.5rem] flex flex-col text-white overflow-hidden transition-colors ${isDark
+                  ? 'bg-[#0d0e15] border-white/10 shadow-[0_-15px_35px_rgba(0,0,0,0.6)]'
+                  : 'bg-[#001e33] border-sky-400/25 shadow-[0_-15px_35px_rgba(0,20,35,0.7)]'
+                  }`}
+                dir="rtl"
+              >
+                {/* Pull bar */}
+                <div
+                  onClick={closeSelectionPanel}
+                  className={`w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto mt-3 mb-1 shrink-0 transition-colors cursor-pointer ${showColorCustomizer ? 'hidden' : ''}`}
+                />
+
+                <div className="flex flex-col gap-3 px-4 pb-4 pt-1">
+
+                  {/* Row: ref + close */}
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-black text-sky-400" dir="ltr">{getSelectedVersesRef()}</span>
+                    </div>
+
+                    <button
+                      onClick={closeSelectionPanel}
+                      className="w-7 h-7 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all active:scale-90"
+                      title="Close"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-1.5 hide-scrollbar" dir="ltr">
+                    <button
+                      onClick={handleCopySelectedVerses}
+                      className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-sky-400" /> {t('copy')}
+                    </button>
+
+                    {availableTranslations.length > 1 && (
+                      <button
+                        onClick={() => {
+                          const nums = bibleModalVerses
+                            .filter(v => bibleSelectedVerseIds.has(v._id))
+                            .map(v => v.verseNumber);
+                          openCompare(nums);
+                        }}
+                        className="flex-1 min-w-[90px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                      >
+                        <BookOpen className="w-3.5 h-3.5 text-sky-400" /> {t('compare')}
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        const firstVerse = bibleModalVerses.find(v => bibleSelectedVerseIds.has(v._id));
+                        if (!firstVerse) return;
+                        setNoteText(verseNotes[firstVerse._id] || '');
+                        setNoteModalConfig({ type: 'bible', data: firstVerse, existingNote: verseNotes[firstVerse._id] });
+                      }}
+                      className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-indigo-400" /> {t('Note')}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowAiOptions(p => !p);
+                        setAiAnalysis({ loading: false, type: null, text: '', error: null });
+                      }}
+                      className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 bg-white/5 hover:bg-white/10 border-white/10 text-white"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" /> {t('Ai')}
+                    </button>
+                  </div>
+
+                  {/* AI Options */}
+                  {showAiOptions && (
+                    <div className="flex gap-2 shrink-0 animate-in fade-in slide-in-from-bottom-1 duration-150" dir="rtl">
+                      {[
+                        { type: 'explain', label: 'تفسير', icon: BookOpen, color: 'text-sky-400' },
+                        { type: 'cross_reference', label: 'مراجع', icon: Link2, color: 'text-sky-400' },
+                        { type: 'practical', label: 'تطبيق', icon: Lightbulb, color: 'text-sky-400' },
+                      ].map(({ type, label, icon: IconComponent, color }) => (
+                        <button
+                          key={type}
+                          onClick={() => handleAiAnalysis(type)}
+                          disabled={aiAnalysis.loading}
+                          className={`flex-1 py-3 px-4 rounded-2xl bg-[#0b1b2a]/50 hover:bg-black/20 transition-all duration-300 flex flex-col items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 group`}
+                        >
+                          <IconComponent className={`w-5 h-5 ${color} group-hover:scale-110 group-active:scale-95 transition-transform duration-300`} />
+                          <span className="text-[11px] font-black text-slate-300 group-hover:text-white transition-colors duration-300">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* AI Response — no header bar, floating dismiss pill */}
+                  {(aiAnalysis.loading || aiAnalysis.text || aiAnalysis.error) && (
+                    <div
+                      className={`relative rounded-2xl overflow-hidden ${isDark ? 'bg-[#060b13]' : 'bg-[#001829]'}`}
+                      data-ai-response
+                    >
+
+                      <div className="flex items-center justify-between px-4 pt-3 pb-1">
+                        <div className="flex items-center gap-1.5">
+                          <Sparkles className="w-3 h-3 text-sky-400" />
+                          <span className="text-[10px] font-black text-sky-300 tracking-widest uppercase">
+                            {aiAnalysis.type === 'explain' ? 'تفسير روحي' : aiAnalysis.type === 'cross_reference' ? 'مراجع كتابية' : 'تطبيق عملي'}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setAiAnalysis({ loading: false, type: null, text: '', error: null })}
+                          className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 hover:bg-red-500/15 text-white/25 hover:text-red-400 border border-white/8 hover:border-red-500/20 transition-all duration-150 text-[10px] font-bold"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+
+                      <div className="px-4 pb-4" dir="rtl">
+                        {aiAnalysis.loading ? (
+                          <div className="flex items-center justify-center gap-2 py-6">
+                            <div className="relative w-7 h-7">
+                              <div className="absolute inset-0 rounded-full border-2 border-sky-500/30 border-t-sky-400 animate-spin" />
+                              <Sparkles className="absolute inset-0 m-auto w-3 h-3 text-sky-400 animate-pulse" />
+                            </div>
+                          </div>
+                        ) : aiAnalysis.error ? (
+                          <>
+                            <p className="text-xs text-red-400 text-center py-3">{aiAnalysis.error}</p>
+                            {aiAnalysis.isLimit && !isLogin && (
+                              <div className="mt-2 flex justify-center">
+                                <button
+                                  onClick={() => router.push('/regester')}
+                                  className="inline-flex items-center justify-center rounded-full bg-sky-500 px-4 py-2 text-xs font-black text-white transition hover:bg-sky-400"
+                                >
+                                  {t('register')}
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <p
+                            lang="ar"
+                            dir="rtl"
+                            data-ai-response-scroll
+                            className="mx-auto max-w-[65ch] max-h-[10em] overflow-y-auto overscroll-y-contain touch-pan-y custom-scrollbar-thin font-arabic text-[13px] font-normal leading-[2] tracking-normal text-right text-slate-100 whitespace-pre-line break-words antialiased"
+                          >
+                            {aiAnalysis.text}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Highlights */}
+                  <div className="flex items-center gap-2.5 overflow-x-auto py-1 hide-scrollbar">
+                    {highlightColorsList.map(c => {
+                      const isColorActive = Array.from(bibleSelectedVerseIds).every(id => bibleHighlights[id] === c.id);
+                      const isCustom = c.id.startsWith('custom-') || !HIGHLIGHT_COLORS.some(h => h.id === c.id);
+                      return (
+                        <div key={c.id} className="relative group shrink-0">
+                          <button
+                            onClick={() => handleApplyHighlight(c.id)}
+                            className={`w-7 h-7 rounded-full transition-all active:scale-90 flex items-center justify-center border-2
+                    ${isColorActive ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
+                            style={{ backgroundColor: c.hex }}
+                          >
+                            {isColorActive && <Check className="w-4 h-4 text-slate-900 stroke-[3]" />}
+                          </button>
+
+                          {isCustom && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setHighlightColorsList(prev => prev.filter(item => item.id !== c.id));
+                              }}
+                              className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-slate-900 border border-white/20 text-white/70 hover:text-red-400 hover:bg-red-500/20 hover:border-red-400/50 flex items-center justify-center transition-all shadow-sm z-10"
+                              title="حذف اللون"
+                            >
+                              <X className="w-2.5 h-2.5 stroke-[3]" />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    <button
+                      onClick={() => setShowColorCustomizer(prev => !prev)}
+                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90 border border-white/20 shrink-0
+              ${showColorCustomizer ? 'bg-sky-500/20 text-sky-400 border-sky-500/50' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}`}
+                    >
+                      <PlusCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Color Customizer */}
+                  {showColorCustomizer && (
+                    <ColorCustomizer
+                      initialHex={customColorHex}
+                      t={t}
+                      onClose={() => setShowColorCustomizer(false)}
+                      onSave={(selectedHex) => {
+                        const cleanHex = selectedHex.replace('#', '').toLowerCase();
+                        const newId = `custom-${cleanHex}`;
+                        const existing = highlightColorsList?.find(c => c.hex.toLowerCase() === selectedHex.toLowerCase());
+                        const idToApply = existing ? existing.id : newId;
+                        if (!existing) {
+                          setHighlightColorsList(prev => [...prev, { id: newId, hex: selectedHex }]);
+                        }
+                        setCustomColorHex(selectedHex);
+                        handleApplyHighlight(idToApply);
+                        setShowColorCustomizer(false);
+                      }}
+                    />
+                  )}
+
+                </div>
+              </div>
+            )}
+
+
+            {/* Smart Progress Indicator */}
+            <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-sky-500/50 to-transparent" />
+
+            {/* Compact Floating Settings Panel (Left side floating - verses stay visible for live preview) */}
+            <AnimatePresence>
+              {isSettingsOpen && (
+                <motion.div
+                  ref={settingsPanelRef}
+                  initial={{ opacity: 0, x: -16, scale: 0.96 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: -16, scale: 0.96 }}
+                  transition={{ duration: 0.16, ease: 'easeOut' }}
+                  className={`absolute top-16 sm:top-20 left-2 sm:left-4 z-50 w-[215px] sm:w-[245px] max-w-[62vw] max-h-[min(72vh,520px)] rounded-2xl sm:rounded-3xl border shadow-[0_12px_40px_rgba(0,0,0,0.65)] flex flex-col overflow-hidden ${isDark ? 'bg-[#080d18]/95 border-white/10' : 'bg-[#001726]/95 border-sky-400/25'
+                    }`}
+                  dir={language === 'ar' ? 'rtl' : 'ltr'}
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 shrink-0">
+                    <span className="text-xs font-bold text-white tracking-wide">
+                      {language === 'ar' ? 'الإعدادات' : 'Settings'}
+                    </span>
+                    <button
+                      onClick={() => setIsSettingsOpen(false)}
+                      className="w-6 h-6 rounded-full bg-white/5 hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition-all active:scale-90"
+                      title="Close"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Scrollable Settings Content */}
+                  <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 custom-scrollbar-thin">
+                    {/* Section 1: Translations */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-gray-400/90 uppercase tracking-widest px-1">
+                        {language === 'ar' ? 'الترجمة' : 'Translation'}
+                      </span>
+                      <div className={`p-1.5 rounded-xl border ${isDark ? 'bg-black/[0.08] border-white/10' : 'bg-black/40 border-sky-400/20'} space-y-1`}>
+                        <div className="flex flex-col gap-1">
+                          {availableTranslations.map((tr) => {
+                            const isDownloaded = downloadedTranslations.has(tr);
+                            const isDownloading = isDownloadingTranslation === tr;
+                            const isSelected = bibleTranslation === tr;
+                            return (
+                              <div
+                                key={tr}
+                                onClick={() => {
+                                  if (isDownloaded) {
+                                    setBibleTranslation(tr);
+                                  } else {
+                                    setBibleTranslation(tr);
+                                    if (!isDownloading) {
+                                      showToast(
+                                        language === 'ar'
+                                          ? `جاري تحميل ترجمة ${tr}...`
+                                          : `Downloading ${tr} translation...`
+                                      );
+                                      toggleDownloadTranslation(tr, true);
+                                    }
+                                  }
+                                }}
+                                className={`flex items-center justify-between px-2 py-1 rounded-lg border transition-all cursor-pointer ${isSelected
+                                  ? 'bg-sky-500/20 border-sky-400/40 text-white shadow-sm'
+                                  : 'bg-white/[0.02] border-white/5 text-gray-300 hover:bg-white/5 hover:text-white'
+                                  }`}
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <div className={`w-2.5 h-2.5 rounded-full border shrink-0 flex items-center justify-center ${isSelected ? 'border-sky-400 bg-sky-400' : 'border-white/30'}`}>
+                                    {isSelected && <div className="w-1 h-1 rounded-full bg-slate-900" />}
+                                  </div>
+                                  <span className="text-[11px] font-bold tracking-wide truncate">{tr}</span>
+                                </div>
+
+                                {isDownloading ? (
+                                  <Loader2 className="w-3 h-3 animate-spin text-sky-400 shrink-0" />
+                                ) : !isDownloaded ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!isDownloading) {
+                                        showToast(
+                                          language === 'ar'
+                                            ? `جاري تحميل ترجمة ${tr}...`
+                                            : `Downloading ${tr} translation...`
+                                        );
+                                        toggleDownloadTranslation(tr, true);
+                                      }
+                                    }}
+                                    className="p-0.5 rounded bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 transition-all active:scale-95 shrink-0"
+                                    title={language === 'ar' ? `تحميل ترجمة ${tr}` : `Download ${tr}`}
+                                  >
+                                    <Download className="w-3 h-3" />
+                                  </button>
+                                ) : (
+                                  <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 2: Verse Controls */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-gray-400/90 uppercase tracking-widest px-1">
+                        {language === 'ar' ? 'التحكم في الآيات' : 'Verse Controls'}
+                      </span>
+                      <div className={`p-2 rounded-xl border ${isDark ? 'bg-black/[0.08] border-white/10' : 'bg-black/40 border-sky-400/20'} space-y-2`}>
+
+                        {/* View Mode */}
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[11px] font-bold text-gray-300 shrink-0">
+                            {language === 'ar' ? 'العرض' : 'Mode'}
+                          </span>
+                          <div className="flex items-center bg-white/5 border border-white/10 rounded-lg p-0.5 gap-0.5 min-w-0">
+                            <button
+                              onClick={() => handleSetBibleViewMode('list')}
+                              className={`px-1 sm:px-1.5 py-0.5 rounded flex items-center justify-center gap-0.5 sm:gap-1 text-[9px] sm:text-[10px] font-bold transition-all shrink-0 ${bibleViewMode === 'list'
+                                ? 'bg-sky-500 text-white shadow-sm'
+                                : 'text-white/40 hover:text-white'
+                                }`}
+                              title={t("listViewTitle")}
+                            >
+                              <List className="w-2.5 h-2.5 shrink-0" />
+                              <span>{t("vertical")}</span>
+                            </button>
+                            <button
+                              onClick={() => handleSetBibleViewMode('paragraph')}
+                              className={`px-1 sm:px-1.5 py-0.5 rounded flex items-center justify-center gap-0.5 sm:gap-1 text-[9px] sm:text-[10px] font-bold transition-all min-w-0 ${bibleViewMode === 'paragraph'
+                                ? 'bg-sky-500 text-white shadow-sm'
+                                : 'text-white/40 hover:text-white'
+                                }`}
+                              title={t("continuousViewTitle")}
+                            >
+                              <AlignJustify className="w-2.5 h-2.5 shrink-0" />
+                              <span className="truncate">{t("continuous")}</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Font Size */}
+                        <div className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-white/5">
+                          <span className="text-[11px] font-bold text-gray-300">{t("font")}</span>
+                          <div className="flex items-center border border-white/10 rounded-lg overflow-hidden bg-white/[0.03]">
+                            <button
+                              onClick={() => setBibleVerseFontSize(prev => Math.max(16, prev - 2))}
+                              className="h-5 px-1.5 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] transition-all active:bg-white/20"
+                              title="Decrease font size"
+                            >
+                              -A
+                            </button>
+                            <span className="font-bold min-w-[20px] px-1 text-center text-[11px] text-sky-400">{bibleVerseFontSize}</span>
+                            <button
+                              onClick={() => setBibleVerseFontSize(prev => Math.min(44, prev + 2))}
+                              className="h-5 px-1.5 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] transition-all active:bg-white/20"
+                              title="Increase font size"
+                            >
+                              +A
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Verse Spacing */}
+                        <div className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-white/5">
+                          <span className="text-[11px] font-bold text-gray-300">{t("spacing")}</span>
+                          <div className="flex items-center border border-white/10 rounded-lg overflow-hidden bg-white/[0.03]">
+                            <button
+                              onClick={() => handleSetBibleVerseSpacing(Math.max(2, bibleVerseSpacing - 2))}
+                              className="h-5 px-2 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] transition-all active:bg-white/20"
+                              title="Decrease spacing"
+                            >
+                              -
+                            </button>
+                            <span className="font-bold min-w-[22px] px-1 text-center text-[11px] text-sky-400">{bibleVerseSpacing}px</span>
+                            <button
+                              onClick={() => handleSetBibleVerseSpacing(Math.min(36, bibleVerseSpacing + 2))}
+                              className="h-5 px-2 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] transition-all active:bg-white/20"
+                              title="Increase spacing"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Selection Actions */}
+                        <div className="flex items-center gap-1 pt-1.5 border-t border-white/5">
+                          <button
+                            onClick={() => setBibleSelectedVerseIds(new Set(bibleModalVerses.map(v => v._id)))}
+                            className="flex-1 py-1 text-[10px] font-bold rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 transition-all active:scale-95 text-center"
+                          >
+                            {t("selectAll")}
+                          </button>
+                          <button
+                            onClick={closeSelectionPanel}
+                            className="flex-1 py-1 text-[10px] font-bold rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 transition-all active:scale-95 text-center"
+                          >
+                            {t("deselectAll")}
+                          </button>
+                        </div>
+
+                        {/* Save Selected to Workspace */}
+                        {bibleSelectedVerseIds.size > 0 && (
+                          <button
+                            onClick={saveBibleToWorkspace}
+                            disabled={isSavingBible || bibleAddedSuccess}
+                            className={`w-full py-1.5 px-2 text-[10px] font-black rounded-md transition-all shadow-md active:scale-95 whitespace-nowrap flex items-center justify-center gap-1
+                                ${bibleAddedSuccess ? 'bg-green-500 text-white' : 'bg-sky-500 hover:bg-sky-400 text-white'}
+                                disabled:opacity-50`}
+                          >
+                            {isSavingBible ? (
+                              <><Loader2 className="w-3 h-3 animate-spin" /> ...</>
+                            ) : bibleAddedSuccess ? (
+                              <><Check className="w-3 h-3" /> {t("saved")}</>
+                            ) : (
+                              <>
+                                <FolderPlus className="w-3 h-3" />
+                                {t("save")} ({bibleSelectedVerseIds.size})
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </BibleReaderWrapper>
+      )}
+
+      {/* ══════════════════════════════════════════════
+                  COMPARE MODAL — slides in over the Bible modal
+                  ══════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {compareModal && (
+          <Portal>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-6"
+            >
+              {/* ── Modern Backdrop with Blur ── */}
+              <div
+                className={`absolute inset-0 backdrop-blur-sm transition-opacity ${isDark ? 'bg-[#020205]/80' : 'bg-[#001424]/80'
+                  }`}
+                onClick={() => setCompareModal(false)}
+              />
+
+              <motion.div
+                initial={{ y: 50, opacity: 0, scale: 0.98 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                exit={{ y: 30, opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+                style={{ willChange: 'transform, opacity' }}
+                className={`relative w-full sm:max-w-6xl h-[92vh] sm:h-[85vh] rounded-t-[2rem] sm:rounded-[2rem] backdrop-blur-2xl border-t sm:border shadow-2xl flex flex-col overflow-hidden ring-1 transition-colors ${isDark
+                  ? 'bg-[#0A0A14]/95 border-white/[0.08] ring-white/5 sm:shadow-[0_0_60px_-15px_rgba(14,165,233,0.15)]'
+                  : 'bg-[#002238]/95 border-sky-400/20 ring-sky-400/10 shadow-[0_0_60px_-15px_rgba(14,165,233,0.25)]'
+                  }`}
+              >
+                {/* ── Compare Modal Header ── */}
+                <div className="shrink-0 px-5 sm:px-8 py-5 border-b border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent">
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-400/20 to-indigo-500/20 border border-white/10 flex items-center justify-center shadow-[inset_0_0_12px_rgba(56,189,248,0.2)]">
+                        <span className="text-lg drop-shadow-md">⚖️</span>
+                      </div>
+                      <div>
+
+                        <p className="text-sm sm:text-base font-bold text-white/95 tracking-wide" dir="rtl">
+                          {bibleModalBook?.bookName} {bibleModalChapter}
+                          {compareVerseNums.length > 0 && (
+                            <span className="text-white/40 font-medium ml-1">
+                              — {compareVerseNums.length > 1 ? `آيات ${compareVerseNums.join('، ')}` : `آية ${compareVerseNums[0]}`}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setCompareModal(false)}
+                      className="group p-2.5 rounded-full bg-white/5 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all duration-300"
+                    >
+                      <X className="w-4 h-4 text-white/50 group-hover:text-red-400 group-active:scale-90 transition-transform" />
+                    </button>
+                  </div>
+
+                  {/* Modern Translation Multi-selector Pills */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] font-semibold text-white/30 mr-1 shrink-0 flex items-center gap-1.5">
+                      <div className="w-1 h-1 rounded-full bg-white/30" />
+                      الترجمات المعروضة:
+                    </span>
+                    {availableTranslations.map(tr => {
+                      const isSelected = compareSelectedTranslations.includes(tr);
                       return (
                         <button
                           key={tr}
-                          type="button"
-                          onClick={() => {
-                            if (isDownloaded) {
-                              setBibleTranslation(tr);
-                            } else {
-                              setBibleTranslation(tr);
-                              if (!isDownloading) {
-                                showToast(
-                                  language === 'ar'
-                                    ? `جاري تحميل ترجمة ${tr}...`
-                                    : `Downloading ${tr} translation...`
-                                );
-                                toggleDownloadTranslation(tr, true);
-                              }
-                            }
+                          onClick={async () => {
+                            if (isSelected && compareSelectedTranslations.length === 1) return;
+                            const next = isSelected
+                              ? compareSelectedTranslations.filter(t => t !== tr)
+                              : [...compareSelectedTranslations, tr];
+                            setCompareSelectedTranslations(next);
+                            setCompareMobileTab(0);
+                            setCompareDesktopPage(0);
+                            await fetchCompareData(compareVerseNums, next);
                           }}
-                          className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 px-3.5 py-1 text-[11px] font-bold tracking-wide rounded-full transition-colors duration-150 cursor-pointer whitespace-nowrap min-w-[70px] ${isSelected
-                              ? "text-white"
-                              : isDownloaded
-                                ? "text-white/50 hover:text-white/80"
-                                : "text-white/40 hover:text-white/70"
+                          className={`px-3.5 py-1.5 rounded-full text-[11px] sm:text-xs font-bold tracking-wider transition-all duration-300 active:scale-95 border ${isSelected
+                            ? 'bg-white text-black border-white shadow-[0_0_15px_-3px_rgba(255,255,255,0.3)]'
+                            : 'bg-white/5 border-white/10 text-white/60 hover:text-white/90 hover:bg-white/10 hover:border-white/20'
                             }`}
-                          title={
-                            !isDownloaded
-                              ? (language === 'ar' ? `تحميل ترجمة ${tr}` : `Download ${tr} translation`)
-                              : tr
-                          }
                         >
-                          <span>{tr}</span>
-                          {isDownloading ? (
-                            <Loader2 className="w-3 h-3 animate-spin text-sky-200 shrink-0" />
-                          ) : !isDownloaded ? (
-                            <span
-                              className="inline-flex items-center justify-center p-0.5 rounded-full hover:bg-white/20 transition-colors"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!isDownloading) {
-                                  showToast(
-                                    language === 'ar'
-                                      ? `جاري تحميل ترجمة ${tr}...`
-                                      : `Downloading ${tr} translation...`
-                                  );
-                                  toggleDownloadTranslation(tr, true);
-                                }
-                              }}
-                            >
-                              <Download className={`w-3 h-3 shrink-0 ${isSelected ? 'text-white' : 'text-sky-400 group-hover:text-white'}`} />
-                            </span>
-                          ) : null}
+                          {tr}
                         </button>
                       );
                     })}
                   </div>
                 </div>
 
-                <div className="p-4 sm:p-12 max-w-3xl mx-auto space-y-6">
-                  {/* Smart Navigation Hub */}
-                  <div className="space-y-3 pb-2" dir="rtl">
-                    <div className="flex items-center justify-between gap-2 sm:gap-3 w-full">
-                      {/* Search Toggle & Input */}
-                      <div className="flex items-center gap-2 sm:gap-3 relative z-20 h-10 flex-1 min-w-0">
-                        {/* Search Toggle (Icon Only) */}
-                        <button
-                          onClick={() => {
-                            setShowBibleSearchBar(!showBibleSearchBar);
-                            if (showBibleSearchBar) {
-                              setBibleSearchQuery('');
-                            }
-                          }}
-                          className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-full transition-all duration-300 border backdrop-blur-xl relative overflow-hidden group shadow-lg z-30
-                           ${showBibleSearchBar
-                              ? 'bg-red-500/10 border-red-500/20 text-red-400 rotate-90 scale-90'
-                              : 'bg-white/5 border-white/20 text-sky-200 hover:bg-white/10 hover:text-white hover:border-sky-400/30 hover:shadow-[0_0_15px_rgba(56,189,248,0.3)]'
-                            }`}
-                          title={showBibleSearchBar ? (language === 'ar' ? "إغلاق البحث" : "Close Search") : (language === 'ar' ? "البحث في الكتاب المقدس" : "Search Bible")}
-                        >
-                          {showBibleSearchBar ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
-                        </button>
-
-                        {/* Search Input Bar */}
-                        {showBibleSearchBar && (
-                          <div className="relative h-10 flex-1 min-w-0 max-w-[260px] flex items-center search-fade-in">
-                            <div className="absolute inset-0 bg-white/5 border border-white/10 rounded-full backdrop-blur-md shadow-inner" />
-
-                            <input
-                              autoFocus
-                              type="text"
-                              value={bibleSearchQuery}
-                              onChange={(e) => setBibleSearchQuery(e.target.value)}
-                              placeholder="ابحث بعمق..."
-                              className="w-full h-full pl-4 pr-8 py-2 bg-transparent text-sm text-white placeholder-gray-400/70 
-                                 outline-none relative z-10 font-light tracking-wide"
-                            />
-                            {bibleSearchQuery && (
-                              <button
-                                onClick={() => setBibleSearchQuery('')}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-white/20 text-gray-400 hover:text-white transition-all z-20"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Compact Selectors */}
-                      <div className="flex gap-2 shrink-0">
-                        <button
-                          onClick={() => setBiblePickerOpen(o => o === 'book' ? null : 'book')}
-                          className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 text-white text-xs font-bold transition-all flex items-center gap-2 ${biblePickerOpen === 'book' ? 'bg-sky-500/20 border-sky-500/50' : ''}`}
-                        >
-                          <span className="opacity-50 tracking-tighter">{t("book")}:</span>
-                          <span className="truncate max-w-[80px]">{bibleModalBook?.bookName || '...'}</span>
-                        </button>
-
-                        <button
-                          onClick={() => setBiblePickerOpen(o => o === 'chapter' ? null : 'chapter')}
-                          disabled={!bibleModalBook}
-                          className={`px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 text-white text-xs font-bold transition-all flex items-center gap-2 ${biblePickerOpen === 'chapter' ? 'bg-sky-500/20 border-sky-500/50' : ''}`}
-                        >
-                          <span className="opacity-50">{t("chapter")}:</span>
-                          <span>{bibleModalChapter || '0'}</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Smart Floating Pickers Area - Facebook-style CSS Accordion & Sliding Navigation */}
-                    <div
-                      className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out overflow-hidden ${biblePickerOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
-                        }`}
-                    >
-                      <div
-                        className={`min-h-0 rounded-3xl overflow-hidden shadow-2xl relative border transition-colors ${
-                          isDark
-                            ? 'bg-white/[0.02] border-white/5'
-                            : 'bg-[#001829]/90 border-sky-400/20 shadow-[0_15px_40px_rgba(0,18,34,0.6)]'
-                        }`}
+                {/* ── Mobile Tab Bar ── */}
+                {!isLoadingCompare && allColumns.length > 1 && (
+                  <div className="sm:hidden shrink-0 flex border-b border-white/[0.06] bg-black/20 overflow-x-auto hide-scrollbar px-2">
+                    {allColumns.map((tr, idx) => (
+                      <button
+                        key={tr}
+                        onClick={() => setCompareMobileTab(idx)}
+                        className={`relative flex-1 min-w-[90px] px-4 py-4 text-[13px] font-bold tracking-wide transition-colors whitespace-nowrap ${idx === mtSafe ? 'text-sky-400' : 'text-white/40 hover:text-white/70'
+                          }`}
                       >
-                        <div
-                          className="flex transition-transform duration-300 ease-out w-[200%]"
-                          style={{
-                            transform: biblePickerOpen === 'chapter' ? 'translateX(50%)' : 'translateX(0%)',
-                          }}
-                        >
-                          {/* Books Pane */}
-                          <div
-                            className="w-1/2 p-4 max-h-[30vh] overflow-y-auto custom-scrollbar"
-                            data-lenis-prevent-wheel
-                          >
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                              {bibleModalBooks.map((book) => (
-                                <button
-                                  key={book._id}
-                                  className={`px-3 py-2 rounded-xl text-right text-[11px] font-medium transition-colors ${bibleModalBook?.bookName === book.bookName ? 'bg-slate-700/80 text-slate-100 border border-slate-500/30 shadow-lg shadow-black/30' : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10 hover:text-white'}`}
-                                  onClick={() => { setBibleModalBook(book); setBibleModalChapter(null); setBiblePickerOpen('chapter'); if (typeof window !== 'undefined') localStorage.setItem(BIBLE_LAST_POS_KEY, JSON.stringify({ bookName: book.bookName, chapter: null })); }}
-                                >
-                                  {book.bookName}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Chapters Pane */}
-                          <div
-                            className="w-1/2 p-4 max-h-[30vh] overflow-y-auto custom-scrollbar"
-                            data-lenis-prevent-wheel
-                          >
-                            <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
-                              {bibleModalChapters.map((ch) => (
-                                <button
-                                  key={ch}
-                                  className={`h-10 rounded-xl flex items-center justify-center text-xs font-black transition-colors ${bibleModalChapter === ch ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20' : 'bg-white/5 text-white/40 hover:text-white'}`}
-                                  onClick={() => { setBibleModalChapter(ch); setBiblePickerOpen(null); if (typeof window !== 'undefined' && bibleModalBook) localStorage.setItem(BIBLE_LAST_POS_KEY, JSON.stringify({ bookName: bibleModalBook.bookName, chapter: ch })); }}
-                                >
-                                  {ch}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                        {tr}
+                        {idx === mtSafe && (
+                          <motion.div
+                            layoutId="activeTabMobile"
+                            className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-400 rounded-t-full shadow-[0_-2px_8px_rgba(56,189,248,0.5)]"
+                          />
+                        )}
+                      </button>
+                    ))}
                   </div>
-                  {isSearchingBible ? (
-                    <div className="flex flex-col items-center justify-center py-20 opacity-40 animate-pulse">
-                      <div className="w-12 h-12 border-2 border-sky-500/30 border-t-sky-500 rounded-full animate-spin mb-4" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-white">Neural Search...</span>
-                    </div>
-                  ) : bibleSearchQuery.trim() ? (
-                    <div className="space-y-6 pb-20">
-                      {bibleSearchResults.length > 0 ? (
-                        <>
-                          <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-6">
-                            <div className="w-1 h-6 bg-sky-500 rounded-full" />
-                            <h2 className="text-xl font-bold text-white">نتائج البحث ({bibleSearchResults.length})</h2>
-                          </div>
-                          <div className="grid gap-4">
-                            {bibleSearchResults.map((hit, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => goToChapterFromSearch(hit)}
-                                className="group p-4 rounded-2xl bg-white/[0.03] border border-white/0 hover:border-sky-500/30 hover:bg-sky-500/5 transition-all cursor-pointer"
-                              >
-                                <div className="flex justify-between items-start gap-4 mb-2">
-                                  <span className="text-sky-400 font-bold text-sm">
-                                    {hit.bookName} {hit.chapter}:{hit.verseNumber}
-                                  </span>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      presentBibleFromSearchHit(hit);
-                                    }}
-                                    className="p-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 transition-all active:scale-90"
-                                    title="Data Show"
-                                  >
-                                    <Monitor className="w-4 h-4" />
-                                  </button>
-                                </div>
-                                <p
-                                  className="text-white/80 group-hover:text-white text-base leading-relaxed font-arabic transition-all [&_b]:text-sky-400 [&_b]:font-black"
-                                  dangerouslySetInnerHTML={{ __html: hit.text }}
-                                />
-                              </button>
-                            ))}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="py-20 text-center opacity-30">
-                          <Search className="w-12 h-12 mx-auto mb-4" />
-                          <p className="text-sm font-bold uppercase tracking-widest">
-                            {language === 'arabic' ? 'لم يتم العثور على نتائج' : 'No results found'}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (bibleModalVerses.length > 0 || bibleModalBook) ? (
-                    <div className="space-y-10">
-                      {/* Modern Chapter Indicator */}
-                      <div className="flex items-end justify-between border-b border-white/5 pb-6">
-                        <div>
-                          <h1 className="text-3xl sm:text-5xl font-black text-white leading-none">
-                            {bibleModalBook.bookName}
-                          </h1>
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="h-[2px] w-8 bg-sky-500" />
-                            <span className="text-xs font-bold text-sky-400 uppercase tracking-tighter">{t("chapter")} {bibleModalChapter}</span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => openBiblePresentation({ bookName: bibleModalBook.bookName, chapter: bibleModalChapter, verses: bibleModalVerses, startIndex: 0 })}
-                          className="p-3 bg-white/5 hover:bg-sky-500 text-white rounded-2xl transition-all active:scale-90 group"
-                        >
-                          <Monitor className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                        </button>
-                      </div>
+                )}
 
-                      {/* The Reading Experience - Optimized for performance */}
-                      <div className="space-y-6 pb-20">
-                        {/* Global Controls Panel (Block Positioned - Ultra-Compact Mobile UI) */}
-                        {bibleModalVerses.length > 0 && (
-                          <div className="relative flex flex-col gap-2 p-2 sm:p-3.5 bg-slate-950/60 border border-white/10 rounded-2xl sm:rounded-3xl shadow-xl mb-3 sm:mb-6" dir="rtl">
-                            <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-3">
-                              {/* Typography & Spacing controls */}
-                              <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap text-white text-xs">
-                                {/* Font Size Control */}
-                                <div className="flex items-center gap-1 sm:gap-2 bg-white/5 border border-white/[0.07] rounded-xl px-2 sm:px-3 py-1 sm:py-1.5">
-                                  <span className="text-white/40 font-bold text-[10px] sm:text-xs">{t("font")}:</span>
-                                  <button
-                                    onClick={() => setBibleVerseFontSize(prev => Math.max(16, prev - 2))}
-                                    className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-md sm:rounded-lg bg-white/5 hover:bg-white/10 text-white font-bold text-[11px] sm:text-xs transition-all active:scale-90"
-                                    title="Decrease font size"
-                                  >
-                                    -A
-                                  </button>
-                                  <span className="font-bold min-w-[16px] text-center text-[11px] sm:text-xs">{bibleVerseFontSize}</span>
-                                  <button
-                                    onClick={() => setBibleVerseFontSize(prev => Math.min(44, prev + 2))}
-                                    className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-md sm:rounded-lg bg-white/5 hover:bg-white/10 text-white font-bold text-[11px] sm:text-xs transition-all active:scale-90"
-                                    title="Increase font size"
-                                  >
-                                    +A
-                                  </button>
-                                </div>
-
-                                {/* Spacing Control */}
-                                <div className="flex items-center gap-1 sm:gap-2 bg-white/5 border border-white/[0.07] rounded-xl px-2 sm:px-3 py-1 sm:py-1.5">
-                                  <span className="text-white/40 font-bold text-[10px] sm:text-xs">{t("spacing")}:</span>
-                                  <button
-                                    onClick={() => handleSetBibleVerseSpacing(Math.max(2, bibleVerseSpacing - 2))}
-                                    className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-md sm:rounded-lg bg-white/5 hover:bg-white/10 text-white font-bold text-[11px] sm:text-xs transition-all active:scale-90"
-                                    title="Decrease spacing"
-                                  >
-                                    -
-                                  </button>
-                                  <span className="font-bold min-w-[20px] text-center text-[11px] sm:text-xs">{bibleVerseSpacing}px</span>
-                                  <button
-                                    onClick={() => handleSetBibleVerseSpacing(Math.min(36, bibleVerseSpacing + 2))}
-                                    className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-md sm:rounded-lg bg-white/5 hover:bg-white/10 text-white font-bold text-[11px] sm:text-xs transition-all active:scale-90"
-                                    title="Increase spacing"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-
-                                {/* View Mode Toggle: List (تحت بعض) vs Continuous (بجانب بعض) */}
-                                <div className="flex items-center bg-white/5 border border-white/[0.07] rounded-xl p-0.5">
-                                  <button
-                                    onClick={() => handleSetBibleViewMode('list')}
-                                    className={`px-2 py-1 rounded-lg flex items-center gap-1 text-[10px] sm:text-xs font-bold transition-all ${bibleViewMode === 'list'
-                                      ? 'bg-sky-500 text-white shadow-sm'
-                                      : 'text-white/40 hover:text-white'
-                                      }`}
-                                    title={t("listViewTitle")}
-                                  >
-                                    <List className="w-3.5 h-3.5" />
-                                    <span className="hidden sm:inline">{t("vertical")}</span>
-                                  </button>
-                                  <button
-                                    onClick={() => handleSetBibleViewMode('paragraph')}
-                                    className={`px-2 py-1 rounded-lg flex items-center gap-1 text-[10px] sm:text-xs font-bold transition-all ${bibleViewMode === 'paragraph'
-                                      ? 'bg-sky-500 text-white shadow-sm'
-                                      : 'text-white/40 hover:text-white'
-                                      }`}
-                                    title={t("continuousViewTitle")}
-                                  >
-                                    <AlignJustify className="w-3.5 h-3.5" />
-                                    <span className="hidden sm:inline">{t("continuous")}</span>
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Selection quick actions */}
-                              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                                <button
-                                  onClick={() => setBibleSelectedVerseIds(new Set(bibleModalVerses.map(v => v._id)))}
-                                  className="px-2.5 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-bold rounded-xl bg-white/5 hover:bg-white/10 border border-white/[0.07] text-slate-200 transition-all active:scale-95"
-                                >
-                                  {t("selectAll")}
-                                </button>
-                                <button
-                                  onClick={closeSelectionPanel}
-                                  className="px-2.5 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-bold rounded-xl bg-white/5 hover:bg-white/10 border border-white/[0.07] text-slate-300 transition-all active:scale-95"
-                                >
-                                  {t("deselectAll")}
-                                </button>
-
-                                {/* Save Selected to Workspace */}
-                                {bibleSelectedVerseIds.size > 0 && (
-                                  <button
-                                    onClick={saveBibleToWorkspace}
-                                    disabled={isSavingBible || bibleAddedSuccess}
-                                    className={`px-2.5 py-1 sm:px-3.5 sm:py-1.5 text-[10px] sm:text-xs font-black rounded-xl transition-all shadow-md active:scale-95 whitespace-nowrap flex items-center gap-1
-                                          ${bibleAddedSuccess ? 'bg-green-500 text-white' : 'bg-sky-500 hover:bg-sky-400 text-white'}
-                                          disabled:opacity-50`}
-                                  >
-                                    {isSavingBible ? (
-                                      <><Loader2 className="w-3 h-3 animate-spin" /> ...</>
-                                    ) : bibleAddedSuccess ? (
-                                      <><Check className="w-3 h-3" /> {t("saved")}</>
-                                    ) : (
-                                      <>
-                                        <FolderPlus className="w-3 h-3" />
-                                        {t("save")} ({bibleSelectedVerseIds.size})
-                                      </>
-                                    )}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Verses Display */}
-                        {isCheckingOffline && bibleModalVerses.length === 0 ? (
-                          <div className="flex items-center justify-center py-24">
-                            <Loader2 className="w-6 h-6 animate-spin text-sky-400" />
-                          </div>
-                        ) : !downloadedTranslations.has(bibleTranslation) && bibleModalVerses.length === 0 ? (
-                          <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-                            <div className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(14,165,233,0.15)]">
-                              {isDownloadingTranslation === bibleTranslation ? (
-                                <Loader2 className="w-7 h-7 text-sky-400 animate-spin" />
-                              ) : (
-                                <Download className="w-7 h-7 text-sky-400" />
-                              )}
-                            </div>
-                            <h3 className="text-base sm:text-lg font-bold text-white mb-2 font-arabic" dir="rtl">
-                              {isDownloadingTranslation === bibleTranslation
-                                ? (language === 'ar' ? `جاري تحميل ترجمة ${bibleTranslation}...` : `Downloading ${bibleTranslation}...`)
-                                : (language === 'ar' ? `ترجمة ${bibleTranslation} غير محملة` : `${bibleTranslation} translation is not downloaded`)}
-                            </h3>
-                            <p className="text-xs sm:text-sm text-white/50 max-w-sm mb-5 leading-relaxed font-arabic" dir="rtl">
-                              {isDownloadingTranslation === bibleTranslation
-                                ? (language === 'ar' ? 'يرجى الانتظار حتى يكتمل التحميل للتشغيل بدون إنترنت.' : 'Please wait while the translation is being downloaded for offline use.')
-                                : (language === 'ar' ? 'يجب تحميل هذه الترجمة أولاً للتمكن من قراءتها بدون إنترنت.' : 'You must download this translation to read it offline.')}
-                            </p>
-                            {isDownloadingTranslation !== bibleTranslation && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  showToast(
-                                    language === 'ar'
-                                      ? `جاري تحميل ترجمة ${bibleTranslation}...`
-                                      : `Downloading ${bibleTranslation} translation...`
-                                  );
-                                  toggleDownloadTranslation(bibleTranslation, true);
-                                }}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] active:scale-95 cursor-pointer"
-                              >
-                                <Download className="w-4 h-4" />
-                                <span>{language === 'ar' ? 'تحميل الترجمة الآن' : 'Download Translation Now'}</span>
-                              </button>
-                            )}
-                          </div>
-                        ) : bibleModalVerses.length === 0 && bibleModalBrowseLoading ? (
-                          <div className="flex items-center justify-center py-24">
-                            <Loader2 className="w-6 h-6 animate-spin text-sky-400" />
-                          </div>
-                        ) : bibleViewMode === 'paragraph' ? (
-                          <div
-                            className="font-arabic text-right transition-all"
-                            dir="rtl"
-                            style={{
-                              fontSize: `${bibleVerseFontSize}px`,
-                              lineHeight: `${1.8 + (bibleVerseSpacing / 30)}`,
-                            }}
-                          >
-                            {bibleModalVerses.map((verse, idx) => {
-                              const getVerseInlineState = (v) => {
-                                if (!v) return { bg: 'transparent', hex: null, isSelected: false };
-                                const isSel = bibleSelectedVerseIds.has(v._id);
-                                const hl = bibleHighlights[v._id];
-                                let h = null;
-                                if (hl) {
-                                  const colorObj = highlightColorsList?.find(c => c.id === hl);
-                                  h = colorObj ? (colorObj.hex.startsWith('#') ? colorObj.hex : `#${colorObj.hex}`) : null;
-                                  if (!h) {
-                                    if (hl.startsWith('#')) h = hl;
-                                    else if (hl.startsWith('custom-')) {
-                                      const raw = hl.replace('custom-', '');
-                                      if (/^[0-9a-fA-F]{3,8}$/.test(raw)) h = '#' + raw;
-                                    } else if (LEGACY_COLOR_MAP[hl]) {
-                                      h = LEGACY_COLOR_MAP[hl];
-                                    }
-                                  }
-                                }
-                                let b = 'transparent';
-                                if (h) {
-                                  b = `${h}26`;
-                                } else if (isSel) {
-                                  b = 'rgba(255, 255, 255, 0.05)';
-                                }
-                                return { bg: b, hex: h, isSelected: isSel };
-                              };
-
-                              const curr = getVerseInlineState(verse);
-                              const prev = idx > 0 ? getVerseInlineState(bibleModalVerses[idx - 1]) : null;
-                              const next = idx < bibleModalVerses.length - 1 ? getVerseInlineState(bibleModalVerses[idx + 1]) : null;
-
-                              const isConnectedRight = prev && prev.bg !== 'transparent' && prev.bg === curr.bg;
-                              const isConnectedLeft = next && next.bg !== 'transparent' && next.bg === curr.bg;
-
-                              let borderRadius = '5px';
-                              let padding = '2px 5px';
-
-                              if (curr.bg !== 'transparent') {
-                                if (isConnectedRight && isConnectedLeft) {
-                                  borderRadius = '0px';
-                                  padding = '2px 0px';
-                                } else if (isConnectedRight && !isConnectedLeft) {
-                                  borderRadius = '5px 0 0 5px';
-                                  padding = '2px 0px 2px 5px';
-                                } else if (!isConnectedRight && isConnectedLeft) {
-                                  borderRadius = '0 5px 5px 0';
-                                  padding = '2px 5px 2px 0px';
-                                }
-                              }
-
-                              const existingNote = verseNotes[verse._id];
-
-                              return (
-                                <span
-                                  key={verse._id}
-                                  onClick={() => onVerseClick(verse._id)}
-                                  style={{
-                                    backgroundColor: curr.bg,
-                                    border: 'none',
-                                    padding,
-                                    margin: '0',
-                                    borderRadius,
-                                    boxDecorationBreak: 'clone',
-                                    WebkitBoxDecorationBreak: 'clone',
-                                  }}
-                                  className={`inline cursor-pointer transition-all duration-200 ${!curr.hex && !curr.isSelected ? 'hover:bg-white/5' : ''} ${curr.bg !== 'transparent' ? 'text-white' : 'text-white/80 hover:text-white'}`}
-                                >
-                                  <span
-                                    className={`inline-flex items-center justify-center text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-md ml-1 mr-0 select-none border transition-colors leading-none ${curr.isSelected
-                                      ? isDark ? 'text-sky-500/70 bg-white/5 border-white/10' : 'text-sky-400 bg-sky-500/20 border-sky-400/30'
-                                      : isDark ? 'text-white/30 bg-white/5 border-white/10' : 'text-sky-300/60 bg-sky-500/10 border-sky-400/15'
-                                      }`}
-                                    style={{ verticalAlign: 'middle', transform: 'translateY(-1px)' }}
-                                  >
-                                    {verse.verseNumber}
-                                    {existingNote && (
-                                      <span
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleVerseNoteClick(verse, existingNote);
-                                        }}
-                                        className="inline-block w-1.5 h-1.5 rounded-full bg-[#6366f1] mr-1 animate-pulse"
-                                        title="Has note"
-                                      />
-                                    )}
-                                  </span>
-                                  <span>{verse.text?.trim()} </span>
-                                </span>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          bibleModalVerses.map((verse) => {
-                            const isSelectedIndividual = bibleSelectedVerseIds.has(verse._id);
-                            const existingNote = verseNotes[verse._id];
-                            const highlightColor = bibleHighlights[verse._id];
-                            return (
-                              <VerseItem
-                                key={verse._id}
-                                verse={verse}
-                                isSelected={isSelectedIndividual}
-                                fontSize={bibleVerseFontSize}
-                                spacing={bibleVerseSpacing}
-                                highlightColor={highlightColor}
-                                highlightColorsList={highlightColorsList}
-                                hasNote={existingNote}
-                                isDark={isDark}
-                                onClick={onVerseClick}
-                                onNoteClick={handleVerseNoteClick}
-                              />
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              {/* Chapter Navigation Buttons */}
-              {bibleSelectedVerseIds.size === 0 && !bibleSearchQuery.trim() && bibleModalVerses.length > 0 && (
-                <div className="absolute bottom-4 inset-x-4 sm:inset-x-6 flex items-center justify-between pointer-events-none z-30" dir="ltr">
-                  <button
-                    onClick={goToPrevChapter}
-                    disabled={!hasPrevChapter}
-                    className={`pointer-events-auto w-9 h-9 rounded-full backdrop-blur-md border flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 ${
-                      isDark
-                        ? 'bg-black/90 hover:bg-black/80 border-white/10'
-                        : 'bg-[#002238]/95 hover:bg-[#002d4a] border-sky-400/30 text-sky-100 shadow-[0_4px_20px_rgba(0,34,56,0.6)]'
-                    } ${!hasPrevChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
-                    title="الأصحاح السابق"
-                  >
-                    <ChevronLeft className="w-4 h-4 text-white" />
-                  </button>
-                  <button
-                    onClick={goToNextChapter}
-                    disabled={!hasNextChapter}
-                    className={`pointer-events-auto w-9 h-9 rounded-full backdrop-blur-md border flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 ${
-                      isDark
-                        ? 'bg-black/90 hover:bg-black/80 border-white/10'
-                        : 'bg-[#002238]/95 hover:bg-[#002d4a] border-sky-400/30 text-sky-100 shadow-[0_4px_20px_rgba(0,34,56,0.6)]'
-                    } ${!hasNextChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
-                    title="الأصحاح التالي"
-                  >
-                    <ChevronRight className="w-4 h-4 text-white" />
-                  </button>
-                </div>
-              )}
-
-              {bibleSelectedVerseIds.size > 0 && (
-                <div
-                  ref={actionCardRef}
-                  onTouchStart={handleActionTouchStart}
-                  onTouchMove={handleActionTouchMove}
-                  onTouchEnd={handleActionTouchEnd}
-                  onTouchCancel={handleActionTouchEnd}
-                  onAnimationEnd={() => {
-                    if (actionCardRef.current) {
-                      actionCardRef.current.style.animation = 'none';
-                    }
-                  }}
-                  style={{ willChange: 'transform' }}
-                  className={`animate-sheet-slide-up absolute bottom-0 left-0 right-0 z-50 border-t rounded-t-[1.5rem] flex flex-col text-white overflow-hidden transition-colors ${
-                    isDark
-                      ? 'bg-[#0d0e15] border-white/10 shadow-[0_-15px_35px_rgba(0,0,0,0.6)]'
-                      : 'bg-[#001e33] border-sky-400/25 shadow-[0_-15px_35px_rgba(0,20,35,0.7)]'
-                  }`}
-                  dir="rtl"
-                >
-                  {/* Pull bar */}
-                  <div
-                    onClick={closeSelectionPanel}
-                    className={`w-10 h-1 bg-white/20 hover:bg-white/40 rounded-full mx-auto mt-3 mb-1 shrink-0 transition-colors cursor-pointer ${showColorCustomizer ? 'hidden' : ''}`}
-                  />
-
-                  <div className="flex flex-col gap-3 px-4 pb-4 pt-1">
-
-                    {/* Row: ref + close */}
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-black text-sky-400" dir="ltr">{getSelectedVersesRef()}</span>
-                      </div>
-
-                      <button
-                        onClick={closeSelectionPanel}
-                        className="w-7 h-7 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all active:scale-90"
-                        title="Close"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-1.5 hide-scrollbar" dir="ltr">
-                      <button
-                        onClick={handleCopySelectedVerses}
-                        className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95"
-                      >
-                        <Copy className="w-3.5 h-3.5 text-sky-400" /> {t('copy')}
-                      </button>
-
-                      {availableTranslations.length > 1 && (
-                        <button
-                          onClick={() => {
-                            const nums = bibleModalVerses
-                              .filter(v => bibleSelectedVerseIds.has(v._id))
-                              .map(v => v.verseNumber);
-                            openCompare(nums);
-                          }}
-                          className="flex-1 min-w-[90px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95"
-                        >
-                          <BookOpen className="w-3.5 h-3.5 text-sky-400" /> {t('compare')}
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() => {
-                          const firstVerse = bibleModalVerses.find(v => bibleSelectedVerseIds.has(v._id));
-                          if (!firstVerse) return;
-                          setNoteText(verseNotes[firstVerse._id] || '');
-                          setNoteModalConfig({ type: 'bible', data: firstVerse, existingNote: verseNotes[firstVerse._id] });
-                        }}
-                        className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95"
-                      >
-                        <FileText className="w-3.5 h-3.5 text-indigo-400" /> {t('Note')}
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setShowAiOptions(p => !p);
-                          setAiAnalysis({ loading: false, type: null, text: '', error: null });
-                        }}
-                        className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 bg-white/5 hover:bg-white/10 border-white/10 text-white"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" /> {t('Ai')}
-                      </button>
-                    </div>
-
-                    {/* AI Options */}
-                    {showAiOptions && (
-                      <div className="flex gap-2 shrink-0 animate-in fade-in slide-in-from-bottom-1 duration-150" dir="rtl">
-                        {[
-                          { type: 'explain', label: 'تفسير', icon: BookOpen, color: 'text-sky-400' },
-                          { type: 'cross_reference', label: 'مراجع', icon: Link2, color: 'text-sky-400' },
-                          { type: 'practical', label: 'تطبيق', icon: Lightbulb, color: 'text-sky-400' },
-                        ].map(({ type, label, icon: IconComponent, color }) => (
-                          <button
-                            key={type}
-                            onClick={() => handleAiAnalysis(type)}
-                            disabled={aiAnalysis.loading}
-                            className={`flex-1 py-3 px-4 rounded-2xl bg-[#0b1b2a]/50 hover:bg-black/20 transition-all duration-300 flex flex-col items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 group`}
-                          >
-                            <IconComponent className={`w-5 h-5 ${color} group-hover:scale-110 group-active:scale-95 transition-transform duration-300`} />
-                            <span className="text-[11px] font-black text-slate-300 group-hover:text-white transition-colors duration-300">{label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* AI Response — no header bar, floating dismiss pill */}
-                    {(aiAnalysis.loading || aiAnalysis.text || aiAnalysis.error) && (
-                      <div
-                        className={`relative rounded-2xl overflow-hidden ${isDark ? 'bg-[#060b13]' : 'bg-[#001829]'}`}
-                        data-ai-response
-                      >
-
-                        <div className="flex items-center justify-between px-4 pt-3 pb-1">
-                          <div className="flex items-center gap-1.5">
-                            <Sparkles className="w-3 h-3 text-sky-400" />
-                            <span className="text-[10px] font-black text-sky-300 tracking-widest uppercase">
-                              {aiAnalysis.type === 'explain' ? 'تفسير روحي' : aiAnalysis.type === 'cross_reference' ? 'مراجع كتابية' : 'تطبيق عملي'}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => setAiAnalysis({ loading: false, type: null, text: '', error: null })}
-                            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 hover:bg-red-500/15 text-white/25 hover:text-red-400 border border-white/8 hover:border-red-500/20 transition-all duration-150 text-[10px] font-bold"
-                          >
-                            <X className="w-2.5 h-2.5" />
-                          </button>
-                        </div>
-
-                        <div className="px-4 pb-4" dir="rtl">
-                          {aiAnalysis.loading ? (
-                            <div className="flex items-center justify-center gap-2 py-6">
-                              <div className="relative w-7 h-7">
-                                <div className="absolute inset-0 rounded-full border-2 border-sky-500/30 border-t-sky-400 animate-spin" />
-                                <Sparkles className="absolute inset-0 m-auto w-3 h-3 text-sky-400 animate-pulse" />
-                              </div>
-                            </div>
-                          ) : aiAnalysis.error ? (
-                            <>
-                              <p className="text-xs text-red-400 text-center py-3">{aiAnalysis.error}</p>
-                              {aiAnalysis.isLimit && !isLogin && (
-                                <div className="mt-2 flex justify-center">
-                                  <button
-                                    onClick={() => router.push('/regester')}
-                                    className="inline-flex items-center justify-center rounded-full bg-sky-500 px-4 py-2 text-xs font-black text-white transition hover:bg-sky-400"
-                                  >
-                                    {t('register')}
-                                  </button>
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <p
-                              lang="ar"
-                              dir="rtl"
-                              data-ai-response-scroll
-                              className="mx-auto max-w-[65ch] max-h-[10em] overflow-y-auto overscroll-y-contain touch-pan-y custom-scrollbar-thin font-arabic text-[13px] font-normal leading-[2] tracking-normal text-right text-slate-100 whitespace-pre-line break-words antialiased"
-                            >
-                              {aiAnalysis.text}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Highlights */}
-                    <div className="flex items-center gap-2.5 overflow-x-auto py-1 hide-scrollbar">
-                      {highlightColorsList.map(c => {
-                        const isColorActive = Array.from(bibleSelectedVerseIds).every(id => bibleHighlights[id] === c.id);
-                        const isCustom = c.id.startsWith('custom-') || !HIGHLIGHT_COLORS.some(h => h.id === c.id);
-                        return (
-                          <div key={c.id} className="relative group shrink-0">
-                            <button
-                              onClick={() => handleApplyHighlight(c.id)}
-                              className={`w-7 h-7 rounded-full transition-all active:scale-90 flex items-center justify-center border-2
-                    ${isColorActive ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
-                              style={{ backgroundColor: c.hex }}
-                            >
-                              {isColorActive && <Check className="w-4 h-4 text-slate-900 stroke-[3]" />}
-                            </button>
-
-                            {isCustom && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setHighlightColorsList(prev => prev.filter(item => item.id !== c.id));
-                                }}
-                                className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-slate-900 border border-white/20 text-white/70 hover:text-red-400 hover:bg-red-500/20 hover:border-red-400/50 flex items-center justify-center transition-all shadow-sm z-10"
-                                title="حذف اللون"
-                              >
-                                <X className="w-2.5 h-2.5 stroke-[3]" />
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-
-                      <button
-                        onClick={() => setShowColorCustomizer(prev => !prev)}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90 border border-white/20 shrink-0
-              ${showColorCustomizer ? 'bg-sky-500/20 text-sky-400 border-sky-500/50' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}`}
-                      >
-                        <PlusCircle className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {/* Color Customizer */}
-                    {showColorCustomizer && (
-                      <ColorCustomizer
-                        initialHex={customColorHex}
-                        t={t}
-                        onClose={() => setShowColorCustomizer(false)}
-                        onSave={(selectedHex) => {
-                          const cleanHex = selectedHex.replace('#', '').toLowerCase();
-                          const newId = `custom-${cleanHex}`;
-                          const existing = highlightColorsList?.find(c => c.hex.toLowerCase() === selectedHex.toLowerCase());
-                          const idToApply = existing ? existing.id : newId;
-                          if (!existing) {
-                            setHighlightColorsList(prev => [...prev, { id: newId, hex: selectedHex }]);
-                          }
-                          setCustomColorHex(selectedHex);
-                          handleApplyHighlight(idToApply);
-                          setShowColorCustomizer(false);
-                        }}
-                      />
-                    )}
-
-                  </div>
-                </div>
-              )}
-
-
-              {/* Smart Progress Indicator */}
-              <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-sky-500/50 to-transparent" />
-            </div>
-          </div>
-
-          {/* ══════════════════════════════════════════════
-                  COMPARE MODAL — slides in over the Bible modal
-                  ══════════════════════════════════════════════ */}
-          <AnimatePresence>
-            {compareModal && (
-              <Portal>
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3, ease: 'easeInOut' }}
-                  className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-6"
-                >
-                  {/* ── Modern Backdrop with Blur ── */}
-                  <div
-                    className={`absolute inset-0 backdrop-blur-sm transition-opacity ${
-                      isDark ? 'bg-[#020205]/80' : 'bg-[#001424]/80'
-                    }`}
-                    onClick={() => setCompareModal(false)}
-                  />
-
-                  <motion.div
-                    initial={{ y: 50, opacity: 0, scale: 0.98 }}
-                    animate={{ y: 0, opacity: 1, scale: 1 }}
-                    exit={{ y: 30, opacity: 0, scale: 0.98 }}
-                    transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-                    style={{ willChange: 'transform, opacity' }}
-                    className={`relative w-full sm:max-w-6xl h-[92vh] sm:h-[85vh] rounded-t-[2rem] sm:rounded-[2rem] backdrop-blur-2xl border-t sm:border shadow-2xl flex flex-col overflow-hidden ring-1 transition-colors ${
-                      isDark
-                        ? 'bg-[#0A0A14]/95 border-white/[0.08] ring-white/5 sm:shadow-[0_0_60px_-15px_rgba(14,165,233,0.15)]'
-                        : 'bg-[#002238]/95 border-sky-400/20 ring-sky-400/10 shadow-[0_0_60px_-15px_rgba(14,165,233,0.25)]'
-                    }`}
-                  >
-                    {/* ── Compare Modal Header ── */}
-                    <div className="shrink-0 px-5 sm:px-8 py-5 border-b border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent">
-                      <div className="flex items-center justify-between mb-5">
-                        <div className="flex items-center gap-3.5">
-                          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-400/20 to-indigo-500/20 border border-white/10 flex items-center justify-center shadow-[inset_0_0_12px_rgba(56,189,248,0.2)]">
-                            <span className="text-lg drop-shadow-md">⚖️</span>
-                          </div>
-                          <div>
-
-                            <p className="text-sm sm:text-base font-bold text-white/95 tracking-wide" dir="rtl">
-                              {bibleModalBook?.bookName} {bibleModalChapter}
-                              {compareVerseNums.length > 0 && (
-                                <span className="text-white/40 font-medium ml-1">
-                                  — {compareVerseNums.length > 1 ? `آيات ${compareVerseNums.join('، ')}` : `آية ${compareVerseNums[0]}`}
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => setCompareModal(false)}
-                          className="group p-2.5 rounded-full bg-white/5 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all duration-300"
-                        >
-                          <X className="w-4 h-4 text-white/50 group-hover:text-red-400 group-active:scale-90 transition-transform" />
-                        </button>
-                      </div>
-
-                      {/* Modern Translation Multi-selector Pills */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[11px] font-semibold text-white/30 mr-1 shrink-0 flex items-center gap-1.5">
-                          <div className="w-1 h-1 rounded-full bg-white/30" />
-                          الترجمات المعروضة:
-                        </span>
-                        {availableTranslations.map(tr => {
-                          const isSelected = compareSelectedTranslations.includes(tr);
-                          return (
-                            <button
-                              key={tr}
-                              onClick={async () => {
-                                if (isSelected && compareSelectedTranslations.length === 1) return;
-                                const next = isSelected
-                                  ? compareSelectedTranslations.filter(t => t !== tr)
-                                  : [...compareSelectedTranslations, tr];
-                                setCompareSelectedTranslations(next);
-                                setCompareMobileTab(0);
-                                setCompareDesktopPage(0);
-                                await fetchCompareData(compareVerseNums, next);
-                              }}
-                              className={`px-3.5 py-1.5 rounded-full text-[11px] sm:text-xs font-bold tracking-wider transition-all duration-300 active:scale-95 border ${isSelected
-                                ? 'bg-white text-black border-white shadow-[0_0_15px_-3px_rgba(255,255,255,0.3)]'
-                                : 'bg-white/5 border-white/10 text-white/60 hover:text-white/90 hover:bg-white/10 hover:border-white/20'
-                                }`}
-                            >
-                              {tr}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* ── Mobile Tab Bar ── */}
-                    {!isLoadingCompare && allColumns.length > 1 && (
-                      <div className="sm:hidden shrink-0 flex border-b border-white/[0.06] bg-black/20 overflow-x-auto hide-scrollbar px-2">
-                        {allColumns.map((tr, idx) => (
-                          <button
-                            key={tr}
-                            onClick={() => setCompareMobileTab(idx)}
-                            className={`relative flex-1 min-w-[90px] px-4 py-4 text-[13px] font-bold tracking-wide transition-colors whitespace-nowrap ${idx === mtSafe ? 'text-sky-400' : 'text-white/40 hover:text-white/70'
-                              }`}
-                          >
-                            {tr}
-                            {idx === mtSafe && (
-                              <motion.div
-                                layoutId="activeTabMobile"
-                                className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-400 rounded-t-full shadow-[0_-2px_8px_rgba(56,189,248,0.5)]"
-                              />
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* ── Compare Body ── */}
-                    <div className={`flex-1 overflow-hidden flex min-h-0 ${isDark ? 'bg-[#0A0A14]/50' : 'bg-[#001829]/60'}`}>
-                      {isLoadingCompare ? (
-                        <div className="flex-1 flex flex-col sm:flex-row gap-0 min-h-0">
-                          {[...Array(Math.min(3, compareSelectedTranslations.length || 2))].map((_, i) => (
-                            <div key={i} className="flex-1 p-6 sm:p-8 border-b sm:border-b-0 sm:border-r border-white/[0.04] last:border-0 space-y-6">
-                              <div className="h-6 w-24 bg-white/5 rounded-lg animate-pulse" />
-                              {[...Array(compareVerseNums.length || 2)].map((_, j) => (
-                                <div key={j} className="space-y-3">
-                                  <div className="h-4 w-12 bg-white/5 rounded animate-pulse" />
-                                  <div className="h-4 bg-white/5 rounded w-full animate-pulse delay-75" />
-                                  <div className="h-4 bg-white/5 rounded w-5/6 animate-pulse delay-100" />
-                                  <div className="h-4 bg-white/5 rounded w-4/6 animate-pulse delay-150" />
-                                </div>
-                              ))}
+                {/* ── Compare Body ── */}
+                <div className={`flex-1 overflow-hidden flex min-h-0 ${isDark ? 'bg-[#0A0A14]/50' : 'bg-[#001829]/60'}`}>
+                  {isLoadingCompare ? (
+                    <div className="flex-1 flex flex-col sm:flex-row gap-0 min-h-0">
+                      {[...Array(Math.min(3, compareSelectedTranslations.length || 2))].map((_, i) => (
+                        <div key={i} className="flex-1 p-6 sm:p-8 border-b sm:border-b-0 sm:border-r border-white/[0.04] last:border-0 space-y-6">
+                          <div className="h-6 w-24 bg-white/5 rounded-lg animate-pulse" />
+                          {[...Array(compareVerseNums.length || 2)].map((_, j) => (
+                            <div key={j} className="space-y-3">
+                              <div className="h-4 w-12 bg-white/5 rounded animate-pulse" />
+                              <div className="h-4 bg-white/5 rounded w-full animate-pulse delay-75" />
+                              <div className="h-4 bg-white/5 rounded w-5/6 animate-pulse delay-100" />
+                              <div className="h-4 bg-white/5 rounded w-4/6 animate-pulse delay-150" />
                             </div>
                           ))}
                         </div>
-                      ) : allColumns.length > 0 ? (
-                        <>
-                          {/* DESKTOP */}
-                          <div className="hidden sm:flex flex-1 min-h-0 relative overflow-hidden">
-                            {desktopColumns.map((tr) => (
-                              <div key={tr} className="flex-1 border-r border-white/[0.04] last:border-0 overflow-y-auto custom-scrollbar">
-                                <CompareColumn
-                                  translationCode={tr}
-                                  verses={compareData?.[tr] || []}
-                                  isActive={true}
-                                />
-                              </div>
-                            ))}
-
-                            {totalPages > 1 && (
-                              <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1.5 backdrop-blur-xl border rounded-full p-1.5 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] z-10 ring-1 ${
-                                isDark
-                                  ? 'bg-[#12121A]/80 border-white/10 ring-white/5'
-                                  : 'bg-[#001524]/85 border-sky-400/25 ring-sky-400/10'
-                              }`}>
-                                <button
-                                  onClick={() => setCompareDesktopPage(p => Math.max(0, p - 1))}
-                                  disabled={dpSafe === 0}
-                                  className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:hover:bg-transparent transition-all"
-                                >
-                                  <ChevronDown className="w-4 h-4 rotate-90" />
-                                </button>
-
-                                <div className="flex gap-2 items-center px-2">
-                                  {Array.from({ length: totalPages }).map((_, pi) => (
-                                    <button
-                                      key={pi}
-                                      onClick={() => setCompareDesktopPage(pi)}
-                                      className={`h-1.5 rounded-full transition-all duration-500 ease-out ${pi === dpSafe
-                                        ? 'bg-sky-400 w-6 shadow-[0_0_10px_rgba(56,189,248,0.5)]'
-                                        : 'bg-white/20 w-1.5 hover:bg-white/40 hover:w-3'
-                                        }`}
-                                    />
-                                  ))}
-                                </div>
-
-                                <button
-                                  onClick={() => setCompareDesktopPage(p => Math.min(totalPages - 1, p + 1))}
-                                  disabled={dpSafe >= totalPages - 1}
-                                  className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:hover:bg-transparent transition-all"
-                                >
-                                  <ChevronDown className="w-4 h-4 -rotate-90" />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* ── MOBILE (With Native Touch Swipe - طلقة) ── */}
-                          <div
-                            className="sm:hidden flex-1 flex flex-col min-h-0 overflow-hidden relative w-full"
-                            onTouchStart={(e) => {
-                              e.currentTarget.dataset.startX = e.targetTouches[0].clientX;
-                            }}
-                            onTouchMove={(e) => {
-                              e.currentTarget.dataset.endX = e.targetTouches[0].clientX;
-                            }}
-                            onTouchEnd={(e) => {
-                              const start = parseFloat(e.currentTarget.dataset.startX);
-                              const end = parseFloat(e.currentTarget.dataset.endX);
-
-                              // لو مفيش سحب حقيقي أو لمسة عادية نوقف
-                              if (!start || !end) return;
-
-                              const distance = start - end;
-                              const swipeThreshold = 50; // حساسية السحب (تقدر تقللها لو عايزه يقلب أسرع)
-
-                              if (distance > swipeThreshold && mtSafe < allColumns.length - 1) {
-                                // سحب لليسار -> الترجمة التالية
-                                setCompareMobileTab(prev => prev + 1);
-                              } else if (distance < -swipeThreshold && mtSafe > 0) {
-                                // سحب لليمين -> الترجمة السابقة
-                                setCompareMobileTab(prev => prev - 1);
-                              }
-
-                              // تصفير القيم بعد السحب
-                              e.currentTarget.dataset.startX = '';
-                              e.currentTarget.dataset.endX = '';
-                            }}
-                          >
-                            {mobileActiveCode && compareData?.[mobileActiveCode] ? (
-                              <motion.div
-                                key={mobileActiveCode}
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                                transition={{ duration: 0.25, ease: "easeOut" }}
-                                className="flex-1 overflow-y-auto custom-scrollbar w-full h-full pb-6"
-                              >
-                                <CompareColumn
-                                  translationCode={mobileActiveCode}
-                                  verses={compareData[mobileActiveCode]}
-                                  isActive={true}
-                                />
-                              </motion.div>
-                            ) : (
-                              <div className="flex-1 flex items-center justify-center">
-                                <p className="text-white/30 text-sm font-medium">لا توجد بيانات</p>
-                              </div>
-                            )}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex-1 flex items-center justify-center">
-                          <div className="text-center opacity-40">
-                            <div className="text-5xl mb-4 drop-shadow-xl">⚖️</div>
-                            <p className="text-base font-bold text-white tracking-wide">لا توجد بيانات للمقارنة</p>
-                          </div>
-                        </div>
-                      )}
+                      ))}
                     </div>
+                  ) : allColumns.length > 0 ? (
+                    <>
+                      {/* DESKTOP */}
+                      <div className="hidden sm:flex flex-1 min-h-0 relative overflow-hidden">
+                        {desktopColumns.map((tr) => (
+                          <div key={tr} className="flex-1 border-r border-white/[0.04] last:border-0 overflow-y-auto custom-scrollbar">
+                            <CompareColumn
+                              translationCode={tr}
+                              verses={compareData?.[tr] || []}
+                              isActive={true}
+                            />
+                          </div>
+                        ))}
 
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-sky-500/40 to-transparent blur-[0.5px]" />
-                  </motion.div>
-                </motion.div>
-              </Portal>
-            )}
-          </AnimatePresence>
-        </Portal>
-      )}
+                        {totalPages > 1 && (
+                          <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1.5 backdrop-blur-xl border rounded-full p-1.5 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] z-10 ring-1 ${isDark
+                            ? 'bg-[#12121A]/80 border-white/10 ring-white/5'
+                            : 'bg-[#001524]/85 border-sky-400/25 ring-sky-400/10'
+                            }`}>
+                            <button
+                              onClick={() => setCompareDesktopPage(p => Math.max(0, p - 1))}
+                              disabled={dpSafe === 0}
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:hover:bg-transparent transition-all"
+                            >
+                              <ChevronDown className="w-4 h-4 rotate-90" />
+                            </button>
+
+                            <div className="flex gap-2 items-center px-2">
+                              {Array.from({ length: totalPages }).map((_, pi) => (
+                                <button
+                                  key={pi}
+                                  onClick={() => setCompareDesktopPage(pi)}
+                                  className={`h-1.5 rounded-full transition-all duration-500 ease-out ${pi === dpSafe
+                                    ? 'bg-sky-400 w-6 shadow-[0_0_10px_rgba(56,189,248,0.5)]'
+                                    : 'bg-white/20 w-1.5 hover:bg-white/40 hover:w-3'
+                                    }`}
+                                />
+                              ))}
+                            </div>
+
+                            <button
+                              onClick={() => setCompareDesktopPage(p => Math.min(totalPages - 1, p + 1))}
+                              disabled={dpSafe >= totalPages - 1}
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:hover:bg-transparent transition-all"
+                            >
+                              <ChevronDown className="w-4 h-4 -rotate-90" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* ── MOBILE (With Native Touch Swipe - طلقة) ── */}
+                      <div
+                        className="sm:hidden flex-1 flex flex-col min-h-0 overflow-hidden relative w-full"
+                        onTouchStart={(e) => {
+                          e.currentTarget.dataset.startX = e.targetTouches[0].clientX;
+                        }}
+                        onTouchMove={(e) => {
+                          e.currentTarget.dataset.endX = e.targetTouches[0].clientX;
+                        }}
+                        onTouchEnd={(e) => {
+                          const start = parseFloat(e.currentTarget.dataset.startX);
+                          const end = parseFloat(e.currentTarget.dataset.endX);
+
+                          // لو مفيش سحب حقيقي أو لمسة عادية نوقف
+                          if (!start || !end) return;
+
+                          const distance = start - end;
+                          const swipeThreshold = 50; // حساسية السحب (تقدر تقللها لو عايزه يقلب أسرع)
+
+                          if (distance > swipeThreshold && mtSafe < allColumns.length - 1) {
+                            // سحب لليسار -> الترجمة التالية
+                            setCompareMobileTab(prev => prev + 1);
+                          } else if (distance < -swipeThreshold && mtSafe > 0) {
+                            // سحب لليمين -> الترجمة السابقة
+                            setCompareMobileTab(prev => prev - 1);
+                          }
+
+                          // تصفير القيم بعد السحب
+                          e.currentTarget.dataset.startX = '';
+                          e.currentTarget.dataset.endX = '';
+                        }}
+                      >
+                        {mobileActiveCode && compareData?.[mobileActiveCode] ? (
+                          <motion.div
+                            key={mobileActiveCode}
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.25, ease: "easeOut" }}
+                            className="flex-1 overflow-y-auto custom-scrollbar w-full h-full pb-6"
+                          >
+                            <CompareColumn
+                              translationCode={mobileActiveCode}
+                              verses={compareData[mobileActiveCode]}
+                              isActive={true}
+                            />
+                          </motion.div>
+                        ) : (
+                          <div className="flex-1 flex items-center justify-center">
+                            <p className="text-white/30 text-sm font-medium">لا توجد بيانات</p>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center">
+                      <div className="text-center opacity-40">
+                        <div className="text-5xl mb-4 drop-shadow-xl">⚖️</div>
+                        <p className="text-base font-bold text-white tracking-wide">لا توجد بيانات للمقارنة</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-sky-500/40 to-transparent blur-[0.5px]" />
+              </motion.div>
+            </motion.div>
+          </Portal>
+        )}
+      </AnimatePresence>
       {/* This is the Add/Edit Note form */}
       {noteModalConfig && (
         <Portal>
@@ -2915,11 +2972,10 @@ export function BibleForm({ controller }) {
               onClick={(e) => { e.stopPropagation(); setNoteModalConfig(null); setNoteText(''); }}
             />
             <div
-              className={`relative w-full sm:max-w-lg border rounded-t-3xl sm:rounded-3xl shadow-[0_0_60px_-10px_rgba(99,102,241,0.3)] overflow-hidden flex flex-col ${
-                isDark
-                  ? 'bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border-indigo-500/20'
-                  : 'bg-gradient-to-b from-[#002238] to-[#001726] border-sky-400/30'
-              }`}
+              className={`relative w-full sm:max-w-lg border rounded-t-3xl sm:rounded-3xl shadow-[0_0_60px_-10px_rgba(99,102,241,0.3)] overflow-hidden flex flex-col ${isDark
+                ? 'bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border-indigo-500/20'
+                : 'bg-gradient-to-b from-[#002238] to-[#001726] border-sky-400/30'
+                }`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Decorative top bar mobile */}
@@ -3000,11 +3056,10 @@ export function BibleForm({ controller }) {
           >
             <div className={`absolute inset-0 backdrop-blur-xl ${isDark ? 'bg-black/80' : 'bg-[#001424]/80'}`} />
             <div
-              className={`relative w-full max-w-md border rounded-3xl shadow-[0_0_80px_-10px_rgba(99,102,241,0.4)] overflow-hidden ${
-                isDark
-                  ? 'bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border-indigo-500/30'
-                  : 'bg-gradient-to-b from-[#002238] to-[#001726] border-sky-400/35'
-              }`}
+              className={`relative w-full max-w-md border rounded-3xl shadow-[0_0_80px_-10px_rgba(99,102,241,0.4)] overflow-hidden ${isDark
+                ? 'bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border-indigo-500/30'
+                : 'bg-gradient-to-b from-[#002238] to-[#001726] border-sky-400/35'
+                }`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Ambient glow */}
@@ -3080,5 +3135,5 @@ export default function BibleFormPage() {
     onPresent: () => { },
   });
 
-  return <BibleForm controller={controller} />;
+  return <BibleForm controller={controller} isPage={true} />;
 }

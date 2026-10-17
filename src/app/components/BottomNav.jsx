@@ -29,6 +29,7 @@ export default function BottomNav() {
   const router = useRouter();
   const [isVisible, setIsVisible] = useState(true);
   const [isLockedHidden, setIsLockedHidden] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [pendingNavigation, setPendingNavigation] = useState(null);
 
@@ -36,6 +37,30 @@ export default function BottomNav() {
   const visualPath = pendingNavigation?.from === currentPath
     ? pendingNavigation.to
     : currentPath;
+
+  // Hide bottom nav when soft keyboard opens
+  useEffect(() => {
+    const handleViewportChange = () => {
+      const vv = window.visualViewport;
+      const currentHeight = vv ? vv.height : window.innerHeight;
+      const isInput = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable;
+      setIsKeyboardOpen(Boolean(isInput && window.screen.height - currentHeight > 150));
+    };
+
+    const handleFocusOut = () => {
+      setIsKeyboardOpen(false);
+    };
+
+    window.addEventListener('resize', handleViewportChange);
+    window.visualViewport?.addEventListener('resize', handleViewportChange);
+    window.addEventListener('focusout', handleFocusOut);
+
+    return () => {
+      window.removeEventListener('resize', handleViewportChange);
+      window.visualViewport?.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('focusout', handleFocusOut);
+    };
+  }, []);
 
   // Listen for lock requests to hide bottom nav
   useEffect(() => {
@@ -87,12 +112,12 @@ export default function BottomNav() {
     };
   }, [lastScrollY]);
 
-  const shouldShow = isVisible && !isLockedHidden;
+  const shouldShow = isVisible && !isLockedHidden && !isKeyboardOpen;
 
   return (
     <div
       data-lenis-prevent
-      className={`fixed bottom-0 left-0 right-0 z-[10000] border-t backdrop-blur-xl transition-all duration-200 ease-out touch-manipulation select-none ${shouldShow ? 'translate-y-0' : 'translate-y-full'
+      className={`fixed bottom-0 left-0 right-0 z-[10000] border-t backdrop-blur-xl transition-all duration-200 ease-out touch-manipulation select-none ${shouldShow ? 'translate-y-0' : 'translate-y-full pointer-events-none'
         } ${isDark
           ? 'bg-[#060b13]/95 border-white/[0.06] shadow-[0_-10px_30px_rgba(6,11,19,0.8)]'
           : 'bg-[#002238]/95 border-sky-400/20 shadow-[0_-10px_30px_rgba(0,34,56,0.5)]'

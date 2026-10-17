@@ -192,7 +192,7 @@ const groupHighlights = (highlights) => {
 };
 
 export default function NormalUserProfile() {
-    const { user_id, isLogin, profilePhoto, setProfilePhoto } = useContext(UserContext);
+    const { user_id, isLogin, setLogin, setUsername, profilePhoto, setProfilePhoto } = useContext(UserContext);
     const { src: profileAvatarSrc, markFailed: markProfileAvatarFailed } = useOfflineAvatar(user_id, profilePhoto);
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -207,6 +207,12 @@ export default function NormalUserProfile() {
     const [crop, setCrop] = useState();
     const [completedCrop, setCompletedCrop] = useState(null);
     const imgRef = useRef(null);
+
+    // Edit Name & Username state
+    const [editModal, setEditModal] = useState(null);
+    const [editValue, setEditValue] = useState('');
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
+    const [usernameCheck, setUsernameCheck] = useState({ checking: false, available: null, reason: '' });
 
     // The viewer covers the nav without triggering its slide animation.
     // Keep the existing nav lock for the cropper.
@@ -240,7 +246,7 @@ export default function NormalUserProfile() {
 
     const CACHE_KEY = `profile_data_${user_id}`;
 
-    // الدالة المسؤولة عن تحديث الـ UI والكاش في نفس الوقت
+    // Updates profile state and local cache
     const updateProfileState = (modifier) => {
         setProfile(prev => {
             const updatedProfile = typeof modifier === 'function' ? modifier(prev) : modifier;
@@ -249,6 +255,141 @@ export default function NormalUserProfile() {
             }
             return updatedProfile;
         });
+    };
+
+    // Debounced username availability check
+    useEffect(() => {
+        if (!editModal || editModal.type !== 'username') return;
+
+        const currentVal = (editValue || '').trim().toLowerCase();
+        const originalVal = (profile?.user?.username || '').trim().toLowerCase();
+
+        if (!currentVal) {
+            setUsernameCheck({ checking: false, available: null, reason: '' });
+            return;
+        }
+
+        if (currentVal === originalVal) {
+            setUsernameCheck({ checking: false, available: true, reason: 'Current username', isCurrent: true });
+            return;
+        }
+
+        if (!/^[a-z0-9_]+$/.test(currentVal)) {
+            setUsernameCheck({
+                checking: false,
+                available: false,
+                reason: 'Only letters, numbers, and underscores (_).'
+            });
+            return;
+        }
+
+        setUsernameCheck({ checking: true, available: null, reason: '' });
+        const timer = setTimeout(async () => {
+            try {
+                const res = await fetch(`${API_URL}/users/check-username?username=${encodeURIComponent(currentVal)}`);
+                const data = await res.json();
+                if (data.available) {
+                    setUsernameCheck({ checking: false, available: true, reason: 'Username is available' });
+                } else {
+                    setUsernameCheck({ checking: false, available: false, reason: data.reason || 'Username is already taken' });
+                }
+            } catch {
+                setUsernameCheck({ checking: false, available: false, reason: 'Error checking username' });
+            }
+        }, 350);
+
+        return () => clearTimeout(timer);
+    }, [editValue, editModal, profile?.user?.username]);
+
+    const handleSaveEdit = async () => {
+        if (!editModal || isSavingEdit) return;
+        const trimmed = editValue.trim();
+
+        if (editModal.type === 'name') {
+            if (!trimmed) {
+                showToast({ message: 'Name cannot be empty', type: 'error' });
+                return;
+            }
+            if (trimmed === profile?.user?.Name) {
+                setEditModal(null);
+                return;
+            }
+
+            setIsSavingEdit(true);
+            try {
+                const res = await fetch(`${API_URL}/users/update-name`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${isLogin}`
+                    },
+                    body: JSON.stringify({ name: trimmed })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.msg || 'Failed to update name');
+
+                updateProfileState(prev => prev ? {
+                    ...prev,
+                    user: { ...prev.user, Name: trimmed }
+                } : prev);
+
+                showToast({ message: 'Name updated successfully', type: 'success' });
+                setEditModal(null);
+            } catch (err) {
+                showToast({ message: err.message || 'Error updating name', type: 'error' });
+            } finally {
+                setIsSavingEdit(false);
+            }
+        } else if (editModal.type === 'username') {
+            const lower = trimmed.toLowerCase();
+            if (!lower) {
+                showToast({ message: 'Username cannot be empty', type: 'error' });
+                return;
+            }
+            if (lower === profile?.user?.username) {
+                setEditModal(null);
+                return;
+            }
+            if (!usernameCheck.available || usernameCheck.isCurrent) {
+                showToast({ message: usernameCheck.reason || 'Invalid username', type: 'error' });
+                return;
+            }
+
+            setIsSavingEdit(true);
+            try {
+                const res = await fetch(`${API_URL}/users/set-username`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${isLogin}`
+                    },
+                    body: JSON.stringify({ username: lower })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.msg || 'Failed to set username');
+
+                if (data.token) {
+                    localStorage.setItem('user_Taspe7_Token', data.token);
+                    setLogin(data.token);
+                }
+                if (data.username) {
+                    localStorage.setItem('user_Taspe7_Username', data.username);
+                    setUsername(data.username);
+                }
+
+                updateProfileState(prev => prev ? {
+                    ...prev,
+                    user: { ...prev.user, username: data.username || lower }
+                } : prev);
+
+                showToast({ message: 'Username updated successfully', type: 'success' });
+                setEditModal(null);
+            } catch (err) {
+                showToast({ message: err.message || 'Error updating username', type: 'error' });
+            } finally {
+                setIsSavingEdit(false);
+            }
+        }
     };
 
     const handleFileSelect = (e) => {
@@ -672,68 +813,89 @@ export default function NormalUserProfile() {
 
                 {/* --- HEADER PROFILE CARD --- */}
                 <div className="rounded-[2rem] border border-white/5 bg-white/[0.02] p-5 sm:p-8 backdrop-blur-2xl mb-6 sm:mb-8 relative overflow-hidden shadow-2xl shadow-black/50">
-                    <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-[0.03] pointer-events-none">
-                        <User className="w-64 h-64 sm:w-96 sm:h-96" />
-                    </div>
                     <div className="absolute top-1/2 left-0 w-32 h-32 bg-sky-500/10 blur-[100px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2"></div>
 
-                    <div className="relative z-10 flex flex-col sm:flex-row gap-6 items-start sm:items-center">
-                        <div className="relative shrink-0">
-                            <div 
-                                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-2 border-sky-500/20 bg-black/40 flex items-center justify-center shadow-xl shadow-black/50 cursor-pointer"
-                                onClick={() => {
-                                    if (profilePhoto) {
-                                        setIsViewingPhoto(true);
-                                    } else {
-                                        fileInputRef.current?.click();
-                                    }
-                                }}
-                            >
-                                {profileAvatarSrc ? (
-                                    <img src={profileAvatarSrc} alt="Profile" onError={markProfileAvatarFailed} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
-                                ) : (
-                                    <span className="text-3xl sm:text-4xl font-bold text-sky-400/50">
-                                        {profile?.user?.Name?.charAt(0) || 'U'}
-                                    </span>
-                                )}
-                            </div>
-                            
-                            <button 
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={isUploadingPhoto}
-                                className="absolute bottom-0 right-0 translate-x-1 translate-y-1 w-8 h-8 sm:w-10 sm:h-10 bg-slate-900 rounded-full flex items-center justify-center border-2 border-sky-500/30 shadow-lg hover:bg-slate-800 transition-colors"
-                                title="Change Photo"
-                            >
-                                {isUploadingPhoto ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 text-sky-400 animate-spin" /> : <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-sky-400" />}
-                            </button>
+                    <div className="relative z-10 flex flex-row items-start justify-between gap-3 sm:gap-6">
+                        <div className="flex flex-row items-center gap-3 sm:gap-6 min-w-0">
+                            <div className="relative shrink-0">
+                                <div 
+                                    className="w-20 h-20 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-sky-500/20 bg-black/40 flex items-center justify-center shadow-xl shadow-black/50 cursor-pointer"
+                                    onClick={() => {
+                                        if (profilePhoto) {
+                                            setIsViewingPhoto(true);
+                                        } else {
+                                            fileInputRef.current?.click();
+                                        }
+                                    }}
+                                >
+                                    {profileAvatarSrc ? (
+                                        <img src={profileAvatarSrc} alt="Profile" onError={markProfileAvatarFailed} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                                    ) : (
+                                        <span className="text-2xl sm:text-4xl font-bold text-sky-400/50">
+                                            {profile?.user?.Name?.charAt(0) || 'U'}
+                                        </span>
+                                    )}
+                                </div>
+                                
+                                <button 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploadingPhoto}
+                                    className="absolute bottom-0 right-0 translate-x-1 translate-y-1 w-7 h-7 sm:w-9 sm:h-9 bg-slate-900 rounded-full flex items-center justify-center border-2 border-sky-500/30 shadow-lg hover:bg-slate-800 transition-colors"
+                                    title="Change Photo"
+                                >
+                                    {isUploadingPhoto ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400 animate-spin" /> : <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400" />}
+                                </button>
 
-                            <input 
-                                type="file" 
-                                ref={fileInputRef} 
-                                className="hidden" 
-                                accept="image/jpeg, image/png, image/webp" 
-                                onChange={handleFileSelect} 
-                            />
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef} 
+                                    className="hidden" 
+                                    accept="image/jpeg, image/png, image/webp" 
+                                    onChange={handleFileSelect} 
+                                />
+                            </div>
+
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+                                    <h1 className="text-xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-slate-400 leading-tight tracking-tight truncate">
+                                        {profile?.user?.Name || 'N/A'}
+                                    </h1>
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            setEditValue(profile?.user?.Name || '');
+                                            setEditModal({ type: 'name' });
+                                        }}
+                                        className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+                                        title="Edit Name"
+                                    >
+                                        <Edit3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                    </button>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400 font-medium">
+                                    <span className="truncate">
+                                        @{profile?.user?.username || profile?.user?.Name?.toLowerCase().replace(/\s+/g, '') || 'username'}
+                                    </span>
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            setEditValue(profile?.user?.username || '');
+                                            setEditModal({ type: 'username' });
+                                        }}
+                                        className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+                                        title="Edit Username"
+                                    >
+                                        <Edit3 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="flex-1">
-                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-500/10 border border-sky-400/20 text-sky-300 text-[9px] sm:text-[10px] font-black uppercase tracking-widest mb-4">
-                                My Profile Insight
-                            </div>
-                            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-slate-400 mb-2 leading-tight tracking-tight">
-                                {profile?.user?.Name || 'N/A'}
-                            </h1>
-                            <p className="flex items-center gap-2 text-xs sm:text-sm text-slate-400 mb-6 font-medium">
-                                <Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-500" />
-                                {profile?.user?.email || 'Email not available'}
-                            </p>
-
-                            <div className="flex flex-wrap gap-2 sm:gap-3">
-                                <Badge icon={User} label="Role" value={titleCase(profile?.user?.role)} classes="bg-sky-500/5 text-sky-200 border-sky-500/10" />
-                                {!navigator.onLine && (
-                                    <Badge icon={Activity} label="Status" value="Offline Mode" classes="bg-orange-500/10 text-orange-400 border-orange-500/20" />
-                                )}
-                            </div>
+                        <div className="flex flex-col sm:flex-row items-end gap-2 shrink-0">
+                            <Badge icon={User} label="Role" value={titleCase(profile?.user?.role)} classes="bg-sky-500/5 text-sky-200 border-sky-500/10" />
+                            {!navigator.onLine && (
+                                <Badge icon={Activity} label="Status" value="Offline Mode" classes="bg-orange-500/10 text-orange-400 border-orange-500/20" />
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1127,6 +1289,135 @@ export default function NormalUserProfile() {
                                     {isUploadingPhoto ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Done'}
                                 </button>
                             </div>
+                        </motion.div>
+                    </Portal>
+                )}
+            </AnimatePresence>
+
+            {/* --- EDIT PROFILE POPUP MODAL --- */}
+            <AnimatePresence>
+                {editModal && (
+                    <Portal>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[500] flex items-center justify-center p-4"
+                            style={{ isolation: 'isolate' }}
+                        >
+                            <div 
+                                className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                                onClick={() => { if (!isSavingEdit) setEditModal(null); }}
+                            />
+                            <motion.div
+                                initial={{ y: 20, opacity: 0, scale: 0.95 }}
+                                animate={{ y: 0, opacity: 1, scale: 1 }}
+                                exit={{ y: 20, opacity: 0, scale: 0.95 }}
+                                transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                                className="relative w-full max-w-sm bg-[#080f1c] rounded-2xl overflow-hidden flex flex-col p-5"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400">
+                                            <Edit3 className="w-4 h-4" />
+                                        </div>
+                                        <h3 className="text-sm font-bold text-white">
+                                            {editModal.type === 'name' ? 'Edit Name' : 'Edit Username'}
+                                        </h3>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => { if (!isSavingEdit) setEditModal(null); }}
+                                        className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+
+                                <div className="mb-4">
+                                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                                        {editModal.type === 'name' ? 'Display Name' : 'Username'}
+                                    </label>
+                                    <div className="relative flex items-center">
+                                        {editModal.type === 'username' && (
+                                            <span className="absolute left-3 text-sm font-bold text-sky-400 select-none">
+                                                @
+                                            </span>
+                                        )}
+                                        <input
+                                            type="text"
+                                            autoFocus
+                                            value={editValue}
+                                            onChange={(e) => setEditValue(editModal.type === 'username' ? e.target.value.toLowerCase().replace(/\s+/g, '') : e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') handleSaveEdit();
+                                            }}
+                                            maxLength={editModal.type === 'name' ? 50 : 30}
+                                            placeholder={editModal.type === 'name' ? 'Enter your name' : 'username'}
+                                            className={`w-full bg-white/5 border rounded-xl py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-colors ${
+                                                editModal.type === 'username' ? 'pl-8 pr-9' : 'px-3.5'
+                                            } ${
+                                                editModal.type === 'username' && editValue.trim()
+                                                    ? usernameCheck.checking
+                                                        ? 'border-sky-500/40 focus:ring-sky-500/40'
+                                                        : usernameCheck.available
+                                                        ? 'border-emerald-500/50 focus:ring-emerald-500/50'
+                                                        : 'border-rose-500/50 focus:ring-rose-500/50'
+                                                    : 'border-white/10 focus:border-sky-400/50 focus:ring-sky-400/30'
+                                            }`}
+                                        />
+                                        {editModal.type === 'username' && editValue.trim() && (
+                                            <div className="absolute right-3 flex items-center">
+                                                {usernameCheck.checking ? (
+                                                    <Loader2 className="w-4 h-4 text-sky-400 animate-spin" />
+                                                ) : usernameCheck.available ? (
+                                                    <Check className="w-4 h-4 text-emerald-400" />
+                                                ) : (
+                                                    <X className="w-4 h-4 text-rose-400" />
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {editModal.type === 'username' && editValue.trim() && (
+                                        <p className={`text-[11px] mt-1.5 font-medium flex items-center gap-1 ${
+                                            usernameCheck.checking
+                                                ? 'text-slate-400'
+                                                : usernameCheck.available
+                                                ? 'text-emerald-400'
+                                                : 'text-rose-400'
+                                        }`}>
+                                            {usernameCheck.checking ? 'Checking availability...' : usernameCheck.reason}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditModal(null)}
+                                        disabled={isSavingEdit}
+                                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleSaveEdit}
+                                        disabled={
+                                            isSavingEdit ||
+                                            !editValue.trim() ||
+                                            (editModal.type === 'name' && editValue.trim() === profile?.user?.Name) ||
+                                            (editModal.type === 'username' && (!usernameCheck.available || usernameCheck.isCurrent || usernameCheck.checking))
+                                        }
+                                        className="px-4 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:hover:bg-sky-500"
+                                    >
+                                        {isSavingEdit && <Loader2 className="w-3 h-3 animate-spin" />}
+                                        Save
+                                    </button>
+                                </div>
+                            </motion.div>
                         </motion.div>
                     </Portal>
                 )}

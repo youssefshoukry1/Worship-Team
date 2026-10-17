@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono, Noto_Naskh_Arabic } from "next/font/google";
+import { Geist, Geist_Mono, Noto_Naskh_Arabic, IBM_Plex_Sans_Arabic } from "next/font/google";
 import "./globals.css";
 import UserContextProvider from "./context/User_Context";
 import HymnsContextProvider from "./context/Hymns_Context";
@@ -28,6 +28,12 @@ const notoNaskhArabic = Noto_Naskh_Arabic({
     weight: ["400", "500", "600", "700"],
 });
 
+const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
+    variable: "--font-ibm-plex-sans-arabic",
+    subsets: ["arabic"],
+    weight: ["400", "500", "600", "700"],
+});
+
 export const metadata = {
     title: "Wasla",
     description: "وصلة - كتاب ترانيم - الكتاب المقدس",
@@ -50,7 +56,7 @@ export default function RootLayout({
                 />
             </head>
             <body
-                className={`${geistSans.variable} ${geistMono.variable} ${notoNaskhArabic.variable} antialiased text-white min-h-screen`}
+                className={`${geistSans.variable} ${geistMono.variable} ${notoNaskhArabic.variable} ${ibmPlexSansArabic.variable} antialiased text-white min-h-screen`}
             >
                 <WaslaSplashIntro />
                 <CapgoUpdater />

@@ -3267,7 +3267,7 @@ const HymnItem = React.memo(function HymnItem({ humn, index, categories, addToWo
 
   return (
     <div
-      className="group relative grid grid-cols-12 gap-2 sm:gap-4 p-3 sm:p-5 items-center 
+      className="group relative grid grid-cols-12 gap-2 sm:gap-4 p-2.5 sm:p-4 items-center 
                  bg-[#13132b]/60 hover:bg-[#1a1a38] 
                  border border-white/5 hover:border-sky-500/30 
                  rounded-2xl transition-all duration-300 backdrop-blur-sm
@@ -3280,10 +3280,10 @@ const HymnItem = React.memo(function HymnItem({ humn, index, categories, addToWo
         <button
           id={index === 0 ? 'tour-presentation-mobile' : undefined}
           onClick={() => openPresentation(humn, transposeStep)}
-          className="absolute top-3 right-3 sm:hidden p-2.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 hover:text-sky-300 border border-sky-500/30 hover:border-sky-500/50 transition-all z-30 backdrop-blur-md shadow-lg shadow-sky-500/10 active:scale-95"
+          className="absolute top-3 right-3 sm:hidden p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all z-30 backdrop-blur-md active:scale-95"
           title="Open Presentation Mode"
         >
-          <Monitor className="w-5 h-5 text-sky-400" />
+          <Monitor className="w-5 h-5 text-white" />
         </button>
       )}
 
@@ -3305,7 +3305,7 @@ const HymnItem = React.memo(function HymnItem({ humn, index, categories, addToWo
       )}
 
       {/* Song Title */}
-      <div className="col-span-11 sm:col-span-5 md:col-span-5 relative z-10 flex items-center gap-2  py-4">
+      <div className="col-span-11 sm:col-span-5 md:col-span-5 relative z-10 flex items-center gap-2 py-2 sm:py-3">
         <div className="flex -space-x-1.5 overflow-hidden p-1">
           {(Array.isArray(humn.party) ? humn.party : [humn.party]).map((p, idx) => {
             const matchedCat = categories.find(c => c.id === p) || { icon: Music };
@@ -3410,10 +3410,10 @@ const HymnItem = React.memo(function HymnItem({ humn, index, categories, addToWo
               <button
                 id={index === 0 ? 'tour-presentation-desktop' : undefined}
                 onClick={() => openPresentation(humn, transposeStep)}
-                className="hidden sm:flex p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 hover:text-sky-300 border border-sky-500/30 hover:border-sky-500/50 transition-all group-hover:shadow-lg group-hover:shadow-sky-500/10"
+                className="hidden sm:flex p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all"
                 title="Open Presentation Mode"
               >
-                <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
+                <Monitor className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </button>
             )}
           </>

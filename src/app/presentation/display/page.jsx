@@ -9,8 +9,6 @@ import ChordLyrics from '../../components/ChordLyrics';
 
 /* ─── Simplified Style for Max Performance ─── */
 const grainStyle = `
-  @import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cinzel:wght@400;600&family=IM+Fell+English+SC&display=swap');
-
   /* Hide layout navbar/header on display page */
   body > nav,
   body > header,
@@ -41,7 +39,7 @@ const grainStyle = `
   }
 
   .slide-text {
-    font-family: 'Amiri', Georgia, serif;
+    font-family: var(--font-amiri), 'Amiri', Georgia, serif;
     line-height: 1.85;
     letter-spacing: 0.01em;
     text-shadow: 0 2px 8px rgba(0,0,0,0.8);
@@ -90,7 +88,7 @@ const S = {
         transition: 'all 0.2s ease',
     },
     hymnLabel: {
-        fontFamily: "'IM Fell English SC', serif",
+        fontFamily: "var(--font-im-fell-english-sc), 'IM Fell English SC', serif",
         fontSize: '13px',
         letterSpacing: '0.12em',
         color: 'rgba(210,160,80,0.35)',
@@ -102,7 +100,7 @@ const S = {
         filter: 'blur(8px)',
     },
     waitingLabel: {
-        fontFamily: "'IM Fell English SC', serif",
+        fontFamily: "var(--font-im-fell-english-sc), 'IM Fell English SC', serif",
         fontSize: '13px',
         letterSpacing: '0.35em',
         color: 'rgba(255,255,255,0.18)',
@@ -117,14 +115,14 @@ const S = {
     },
     connectingSpinner: { animation: 'spin 1.2s linear infinite', transformOrigin: 'center' },
     connectingLabel: {
-        fontFamily: "'IM Fell English SC', serif",
+        fontFamily: "var(--font-im-fell-english-sc), 'IM Fell English SC', serif",
         fontSize: '12px',
         letterSpacing: '0.35em',
         color: 'rgba(255,255,255,0.2)',
         textTransform: 'uppercase',
     },
     slideTitle: {
-        fontFamily: "'Amiri', serif",
+        fontFamily: "var(--font-amiri), 'Amiri', serif",
         fontSize: 'clamp(14px, 1.8vw, 20px)',
         letterSpacing: '0.25em',
         color: 'rgba(210,160,80,0.55)',
@@ -136,7 +134,7 @@ const S = {
         whiteSpace: 'nowrap',
     },
     chordPillText: {
-        fontFamily: "'Cinzel', serif",
+        fontFamily: "var(--font-cinzel), 'Cinzel', serif",
         fontSize: 'clamp(14px, 1.6vw, 20px)',
         fontWeight: 600,
         color: 'rgba(140,220,255,0.9)',
@@ -148,7 +146,7 @@ const S = {
         backdropFilter: 'blur(10px)',
     },
     liveAudioText: { fontSize: 11, letterSpacing: '0.15em', color: 'rgba(52,211,153,0.8)', fontFamily: 'monospace' },
-    rootFont: { fontFamily: "'Amiri', serif" },
+    rootFont: { fontFamily: "var(--font-amiri), 'Amiri', serif" },
 };
 
 function GrainBackground() {
@@ -385,7 +383,7 @@ function BibleSlide({ slide, fontScale }) {
                         key={i}
                         className="slide-text text-center text-white w-full"
                         style={{
-                            fontFamily: "'Amiri', 'Georgia', serif",
+                            fontFamily: "var(--font-amiri), 'Amiri', 'Georgia', serif",
                             fontWeight: 400,
                             fontSize: `clamp(${Math.round(22 * fontScale)}px, ${(5.8 * fontScale).toFixed(2)}vw, ${Math.round(80 * fontScale)}px)`,
                             lineHeight: '1.9',

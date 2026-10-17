@@ -53,7 +53,7 @@ const pickMimeType = () => {
     return ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac'].find((type) => MediaRecorder.isTypeSupported?.(type)) || '';
 };
 
-const VOICE_BITRATE = 96000;
+const VOICE_BITRATE = 128000;
 
 // Only one clip plays at a time across the whole page
 let activePlayer = null;
