@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useEffect, useState, useRef, useCallback } from 'react';
+import { useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,24 +12,40 @@ import { useOfflineAvatar } from '../hooks/useOfflineAvatar';
 import { removeCachedAvatar, saveAvatarBlob } from '../utils/avatarStorage';
 import {
     Activity,
+    AlignJustify,
+    ArrowLeft,
     Book,
+    Camera,
     Check,
+    ChevronRight,
     Edit3,
     Heart,
+    List,
     Loader2,
     Mail,
+    Moon,
     RotateCcw,
+    Settings,
+    Sliders,
+    SlidersHorizontal,
     Sparkles,
+    Sun,
     Target,
     Trash2,
     User,
     X,
-    Camera,
 } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
+import { useTheme } from '../context/ThemeContext';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { useLanguage } from "../context/LanguageContext";
 import { getGuestPrays } from '../utils/prayRecordings';
+
+const BIBLE_TRANSLATIONS = [
+    { id: 'AVD', name: 'فانديك (AVD)', desc: 'Arabic Van Dyck' },
+    { id: 'ERV-AR', name: 'المبسطة (ERV-AR)', desc: 'Arabic Easy-to-Read Version' },
+    { id: 'KEH', name: 'كتاب الحياة (KEH)', desc: 'Arabic Life Application' },
+];
 
 const API_URL = getApiBaseUrl();
 
@@ -105,7 +121,7 @@ function SummaryCard({
     );
 }
 
-function ListPanel({ title, icon: Icon, accentClass = 'text-sky-400', iconBgClass = 'bg-sky-500/20 text-sky-400 border-sky-500/30', items, emptyText, renderItem }) {
+function ListPanel({ title, icon: Icon, accentClass = 'text-sky-400', iconBgClass = 'bg-sky-500/20 text-sky-400 border-sky-500/30', items, emptyText, renderItem, fullHeight = false }) {
     return (
         <div className="flex flex-col h-full rounded-3xl border border-white/5 bg-white/[0.03] backdrop-blur-2xl overflow-hidden shadow-xl shadow-black/20">
             <div className="flex items-center gap-3 border-b border-white/5 p-4 sm:p-5 bg-black/20">
@@ -120,8 +136,8 @@ function ListPanel({ title, icon: Icon, accentClass = 'text-sky-400', iconBgClas
                 </div>
             </div>
             <div
-                className="flex-1 p-3 sm:p-5 overflow-y-auto max-h-[350px] space-y-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[::-webkit-scrollbar-thumb]:bg-white/20"
-                data-lenis-prevent-wheel
+                className={`flex-1 p-3 sm:p-5 space-y-2.5 ${fullHeight ? '' : 'overflow-y-auto max-h-[350px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[::-webkit-scrollbar-thumb]:bg-white/20'}`}
+                {...(!fullHeight ? { 'data-lenis-prevent-wheel': true } : {})}
             >
                 {items.length > 0 ? (
                     items.map((item, index) => renderItem(item, index))
@@ -158,7 +174,7 @@ const groupHighlights = (highlights) => {
             g.bookName === item.bookName &&
             g.chapter === item.chapter &&
             g.color === item.color &&
-            Math.abs(new Date(g.date) - new Date(item.date)) < 15000 // 15 seconds threshold
+            Math.abs(new Date(g.date) - new Date(item.date)) < 60000 // 60 seconds threshold
         );
         if (match) {
             match.verseIds.push(item.verseId);
@@ -191,13 +207,221 @@ const groupHighlights = (highlights) => {
     return groups.sort((a, b) => new Date(b.date) - new Date(a.date));
 };
 
+const groupNotes = (notes) => {
+    if (!notes || notes.length === 0) return [];
+    const sorted = [...notes].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const groups = [];
+    sorted.forEach((item) => {
+        const match = groups.find(g =>
+            g.bookName === item.bookName &&
+            g.chapter === item.chapter &&
+            g.note === item.note &&
+            Math.abs(new Date(g.date) - new Date(item.date)) < 60000 // 60 seconds threshold
+        );
+        if (match) {
+            if (item._id) match.noteIds.push(item._id);
+            match.verseIds.push(item.verseId);
+            match.verseNumbers.push(item.verseNumber);
+            match.verses.push({
+                verseId: item.verseId,
+                verseNumber: item.verseNumber,
+                text: item.text,
+                _id: item._id
+            });
+            match.verses.sort((a, b) => a.verseNumber - b.verseNumber);
+        } else {
+            groups.push({
+                _id: item._id || item.verseId,
+                noteIds: item._id ? [item._id] : [],
+                verseIds: [item.verseId],
+                bookName: item.bookName,
+                chapter: item.chapter,
+                verseNumbers: [item.verseNumber],
+                note: item.note,
+                date: item.date,
+                verses: [{
+                    verseId: item.verseId,
+                    verseNumber: item.verseNumber,
+                    text: item.text,
+                    _id: item._id
+                }]
+            });
+        }
+    });
+    return groups.sort((a, b) => new Date(b.date) - new Date(a.date));
+};
+
+const getHighlightHex = (colorId) => {
+    if (!colorId) return '#38bdf8';
+    if (colorId.startsWith('#')) return colorId;
+
+    const standard = {
+        teal: '#2fc4c9', lavender: '#DAB6FC', lightgray: '#EDEDED',
+        sage: '#8BB388', pinkred: '#FF2158', coral: '#F85E3B',
+        cyan: '#2fc4c9', pink: '#DAB6FC', red: '#FF2158',
+        yellow: '#EDEDED', green: '#8BB388', blue: '#2fc4c9', orange: '#F85E3B'
+    };
+    if (standard[colorId]) return standard[colorId];
+
+    if (typeof window !== 'undefined') {
+        try {
+            const savedCustom = localStorage.getItem('taspe7_custom_highlights_list_v2') || localStorage.getItem('taspe7_custom_highlights_list');
+            if (savedCustom) {
+                const parsed = JSON.parse(savedCustom);
+                const found = parsed.find(c => c.id === colorId);
+                if (found && found.hex) return found.hex.startsWith('#') ? found.hex : `#${found.hex}`;
+            }
+        } catch { }
+    }
+
+    if (colorId.startsWith('custom-')) {
+        const potentialHex = colorId.replace('custom-', '');
+        if (/^[0-9a-fA-F]{3,8}$/.test(potentialHex)) {
+            return '#' + potentialHex;
+        }
+    }
+
+    return '#38bdf8';
+};
+
 export default function NormalUserProfile() {
     const { user_id, isLogin, setLogin, setUsername, profilePhoto, setProfilePhoto } = useContext(UserContext);
     const { src: profileAvatarSrc, markFailed: markProfileAvatarFailed } = useOfflineAvatar(user_id, profilePhoto);
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [activeTab, setActiveTab] = useState('overview');
+    const { theme, toggleTheme, isDark } = useTheme?.() || {};
+    const [currentView, setCurrentView] = useState('menu');
+
+    // Bible settings synced with Bible reader
+    const [bibleTranslation, setBibleTranslation] = useState(() => {
+        if (typeof window === 'undefined') return 'AVD';
+        return localStorage.getItem('taspe7_bible_translation') || 'AVD';
+    });
+    const handleSetBibleTranslation = (tr) => {
+        setBibleTranslation(tr);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('taspe7_bible_translation', tr);
+        }
+    };
+
+    const [bibleVerseFontSize, setBibleVerseFontSize] = useState(() => {
+        if (typeof window === 'undefined') return 20;
+        const saved = localStorage.getItem('taspe7_bible_verse_font_size');
+        return saved ? parseInt(saved, 10) : 20;
+    });
+    const handleSetBibleVerseFontSize = (val) => {
+        setBibleVerseFontSize(val);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('taspe7_bible_verse_font_size', val.toString());
+        }
+    };
+
+    const [bibleVerseSpacing, setBibleVerseSpacing] = useState(() => {
+        if (typeof window === 'undefined') return 16;
+        const saved = localStorage.getItem('taspe7_bible_verse_spacing');
+        return saved ? parseInt(saved, 10) : 16;
+    });
+    const handleSetBibleVerseSpacing = (val) => {
+        setBibleVerseSpacing(val);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('taspe7_bible_verse_spacing', val.toString());
+        }
+    };
+
+    const [bibleViewMode, setBibleViewMode] = useState(() => {
+        if (typeof window === 'undefined') return 'list';
+        return localStorage.getItem('taspe7_bible_view_mode') || 'list';
+    });
+    const handleSetBibleViewMode = (mode) => {
+        setBibleViewMode(mode);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('taspe7_bible_view_mode', mode);
+        }
+    };
+
+    // Highlights view mode (vertical vs continuous)
+    const [highlightsViewMode, setHighlightsViewMode] = useState(() => {
+        if (typeof window === 'undefined') return 'list';
+        return localStorage.getItem('taspe7_highlights_view_mode') || 'list';
+    });
+    const handleSetHighlightsViewMode = (mode) => {
+        setHighlightsViewMode(mode);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('taspe7_highlights_view_mode', mode);
+        }
+    };
+
+    // Memoize grouped highlights for performance
+    const groupedBibleHighlights = useMemo(() => {
+        return groupHighlights(profile?.bibleHighlights || []);
+    }, [profile?.bibleHighlights]);
+
+    // Notes view mode (vertical vs continuous)
+    const [notesViewMode, setNotesViewMode] = useState(() => {
+        if (typeof window === 'undefined') return 'list';
+        return localStorage.getItem('taspe7_notes_view_mode') || 'list';
+    });
+    const handleSetNotesViewMode = (mode) => {
+        setNotesViewMode(mode);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('taspe7_notes_view_mode', mode);
+        }
+    };
+
+    // Memoize grouped notes for performance
+    const groupedBibleNotes = useMemo(() => {
+        return groupNotes(profile?.bibleNotes || []);
+    }, [profile?.bibleNotes]);
+
+    // Handles sub-page navigation with browser history
+    const navigateToView = (view) => {
+        setCurrentView(view);
+        if (typeof window !== 'undefined') {
+            window.history.pushState({ profileView: view }, '', `#${view}`);
+            window.scrollTo({ top: 0, behavior: 'instant' });
+        }
+    };
+
+    // Returns to main settings menu
+    const goBackToMenu = () => {
+        if (typeof window !== 'undefined' && window.location.hash) {
+            window.history.back();
+        } else {
+            setCurrentView('menu');
+            if (typeof window !== 'undefined') {
+                window.scrollTo({ top: 0, behavior: 'instant' });
+            }
+        }
+    };
+
+    // Synchronizes view state with browser back/forward buttons
+    useEffect(() => {
+        const handlePopState = (e) => {
+            if (e.state?.profileView) {
+                setCurrentView(e.state.profileView);
+            } else if (typeof window !== 'undefined' && window.location.hash) {
+                const hash = window.location.hash.replace('#', '');
+                if (['highlights', 'notes', 'bible_settings'].includes(hash)) {
+                    setCurrentView(hash);
+                    return;
+                }
+                setCurrentView('menu');
+            } else {
+                setCurrentView('menu');
+            }
+        };
+
+        if (typeof window !== 'undefined' && window.location.hash) {
+            const hash = window.location.hash.replace('#', '');
+            if (['highlights', 'notes', 'bible_settings'].includes(hash)) {
+                setCurrentView(hash);
+            }
+        }
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
     
     const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
     const fileInputRef = useRef(null);
@@ -604,32 +828,32 @@ export default function NormalUserProfile() {
 
     const handleDeleteBibleNote = async (noteId) => {
         if (!window.confirm('Are you sure you want to delete this bible note?')) return;
+        const idsToDelete = Array.isArray(noteId) ? noteId : [noteId];
         try {
-            const response = await fetch(`${API_URL}/users/bible-note/${user_id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${isLogin}`
-                },
-                body: JSON.stringify({ noteId })
-            });
+            await Promise.all(idsToDelete.map(id =>
+                fetch(`${API_URL}/users/bible-note/${user_id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${isLogin}`
+                    },
+                    body: JSON.stringify({ noteId: id })
+                })
+            ));
 
-            if (response.ok) {
-                updateProfileState(prev => ({
-                    ...prev,
-                    bibleNotes: prev.bibleNotes.filter(n => n._id !== noteId)
-                }));
-            } else {
-                const data = await response.json();
-                alert(data.message || 'Failed to delete note');
-            }
+            updateProfileState(prev => ({
+                ...prev,
+                bibleNotes: prev.bibleNotes.filter(n => !idsToDelete.includes(n._id))
+            }));
         } catch (error) {
             const isNetworkError = !navigator.onLine || error.message.includes('Failed to fetch') || error.message.includes('Network Error');
             if (isNetworkError) {
-                await queueOfflineAction(`${API_URL}/users/bible-note/${user_id}`, 'DELETE', { noteId }, { Authorization: `Bearer ${isLogin}` });
+                for (const id of idsToDelete) {
+                    await queueOfflineAction(`${API_URL}/users/bible-note/${user_id}`, 'DELETE', { noteId: id }, { Authorization: `Bearer ${isLogin}` });
+                }
                 updateProfileState(prev => ({
                     ...prev,
-                    bibleNotes: prev.bibleNotes.filter(n => n._id !== noteId)
+                    bibleNotes: prev.bibleNotes.filter(n => !idsToDelete.includes(n._id))
                 }));
                 showToast({ message: '📶 Offline: Note deleted locally. Will sync when online.', type: 'offline', duration: 4000 });
                 return;
@@ -700,48 +924,57 @@ export default function NormalUserProfile() {
         if (!noteText.trim() || !noteModalConfig) return;
         setIsSubmittingNote(true);
         const noteItem = noteModalConfig.data;
-
-        const payload = {
-            userid: user_id,
-            verseId: noteItem.verseId,
-            bookName: noteItem.bookName,
-            chapter: noteItem.chapter,
-            verseNumber: noteItem.verseNumber,
-            text: noteItem.text,
-            note: noteText
-        };
+        const verses = noteItem.verses || [noteItem];
 
         try {
-            const response = await fetch(`${API_URL}/users/bible-note`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${isLogin}`
-                },
-                body: JSON.stringify(payload)
-            });
+            await Promise.all(verses.map(v =>
+                fetch(`${API_URL}/users/bible-note`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${isLogin}`
+                    },
+                    body: JSON.stringify({
+                        userid: user_id,
+                        verseId: v.verseId || noteItem.verseId,
+                        bookName: noteItem.bookName,
+                        chapter: noteItem.chapter,
+                        verseNumber: v.verseNumber || noteItem.verseNumber,
+                        text: v.text || noteItem.text,
+                        note: noteText
+                    })
+                })
+            ));
 
-            if (response.ok) {
-                updateProfileState(prev => ({
-                    ...prev,
-                    bibleNotes: prev.bibleNotes.map(n =>
-                        n.verseId === noteItem.verseId ? { ...n, note: noteText, date: new Date() } : n
-                    ).sort((a, b) => new Date(b.date) - new Date(a.date))
-                }));
-                setNoteModalConfig(null);
-                setNoteText('');
-            } else {
-                const data = await response.json();
-                alert(data.message || 'Failed to update note');
-            }
+            const verseIds = verses.map(v => v.verseId || noteItem.verseId);
+            updateProfileState(prev => ({
+                ...prev,
+                bibleNotes: prev.bibleNotes.map(n =>
+                    verseIds.includes(n.verseId) ? { ...n, note: noteText, date: new Date() } : n
+                ).sort((a, b) => new Date(b.date) - new Date(a.date))
+            }));
+            setNoteModalConfig(null);
+            setNoteText('');
         } catch (error) {
             const isNetworkError = !navigator.onLine || error.message.includes('Failed to fetch') || error.message.includes('Network Error');
             if (isNetworkError) {
-                await queueOfflineAction(`${API_URL}/users/bible-note`, 'POST', payload, { Authorization: `Bearer ${isLogin}` });
+                for (const v of verses) {
+                    const payload = {
+                        userid: user_id,
+                        verseId: v.verseId || noteItem.verseId,
+                        bookName: noteItem.bookName,
+                        chapter: noteItem.chapter,
+                        verseNumber: v.verseNumber || noteItem.verseNumber,
+                        text: v.text || noteItem.text,
+                        note: noteText
+                    };
+                    await queueOfflineAction(`${API_URL}/users/bible-note`, 'POST', payload, { Authorization: `Bearer ${isLogin}` });
+                }
+                const verseIds = verses.map(v => v.verseId || noteItem.verseId);
                 updateProfileState(prev => ({
                     ...prev,
                     bibleNotes: prev.bibleNotes.map(n =>
-                        n.verseId === noteItem.verseId ? { ...n, note: noteText, date: new Date() } : n
+                        verseIds.includes(n.verseId) ? { ...n, note: noteText, date: new Date() } : n
                     ).sort((a, b) => new Date(b.date) - new Date(a.date))
                 }));
                 setNoteModalConfig(null);
@@ -801,297 +1034,660 @@ export default function NormalUserProfile() {
         );
     }
 
-    const tabs = [
-        { id: 'overview', label: 'Overview', icon: User },
-        { id: 'highlights', label: 'Highlights', icon: Sparkles },
-        { id: 'bible', label: 'Bible Notes', icon: Book },
-    ];
-
     return (
         <main className="min-h-screen bg-[var(--app-bg)] text-white pb-24 transition-colors duration-150">
-            <div className="max-w-5xl mx-auto px-3 sm:px-6 pt-8 sm:pt-12">
+            <div className="max-w-5xl mx-auto px-3 sm:px-6 pt-6 sm:pt-10">
 
-                {/* --- HEADER PROFILE CARD --- */}
-                <div className="rounded-[2rem] border border-white/5 bg-white/[0.02] p-5 sm:p-8 backdrop-blur-2xl mb-6 sm:mb-8 relative overflow-hidden shadow-2xl shadow-black/50">
-                    <div className="absolute top-1/2 left-0 w-32 h-32 bg-sky-500/10 blur-[100px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2"></div>
+                {currentView === 'menu' ? (
+                    <>
+                        {/* --- HEADER PROFILE CARD --- */}
+                        <div className="rounded-[2rem] border border-white/5 bg-white/[0.02] p-5 sm:p-8 backdrop-blur-2xl mb-6 sm:mb-8 relative overflow-hidden shadow-2xl shadow-black/50">
+                            <div className="absolute top-1/2 left-0 w-32 h-32 bg-sky-500/10 blur-[100px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2"></div>
 
-                    <div className="relative z-10 flex flex-row items-start justify-between gap-3 sm:gap-6">
-                        <div className="flex flex-row items-center gap-3 sm:gap-6 min-w-0">
-                            <div className="relative shrink-0">
-                                <div 
-                                    className="w-20 h-20 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-sky-500/20 bg-black/40 flex items-center justify-center shadow-xl shadow-black/50 cursor-pointer"
-                                    onClick={() => {
-                                        if (profilePhoto) {
-                                            setIsViewingPhoto(true);
-                                        } else {
-                                            fileInputRef.current?.click();
-                                        }
-                                    }}
-                                >
-                                    {profileAvatarSrc ? (
-                                        <img src={profileAvatarSrc} alt="Profile" onError={markProfileAvatarFailed} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
-                                    ) : (
-                                        <span className="text-2xl sm:text-4xl font-bold text-sky-400/50">
-                                            {profile?.user?.Name?.charAt(0) || 'U'}
-                                        </span>
+                            <div className="relative z-10 flex flex-row items-start justify-between gap-3 sm:gap-6">
+                                <div className="flex flex-row items-center gap-3 sm:gap-6 min-w-0">
+                                    <div className="relative shrink-0">
+                                        <div 
+                                            className="w-20 h-20 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-sky-500/20 bg-black/40 flex items-center justify-center shadow-xl shadow-black/50 cursor-pointer"
+                                            onClick={() => {
+                                                if (profilePhoto) {
+                                                    setIsViewingPhoto(true);
+                                                } else {
+                                                    fileInputRef.current?.click();
+                                                }
+                                            }}
+                                        >
+                                            {profileAvatarSrc ? (
+                                                <img src={profileAvatarSrc} alt="Profile" onError={markProfileAvatarFailed} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                                            ) : (
+                                                <span className="text-2xl sm:text-4xl font-bold text-sky-400/50">
+                                                    {profile?.user?.Name?.charAt(0) || 'U'}
+                                                </span>
+                                            )}
+                                        </div>
+                                        
+                                        <button 
+                                            onClick={() => fileInputRef.current?.click()}
+                                            disabled={isUploadingPhoto}
+                                            className="absolute bottom-0 right-0 translate-x-1 translate-y-1 w-7 h-7 sm:w-9 sm:h-9 bg-slate-900 rounded-full flex items-center justify-center border-2 border-sky-500/30 shadow-lg hover:bg-slate-800 transition-colors"
+                                            title="Change Photo"
+                                        >
+                                            {isUploadingPhoto ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400 animate-spin" /> : <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400" />}
+                                        </button>
+
+                                        <input 
+                                            type="file" 
+                                            ref={fileInputRef} 
+                                            className="hidden" 
+                                            accept="image/jpeg, image/png, image/webp" 
+                                            onChange={handleFileSelect} 
+                                        />
+                                    </div>
+
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+                                            <h1 className="text-xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-slate-400 leading-tight tracking-tight truncate">
+                                                {profile?.user?.Name || 'N/A'}
+                                            </h1>
+                                            <button 
+                                                type="button"
+                                                onClick={() => {
+                                                    setEditValue(profile?.user?.Name || '');
+                                                    setEditModal({ type: 'name' });
+                                                }}
+                                                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+                                                title="Edit Name"
+                                            >
+                                                <Edit3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400 font-medium">
+                                            <span className="truncate">
+                                                @{profile?.user?.username || profile?.user?.Name?.toLowerCase().replace(/\s+/g, '') || 'username'}
+                                            </span>
+                                            <button 
+                                                type="button"
+                                                onClick={() => {
+                                                    setEditValue(profile?.user?.username || '');
+                                                    setEditModal({ type: 'username' });
+                                                }}
+                                                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+                                                title="Edit Username"
+                                            >
+                                                <Edit3 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row items-end gap-2 shrink-0">
+                                    <Badge icon={User} label="Role" value={titleCase(profile?.user?.role)} classes="bg-sky-500/5 text-sky-200 border-sky-500/10" />
+                                    {!navigator.onLine && (
+                                        <Badge icon={Activity} label="Status" value="Offline Mode" classes="bg-orange-500/10 text-orange-400 border-orange-500/20" />
                                     )}
                                 </div>
-                                
-                                <button 
-                                    onClick={() => fileInputRef.current?.click()}
-                                    disabled={isUploadingPhoto}
-                                    className="absolute bottom-0 right-0 translate-x-1 translate-y-1 w-7 h-7 sm:w-9 sm:h-9 bg-slate-900 rounded-full flex items-center justify-center border-2 border-sky-500/30 shadow-lg hover:bg-slate-800 transition-colors"
-                                    title="Change Photo"
-                                >
-                                    {isUploadingPhoto ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400 animate-spin" /> : <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400" />}
-                                </button>
-
-                                <input 
-                                    type="file" 
-                                    ref={fileInputRef} 
-                                    className="hidden" 
-                                    accept="image/jpeg, image/png, image/webp" 
-                                    onChange={handleFileSelect} 
-                                />
-                            </div>
-
-                            <div className="min-w-0">
-                                <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-                                    <h1 className="text-xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-slate-400 leading-tight tracking-tight truncate">
-                                        {profile?.user?.Name || 'N/A'}
-                                    </h1>
-                                    <button 
-                                        type="button"
-                                        onClick={() => {
-                                            setEditValue(profile?.user?.Name || '');
-                                            setEditModal({ type: 'name' });
-                                        }}
-                                        className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors shrink-0"
-                                        title="Edit Name"
-                                    >
-                                        <Edit3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                    </button>
-                                </div>
-                                <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400 font-medium">
-                                    <span className="truncate">
-                                        @{profile?.user?.username || profile?.user?.Name?.toLowerCase().replace(/\s+/g, '') || 'username'}
-                                    </span>
-                                    <button 
-                                        type="button"
-                                        onClick={() => {
-                                            setEditValue(profile?.user?.username || '');
-                                            setEditModal({ type: 'username' });
-                                        }}
-                                        className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors shrink-0"
-                                        title="Edit Username"
-                                    >
-                                        <Edit3 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                                    </button>
-                                </div>
                             </div>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row items-end gap-2 shrink-0">
-                            <Badge icon={User} label="Role" value={titleCase(profile?.user?.role)} classes="bg-sky-500/5 text-sky-200 border-sky-500/10" />
-                            {!navigator.onLine && (
-                                <Badge icon={Activity} label="Status" value="Offline Mode" classes="bg-orange-500/10 text-orange-400 border-orange-500/20" />
-                            )}
+                        {/* --- SETTINGS GROUPS (CHATGPT STYLE) --- */}
+                        <div className="space-y-6">
+                            {/* Bible Group */}
+                            <div>
+                                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
+                                    Bible
+                                </h3>
+                                <div className="rounded-2xl bg-zinc-900/60 sm:bg-white/[0.03] border border-white/5 divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
+                                    <button
+                                        type="button"
+                                        onClick={() => navigateToView('highlights')}
+                                        className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left"
+                                    >
+                                        <div className="flex items-center gap-3.5">
+                                            <Sparkles className="w-5 h-5 text-slate-300 shrink-0" />
+                                            <span className="text-sm sm:text-base font-semibold text-white">Bible Highlights</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-slate-400 font-medium">
+                                                {groupedBibleHighlights.length} {groupedBibleHighlights.length === 1 ? 'record' : 'records'}
+                                            </span>
+                                            <ChevronRight className="w-4 h-4 text-slate-500" />
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => navigateToView('notes')}
+                                        className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left"
+                                    >
+                                        <div className="flex items-center gap-3.5">
+                                            <Book className="w-5 h-5 text-slate-300 shrink-0" />
+                                            <span className="text-sm sm:text-base font-semibold text-white">Bible Notes</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-slate-400 font-medium">
+                                                {groupedBibleNotes.length} {groupedBibleNotes.length === 1 ? 'record' : 'records'}
+                                            </span>
+                                            <ChevronRight className="w-4 h-4 text-slate-500" />
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => navigateToView('bible_settings')}
+                                        className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left"
+                                    >
+                                        <div className="flex items-center gap-3.5">
+                                            <Sliders className="w-5 h-5 text-slate-300 shrink-0" />
+                                            <div>
+                                                <span className="text-sm sm:text-base font-semibold text-white block">Bible Settings</span>
+                                                <span className="text-xs text-slate-400">
+                                                    {bibleTranslation} • {bibleVerseFontSize}px • {bibleViewMode === 'paragraph' ? 'Continuous' : 'Vertical'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <ChevronRight className="w-4 h-4 text-slate-500" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Appearance Group */}
+                            <div>
+                                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
+                                    Appearance
+                                </h3>
+                                <div className="rounded-2xl bg-zinc-900/60 sm:bg-white/[0.03] border border-white/5 divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
+                                    <div className="flex items-center justify-between p-4">
+                                        <div className="flex items-center gap-3.5">
+                                            {isDark ? <Moon className="w-5 h-5 text-slate-300 shrink-0" /> : <Sun className="w-5 h-5 text-slate-300 shrink-0" />}
+                                            <div>
+                                                <p className="text-sm sm:text-base font-semibold text-white">Theme</p>
+                                                <p className="text-xs text-slate-400">{isDark ? 'Dark Mode' : 'Light Mode'}</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={toggleTheme}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isDark ? 'bg-sky-500' : 'bg-slate-700'}`}
+                                            aria-label="Toggle Theme"
+                                        >
+                                            <span
+                                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isDark ? 'translate-x-6' : 'translate-x-1'}`}
+                                            />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* General Settings Group */}
+                            <div>
+                                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
+                                    General Settings
+                                </h3>
+                                <div className="rounded-2xl bg-zinc-900/60 sm:bg-white/[0.03] border border-white/5 divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
+                                    <div className="flex items-center justify-between p-4">
+                                        <div className="flex items-center gap-3.5">
+                                            <Settings className="w-5 h-5 text-slate-300 shrink-0" />
+                                            <div>
+                                                <p className="text-sm sm:text-base font-semibold text-white">General Preferences</p>
+                                                <p className="text-xs text-slate-400">Configure app and account options</p>
+                                            </div>
+                                        </div>
+                                        <ChevronRight className="w-4 h-4 text-slate-500" />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    </>
+                ) : (
+                    /* --- DEDICATED SUB-PAGES (CHATGPT STYLE) --- */
+                    <div>
+                        {currentView === 'highlights' && (
+                            <div>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={goBackToMenu}
+                                            className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white transition-colors shrink-0"
+                                            title="Back"
+                                        >
+                                            <ArrowLeft className="w-5 h-5" />
+                                        </button>
+                                        <div>
+                                            <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
+                                                <Sparkles className="w-5 h-5 text-slate-300" />
+                                                Bible Highlights
+                                            </h1>
+                                            <p className="text-xs text-slate-400">
+                                                {groupedBibleHighlights.length} {groupedBibleHighlights.length === 1 ? 'record' : 'records'}
+                                            </p>
+                                        </div>
+                                    </div>
 
-                {/* --- SMART TABS NAVIGATION --- */}
-                <div className="sticky top-4 z-40 mb-6 sm:mb-8">
-                    <div className="flex gap-1.5 p-1.5 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl shadow-black/50 custom-scrollbar-hide overflow-x-auto">
-                        {tabs.map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`flex-shrink-0 flex items-center justify-center gap-1.5 px-3 sm:px-6 py-2.5 sm:py-3 rounded-xl text-[11px] sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab.id
-                                    ? 'bg-white/10 text-white shadow-lg shadow-black/20 border border-white/5 ring-1 ring-white/10'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'
-                                    }`}
-                            >
-                                <tab.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${activeTab === tab.id ? 'text-sky-400' : 'opacity-60'}`} />
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                                    {/* Vertical / Continuous Toggle */}
+                                    <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-1 gap-1 self-start sm:self-auto">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleSetHighlightsViewMode('list')}
+                                            className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold transition-all ${
+                                                highlightsViewMode === 'list'
+                                                    ? 'bg-sky-500 text-white shadow-sm'
+                                                    : 'text-slate-400 hover:text-white'
+                                            }`}
+                                            title="Vertical View"
+                                        >
+                                            <List className="w-3.5 h-3.5" />
+                                            <span>Vertical</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleSetHighlightsViewMode('paragraph')}
+                                            className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold transition-all ${
+                                                highlightsViewMode === 'paragraph'
+                                                    ? 'bg-sky-500 text-white shadow-sm'
+                                                    : 'text-slate-400 hover:text-white'
+                                            }`}
+                                            title="Continuous View"
+                                        >
+                                            <AlignJustify className="w-3.5 h-3.5" />
+                                            <span>Continuous</span>
+                                        </button>
+                                    </div>
+                                </div>
 
-                {/* --- TAB CONTENT AREAS --- */}
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
+                                {/* Direct Highlights List */}
+                                {groupedBibleHighlights.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center p-12 text-center text-slate-500 rounded-3xl border border-white/5 bg-white/[0.02]">
+                                        <Sparkles className="w-10 h-10 mb-3 opacity-20" />
+                                        <p className="text-xs font-semibold">No bible highlights saved yet</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {groupedBibleHighlights.map((highlight) => {
+                                            const hex = getHighlightHex(highlight.color);
+                                            return (
+                                                <div key={highlight._id} className="rounded-2xl border border-white/5 bg-zinc-900/60 sm:bg-white/[0.03] p-4 sm:p-5 hover:bg-white/5 transition-all duration-300 relative overflow-hidden group shadow-xl shadow-black/20">
+                                                    <div className="absolute top-0 bottom-0 right-0 w-1.5 opacity-80" style={{ backgroundColor: hex }}></div>
+                                                    <div className="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-4 relative z-10 pr-2">
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                                                <h4 className="text-base font-bold text-white tracking-tight">{highlight.bookName}</h4>
+                                                                <span className="bg-sky-500/20 text-sky-300 text-[10px] font-black px-2 py-0.5 rounded-md border border-sky-500/20">
+                                                                    {highlight.chapter}:{formatVerseNumbers(highlight.verseNumbers)}
+                                                                </span>
+                                                                <span className="text-[10px] text-slate-500 font-bold ml-auto sm:ml-0">
+                                                                    {formatDate(highlight.date)}
+                                                                </span>
+                                                            </div>
 
-                    {/* OVERVIEW TAB */}
-                    {activeTab === 'overview' && (
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                            <SummaryCard
-                                icon={Book}
-                                title="Spiritual Journey"
-                                primaryLabel="Private Notes"
-                                primaryValue={profile?.bibleNotes?.length || 0}
-                                accentClass="text-blue-400"
-                                bgClass="bg-gradient-to-br from-blue-500/10 to-transparent border-blue-400/20"
-                            />
-                            <SummaryCard
-                                icon={Sparkles}
-                                title="Insights"
-                                primaryLabel="Bible Highlights"
-                                primaryValue={profile?.bibleHighlights?.length || 0}
-                                accentClass="text-sky-400"
-                                bgClass="bg-gradient-to-br from-sky-500/10 to-transparent border-sky-400/20"
-                            />
-                            <SummaryCard
-                                icon={Heart}
-                                title="Pray Time"
-                                primaryLabel="Prayer Notes"
-                                primaryValue={localPrayCount || profile?.prayTime?.length || 0}
-                                accentClass="text-rose-400"
-                                bgClass="bg-gradient-to-br from-rose-500/10 to-transparent border-rose-400/20"
-                            />
-                        </div>
-                    )}
-
-                    {/* BIBLE TAB */}
-                    {activeTab === 'bible' && (
-                        <div className="grid gap-5 sm:gap-6">
-                            <ListPanel
-                                title="My Bible Notes"
-                                icon={Book}
-                                accentClass="text-blue-400"
-                                iconBgClass="bg-blue-500/10 text-blue-400 border-blue-500/20"
-                                items={profile?.bibleNotes || []}
-                                emptyText="No bible notes saved yet"
-                                renderItem={(note) => (
-                                    <div key={note._id || note.verseId} className="rounded-2xl border border-white/5 bg-black/20 p-4 sm:p-5 hover:bg-white/5 transition-all duration-300">
-                                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                                    <h4 className="text-base font-bold text-white tracking-tight">{note.bookName}</h4>
-                                                    <span className="bg-blue-500/20 text-blue-300 text-[10px] font-black px-2 py-0.5 rounded-md border border-blue-500/20">
-                                                        {note.chapter}:{note.verseNumber}
-                                                    </span>
-                                                    <span className="text-[10px] text-slate-500 font-bold ml-auto sm:ml-0">
-                                                        {formatDate(note.date)}
-                                                    </span>
+                                                            {highlightsViewMode === 'list' ? (
+                                                                <div className="space-y-2 mt-2">
+                                                                    {highlight.verses.map((v) => (
+                                                                        <p key={v.verseId} className="text-xs sm:text-sm text-slate-200 leading-relaxed p-3 rounded-xl border border-white/5 bg-white/5 shadow-inner" style={{ backgroundColor: `${hex}15`, borderColor: `${hex}30` }} dir="rtl">
+                                                                            <span className="text-sky-400/80 font-bold ml-1.5">[{v.verseNumber}]</span>
+                                                                            {v.text}
+                                                                        </p>
+                                                                    ))}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="mt-2">
+                                                                    <p className="text-xs sm:text-sm text-slate-200 leading-relaxed p-3 rounded-xl border border-white/5 bg-white/5 shadow-inner" style={{ backgroundColor: `${hex}15`, borderColor: `${hex}30`, lineHeight: 1.8 }} dir="rtl">
+                                                                        {highlight.verses.map((v, i) => (
+                                                                            <span key={v.verseId}>
+                                                                                <span className="text-sky-400/80 font-bold ml-1.5">[{v.verseNumber}]</span>
+                                                                                {v.text}
+                                                                                {i < highlight.verses.length - 1 && <span className="inline-block w-2.5" />}
+                                                                            </span>
+                                                                        ))}
+                                                                    </p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleDeleteBibleHighlight(highlight.verseIds)}
+                                                            className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 shrink-0 self-start"
+                                                            title="Delete Highlight"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                                <p className="text-xs sm:text-sm text-slate-400 italic leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5 mb-3" dir="rtl">
-                                                    {note.text}
-                                                </p>
-                                                <div className="flex flex-col gap-1.5">
-                                                    <p className="text-[9px] uppercase tracking-widest text-blue-400/60 font-black">My Personal Note</p>
-                                                    <p className="text-sm text-slate-200 font-medium leading-relaxed">
-                                                        {note.note}
-                                                    </p>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {currentView === 'notes' && (
+                            <div>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={goBackToMenu}
+                                            className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white transition-colors shrink-0"
+                                            title="Back"
+                                        >
+                                            <ArrowLeft className="w-5 h-5" />
+                                        </button>
+                                        <div>
+                                            <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
+                                                <Book className="w-5 h-5 text-slate-300" />
+                                                Bible Notes
+                                            </h1>
+                                            <p className="text-xs text-slate-400">
+                                                {groupedBibleNotes.length} {groupedBibleNotes.length === 1 ? 'record' : 'records'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Vertical / Continuous Toggle */}
+                                    <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-1 gap-1 self-start sm:self-auto">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleSetNotesViewMode('list')}
+                                            className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold transition-all ${
+                                                notesViewMode === 'list'
+                                                    ? 'bg-sky-500 text-white shadow-sm'
+                                                    : 'text-slate-400 hover:text-white'
+                                            }`}
+                                            title="Vertical View"
+                                        >
+                                            <List className="w-3.5 h-3.5" />
+                                            <span>Vertical</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleSetNotesViewMode('paragraph')}
+                                            className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold transition-all ${
+                                                notesViewMode === 'paragraph'
+                                                    ? 'bg-sky-500 text-white shadow-sm'
+                                                    : 'text-slate-400 hover:text-white'
+                                            }`}
+                                            title="Continuous View"
+                                        >
+                                            <AlignJustify className="w-3.5 h-3.5" />
+                                            <span>Continuous</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Direct Notes List */}
+                                {groupedBibleNotes.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center p-12 text-center text-slate-500 rounded-3xl border border-white/5 bg-white/[0.02]">
+                                        <Book className="w-10 h-10 mb-3 opacity-20" />
+                                        <p className="text-xs font-semibold">No bible notes saved yet</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {groupedBibleNotes.map((note) => (
+                                            <div key={note._id} className="rounded-2xl border border-white/5 bg-zinc-900/60 sm:bg-white/[0.03] p-4 sm:p-5 hover:bg-white/5 transition-all duration-300 relative overflow-hidden group shadow-xl shadow-black/20">
+                                                <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-2.5 flex-wrap">
+                                                            <h4 className="text-base font-bold text-white tracking-tight">{note.bookName}</h4>
+                                                            <span className="bg-sky-500/20 text-sky-300 text-[10px] font-black px-2 py-0.5 rounded-md border border-sky-500/20">
+                                                                {note.chapter}:{formatVerseNumbers(note.verseNumbers)}
+                                                            </span>
+                                                            <span className="text-[10px] text-slate-500 font-bold ml-auto sm:ml-0">
+                                                                {formatDate(note.date)}
+                                                            </span>
+                                                        </div>
+
+                                                        {notesViewMode === 'list' ? (
+                                                            <div className="space-y-2 mb-3">
+                                                                {note.verses.map((v) => (
+                                                                    <p key={v.verseId} className="text-xs sm:text-sm text-slate-300 leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5" dir="rtl">
+                                                                        <span className="text-sky-400 font-bold ml-1.5">[{v.verseNumber}]</span>
+                                                                        {v.text}
+                                                                    </p>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="mb-3">
+                                                                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5" dir="rtl" style={{ lineHeight: 1.8 }}>
+                                                                    {note.verses.map((v, i) => (
+                                                                        <span key={v.verseId}>
+                                                                            <span className="text-sky-400 font-bold ml-1.5">[{v.verseNumber}]</span>
+                                                                            {v.text}
+                                                                            {i < note.verses.length - 1 && <span className="inline-block w-2.5" />}
+                                                                        </span>
+                                                                    ))}
+                                                                </p>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="flex flex-col gap-1.5 pt-1">
+                                                            <p className="text-[9px] uppercase tracking-widest text-sky-400/70 font-black">My Personal Note</p>
+                                                            <p className="text-sm text-slate-200 font-medium leading-relaxed" dir="rtl">
+                                                                {note.note}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex sm:flex-col gap-2 shrink-0 self-start">
+                                                        <button
+                                                            onClick={() => handleEditBibleNote(note)}
+                                                            className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 transition-all border border-white/5"
+                                                            title="Edit Note"
+                                                        >
+                                                            <Edit3 className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteBibleNote(note.noteIds || note._id)}
+                                                            className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5"
+                                                            title="Delete Note"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
-                                            <div className="flex sm:flex-col gap-2 shrink-0">
+                        {currentView === 'bible_settings' && (
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <button
+                                        type="button"
+                                        onClick={goBackToMenu}
+                                        className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white transition-colors shrink-0"
+                                        title="Back"
+                                    >
+                                        <ArrowLeft className="w-5 h-5" />
+                                    </button>
+                                    <div>
+                                        <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
+                                            <Sliders className="w-5 h-5 text-slate-300" />
+                                            Bible Settings
+                                        </h1>
+                                        <p className="text-xs text-slate-400">Reading, font & layout preferences</p>
+                                    </div>
+                                </div>
+
+                                {/* Translation Group */}
+                                <div>
+                                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
+                                        Translation
+                                    </h3>
+                                    <div className="rounded-2xl bg-zinc-900/60 sm:bg-white/[0.03] border border-white/5 divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
+                                        {BIBLE_TRANSLATIONS.map((tr) => {
+                                            const isSelected = bibleTranslation === tr.id;
+                                            return (
                                                 <button
-                                                    onClick={() => handleEditBibleNote(note)}
-                                                    className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all border border-white/5"
-                                                    title="Edit Note"
+                                                    key={tr.id}
+                                                    type="button"
+                                                    onClick={() => handleSetBibleTranslation(tr.id)}
+                                                    className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left"
                                                 >
-                                                    <Edit3 className="w-4 h-4" />
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-sky-400 bg-sky-400' : 'border-white/30'}`}>
+                                                            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-slate-900" />}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm sm:text-base font-semibold text-white">{tr.name}</p>
+                                                            <p className="text-xs text-slate-400">{tr.desc}</p>
+                                                        </div>
+                                                    </div>
+                                                    {isSelected && <Check className="w-4 h-4 text-sky-400" />}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Verse Controls Group */}
+                                <div>
+                                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
+                                        Verse Controls
+                                    </h3>
+                                    <div className="rounded-2xl bg-zinc-900/60 sm:bg-white/[0.03] border border-white/5 divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
+                                        {/* View Mode */}
+                                        <div className="flex items-center justify-between p-4">
+                                            <div className="flex items-center gap-3.5">
+                                                {bibleViewMode === 'list' ? <List className="w-5 h-5 text-slate-300 shrink-0" /> : <AlignJustify className="w-5 h-5 text-slate-300 shrink-0" />}
+                                                <div>
+                                                    <p className="text-sm sm:text-base font-semibold text-white">Verse Display Mode</p>
+                                                    <p className="text-xs text-slate-400">{bibleViewMode === 'list' ? 'Vertical (Under each other)' : 'Continuous (Beside each other)'}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-1 gap-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSetBibleViewMode('list')}
+                                                    className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold transition-all ${bibleViewMode === 'list' ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                                                >
+                                                    <List className="w-3.5 h-3.5" />
+                                                    <span>Vertical</span>
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDeleteBibleNote(note._id)}
-                                                    className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5"
-                                                    title="Delete Note"
+                                                    type="button"
+                                                    onClick={() => handleSetBibleViewMode('paragraph')}
+                                                    className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold transition-all ${bibleViewMode === 'paragraph' ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
                                                 >
-                                                    <Trash2 className="w-4 h-4" />
+                                                    <AlignJustify className="w-3.5 h-3.5" />
+                                                    <span>Continuous</span>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Font Size */}
+                                        <div className="flex items-center justify-between p-4">
+                                            <div className="flex items-center gap-3.5">
+                                                <SlidersHorizontal className="w-5 h-5 text-slate-300 shrink-0" />
+                                                <div>
+                                                    <p className="text-sm sm:text-base font-semibold text-white">Font Size</p>
+                                                    <p className="text-xs text-slate-400">Verse text size</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center border border-white/10 rounded-xl overflow-hidden bg-white/5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSetBibleVerseFontSize(Math.max(16, bibleVerseFontSize - 2))}
+                                                    className="h-8 px-3 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-xs transition-colors active:bg-white/20"
+                                                    title="Decrease font size"
+                                                >
+                                                    -A
+                                                </button>
+                                                <span className="font-bold min-w-[36px] px-2 text-center text-xs text-sky-400">
+                                                    {bibleVerseFontSize}px
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSetBibleVerseFontSize(Math.min(44, bibleVerseFontSize + 2))}
+                                                    className="h-8 px-3 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-xs transition-colors active:bg-white/20"
+                                                    title="Increase font size"
+                                                >
+                                                    +A
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Verse Spacing */}
+                                        <div className="flex items-center justify-between p-4">
+                                            <div className="flex items-center gap-3.5">
+                                                <Sliders className="w-5 h-5 text-slate-300 shrink-0" />
+                                                <div>
+                                                    <p className="text-sm sm:text-base font-semibold text-white">Verse Spacing</p>
+                                                    <p className="text-xs text-slate-400">Vertical gap between verses</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center border border-white/10 rounded-xl overflow-hidden bg-white/5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSetBibleVerseSpacing(Math.max(2, bibleVerseSpacing - 2))}
+                                                    className="h-8 px-3 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-xs transition-colors active:bg-white/20"
+                                                    title="Decrease spacing"
+                                                >
+                                                    -
+                                                </button>
+                                                <span className="font-bold min-w-[36px] px-2 text-center text-xs text-sky-400">
+                                                    {bibleVerseSpacing}px
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSetBibleVerseSpacing(Math.min(36, bibleVerseSpacing + 2))}
+                                                    className="h-8 px-3 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-xs transition-colors active:bg-white/20"
+                                                    title="Increase spacing"
+                                                >
+                                                    +
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
-                                )}
-                            />
-                        </div>
-                    )}
+                                </div>
 
-                    {/* HIGHLIGHTS TAB */}
-                    {activeTab === 'highlights' && (
-                        <div className="grid gap-5 sm:gap-6">
-                            <ListPanel
-                                title="My Bible Highlights"
-                                icon={Sparkles}
-                                accentClass="text-sky-400"
-                                iconBgClass="bg-sky-500/10 text-sky-400 border-sky-500/20"
-                                items={groupHighlights(profile?.bibleHighlights || [])}
-                                emptyText="No bible highlights saved yet"
-                                renderItem={(highlight) => {
-                                    const getHighlightHex = (colorId) => {
-                                        if (!colorId) return '#38bdf8';
-                                        if (colorId.startsWith('#')) return colorId;
-
-                                        const standard = {
-                                            teal: '#2fc4c9', lavender: '#DAB6FC', lightgray: '#EDEDED',
-                                            sage: '#8BB388', pinkred: '#FF2158', coral: '#F85E3B',
-                                            cyan: '#2fc4c9', pink: '#DAB6FC', red: '#FF2158',
-                                            yellow: '#EDEDED', green: '#8BB388', blue: '#2fc4c9', orange: '#F85E3B'
-                                        };
-                                        if (standard[colorId]) return standard[colorId];
-
-                                        if (typeof window !== 'undefined') {
-                                            try {
-                                                const savedCustom = localStorage.getItem('taspe7_custom_highlights_list_v2') || localStorage.getItem('taspe7_custom_highlights_list');
-                                                if (savedCustom) {
-                                                    const parsed = JSON.parse(savedCustom);
-                                                    const found = parsed.find(c => c.id === colorId);
-                                                    if (found && found.hex) return found.hex.startsWith('#') ? found.hex : `#${found.hex}`;
-                                                }
-                                            } catch { }
-                                        }
-
-                                        if (colorId.startsWith('custom-')) {
-                                            const potentialHex = colorId.replace('custom-', '');
-                                            if (/^[0-9a-fA-F]{3,8}$/.test(potentialHex)) {
-                                                return '#' + potentialHex;
-                                            }
-                                        }
-
-                                        return '#38bdf8';
-                                    };
-                                    const hex = getHighlightHex(highlight.color);
-                                    return (
-                                        <div key={highlight._id} className="rounded-2xl border border-white/5 bg-black/20 p-4 sm:p-5 hover:bg-white/5 transition-all duration-300 relative overflow-hidden group">
-                                            <div className="absolute top-0 bottom-0 right-0 w-1.5 opacity-80" style={{ backgroundColor: hex }}></div>
-                                            <div className="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-4 relative z-10 pr-2">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                                        <h4 className="text-base font-bold text-white tracking-tight">{highlight.bookName}</h4>
-                                                        <span className="bg-sky-500/20 text-sky-300 text-[10px] font-black px-2 py-0.5 rounded-md border border-sky-500/20">
-                                                            {highlight.chapter}:{formatVerseNumbers(highlight.verseNumbers)}
-                                                        </span>
-                                                        <span className="text-[10px] text-slate-500 font-bold ml-auto sm:ml-0">
-                                                            {formatDate(highlight.date)}
-                                                        </span>
-                                                    </div>
-                                                    <div className="space-y-2 mt-2">
-                                                        {highlight.verses.map((v) => (
-                                                            <p key={v.verseId} className="text-xs sm:text-sm text-slate-200 leading-relaxed p-3 rounded-xl border border-white/5 bg-white/5 shadow-inner" style={{ backgroundColor: `${hex}15`, borderColor: `${hex}30` }} dir="rtl">
-                                                                <span className="text-sky-400/80 font-bold ml-1.5">[{v.verseNumber}]</span>
-                                                                {v.text}
-                                                            </p>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    onClick={() => handleDeleteBibleHighlight(highlight.verseIds)}
-                                                    className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 shrink-0 self-start"
-                                                    title="Delete Highlight"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
+                                {/* Live Preview Box */}
+                                <div>
+                                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
+                                        Live Preview
+                                    </h3>
+                                    <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-5 shadow-xl shadow-black/20" dir="rtl">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <span className="bg-sky-500/20 text-sky-300 text-xs font-bold px-2.5 py-0.5 rounded-lg border border-sky-500/20">
+                                                يوحنا 1:1-2 ({bibleTranslation})
+                                            </span>
                                         </div>
-                                    );
-                                }}
-                            />
-                        </div>
-                    )}
-
-                </div>
+                                        {bibleViewMode === 'list' ? (
+                                            <div className="flex flex-col">
+                                                <p
+                                                    className="text-slate-200 leading-relaxed font-arabic"
+                                                    style={{ fontSize: `${bibleVerseFontSize}px`, marginBottom: `${bibleVerseSpacing}px` }}
+                                                >
+                                                    <span className="text-sky-400 font-bold ml-2 text-xs">[1]</span>
+                                                    فِي الْبَدْءِ كَانَ الْكَلِمَةُ، وَالْكَلِمَةُ كَانَ عِنْدَ اللهِ، وَكَانَ الْكَلِمَةُ اللهَ.
+                                                </p>
+                                                <p
+                                                    className="text-slate-200 leading-relaxed font-arabic"
+                                                    style={{ fontSize: `${bibleVerseFontSize}px` }}
+                                                >
+                                                    <span className="text-sky-400 font-bold ml-2 text-xs">[2]</span>
+                                                    هذَا كَانَ فِي الْبَدْءِ عِنْدَ اللهِ.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <p
+                                                className="text-slate-200 leading-relaxed font-arabic"
+                                                style={{ fontSize: `${bibleVerseFontSize}px`, lineHeight: 1.8 }}
+                                            >
+                                                <span className="text-sky-400 font-bold ml-1.5 text-xs">[1]</span>
+                                                فِي الْبَدْءِ كَانَ الْكَلِمَةُ، وَالْكَلِمَةُ كَانَ عِنْدَ اللهِ، وَكَانَ الْكَلِمَةُ اللهَ.
+                                                <span className="inline-block w-3" />
+                                                <span className="text-sky-400 font-bold ml-1.5 text-xs">[2]</span>
+                                                هذَا كَانَ فِي الْبَدْءِ عِنْدَ اللهِ.
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Note Write Modal */}
@@ -1130,7 +1726,7 @@ export default function NormalUserProfile() {
                                                 Update Bible Note
                                             </h3>
                                             <p className="text-[10px] text-sky-400/60 font-mono uppercase tracking-widest mt-0.5">
-                                                {noteModalConfig.data.bookName} {noteModalConfig.data.chapter}:{noteModalConfig.data.verseNumber}
+                                                {noteModalConfig.data.bookName} {noteModalConfig.data.chapter}:{formatVerseNumbers(noteModalConfig.data.verseNumbers || [noteModalConfig.data.verseNumber])}
                                             </p>
                                         </div>
                                     </div>
@@ -1142,10 +1738,20 @@ export default function NormalUserProfile() {
                                     </button>
                                 </div>
 
-                                <div className="mx-6 mb-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                                    <p className="text-sm text-white/50 leading-relaxed line-clamp-3" dir="rtl">
-                                        {noteModalConfig.data.text}
-                                    </p>
+                                <div className="mx-6 mb-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] max-h-36 overflow-y-auto">
+                                    {noteModalConfig.data.verses ? (
+                                        <div className="space-y-1.5" dir="rtl">
+                                            {noteModalConfig.data.verses.map((v) => (
+                                                <p key={v.verseId || v.verseNumber} className="text-sm text-white/50 leading-relaxed">
+                                                    <span className="text-sky-400 font-bold ml-1">[{v.verseNumber}]</span> {v.text}
+                                                </p>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-white/50 leading-relaxed line-clamp-3" dir="rtl">
+                                            {noteModalConfig.data.text}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="px-6 pb-2">

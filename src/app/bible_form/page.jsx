@@ -1210,18 +1210,29 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     setIsSubmittingNote(true);
     try {
       if (noteModalConfig.type === 'bible') {
-        const verse = noteModalConfig.data;
-        await postUsersWithFallback('bible-note', {
-          userid,
-          verseId: verse._id,
-          bookName: bibleModalBook?.bookName || verse.bookName || 'Unknown',
-          chapter: bibleModalChapter || verse.chapter || 1,
-          verseNumber: verse.verseNumber,
-          text: verse.text,
-          note: noteText
-        }, { headers: { Authorization: `Bearer ${token}` } });
+        const verseOrVerses = noteModalConfig.data;
+        const verses = Array.isArray(verseOrVerses) ? verseOrVerses : [verseOrVerses];
+        await Promise.all(verses.map(async (v) => {
+          await postUsersWithFallback('bible-note', {
+            userid,
+            verseId: v._id,
+            bookName: bibleModalBook?.bookName || v.bookName || 'Unknown',
+            chapter: bibleModalChapter || v.chapter || 1,
+            verseNumber: v.verseNumber,
+            text: v.text,
+            note: noteText
+          }, { headers: { Authorization: `Bearer ${token}` } });
+        }));
         // Update local state immediately for instant feedback
-        setVerseNotes(prev => ({ ...prev, [verse._id]: noteText }));
+        setVerseNotes(prev => {
+          const next = { ...prev };
+          verses.forEach(v => {
+            next[v._id] = noteText;
+            writeLocalBibleNote(v._id, noteText);
+          });
+          return next;
+        });
+        setBibleSelectedVerseIds(new Set());
       } else if (noteModalConfig.type === 'hymn') {
         const hymn = noteModalConfig.data;
         await postUsersWithFallback('hymn-note', {
@@ -1238,19 +1249,27 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
 
       if (isNetworkError) {
         if (noteModalConfig?.type === 'bible') {
-          const verse = noteModalConfig.data;
-          await queueOfflineAction(`${API_ROOT}/users/bible-note`, 'POST', {
-            userid,
-            verseId: verse._id,
-            bookName: bibleModalBook?.bookName || verse.bookName || 'Unknown',
-            chapter: bibleModalChapter || verse.chapter || 1,
-            verseNumber: verse.verseNumber,
-            text: verse.text,
-            note: noteText
-          }, { Authorization: `Bearer ${token}` });
+          const verseOrVerses = noteModalConfig.data;
+          const verses = Array.isArray(verseOrVerses) ? verseOrVerses : [verseOrVerses];
+          for (const v of verses) {
+            await queueOfflineAction(`${API_ROOT}/users/bible-note`, 'POST', {
+              userid,
+              verseId: v._id,
+              bookName: bibleModalBook?.bookName || v.bookName || 'Unknown',
+              chapter: bibleModalChapter || v.chapter || 1,
+              verseNumber: v.verseNumber,
+              text: v.text,
+              note: noteText
+            }, { Authorization: `Bearer ${token}` });
 
-          writeLocalBibleNote(verse?._id, noteText);
-          setVerseNotes(prev => ({ ...prev, [verse?._id]: noteText }));
+            writeLocalBibleNote(v?._id, noteText);
+          }
+          setVerseNotes(prev => {
+            const next = { ...prev };
+            verses.forEach(v => { next[v?._id] = noteText; });
+            return next;
+          });
+          setBibleSelectedVerseIds(new Set());
         } else if (noteModalConfig?.type === 'hymn') {
           const hymn = noteModalConfig.data;
           await queueOfflineAction(`${API_ROOT}/users/hymn-note`, 'POST', {
@@ -1268,9 +1287,17 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       }
 
       if (err?.response?.status === 404 && noteModalConfig?.type === 'bible') {
-        const verse = noteModalConfig.data;
-        writeLocalBibleNote(verse?._id, noteText);
-        setVerseNotes(prev => ({ ...prev, [verse?._id]: noteText }));
+        const verseOrVerses = noteModalConfig.data;
+        const verses = Array.isArray(verseOrVerses) ? verseOrVerses : [verseOrVerses];
+        verses.forEach(v => {
+          writeLocalBibleNote(v?._id, noteText);
+        });
+        setVerseNotes(prev => {
+          const next = { ...prev };
+          verses.forEach(v => { next[v?._id] = noteText; });
+          return next;
+        });
+        setBibleSelectedVerseIds(new Set());
         setNoteModalConfig(null);
         setNoteText('');
         alert('Saved locally on this device. Backend note route is still returning 404.');
@@ -2306,10 +2333,13 @@ export function BibleForm({ controller, isPage = false }) {
 
                     <button
                       onClick={() => {
-                        const firstVerse = bibleModalVerses.find(v => bibleSelectedVerseIds.has(v._id));
-                        if (!firstVerse) return;
-                        setNoteText(verseNotes[firstVerse._id] || '');
-                        setNoteModalConfig({ type: 'bible', data: firstVerse, existingNote: verseNotes[firstVerse._id] });
+                        const selectedVerses = bibleModalVerses
+                          .filter(v => bibleSelectedVerseIds.has(v._id))
+                          .sort((a, b) => a.verseNumber - b.verseNumber);
+                        if (selectedVerses.length === 0) return;
+                        const existing = selectedVerses.map(v => verseNotes[v._id]).find(Boolean) || '';
+                        setNoteText(existing);
+                        setNoteModalConfig({ type: 'bible', data: selectedVerses, existingNote: existing });
                       }}
                       className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95"
                     >
@@ -2994,7 +3024,13 @@ export function BibleForm({ controller, isPage = false }) {
                       {noteModalConfig.existingNote ? (language === 'ar' ? 'تعديل الملاحظة' : 'Edit Note') : (language === 'ar' ? 'إضافة ملاحظة' : 'Add Note')}
                     </h3>
                     <p className="text-[10px] text-indigo-400/60 font-mono uppercase tracking-widest mt-0.5">
-                      {noteModalConfig.type === 'bible' ? `Verse ${noteModalConfig.data.verseNumber}` : 'Hymn'}
+                      {noteModalConfig.type === 'bible'
+                        ? Array.isArray(noteModalConfig.data)
+                          ? noteModalConfig.data.length > 1
+                            ? `Verses ${noteModalConfig.data.map(v => v.verseNumber).join(', ')}`
+                            : `Verse ${noteModalConfig.data[0]?.verseNumber}`
+                          : `Verse ${noteModalConfig.data?.verseNumber}`
+                        : 'Hymn'}
                     </p>
                   </div>
                 </div>
@@ -3007,10 +3043,27 @@ export function BibleForm({ controller, isPage = false }) {
               </div>
 
               {/* Verse preview */}
-              <div className="mx-6 mb-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                <p className="text-sm text-white/50 leading-relaxed line-clamp-3" dir="rtl">
-                  {noteModalConfig.type === 'bible' ? noteModalConfig.data.text : noteModalConfig.data.title}
-                </p>
+              <div className="mx-6 mb-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] max-h-36 overflow-y-auto">
+                {noteModalConfig.type === 'bible' ? (
+                  Array.isArray(noteModalConfig.data) ? (
+                    <div className="space-y-1.5" dir="rtl">
+                      {noteModalConfig.data.map((v) => (
+                        <p key={v._id || v.verseNumber} className="text-sm text-white/50 leading-relaxed">
+                          <span className="text-indigo-400 font-bold ml-1">[{v.verseNumber}]</span>
+                          {v.text}
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-white/50 leading-relaxed line-clamp-3" dir="rtl">
+                      {noteModalConfig.data.text}
+                    </p>
+                  )
+                ) : (
+                  <p className="text-sm text-white/50 leading-relaxed line-clamp-3" dir="rtl">
+                    {noteModalConfig.data?.title}
+                  </p>
+                )}
               </div>
 
               <div className="px-6 pb-2">
