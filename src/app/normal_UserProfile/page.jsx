@@ -1253,7 +1253,7 @@ export default function NormalUserProfile() {
                                 <div>
                                     <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">PROGRAMER</h3>
                                     <button type="button" onClick={() => router.push('/ProgramerDashboard')} className="flex w-full items-center justify-between rounded-2xl border border-sky-400/20 bg-sky-400/5 p-4 text-left hover:bg-sky-400/10">
-                                        <div className="flex items-center gap-3.5"><Settings className="h-5 w-5 shrink-0 text-sky-300" /><div><span className="block text-sm font-semibold text-white">App control center</span><span className="mt-1 block text-xs text-slate-400">OTA releases, private testing, and update intros</span></div></div><ChevronRight className="h-4 w-4 text-slate-500" />
+                                        <div className="flex items-center gap-3.5"><Settings className="h-5 w-5 shrink-0 text-sky-300" /><div><span className="block text-sm font-semibold text-white">App control center</span><span className="mt-1 block text-xs text-slate-400">OTA controll and UI animations</span></div></div><ChevronRight className="h-4 w-4 text-slate-500" />
                                     </button>
                                 </div>
                             )}

@@ -1,6 +1,23 @@
 # OTA release control
 
-Open **Profile → App control center**, or `/ProgramerDashboard/`. The backend checks the account's current database `global_role` / `role`; only `PROGRAMER` accounts can view release data or change releases. A cached client role or an old JWT role cannot grant access.
+Open **Profile → App control center**, or `/ProgramerDashboard/`. This page has two entry buttons: **OTA controll** opens `/ProgramerDashboard/ota/`, and **UI animations** opens `/ProgramerDashboard/animations/`. The backend checks the account's current database `global_role` / `role`; only `PROGRAMER` accounts can view or change these controls. A cached client role or an old JWT role cannot grant access.
+
+## UI animations
+
+The navbar logo has no first-opening or three-day timer. It remains static unless a request is received from the UI animations dashboard.
+
+- **Request animation** creates a new request for **PROGRAMER only** (the default) or **All users**. Each signed-in device plays each request once. Sending a new request lets the same devices play the intro again.
+- Active apps check every minute, when the navbar mounts, after the OTA splash finishes, on return to foreground, and when coming online. Saving a request checks immediately on the dashboard's own device. Requests expire after 24 hours.
+- **Preview on this device** plays a local preview and does not broadcast or mark a server request as seen.
+- **Cancel pending request** stops future delivery. An animation already started can finish. A request waiting behind the OTA splash is rechecked before playing.
+- Completion is recorded locally per account and installation at the start of playback, so reloads or interrupted animations do not replay a request. Clearing app storage creates a new playback history.
+- Only the latest request is delivered; requesting a new animation replaces any previous pending request. The newest request may wait for a current intro to finish.
+
+The update splash remains a separate per-release setting on the OTA page. A navbar request waits for that splash to finish, avoiding overlapping intros. Apps with an older navbar implementation keep their old timer until they receive this frontend update.
+
+UI endpoints: authenticated `GET /api/ui-controls/requests`, PROGRAMER-only `GET /api/ui-controls/admin`, `POST /api/ui-controls/admin/navbar-intro`, and `DELETE /api/ui-controls/admin/navbar-intro`. The `UiAnimation` Mongoose model stores the latest request. Existing database/auth configuration is reused.
+
+If the UI-control API returns an HTML 404 page, the configured backend has not received these routes yet. Deploy all backend changes, including the new controller, router, model, and route registration. The control-center hub verifies access using the established `/api/users/my-profile` endpoint, so its links do not depend on the UI-control deployment. Authorized users can preview the navbar locally while the UI backend is unavailable; broadcasting/cancelling requests remains disabled until that backend responds successfully. API errors are displayed as readable deployment/configuration messages rather than JSON-parser errors.
 
 ## Normal release workflow
 

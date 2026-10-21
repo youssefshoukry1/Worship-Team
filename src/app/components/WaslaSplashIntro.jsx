@@ -73,8 +73,6 @@ export default function WaslaSplashIntro() {
             setShowSplash(false);
             try {
                 localStorage.setItem("wasla_splash_version", appVersion);
-                // Also align 3-day navbar timer so animations don't conflict
-                localStorage.setItem("wasla_intro_last_time", Date.now().toString());
             } catch {}
         }, 600);
     };

@@ -11,8 +11,15 @@ import { UserContext } from "../context/User_Context";
 import Image from "next/image";
 import axios from 'axios';
 import WaslaLogo from "./WaslaLogo";
+import useNavbarIntro from "./useNavbarIntro";
 
 export default function Navbar() {
+    const pathname = usePathname();
+    if (pathname?.startsWith('/presentation') || pathname?.startsWith('/chat_team') || pathname?.startsWith('/Trainings')) return null;
+    return <NavbarContent />;
+}
+
+function NavbarContent() {
     const { t, language, setLanguage } = useLanguage();
     const {
         isLogin, setLogin,
@@ -30,36 +37,7 @@ export default function Navbar() {
     const [langMenuOpen, setLangMenuOpen] = useState(false);
     const [modeMenuOpen, setModeMenuOpen] = useState(false);
 
-    // Intro Transition: Every 3 days or first time
-    const [introStage, setIntroStage] = useState(() => {
-        if (typeof window === "undefined") return "done";
-        try {
-            const lastTime = localStorage.getItem("wasla_intro_last_time");
-            const now = Date.now();
-            if (!lastTime || now - Number(lastTime) > 3 * 24 * 60 * 60 * 1000) {
-                return "center";
-            }
-        } catch {
-            return "done";
-        }
-        return "done";
-    });
-
-    const handleLogoAssembleComplete = () => {
-        // Hold in center so the user can enjoy the assembled logo, then glide left
-        setTimeout(() => {
-            setIntroStage("sliding");
-        }, 700);
-    };
-
-    const handleSlideComplete = () => {
-        if (introStage === "sliding") {
-            setIntroStage("done");
-            try {
-                localStorage.setItem("wasla_intro_last_time", Date.now().toString());
-            } catch (_) {}
-        }
-    };
+    const { introStage, introId, handleLogoAssembleComplete, handleSlideComplete } = useNavbarIntro(isLogin, user_id);
 
 
 
@@ -148,16 +126,16 @@ export default function Navbar() {
         },
     };
 
-    if (pathname?.startsWith('/presentation') || pathname?.startsWith('/chat_team') || pathname?.startsWith('/Trainings')) {
-        return null;
-    }
-
     return (
         <nav className="sticky top-0 z-50 h-20 px-2 flex items-center justify-between bg-[#0b0f19]/60 backdrop-blur-md border-b border-white/10 relative">
             {/* Logo with In-Navbar Center-to-Left Intro */}
             <div className="relative flex items-center">
                 {introStage !== "done" && (
                     <motion.div
+                        key={introId}
+                        data-navbar-intro
+                        data-intro-id={introId}
+                        data-intro-stage={introStage}
                         initial={{ left: "50%", x: "-50%", scale: 1.2 }}
                         animate={
                             introStage === "center"
