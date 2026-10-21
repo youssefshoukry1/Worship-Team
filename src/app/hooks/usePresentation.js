@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { io } from 'socket.io-client';
 import { getApiBaseUrl } from '../utils/apiBase';
 
 const API_URL = getApiBaseUrl();
@@ -97,174 +96,191 @@ export function usePresentation(dataShowId, role = 'controller') {
     useEffect(() => {
         if (!dataShowId) return;
 
-        const socket = io(SOCKET_URL, {
-            transports: ['websocket'], // Force WebSocket
-            reconnectionAttempts: Infinity,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
-            timeout: 20000,
-        });
-        socketRef.current = socket;
+        let cancelled = false;
+        let loading = false;
+        let socket;
+        const connect = () => {
+            if (cancelled || loading || socket) return;
+            loading = true;
+            import('socket.io-client').then(({ io }) => {
+                if (cancelled) return;
+                socket = io(SOCKET_URL, {
+                    transports: ['websocket'], // Force WebSocket
+                    reconnectionAttempts: Infinity,
+                    reconnectionDelay: 1000,
+                    reconnectionDelayMax: 5000,
+                    timeout: 20000,
+                });
+                socketRef.current = socket;
 
-        socket.on('connect', () => {
-            setIsConnected(true);
-            socket.emit('join-session', { dataShowId, role });
-            console.log(`[Socket] Connected as ${role} to show:${dataShowId}`);
-        });
+                socket.on('connect', () => {
+                    setIsConnected(true);
+                    socket.emit('join-session', { dataShowId, role });
+                    console.log(`[Socket] Connected as ${role} to show:${dataShowId}`);
+                });
 
-        socket.on('disconnect', () => {
-            setIsConnected(false);
-            cleanupWebRTC();
-        });
+                socket.on('disconnect', () => {
+                    setIsConnected(false);
+                    cleanupWebRTC();
+                });
 
-        socket.on('session-timer-init', ({ remainingMinutes, resetAt }) => {
-            if (remainingMinutes === Infinity) {
-                setRemainingSeconds(Infinity);
-            } else if (typeof remainingMinutes === 'number') {
-                setRemainingSeconds(Math.floor(remainingMinutes * 60));
-            }
-            if (resetAt) {
-                setLimitModalInfo(prev => ({ ...prev, resetAt }));
-            }
-        });
+                socket.on('session-timer-init', ({ remainingMinutes, resetAt }) => {
+                    if (remainingMinutes === Infinity) {
+                        setRemainingSeconds(Infinity);
+                    } else if (typeof remainingMinutes === 'number') {
+                        setRemainingSeconds(Math.floor(remainingMinutes * 60));
+                    }
+                    if (resetAt) {
+                        setLimitModalInfo(prev => ({ ...prev, resetAt }));
+                    }
+                });
 
-        socket.on('session-limit-exceeded', ({ message, resetAt }) => {
-            localStorage.removeItem('myLivePresentationId');
-            cleanupWebRTC();
-            setIsConnected(false);
-            setLimitModalInfo({
-                show: true,
-                message: message || 'لقد انتهت مهلة الجلسة المباشرة.',
-                resetAt: resetAt || null
-            });
-        });
+                socket.on('session-limit-exceeded', ({ message, resetAt }) => {
+                    localStorage.removeItem('myLivePresentationId');
+                    cleanupWebRTC();
+                    setIsConnected(false);
+                    setLimitModalInfo({
+                        show: true,
+                        message: message || 'لقد انتهت مهلة الجلسة المباشرة.',
+                        resetAt: resetAt || null
+                    });
+                });
 
-        // Display / remote roles listen for updates.
-        socket.on('display-update', (state) => {
-            setDisplayState(prev => {
-                if (
-                    prev &&
-                    prev.currentHymnId === state.currentHymnId &&
-                    prev.currentSlide  === state.currentSlide  &&
-                    prev.type          === state.type
-                ) return prev;
+                // Display / remote roles listen for updates.
+                socket.on('display-update', (state) => {
+                    setDisplayState(prev => {
+                        if (
+                            prev &&
+                            prev.currentHymnId === state.currentHymnId &&
+                            prev.currentSlide  === state.currentSlide  &&
+                            prev.type          === state.type
+                        ) return prev;
 
-                return {
-                    ...prev,
-                    ...state,
-                    slides: state.slides !== undefined ? state.slides : (prev ? prev.slides : [])
-                };
-            });
-        });
+                        return {
+                            ...prev,
+                            ...state,
+                            slides: state.slides !== undefined ? state.slides : (prev ? prev.slides : [])
+                        };
+                    });
+                });
 
-        // --- WebRTC signaling ---
+                // --- WebRTC signaling ---
 
-        socket.on('audio-started', ({ controllerId }) => {
-            if (role === 'controller') return;
-            currentControllerIdRef.current = controllerId;
-            socket.emit('request-audio', { targetId: controllerId });
-        });
+                socket.on('audio-started', ({ controllerId }) => {
+                    if (role === 'controller') return;
+                    currentControllerIdRef.current = controllerId;
+                    socket.emit('request-audio', { targetId: controllerId });
+                });
 
-        socket.on('audio-stopped', () => {
-            if (role === 'controller') return;
-            setRemoteAudioStream(null);
-            currentControllerIdRef.current = null;
-            if (viewerPeerRef.current) {
-                viewerPeerRef.current.close();
-                viewerPeerRef.current = null;
-            }
-        });
+                socket.on('audio-stopped', () => {
+                    if (role === 'controller') return;
+                    setRemoteAudioStream(null);
+                    currentControllerIdRef.current = null;
+                    if (viewerPeerRef.current) {
+                        viewerPeerRef.current.close();
+                        viewerPeerRef.current = null;
+                    }
+                });
 
-        socket.on('request-audio', async ({ from }) => {
-            if (role !== 'controller') return;
-            if (!localStreamRef.current) return;
+                socket.on('request-audio', async ({ from }) => {
+                    if (role !== 'controller') return;
+                    if (!localStreamRef.current) return;
 
-            const pc = new RTCPeerConnection(ICE_SERVERS);
-            peersRef.current[from] = pc;
+                    const pc = new RTCPeerConnection(ICE_SERVERS);
+                    peersRef.current[from] = pc;
 
-            pc.onicecandidate = (event) => {
-                if (event.candidate) {
-                    socket.emit('webrtc-ice-candidate', { targetId: from, candidate: event.candidate });
-                }
-            };
+                    pc.onicecandidate = (event) => {
+                        if (event.candidate) {
+                            socket.emit('webrtc-ice-candidate', { targetId: from, candidate: event.candidate });
+                        }
+                    };
 
-            localStreamRef.current.getTracks().forEach(track => {
-                pc.addTrack(track, localStreamRef.current);
-            });
+                    localStreamRef.current.getTracks().forEach(track => {
+                        pc.addTrack(track, localStreamRef.current);
+                    });
 
-            try {
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-                socket.emit('webrtc-offer', { targetId: from, offer });
-            } catch (err) {
-                console.error('Error creating offer', err);
-            }
-        });
+                    try {
+                        const offer = await pc.createOffer();
+                        await pc.setLocalDescription(offer);
+                        socket.emit('webrtc-offer', { targetId: from, offer });
+                    } catch (err) {
+                        console.error('Error creating offer', err);
+                    }
+                });
 
-        socket.on('webrtc-offer', async ({ from, offer }) => {
-            if (role === 'controller') return;
+                socket.on('webrtc-offer', async ({ from, offer }) => {
+                    if (role === 'controller') return;
 
-            if (viewerPeerRef.current) {
-                viewerPeerRef.current.close();
-            }
+                    if (viewerPeerRef.current) {
+                        viewerPeerRef.current.close();
+                    }
 
-            const pc = new RTCPeerConnection(ICE_SERVERS);
-            viewerPeerRef.current = pc;
+                    const pc = new RTCPeerConnection(ICE_SERVERS);
+                    viewerPeerRef.current = pc;
 
-            pc.onicecandidate = (event) => {
-                if (event.candidate) {
-                    socket.emit('webrtc-ice-candidate', { targetId: from, candidate: event.candidate });
-                }
-            };
+                    pc.onicecandidate = (event) => {
+                        if (event.candidate) {
+                            socket.emit('webrtc-ice-candidate', { targetId: from, candidate: event.candidate });
+                        }
+                    };
 
-            pc.ontrack = (event) => {
-                if (event.streams && event.streams[0]) {
-                    setRemoteAudioStream(event.streams[0]);
-                } else {
-                    const inboundStream = new MediaStream([event.track]);
-                    setRemoteAudioStream(inboundStream);
-                }
-            };
+                    pc.ontrack = (event) => {
+                        if (event.streams && event.streams[0]) {
+                            setRemoteAudioStream(event.streams[0]);
+                        } else {
+                            const inboundStream = new MediaStream([event.track]);
+                            setRemoteAudioStream(inboundStream);
+                        }
+                    };
 
-            try {
-                await pc.setRemoteDescription(new RTCSessionDescription(offer));
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                socket.emit('webrtc-answer', { targetId: from, answer });
-            } catch (err) {
-                console.error('Error setting up remote offer and answering', err);
-            }
-        });
+                    try {
+                        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+                        const answer = await pc.createAnswer();
+                        await pc.setLocalDescription(answer);
+                        socket.emit('webrtc-answer', { targetId: from, answer });
+                    } catch (err) {
+                        console.error('Error setting up remote offer and answering', err);
+                    }
+                });
 
-        socket.on('webrtc-answer', async ({ from, answer }) => {
-            if (role !== 'controller') return;
-            const pc = peersRef.current[from];
-            if (pc) {
-                try {
-                    await pc.setRemoteDescription(new RTCSessionDescription(answer));
-                } catch (err) {
-                    console.error('Error setting remote description from answer', err);
-                }
-            }
-        });
-
-        socket.on('webrtc-ice-candidate', async ({ from, candidate }) => {
-            try {
-                if (role === 'controller') {
+                socket.on('webrtc-answer', async ({ from, answer }) => {
+                    if (role !== 'controller') return;
                     const pc = peersRef.current[from];
-                    if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate));
-                } else {
-                    const pc = viewerPeerRef.current;
-                    if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate));
-                }
-            } catch (err) {
-                console.error('Error adding ice candidate', err);
-            }
-        });
+                    if (pc) {
+                        try {
+                            await pc.setRemoteDescription(new RTCSessionDescription(answer));
+                        } catch (err) {
+                            console.error('Error setting remote description from answer', err);
+                        }
+                    }
+                });
+
+                socket.on('webrtc-ice-candidate', async ({ from, candidate }) => {
+                    try {
+                        if (role === 'controller') {
+                            const pc = peersRef.current[from];
+                            if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                        } else {
+                            const pc = viewerPeerRef.current;
+                            if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                        }
+                    } catch (err) {
+                        console.error('Error adding ice candidate', err);
+                    }
+                });
+
+            }).catch(error => {
+                if (!cancelled) console.error('Presentation connection could not load:', error);
+            }).finally(() => { loading = false; });
+        };
+        connect();
+        window.addEventListener('online', connect);
 
         return () => {
+            cancelled = true;
+            window.removeEventListener('online', connect);
             cleanupWebRTC();
-            socket.disconnect();
+            socket?.disconnect();
             socketRef.current = null;
             setIsConnected(false);
         };

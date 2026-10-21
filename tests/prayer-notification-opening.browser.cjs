@@ -35,6 +35,46 @@ after(async () => {
 const received = id => ({ _id: `received-${id}`, words: `Prayer ${id}`, date: new Date().toISOString(), sharedFrom: { username: 'friend', shareId: id, status: 'pending' } });
 const sent = { _id: 'sent-789', words: 'Sent prayer', date: new Date().toISOString(), sharedWith: { username: 'friend', shareId: '789', status: 'sent' } };
 
+test('long prayer lists retain audio playback while offscreen and while the composer changes', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => route.request().url().startsWith(base) ? route.continue()
+      : route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } }));
+    const prayers = Array.from({ length: 200 }, (_, i) => ({ _id: 'personal-' + i, words: 'Personal prayer ' + i, date: new Date().toISOString() }));
+    await seed(page, prayers);
+    await page.evaluate(async () => {
+      const bytes = new ArrayBuffer(44 + 8000 * 60 * 2), view = new DataView(bytes);
+      const text = (offset, value) => { for (let i = 0; i < value.length; i++) view.setUint8(offset + i, value.charCodeAt(i)); };
+      text(0, 'RIFF'); view.setUint32(4, bytes.byteLength - 8, true); text(8, 'WAVE'); text(12, 'fmt ');
+      view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+      view.setUint32(24, 8000, true); view.setUint32(28, 16000, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+      text(36, 'data'); view.setUint32(40, bytes.byteLength - 44, true);
+      const db = await new Promise(resolve => { const req = indexedDB.open('my_prays', 2); req.onsuccess = () => resolve(req.result); });
+      const index = await new Promise(resolve => { const req = db.transaction('keyvaluepairs').objectStore('keyvaluepairs').get('index'); req.onsuccess = () => resolve(req.result); });
+      index.recordings['personal-0'] = [{ id: 'test-audio', ext: 'wav', mimeType: 'audio/wav', duration: 60, blockType: 'general', sectionIndex: 0 }];
+      await new Promise(resolve => { const tx = db.transaction('keyvaluepairs', 'readwrite'); const store = tx.objectStore('keyvaluepairs'); store.put(index, 'index'); store.put(new Blob([bytes], { type: 'audio/wav' }), 'audio_test-audio'); tx.oncomplete = resolve; });
+      db.close();
+    });
+    await page.addInitScript(() => {
+      const play = HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play = function () { window.__playingPrayerAudio = this; return play.call(this); };
+    });
+    await page.goto(base + '/pray/');
+    const first = page.locator('[data-prayer-id="personal-0"]');
+    await first.getByRole('button', { name: 'Play', exact: true }).click();
+    await first.getByRole('button', { name: 'Pause', exact: true }).waitFor();
+    await page.evaluate(() => { window.__firstPrayerCard = document.querySelector('[data-prayer-id="personal-0"]'); window.scrollTo(0, document.documentElement.scrollHeight); });
+    await page.locator('[data-prayer-id="personal-199"]').getByText('Personal prayer 199', { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.__firstPrayerCard.isConnected && !window.__playingPrayerAudio.paused), true);
+    await page.getByRole('textbox').first().fill('Composer draft stays separate');
+    assert.equal(await page.evaluate(() => window.__firstPrayerCard === document.querySelector('[data-prayer-id="personal-0"]') && !window.__playingPrayerAudio.paused), true);
+    await first.scrollIntoViewIfNeeded();
+    await first.getByRole('button', { name: 'Pause', exact: true }).click();
+    await page.waitForFunction(() => window.__playingPrayerAudio.paused);
+  } finally { await context.close(); }
+});
+
 async function seed(page, prayers) {
   await page.goto(base + '/__seed');
   await page.evaluate(async ({ prayers, version }) => {
@@ -271,6 +311,9 @@ test('a late background response cannot restore a request that the user has alre
       return route.fulfill({ json: { user: { username: 'tester' } } });
     });
     await seedFriends(page, { friends: [], incomingRequests: [{ from: alice }], outgoingRequests: [] });
+    // Ensure this test exercises an in-flight refresh rather than the short
+    // cache reuse window for an ordinary tab visit.
+    await page.evaluate(() => localStorage.setItem('taspe7_friends_dirty_tester', '1'));
     await page.goto(base + '/friends/', { waitUntil: 'domcontentloaded' });
     await first;
     await page.locator('[data-friend-id="alice"]').getByRole('button', { name: 'Accept', exact: true }).click();
@@ -280,7 +323,7 @@ test('a late background response cannot restore a request that the user has alre
       new MutationObserver(() => { if (document.querySelector('[data-friend-id="alice"]')) window.requestRestored = true; })
         .observe(document.body, { childList: true, subtree: true });
     });
-    release(); await second;
+    release(); await Promise.race([second, new Promise((_, reject) => setTimeout(() => reject(new Error('Action refresh was not immediate')), 5000))]);
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     assert.equal(await page.evaluate(() => window.requestRestored), false);
     await page.getByRole('button', { name: /My Friends/ }).click();

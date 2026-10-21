@@ -23,6 +23,7 @@ import FriendPhotoViewer from '../components/FriendPhotoViewer';
 import { cacheAvatarsInBackground } from '../utils/avatarStorage';
 import { clearFriendsInvalidation, getFriendsCacheKey, isFriendsCacheFresh, readFriendsCache, readFriendsInvalidation, writeFriendsCache } from '../utils/friendsCache';
 import { readFriendNotificationTarget } from '../utils/friendNotificationNavigation';
+import { invalidateTabRead, readTabJson, TAB_READ_FRESH_MS, tabReadKey } from '../utils/tabRequests';
 
 const API_URL = getApiBaseUrl();
 
@@ -54,6 +55,11 @@ export default function FriendsPage() {
   const pendingActionsRef = useRef(0);
   const [notificationTarget, setNotificationTarget] = useState(null);
   const notificationScrolledRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // Fetch pending requests and friends list
   const loadData = useCallback(async (force = false) => {
@@ -62,6 +68,7 @@ export default function FriendsPage() {
       cacheLoadRef.current = (async () => {
         try {
           const cached = await readFriendsCache(user_id);
+          if (!mountedRef.current) return;
           if (cached) {
             setIncomingRequests(cached.incomingRequests || []);
             setOutgoingRequests(cached.outgoingRequests || []);
@@ -77,6 +84,7 @@ export default function FriendsPage() {
       })();
     }
     await cacheLoadRef.current;
+    if (!mountedRef.current) return;
     const invalidation = readFriendsInvalidation(user_id);
     const refreshAll = force || Boolean(invalidation);
     // Deduplicate each endpoint separately so a stalled friends list cannot
@@ -90,8 +98,8 @@ export default function FriendsPage() {
         let success = false;
         do {
           syncAgainRef.current[part] = false;
-          success = await fetchAndApply();
-        } while (syncAgainRef.current[part]);
+          try { success = await fetchAndApply(); } catch { success = false; }
+        } while (mountedRef.current && syncAgainRef.current[part]);
         return success;
       };
       syncInFlightRef.current[part] = run().finally(() => { syncInFlightRef.current[part] = null; });
@@ -99,24 +107,20 @@ export default function FriendsPage() {
     };
     const results = await Promise.allSettled([
       syncPart('requests', async () => {
-        if (!refreshAll && isFriendsCacheFresh(syncTimesRef.current.requestsSyncedAt)) return true;
+        if (!refreshAll && isFriendsCacheFresh(syncTimesRef.current.requestsSyncedAt) && Date.now() - syncTimesRef.current.requestsSyncedAt < TAB_READ_FRESH_MS) return true;
         const version = actionVersionRef.current;
-        const res = await fetch(`${API_URL}/users/friend-requests`, { headers: { Authorization: `Bearer ${isLogin}` } });
-        if (!res.ok) return false;
-        const data = await res.json();
-        if (version !== actionVersionRef.current || pendingActionsRef.current > 0) return false;
+        const data = await readTabJson(`${API_URL}/users/friend-requests`, isLogin, { force: refreshAll });
+        if (!mountedRef.current || version !== actionVersionRef.current || pendingActionsRef.current > 0) return false;
         syncTimesRef.current.requestsSyncedAt = Date.now();
         setIncomingRequests(data.incoming || []);
         setOutgoingRequests(data.outgoing || []);
         return true;
       }),
       syncPart('friends', async () => {
-        if (!refreshAll && isFriendsCacheFresh(syncTimesRef.current.friendsSyncedAt)) return true;
+        if (!refreshAll && isFriendsCacheFresh(syncTimesRef.current.friendsSyncedAt) && Date.now() - syncTimesRef.current.friendsSyncedAt < TAB_READ_FRESH_MS) return true;
         const version = actionVersionRef.current;
-        const res = await fetch(`${API_URL}/users/friends`, { headers: { Authorization: `Bearer ${isLogin}` } });
-        if (!res.ok) return false;
-        const data = await res.json();
-        if (version !== actionVersionRef.current || pendingActionsRef.current > 0) return false;
+        const data = await readTabJson(`${API_URL}/users/friends`, isLogin, { force: refreshAll });
+        if (!mountedRef.current || version !== actionVersionRef.current || pendingActionsRef.current > 0) return false;
         syncTimesRef.current.friendsSyncedAt = Date.now();
         setFriends(data.friends || []);
         return true;
@@ -152,8 +156,9 @@ export default function FriendsPage() {
   }, [loadData]);
 
   useEffect(() => {
-    // Render the local cache immediately, then refresh social state on every visit.
-    void loadData(true);
+    // Rapid revisits reuse fresh data; notifications and the 15s poll still
+    // force a network refresh independently for each endpoint.
+    void loadData(Boolean(readFriendNotificationTarget(window.location.search)));
     const refresh = () => { void loadData(true); };
     const whenVisible = () => { if (document.visibilityState === 'visible') refresh(); };
     window.addEventListener('taspe7:friends-push', refresh);
@@ -209,21 +214,22 @@ export default function FriendsPage() {
     }
 
     setIsSearching(true);
+    const controller = new AbortController();
     debounceTimerRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`${API_URL}/users/search-username?q=${encodeURIComponent(cleanQuery)}`);
+        const res = await fetch(`${API_URL}/users/search-username?q=${encodeURIComponent(cleanQuery)}`, { signal: controller.signal });
         if (res.ok) {
           const data = await res.json();
-          setSearchResults(data || []);
+          if (!controller.signal.aborted) setSearchResults(data || []);
         }
       } catch {
-        setSearchResults([]);
+        if (!controller.signal.aborted) setSearchResults([]);
       } finally {
-        setIsSearching(false);
+        if (!controller.signal.aborted) setIsSearching(false);
       }
     }, 300);
 
-    return () => clearTimeout(debounceTimerRef.current);
+    return () => { clearTimeout(debounceTimerRef.current); controller.abort(); };
   }, [searchQuery]);
 
   // Helper status checker for a target user
@@ -237,10 +243,14 @@ export default function FriendsPage() {
 
   // Send friend request
   const beginAction = () => {
+    invalidateTabRead(tabReadKey(`${API_URL}/users/friend-requests`, isLogin));
+    invalidateTabRead(tabReadKey(`${API_URL}/users/friends`, isLogin));
     actionVersionRef.current++;
     pendingActionsRef.current++;
   };
   const finishAction = () => {
+    invalidateTabRead(tabReadKey(`${API_URL}/users/friend-requests`, isLogin));
+    invalidateTabRead(tabReadKey(`${API_URL}/users/friends`, isLogin));
     actionVersionRef.current++;
     pendingActionsRef.current--;
     void loadData(true);

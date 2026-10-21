@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { motion, AnimatePresence } from 'framer-motion';
-import localforage from 'localforage';
 import Portal from '../Portal/Portal';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { showToast } from '../components/ToastContainer';
@@ -43,6 +42,7 @@ import { useTheme } from '../context/ThemeContext';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { useLanguage } from "../context/LanguageContext";
 import { getGuestPrays } from '../utils/prayRecordings';
+import { invalidateProfile, readCachedProfile, refreshProfile, writeCachedProfile } from '../utils/profileCache';
 
 const BIBLE_TRANSLATIONS = [
     { id: 'AVD', name: 'فانديك (AVD)', desc: 'Arabic Van Dyck' },
@@ -499,14 +499,13 @@ export default function NormalUserProfile() {
     const [noteText, setNoteText] = useState('');
     const [isSubmittingNote, setIsSubmittingNote] = useState(false);
 
-    const CACHE_KEY = `profile_data_${user_id}`;
-
     // Updates profile state and local cache
     const updateProfileState = (modifier) => {
         setProfile(prev => {
             const updatedProfile = typeof modifier === 'function' ? modifier(prev) : modifier;
             if (updatedProfile) {
-                localforage.setItem(CACHE_KEY, updatedProfile).catch(console.error);
+                invalidateProfile(API_URL, isLogin);
+                writeCachedProfile(user_id, updatedProfile).catch(console.error);
             }
             return updatedProfile;
         });
@@ -539,21 +538,23 @@ export default function NormalUserProfile() {
         }
 
         setUsernameCheck({ checking: true, available: null, reason: '' });
+        const controller = new AbortController();
         const timer = setTimeout(async () => {
             try {
-                const res = await fetch(`${API_URL}/users/check-username?username=${encodeURIComponent(currentVal)}`);
+                const res = await fetch(`${API_URL}/users/check-username?username=${encodeURIComponent(currentVal)}`, { signal: controller.signal });
                 const data = await res.json();
+                if (controller.signal.aborted) return;
                 if (data.available) {
                     setUsernameCheck({ checking: false, available: true, reason: 'Username is available' });
                 } else {
                     setUsernameCheck({ checking: false, available: false, reason: data.reason || 'Username is already taken' });
                 }
             } catch {
-                setUsernameCheck({ checking: false, available: false, reason: 'Error checking username' });
+                if (!controller.signal.aborted) setUsernameCheck({ checking: false, available: false, reason: 'Error checking username' });
             }
         }, 350);
 
-        return () => clearTimeout(timer);
+        return () => { clearTimeout(timer); controller.abort(); };
     }, [editValue, editModal, profile?.user?.username]);
 
     const handleSaveEdit = async () => {
@@ -759,6 +760,7 @@ export default function NormalUserProfile() {
                 console.warn('Profile photo was uploaded but could not be cached:', cacheError);
             }
             setProfilePhoto(confirmData.profilePhoto);
+            updateProfileState(prev => prev ? { ...prev, user: { ...prev.user, profilePhoto: confirmData.profilePhoto } } : prev);
             localStorage.setItem("user_Taspe7_ProfilePhoto", confirmData.profilePhoto);
             showToast({ message: 'Profile photo updated!', type: 'success' });
         } catch (error) {
@@ -785,6 +787,7 @@ export default function NormalUserProfile() {
                 console.warn('Profile photo cache cleanup failed:', cacheError);
             }
             setProfilePhoto(null);
+            updateProfileState(prev => prev ? { ...prev, user: { ...prev.user, profilePhoto: null } } : prev);
             localStorage.removeItem("user_Taspe7_ProfilePhoto");
             showToast({ message: 'Profile photo removed', type: 'success' });
         } catch (error) {
@@ -806,7 +809,7 @@ export default function NormalUserProfile() {
         const loadProfile = async () => {
             try {
                 // 1. استرجاع البيانات من الكاش أولاً لعرضها فوراً
-                const cachedData = await localforage.getItem(CACHE_KEY);
+                const cachedData = await readCachedProfile(user_id);
                 if (cachedData && !ignore) {
                     setProfile(cachedData);
                     setLoading(false);
@@ -815,34 +818,17 @@ export default function NormalUserProfile() {
                 }
 
                 // 2. تحديث البيانات من السيرفر في الخلفية
-                const res = await fetch(`${API_URL}/users/my-profile`, {
-                    headers: { Authorization: `Bearer ${isLogin}` },
-                });
-
-                if (!res.ok) {
-                    if (!cachedData) throw new Error('Failed to fetch user profile');
-                    return;
-                }
-
-                const data = await res.json();
-
+                const newProfileData = await refreshProfile(API_URL, isLogin, user_id);
                 if (ignore) return;
 
-                const newProfileData = {
-                    user: data.user,
-                    bibleNotes: data.user?.bibleNotes?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
-                    bibleHighlights: data.user?.bibleHighlights?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
-                    prayTime: data.user?.prayTime?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
-                };
-
                 // 3. تحديث الكاش والـ UI بالبيانات الجديدة
-                updateProfileState(newProfileData);
+                setProfile(newProfileData);
                 setError(null);
 
             } catch (fetchError) {
                 if (!ignore) {
                     console.error('Error fetching profile:', fetchError);
-                    const cachedData = await localforage.getItem(CACHE_KEY);
+                    const cachedData = await readCachedProfile(user_id);
                     if (!cachedData) {
                         setError(fetchError.message || 'Failed to load profile data');
                     }
@@ -854,7 +840,13 @@ export default function NormalUserProfile() {
 
         loadProfile();
 
-        return () => { ignore = true; };
+        const refresh = () => {
+            refreshProfile(API_URL, isLogin, user_id, { force: true }).then(data => {
+                if (!ignore) { setProfile(data); setError(null); }
+            }).catch(() => {});
+        };
+        window.addEventListener('focus', refresh);
+        return () => { ignore = true; window.removeEventListener('focus', refresh); };
     }, [isLogin, user_id]);
 
     const handleDeleteBibleNote = async (noteId) => {

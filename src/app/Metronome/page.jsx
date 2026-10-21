@@ -66,13 +66,13 @@ function getAccentLevel(beatIndex, timeSignature) {
     }
 }
 
-export default function Metronome({ bpm = 130, timeSignature = "4/4", minimal = false, id }) {
+export default function Metronome({ bpm = 130, timeSignature = "4/4", minimal = false, id, initialAudioContext = null, startOnMount = false }) {
     const { numerator: beats, denominator } = parseTimeSignature(timeSignature);
 
     const [isPlaying, setIsPlaying] = useState(false);
     const isRunningRef = useRef(false);
 
-    const audioCtxRef = useRef(null);
+    const audioCtxRef = useRef(initialAudioContext);
     const nextNoteTimeRef = useRef(0);
     const currentBeatRef = useRef(0);
     const timerIdRef = useRef(null);
@@ -226,7 +226,18 @@ export default function Metronome({ bpm = 130, timeSignature = "4/4", minimal = 
             isRunningRef.current = false;
             if (timerIdRef.current) clearTimeout(timerIdRef.current);
             if (audioCtxRef.current) audioCtxRef.current.close().catch(() => { });
+            audioCtxRef.current = null;
         };
+    }, []);
+
+    useEffect(() => {
+        if (!startOnMount) return;
+        isRunningRef.current = true;
+        setIsPlaying(true);
+        void startMetronome();
+        // The deferred launcher's first tap starts once; live BPM/signature
+        // changes continue through the existing refs and scheduler above.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     if (minimal) {

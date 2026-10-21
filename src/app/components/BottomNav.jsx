@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Heart, BookOpen, Music, Users, User } from 'lucide-react';
-import { ensureNavigationServiceWorker, navigateDocumentFallback } from '../utils/appNavigation';
+import { ensureNavigationServiceWorker } from '../utils/appNavigation';
+import useTabNavigation, { normalizeTabPath } from '../hooks/useTabNavigation';
 import { useTheme } from '../context/ThemeContext';
 
 const NAV_ITEMS = [
@@ -14,14 +15,6 @@ const NAV_ITEMS = [
   { label: 'Profile', icon: User, href: '/normal_UserProfile' }
 ];
 
-const normalizePath = (path) => {
-  if (!path) return '/';
-
-  const routePath = path.replace(/\/index\.html\/?$/i, '/');
-  if (routePath === '/') return '/';
-  return routePath.endsWith('/') ? routePath : `${routePath}/`;
-};
-
 export default function BottomNav() {
   const { isDark } = useTheme();
   const pathname = usePathname();
@@ -30,12 +23,9 @@ export default function BottomNav() {
   const [isLockedHidden, setIsLockedHidden] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const [pendingNavigation, setPendingNavigation] = useState(null);
+  const { navigate, pendingHref } = useTabNavigation();
 
-  const currentPath = normalizePath(pathname);
-  const visualPath = pendingNavigation?.from === currentPath
-    ? pendingNavigation.to
-    : currentPath;
+  const visualPath = normalizeTabPath(pendingHref || pathname);
 
   // Hide bottom nav when soft keyboard opens
   useEffect(() => {
@@ -124,9 +114,8 @@ export default function BottomNav() {
     >
       <nav className="flex justify-around items-center h-[58px] max-w-md mx-auto" aria-label="Primary navigation">
         {NAV_ITEMS.map((item) => {
-          const destinationPath = normalizePath(item.href);
+          const destinationPath = normalizeTabPath(item.href);
           const isActive = visualPath === destinationPath || (item.href !== '/' && visualPath.startsWith(destinationPath));
-          const isCurrentDestination = currentPath === destinationPath;
 
           return (
             <Link
@@ -134,29 +123,7 @@ export default function BottomNav() {
               href={item.href}
               prefetch
               aria-current={isActive ? 'page' : undefined}
-              onPointerDown={() => {
-                if (!isCurrentDestination) {
-                  setPendingNavigation({ from: currentPath, to: destinationPath });
-                }
-              }}
-              onPointerCancel={() => setPendingNavigation(null)}
-              onClick={async (e) => {
-                if (isCurrentDestination) {
-                  e.preventDefault();
-                  setPendingNavigation(null);
-                  return;
-                }
-
-                e.preventDefault();
-                setPendingNavigation({ from: currentPath, to: destinationPath });
-
-                const workerReady = await ensureNavigationServiceWorker();
-                if (workerReady) {
-                  router.push(item.href);
-                } else {
-                  navigateDocumentFallback(item.href);
-                }
-              }}
+              onClick={(event) => navigate(event, item.href)}
               className="group relative flex h-full w-full touch-manipulation flex-col items-center justify-center gap-0.5 outline-none transition-transform duration-150 ease-out active:scale-[0.94]"
             >
               <div

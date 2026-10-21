@@ -1,0 +1,124 @@
+{
+  "measuredAt": "2026-10-21T22:42:00.329Z",
+  "runtime": "v22.15.1",
+  "method": "Five independent JS VM trials, bundled datasets, cold normalized-text caches. Baseline code saved before step 6. Largest batch excludes explicit scheduler waits; Node setImmediate supplies those waits. These are processing measurements, not native UI frame times.",
+  "hymnSearch": [
+    {
+      "beforeMs": 114.30869999999999,
+      "afterTotalMs": 118.33399999999995,
+      "afterLargestBatchMs": 6.542499999999961,
+      "cachedMs": 0.04210000000000491,
+      "yields": 23,
+      "resultCount": 3051
+    },
+    {
+      "beforeMs": 128.7106,
+      "afterTotalMs": 136.86360000000013,
+      "afterLargestBatchMs": 7.06450000000018,
+      "cachedMs": 0.06970000000001164,
+      "yields": 26,
+      "resultCount": 3051
+    },
+    {
+      "beforeMs": 132.8737000000001,
+      "afterTotalMs": 134.27150000000006,
+      "afterLargestBatchMs": 6.198399999999992,
+      "cachedMs": 0.035399999999981446,
+      "yields": 25,
+      "resultCount": 3051
+    },
+    {
+      "beforeMs": 125.23259999999982,
+      "afterTotalMs": 123.59880000000021,
+      "afterLargestBatchMs": 6.011800000000221,
+      "cachedMs": 0.03710000000000946,
+      "yields": 24,
+      "resultCount": 3051
+    },
+    {
+      "beforeMs": 121.64460000000008,
+      "afterTotalMs": 137.6586000000002,
+      "afterLargestBatchMs": 5.596399999999903,
+      "cachedMs": 0.0919000000003507,
+      "yields": 26,
+      "resultCount": 3051
+    }
+  ],
+  "bibleSearch": [
+    {
+      "beforeMs": 175.90650000000002,
+      "afterTotalMs": 152.00949999999995,
+      "afterLargestBatchMs": 5.788199999999961,
+      "resultCount": 50,
+      "yields": 29
+    },
+    {
+      "beforeMs": 187.98840000000007,
+      "afterTotalMs": 153.37580000000003,
+      "afterLargestBatchMs": 6.99860000000001,
+      "resultCount": 50,
+      "yields": 29
+    },
+    {
+      "beforeMs": 179.92070000000012,
+      "afterTotalMs": 156.25750000000016,
+      "afterLargestBatchMs": 6.406199999999899,
+      "resultCount": 50,
+      "yields": 29
+    },
+    {
+      "beforeMs": 174.85979999999995,
+      "afterTotalMs": 155.0429999999999,
+      "afterLargestBatchMs": 5.940599999999904,
+      "resultCount": 50,
+      "yields": 29
+    },
+    {
+      "beforeMs": 178.08920000000012,
+      "afterTotalMs": 149.15949999999975,
+      "afterLargestBatchMs": 5.988600000000133,
+      "resultCount": 50,
+      "yields": 28
+    }
+  ],
+  "hymnSearchSummary": {
+    "beforeContinuous": {
+      "medianMs": 125.23,
+      "maxMs": 132.87
+    },
+    "afterTotal": {
+      "medianMs": 134.27,
+      "maxMs": 137.66
+    },
+    "afterLargestBatch": {
+      "medianMs": 6.2,
+      "maxMs": 7.06
+    }
+  },
+  "bibleSearchSummary": {
+    "beforeContinuous": {
+      "medianMs": 178.09,
+      "maxMs": 187.99
+    },
+    "afterTotal": {
+      "medianMs": 153.38,
+      "maxMs": 156.26
+    },
+    "afterLargestBatch": {
+      "medianMs": 5.99,
+      "maxMs": 7
+    }
+  },
+  "initialHymnScripts": {
+    "beforeStep5": {
+      "raw": 1508763,
+      "gzip": 465741
+    },
+    "current": {
+      "raw": 1189156,
+      "gzip": 376662
+    },
+    "rawReductionPercent": 21.18,
+    "gzipReductionPercent": 19.13
+  }
+}

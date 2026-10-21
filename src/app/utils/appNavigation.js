@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 
 const NAVIGATION_WORKER_VERSION = 'navigation-v2';
+const NAVIGATION_WORKER_TIMEOUT_MS = 4000;
 let workerReadyPromise;
 
 const hasCurrentNavigationWorker = () =>
@@ -14,35 +15,46 @@ export function ensureNavigationServiceWorker() {
   if (hasCurrentNavigationWorker()) return Promise.resolve(true);
   if (workerReadyPromise) return workerReadyPromise;
 
-  workerReadyPromise = (async () => {
-    const registration = await navigator.serviceWorker.register(
-      `/sw.js?v=${NAVIGATION_WORKER_VERSION}`,
-      { scope: '/', updateViaCache: 'none' }
-    );
+  // Bound the entire attempt, including registration. An active worker from
+  // `ready` is not enough: exported route payloads need a controlling worker.
+  const attempt = new Promise((resolve) => {
+    let settled = false;
+    const finish = (ready) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+      resolve(ready);
+    };
+    const handleControllerChange = () => {
+      if (hasCurrentNavigationWorker()) finish(true);
+    };
+    const timeoutId = window.setTimeout(() => finish(hasCurrentNavigationWorker()), NAVIGATION_WORKER_TIMEOUT_MS);
 
-    registration.update().catch(() => {});
-    await navigator.serviceWorker.ready;
-
-    if (hasCurrentNavigationWorker()) return true;
-
-    return new Promise((resolve) => {
-      const timeoutId = window.setTimeout(() => {
-        navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-        resolve(hasCurrentNavigationWorker());
-      }, 4000);
-
-      const handleControllerChange = () => {
-        if (!hasCurrentNavigationWorker()) return;
-        window.clearTimeout(timeoutId);
-        navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-        resolve(true);
-      };
-
+    try {
+      // Subscribe before registering so a fast installation cannot be missed.
       navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
-    });
-  })().catch(() => false);
+      Promise.resolve(navigator.serviceWorker.register(
+        `/sw.js?v=${NAVIGATION_WORKER_VERSION}`,
+        { scope: '/', updateViaCache: 'none' }
+      )).then((registration) => {
+        // Installation/update continues even if the navigation wait times out.
+        registration.update().catch(() => {});
+        handleControllerChange();
+      }).catch(() => finish(false));
+      handleControllerChange();
+    } catch {
+      finish(false);
+    }
+  });
 
-  return workerReadyPromise;
+  workerReadyPromise = attempt;
+  // A failed/timed-out attempt must not disable client navigation for the rest
+  // of the session. Concurrent callers still share the same active attempt.
+  attempt.then(() => {
+    if (workerReadyPromise === attempt) workerReadyPromise = undefined;
+  });
+  return attempt;
 }
 
 export function navigateDocumentFallback(href) {

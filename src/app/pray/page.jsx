@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useState, useContext, useRef } from 'react';
-import localforage from 'localforage';
+import { memo, useMemo, useCallback, useEffect, useLayoutEffect, useState, useContext, useRef } from 'react';
 import { UserContext } from '../context/User_Context';
 import { Check, Edit3, Heart, Loader2, Trash2, X, Share2, Search, Users, ChevronRight, ArrowRight, Send, Inbox, Lock, Layers, CheckCheck, EyeOff, SlidersHorizontal } from 'lucide-react';
 import Portal from '../Portal/Portal';
@@ -14,10 +13,27 @@ import { useLanguage } from '../context/LanguageContext';
 import { useOfflineAvatar } from '../hooks/useOfflineAvatar';
 import { isFriendsCacheFresh, readFriendsCache, writeFriendsCache } from '../utils/friendsCache';
 import { findNotificationPrayer, readPrayerNotificationTarget } from '../utils/prayerNotificationNavigation';
+import { readCachedProfile, refreshProfile } from '../utils/profileCache';
+import { readTabJson, tabReadKey } from '../utils/tabRequests';
+import { runSessionTask } from '../utils/sessionTasks';
 
 const API_URL = getApiBaseUrl();
 
 const GENERAL_BLOCK_ID = 'general';
+// Skip offscreen style/paint without unmounting saved audio players or cards.
+const PRAYER_CARD_RENDERING = { contentVisibility: 'auto', containIntrinsicSize: 'auto 180px' };
+
+const isReceivedPrayer = (entry) => Boolean(
+    (entry.sharedFrom?.username || entry.sharedFrom?.originalPrayId || entry.sharedFrom?.userId) &&
+    !entry.sharedWith?.username
+);
+const isSentPrayer = (entry) => Boolean(
+    entry.sharedWith?.username || entry.sharedWith?.userId
+);
+const isPersonalPrayer = (entry) => !isReceivedPrayer(entry) && !isSentPrayer(entry);
+const isPendingShare = (entry) => isReceivedPrayer(entry) && (entry.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed';
+
+
 
 const getPrayTypeStyle = (type) => {
     const t = (type || 'general').toLowerCase();
@@ -134,10 +150,10 @@ function UserAvatar({ photo, name, username, size = 'sm', className = '' }) {
     );
 }
 
-function PrayEntryContent({ entry, recordings, onRecordingsChanged, getPrayTypeLabel }) {
+const PrayEntryContent = memo(function PrayEntryContent({ entry, recordings, onRecordingsChanged, getPrayTypeLabel }) {
     const rawWords = (entry.words && typeof entry.words === 'string' && entry.words.startsWith('enc:v1:')) ? '' : entry.words;
-    const sections = parsePraySections(rawWords);
-    const { grouped, leftovers } = groupRecordingsBySection(sections, recordings);
+    const sections = useMemo(() => parsePraySections(rawWords), [rawWords]);
+    const { grouped, leftovers } = useMemo(() => groupRecordingsBySection(sections, recordings), [sections, recordings]);
     return (
         <div className="mt-2 flex flex-col gap-3">
             {sections.map((section, index) => (
@@ -150,7 +166,7 @@ function PrayEntryContent({ entry, recordings, onRecordingsChanged, getPrayTypeL
             <SavedPrayRecordings prayId={entry._id} recordings={leftovers} getBlockLabel={getPrayTypeLabel} onChanged={onRecordingsChanged} />
         </div>
     );
-}
+});
 
 function ListPanel({ title, icon: Icon, iconBgClass, items, emptyText, recordsLabel, renderItem }) {
     return (
@@ -171,8 +187,11 @@ function ListPanel({ title, icon: Icon, iconBgClass, items, emptyText, recordsLa
 }
 
 export default function PrayPage() {
-    const inboxCheckRunning = useRef(false);
-    const sentCheckRunning = useRef(false);
+    const mountedRef = useRef(true);
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => { mountedRef.current = false; };
+    }, []);
     const { user_id: userId, isLogin: token, username: contextUsername, profilePhoto: contextProfilePhoto } = useContext(UserContext);
     const [profile, setProfile] = useState(null);
     const [pageLoading, setPageLoading] = useState(true);
@@ -201,20 +220,15 @@ export default function PrayPage() {
             }
             if (isFriendsCacheFresh(cached?.friendsSyncedAt)) return;
 
-            const res = await fetch(`${API_URL}/users/friends`, {
-                headers: { Authorization: `Bearer ${token}` }
+            const data = await readTabJson(`${API_URL}/users/friends`, token);
+            const freshFriends = data.friends || [];
+            setFriends(freshFriends);
+            await writeFriendsCache(userId, {
+                ...(cached || {}),
+                friends: freshFriends,
+                friendsSyncedAt: Date.now(),
+                updatedAt: Date.now()
             });
-            if (res.ok) {
-                const data = await res.json();
-                const freshFriends = data.friends || [];
-                setFriends(freshFriends);
-                await writeFriendsCache(userId, {
-                    ...(cached || {}),
-                    friends: freshFriends,
-                    friendsSyncedAt: Date.now(),
-                    updatedAt: Date.now()
-                });
-            }
         } catch (err) {
             console.error('Failed to load friends:', err);
         } finally {
@@ -270,20 +284,21 @@ export default function PrayPage() {
             return;
         }
         setIsSearchingUsers(true);
+        const controller = new AbortController();
         const timer = setTimeout(async () => {
             try {
-                const res = await fetch(`${API_URL}/users/search-username?q=${encodeURIComponent(clean)}`);
+                const res = await fetch(`${API_URL}/users/search-username?q=${encodeURIComponent(clean)}`, { signal: controller.signal });
                 if (res.ok) {
                     const data = await res.json();
-                    setSystemSearchResults(data || []);
+                    if (!controller.signal.aborted) setSystemSearchResults(data || []);
                 }
             } catch {
-                setSystemSearchResults([]);
+                if (!controller.signal.aborted) setSystemSearchResults([]);
             } finally {
-                setIsSearchingUsers(false);
+                if (!controller.signal.aborted) setIsSearchingUsers(false);
             }
         }, 300);
-        return () => clearTimeout(timer);
+        return () => { clearTimeout(timer); controller.abort(); };
     }, [shareSearchQuery]);
 
     const getSortedShareResults = () => {
@@ -373,16 +388,6 @@ export default function PrayPage() {
         }
     };
 
-    const updateProfileState = useCallback((modifier) => {
-        setProfile(prev => {
-            const updatedProfile = typeof modifier === 'function' ? modifier(prev) : modifier;
-            if (updatedProfile && userId) {
-                localforage.setItem(`profile_data_${userId}`, updatedProfile).catch(console.error);
-            }
-            return updatedProfile;
-        });
-    }, [userId]);
-
     useEffect(() => {
         if (!token || !userId) {
             setPageLoading(false);
@@ -391,22 +396,14 @@ export default function PrayPage() {
         let ignore = false;
         const loadProfile = async () => {
             try {
-                const cachedData = await localforage.getItem(`profile_data_${userId}`);
+                const cachedData = await readCachedProfile(userId);
                 if (cachedData && !ignore) {
                     setProfile(cachedData);
                     setPageLoading(false);
                 }
-                const res = await fetch(`${API_URL}/users/my-profile`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                if (!res.ok) return;
-                const data = await res.json();
+                const newProfileData = await refreshProfile(API_URL, token, userId);
                 if (ignore) return;
-                const newProfileData = {
-                    user: data.user,
-                    prayTime: data.user?.prayTime?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
-                };
-                updateProfileState(newProfileData);
+                setProfile(newProfileData);
             } catch (err) {
                 console.error(err);
             } finally {
@@ -415,27 +412,20 @@ export default function PrayPage() {
         };
         loadProfile();
         return () => { ignore = true; };
-    }, [token, userId, updateProfileState]);
+    }, [token, userId]);
 
     useEffect(() => {
+        let ignore = false;
         const handleFocus = async () => {
             if (!token || !userId) return;
             try {
-                const res = await fetch(`${API_URL}/users/my-profile`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                if (!res.ok) return;
-                const data = await res.json();
-                const newProfileData = {
-                    user: data.user,
-                    prayTime: data.user?.prayTime?.sort((a, b) => new Date(b.date) - new Date(a.date)) || [],
-                };
-                updateProfileState(newProfileData);
+                const newProfileData = await refreshProfile(API_URL, token, userId, { force: true });
+                if (!ignore) setProfile(newProfileData);
             } catch { }
         };
         window.addEventListener('focus', handleFocus);
-        return () => window.removeEventListener('focus', handleFocus);
-    }, [token, userId, updateProfileState]);
+        return () => { ignore = true; window.removeEventListener('focus', handleFocus); };
+    }, [token, userId]);
 
     const { t, language } = useLanguage();
 
@@ -449,29 +439,36 @@ export default function PrayPage() {
     const isGuest = !token || !userId;
     const [guestPrays, setGuestPrays] = useState([]);
     const rawPrayList = guestPrays;
-    const prayList = Array.from(
-        new Map(rawPrayList.map((item) => [String(item._id || item.date), item])).values()
-    );
-
-    const isReceivedPrayer = (entry) => Boolean(
-        (entry.sharedFrom?.username || entry.sharedFrom?.originalPrayId || entry.sharedFrom?.userId) &&
-        !entry.sharedWith?.username
-    );
-    const isSentPrayer = (entry) => Boolean(
-        entry.sharedWith?.username || entry.sharedWith?.userId
-    );
-    const isPersonalPrayer = (entry) => !isReceivedPrayer(entry) && !isSentPrayer(entry);
-    const isPendingShare = (entry) => isReceivedPrayer(entry) && (entry.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed';
-
-    const personalPrayList = prayList.filter(isPersonalPrayer);
-    const receivedPrayList = prayList.filter(isReceivedPrayer);
-    const sentPrayList = prayList.filter(isSentPrayer);
-    const pendingPrayList = receivedPrayList.filter(isPendingShare);
-    const confirmedReceivedList = receivedPrayList.filter((entry) => !isPendingShare(entry));
+    const prayList = useMemo(() => Array.from(new Map(rawPrayList.map(item => [String(item._id || item.date), item])).values()), [rawPrayList]);
+    const { personalPrayList, receivedPrayList, sentPrayList, pendingPrayList, confirmedReceivedList } = useMemo(() => {
+        const personalPrayList = [], receivedPrayList = [], sentPrayList = [], pendingPrayList = [], confirmedReceivedList = [];
+        for (const entry of prayList) {
+            if (isPersonalPrayer(entry)) personalPrayList.push(entry);
+            if (isSentPrayer(entry)) sentPrayList.push(entry);
+            if (isReceivedPrayer(entry)) {
+                receivedPrayList.push(entry);
+                if (isPendingShare(entry)) pendingPrayList.push(entry); else confirmedReceivedList.push(entry);
+            }
+        }
+        return { personalPrayList, receivedPrayList, sentPrayList, pendingPrayList, confirmedReceivedList };
+    }, [prayList]);
     const allSharedCount = receivedPrayList.length + sentPrayList.length;
 
     const [activePrayTab, setActivePrayTab] = useState('personal');
     const [circleFilter, setCircleFilter] = useState('all');
+    const visiblePrayList = useMemo(() => {
+        if (activePrayTab === 'personal') return personalPrayList;
+        if (circleFilter === 'sent') return sentPrayList;
+        if (circleFilter === 'prayed') return confirmedReceivedList;
+        const items = circleFilter === 'received' ? [...receivedPrayList] : [...receivedPrayList, ...sentPrayList];
+        return items.sort((a, b) => {
+            const pending = entry => (entry.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed' && (circleFilter === 'received' || Boolean(entry.sharedFrom));
+            const aPending = pending(a), bPending = pending(b);
+            if (aPending && !bPending) return -1;
+            if (!aPending && bPending) return 1;
+            return new Date(b.date) - new Date(a.date);
+        });
+    }, [activePrayTab, circleFilter, personalPrayList, sentPrayList, receivedPrayList, confirmedReceivedList]);
     const [expandedFriendPrayers, setExpandedFriendPrayers] = useState(() => new Set());
     const [openedFriendPrayers, setOpenedFriendPrayers] = useState(() => {
         if (typeof window === 'undefined') return new Set();
@@ -673,127 +670,120 @@ export default function PrayPage() {
     }, [profile?.prayTime]);
 
     // Check for incoming shared prayers from Cloudflare R2
-    const checkIncomingSharedPrayers = useCallback(async () => {
-        if (!token || !userId || inboxCheckRunning.current) return;
-        inboxCheckRunning.current = true;
-        try {
-            const res = await fetch(`${API_URL}/users/pray-time/inbox`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (!res.ok) return;
-            const { inbox } = await res.json();
-            if (!Array.isArray(inbox) || !inbox.length) return;
+    const checkIncomingSharedPrayers = useCallback(async (force = false) => {
+        if (!token || !userId) return;
+        await runSessionTask(tabReadKey(`${API_URL}/users/pray-time/inbox`, token), async () => {
+            try {
+                const { inbox } = await readTabJson(`${API_URL}/users/pray-time/inbox`, token, { maxAge: 0 });
+                if (!Array.isArray(inbox) || !inbox.length) return;
 
-            const target = notificationTargetRef.current;
-            const prioritizedInbox = target?.type === 'PRAY_SHARED'
-                ? [...inbox].sort((a, b) => Number(String(b.shareId) === target.shareId) - Number(String(a.shareId) === target.shareId))
-                : inbox;
-            for (const bundle of prioritizedInbox) {
-                const localId = `received-${bundle.shareId}`;
-                await addGuestPray({
-                    _id: localId,
-                    words: bundle.words,
-                    prayType: bundle.prayType || 'general',
-                    date: bundle.date || new Date().toISOString(),
-                    sharedFrom: {
-                        userId: bundle.senderId,
-                        username: bundle.senderUsername,
-                        name: bundle.senderName || bundle.senderUsername,
-                        profilePhoto: bundle.senderProfilePhoto || null,
-                        shareId: bundle.shareId,
-                        originalPrayId: bundle.shareId,
-                        status: 'pending',
-                        isAnonymous: Boolean(bundle.isAnonymous)
-                    }
-                });
+                const target = notificationTargetRef.current;
+                const prioritizedInbox = target?.type === 'PRAY_SHARED'
+                    ? [...inbox].sort((a, b) => Number(String(b.shareId) === target.shareId) - Number(String(a.shareId) === target.shareId))
+                    : inbox;
+                for (const bundle of prioritizedInbox) {
+                    const localId = `received-${bundle.shareId}`;
+                    await addGuestPray({
+                        _id: localId,
+                        words: bundle.words,
+                        prayType: bundle.prayType || 'general',
+                        date: bundle.date || new Date().toISOString(),
+                        sharedFrom: {
+                            userId: bundle.senderId,
+                            username: bundle.senderUsername,
+                            name: bundle.senderName || bundle.senderUsername,
+                            profilePhoto: bundle.senderProfilePhoto || null,
+                            shareId: bundle.shareId,
+                            originalPrayId: bundle.shareId,
+                            status: 'pending',
+                            isAnonymous: Boolean(bundle.isAnonymous)
+                        }
+                    });
 
-                // Show and expand the saved text before importing audio or
-                // waiting for the server acknowledgement.
-                setGuestPrays(await getGuestPrays());
+                    // Show and expand the saved text before importing audio or
+                    // waiting for the server acknowledgement.
+                    const savedPrays = await getGuestPrays();
+                    if (mountedRef.current) setGuestPrays(savedPrays);
 
-                if (Array.isArray(bundle.recordings) && bundle.recordings.length > 0) {
-                    for (const rec of bundle.recordings) {
-                        if (rec.data) {
-                            await addExternalRecording(localId, rec, rec.data);
+                    if (Array.isArray(bundle.recordings) && bundle.recordings.length > 0) {
+                        for (const rec of bundle.recordings) {
+                            if (rec.data) {
+                                await addExternalRecording(localId, rec, rec.data);
+                            }
                         }
                     }
+
+                    // Acknowledge -> deletes payload from Cloudflare R2!
+                    void fetch(`${API_URL}/users/pray-time/ack`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ shareId: bundle.shareId })
+                    }).catch(() => {});
+
+                    refreshRecordings();
                 }
-
-                // Acknowledge -> deletes payload from Cloudflare R2!
-                void fetch(`${API_URL}/users/pray-time/ack`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ shareId: bundle.shareId })
-                }).catch(() => {});
-
-                refreshRecordings();
+            } catch (err) {
+                console.warn('Inbox check error:', err);
             }
-        } catch (err) {
-            console.warn('Inbox check error:', err);
-        } finally {
-            inboxCheckRunning.current = false;
-        }
+        }, { force });
+        if (mountedRef.current) { setGuestPrays(await getGuestPrays()); refreshRecordings(); }
     }, [token, userId, refreshRecordings]);
 
     // Check for confirmations of prayers sent to others
-    const checkSentPrayUpdates = useCallback(async () => {
-        if (!token || !userId || sentCheckRunning.current) return;
-        sentCheckRunning.current = true;
-        try {
-            const res = await fetch(`${API_URL}/users/pray-time/sent-updates`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (!res.ok) return;
-            const { updates } = await res.json();
-            if (!Array.isArray(updates) || !updates.length) return;
+    const checkSentPrayUpdates = useCallback(async (force = false) => {
+        if (!token || !userId) return;
+        await runSessionTask(tabReadKey(`${API_URL}/users/pray-time/sent-updates`, token), async () => {
+            try {
+                const { updates } = await readTabJson(`${API_URL}/users/pray-time/sent-updates`, token, { maxAge: 0 });
+                if (!Array.isArray(updates) || !updates.length) return;
 
-            const currentLocalPrays = await getGuestPrays();
-            for (const update of updates) {
-                const updateShareId = String(update.shareId).replace(/^received-/, '');
-                const recipientIdStr = String(update.recipientId?._id || update.recipientId || '');
+                const currentLocalPrays = await getGuestPrays();
+                for (const update of updates) {
+                    const updateShareId = String(update.shareId).replace(/^received-/, '');
+                    const recipientIdStr = String(update.recipientId?._id || update.recipientId || '');
 
-                const matchingPray = currentLocalPrays.find((p) => {
-                    const pShareId = p.sharedWith?.shareId ? String(p.sharedWith.shareId).replace(/^received-/, '') : null;
-                    if (pShareId && pShareId === updateShareId) return true;
-                    if (recipientIdStr && String(p.sharedWith?.userId) === recipientIdStr && p.sharedWith?.status === 'sent') return true;
-                    return false;
-                });
-
-                if (matchingPray) {
-                    const updatedPrays = await updateGuestPray(matchingPray._id, {
-                        sharedWith: {
-                            ...matchingPray.sharedWith,
-                            status: 'confirmed',
-                            responseWords: update.responseWords,
-                            respondedAt: update.respondedAt,
-                            profilePhoto: update.recipientProfilePhoto || matchingPray.sharedWith?.profilePhoto || null,
-                            name: update.recipientName || matchingPray.sharedWith?.name || '',
-                            username: (update.recipientUsername && update.recipientUsername !== 'Anonymous') ? update.recipientUsername : (matchingPray.sharedWith?.username || 'friend')
-                        }
+                    const matchingPray = currentLocalPrays.find((p) => {
+                        const pShareId = p.sharedWith?.shareId ? String(p.sharedWith.shareId).replace(/^received-/, '') : null;
+                        if (pShareId && pShareId === updateShareId) return true;
+                        if (recipientIdStr && String(p.sharedWith?.userId) === recipientIdStr && p.sharedWith?.status === 'sent') return true;
+                        return false;
                     });
-                    setGuestPrays(updatedPrays);
 
-                    void fetch(`${API_URL}/users/pray-time/sent-ack`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                        body: JSON.stringify({ shareId: update.shareId })
-                    }).catch(() => {});
+                    if (matchingPray) {
+                        const updatedPrays = await updateGuestPray(matchingPray._id, {
+                            sharedWith: {
+                                ...matchingPray.sharedWith,
+                                status: 'confirmed',
+                                responseWords: update.responseWords,
+                                respondedAt: update.respondedAt,
+                                profilePhoto: update.recipientProfilePhoto || matchingPray.sharedWith?.profilePhoto || null,
+                                name: update.recipientName || matchingPray.sharedWith?.name || '',
+                                username: (update.recipientUsername && update.recipientUsername !== 'Anonymous') ? update.recipientUsername : (matchingPray.sharedWith?.username || 'friend')
+                            }
+                        });
+                        if (mountedRef.current) setGuestPrays(updatedPrays);
+
+                        void fetch(`${API_URL}/users/pray-time/sent-ack`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ shareId: update.shareId })
+                        }).catch(() => {});
+                    }
                 }
-            }
 
-        } catch (err) {
-            console.warn('Sent updates check error:', err);
-        } finally {
-            sentCheckRunning.current = false;
-        }
+            } catch (err) {
+                console.warn('Sent updates check error:', err);
+            }
+        }, { force });
+        if (mountedRef.current) setGuestPrays(await getGuestPrays());
     }, [token, userId]);
 
     useEffect(() => {
         checkIncomingSharedPrayers();
         checkSentPrayUpdates();
         const refresh = () => {
-            checkIncomingSharedPrayers();
-            checkSentPrayUpdates();
+            checkIncomingSharedPrayers(true);
+            checkSentPrayUpdates(true);
         };
         const refreshWhenVisible = () => {
             if (document.visibilityState === 'visible') refresh();
@@ -1288,29 +1278,7 @@ export default function PrayPage() {
                                         ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
                                         : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                         }
-                        items={
-                            activePrayTab === 'personal'
-                                ? personalPrayList
-                                : circleFilter === 'received'
-                                    ? [...receivedPrayList].sort((a, b) => {
-                                        const aP = (a.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed';
-                                        const bP = (b.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed';
-                                        if (aP && !bP) return -1;
-                                        if (!aP && bP) return 1;
-                                        return new Date(b.date) - new Date(a.date);
-                                    })
-                                    : circleFilter === 'sent'
-                                        ? sentPrayList
-                                        : circleFilter === 'prayed'
-                                            ? confirmedReceivedList
-                                            : [...receivedPrayList, ...sentPrayList].sort((a, b) => {
-                                                const aP = (a.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed' && Boolean(a.sharedFrom);
-                                                const bP = (b.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed' && Boolean(b.sharedFrom);
-                                                if (aP && !bP) return -1;
-                                                if (!aP && bP) return 1;
-                                                return new Date(b.date) - new Date(a.date);
-                                            })
-                        }
+                        items={visiblePrayList}
                         emptyText={
                             activePrayTab === 'personal'
                                 ? t('noPrayerNotesYet')
@@ -1341,7 +1309,7 @@ export default function PrayPage() {
 
                             if (isPersonal) {
                                 return (
-                                    <div key={entry._id} className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 ${getPrayTypeStyle(entry.prayType).cardBg}`}>
+                                    <div key={entry._id} data-prayer-id={String(entry._id)} style={PRAYER_CARD_RENDERING} className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 ${getPrayTypeStyle(entry.prayType).cardBg}`}>
                                         <div className="flex items-start justify-between gap-3 mb-2">
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 {entry.prayType && entry.prayType !== 'general' && (
@@ -1363,7 +1331,7 @@ export default function PrayPage() {
                                 const isConfirmed = (targetInfo.status || entry.sharedWith?.status) === 'confirmed';
                                 const isAnonSent = Boolean(entry.sharedWith?.isAnonymous);
                                 return (
-                                    <div key={entry._id} data-prayer-id={String(entry._id)}
+                                    <div key={entry._id} data-prayer-id={String(entry._id)} style={isExpanded ? undefined : PRAYER_CARD_RENDERING}
                                         className="rounded-2xl border transition-all duration-300 bg-white/[0.03] border-white/10 hover:border-[#00C2FF]/30 overflow-hidden">
                                         <div
                                             onClick={() => toggleFriendPrayerExpand(entry._id)}
@@ -1461,7 +1429,7 @@ export default function PrayPage() {
                             }
 
                             return (
-                                <div key={entry._id} data-prayer-id={String(entry._id)}
+                                <div key={entry._id} data-prayer-id={String(entry._id)} style={isExpanded ? undefined : PRAYER_CARD_RENDERING}
                                     className={`rounded-2xl border transition-all duration-300 ${isSnapRow ? (isConfirmedReceived ? 'bg-white/[0.03] border-white/10 hover:border-[#00C2FF]/30 overflow-hidden' : 'bg-white/[0.03] border-[#00C2FF]/30 hover:border-[#00C2FF]/50 overflow-hidden') : 'p-4 sm:p-5 bg-white/[0.03] border-white/10'}`}>
                                     {isSnapRow && (
                                         <div
