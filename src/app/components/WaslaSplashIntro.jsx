@@ -2,20 +2,8 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import WaslaLogo from "../Navbar/WaslaLogo";
-
-function parseVersion(version) {
-    if (typeof version !== "string" || !/^v?\d+(\.\d+)*$/.test(version)) return null;
-    const parts = version.replace(/^v/, "").split(".").map(Number);
-    return parts.every(Number.isSafeInteger) ? parts : null;
-}
-
-function isHigherVersion(current, previous) {
-    for (let index = 0; index < Math.max(current.length, previous.length); index++) {
-        const difference = (current[index] || 0) - (previous[index] || 0);
-        if (difference !== 0) return difference > 0;
-    }
-    return false;
-}
+import { parseVersion, compareVersions } from "../utils/appVersion";
+import { shouldShowReleaseSplash } from "../services/otaUpdateService";
 
 export default function WaslaSplashIntro() {
     const [showSplash, setShowSplash] = useState(false);
@@ -55,10 +43,14 @@ export default function WaslaSplashIntro() {
                 const current = parseVersion(version);
                 if (current) {
                     const previous = parseVersion(localStorage.getItem("wasla_splash_version"));
-                    if (!previous) {
+                    const savedVersion = localStorage.getItem("wasla_splash_version");
+                    if (!previous || !shouldShowReleaseSplash(version)) {
                         // First opening establishes a baseline without announcing an update.
-                        localStorage.setItem("wasla_splash_version", version);
-                    } else if (isHigherVersion(current, previous)) {
+                        // A release with its intro disabled is also marked as seen.
+                        if (!previous || compareVersions(version, savedVersion) === 1) {
+                            localStorage.setItem("wasla_splash_version", version);
+                        }
+                    } else if (compareVersions(version, savedVersion) === 1) {
                         setAppVersion(version);
                         window.__wasla_splash_active = true;
                         setShowSplash(true);

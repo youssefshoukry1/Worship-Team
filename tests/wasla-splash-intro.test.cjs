@@ -10,7 +10,13 @@ const source = ts.transpileModule(
   { compilerOptions: { allowJs: true, esModuleInterop: true, jsx: ts.JsxEmit.React, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } },
 ).outputText;
 
-async function launch({ saved, version = '1.0.76', native = false, bundle, fetchError = false, currentError = false, storageError = false, cancel = false } = {}) {
+const versionExports = {};
+vm.runInNewContext(ts.transpileModule(
+  fs.readFileSync(path.join(__dirname, '../src/app/utils/appVersion.js'), 'utf8'),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } },
+).outputText, { exports: versionExports });
+
+async function launch({ saved, version = '1.0.76', native = false, bundle, fetchError = false, currentError = false, storageError = false, cancel = false, showSplash = true } = {}) {
   const storage = new Map(saved === undefined ? [] : [['wasla_splash_version', saved]]);
   const state = [], timers = [], events = [];
   let cursor = 0, effect, fetches = 0;
@@ -27,6 +33,8 @@ async function launch({ saved, version = '1.0.76', native = false, bundle, fetch
     react,
     'framer-motion': { motion: new Proxy({}, { get: (_, key) => key }), AnimatePresence: 'presence' },
     '../Navbar/WaslaLogo': 'logo',
+    '../utils/appVersion': versionExports,
+    '../services/otaUpdateService': { shouldShowReleaseSplash: () => showSplash === true },
     '@capacitor/core': { Capacitor: { isNativePlatform: () => native } },
     '@capgo/capacitor-updater': { CapacitorUpdater: { current: async () => {
       if (currentError) throw new Error('native unavailable');
@@ -135,4 +143,13 @@ test('unmounted checks cannot show an intro or overwrite saved state', async () 
   assert.equal(app.state[0], false);
   assert.equal(app.storage.get('wasla_splash_version'), '1.0.75');
   assert.deepEqual(app.events, []);
+});
+
+test('disabled or missing release policy suppresses the intro and records the higher version', async () => {
+  for (const showSplash of [false, null]) {
+    const app = await launch({ saved: '1.0.75', native: true, showSplash });
+    assert.equal(app.state[0], false);
+    assert.equal(app.storage.get('wasla_splash_version'), '1.0.76');
+    assert.deepEqual(app.events, ['wasla_splash_done']);
+  }
 });

@@ -239,6 +239,12 @@ export default function Navbar() {
                         </motion.li>
                     )}
 
+                {isLogin && UserRole === 'PROGRAMER' && (
+                    <motion.li variants={itemVariants} className="list-none">
+                        <Link href="/ProgramerDashboard" className="rounded-lg px-3 py-2 text-sm font-semibold text-sky-300 hover:bg-sky-400/10">App controls</Link>
+                    </motion.li>
+                )}
+
                 {/* Workspace Link Desktop */}
                 <motion.li variants={itemVariants} className="list-none">
                     <Link

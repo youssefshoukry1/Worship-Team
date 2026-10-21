@@ -60,7 +60,6 @@ export default function RootLayout({
                 className={`${geistSans.variable} ${geistMono.variable} ${notoNaskhArabic.variable} ${ibmPlexSansArabic.variable} antialiased text-white min-h-screen`}
             >
                 <WaslaSplashIntro />
-                <CapgoUpdater />
                 <ServiceWorkerRegistry />
                 <ToastContainer />
                 <SmoothScroll>
@@ -68,6 +67,7 @@ export default function RootLayout({
                         <ThemeProvider>
                             <LanguageProvider>
                                 <UserContextProvider>
+                                    <CapgoUpdater />
                                     <PrayerBackupLifecycle />
                                     <HymnsContextProvider>
                                         <AppAuthGatekeeper>
