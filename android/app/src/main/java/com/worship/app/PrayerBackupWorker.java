@@ -24,14 +24,17 @@ public final class PrayerBackupWorker extends Worker {
         if (isStopped() || !getInputData().getString("userId").equals(PrayerBackupPlugin.prefs(context).getString("userId", ""))) throw new IOException("Backup cancelled");
     }
     static Notification notification(Context context, int progress) {
+        int percent = Math.max(0, Math.min(100, progress));
+        String detail = (percent < 45 ? "Preparing backup" : "Uploading backup") + " (" + percent + "%)";
         NotificationManager nm = context.getSystemService(NotificationManager.class);
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel channel = new NotificationChannel(CHANNEL, "Prayer backup", NotificationManager.IMPORTANCE_LOW);
             channel.setSound(null, null); channel.enableVibration(false); channel.setShowBadge(false); nm.createNotificationChannel(channel);
         }
         return new NotificationCompat.Builder(context, CHANNEL).setSmallIcon(R.drawable.ic_stat_wasla)
-            .setContentTitle("Backup in progress").setContentText(progress < 45 ? "Preparing prayers and recordings…" : "Backing up to Google Drive · " + progress + "%")
-            .setProgress(100, progress, false).setOngoing(true).setSilent(true).setOnlyAlertOnce(true).setShowWhen(false).build();
+            .setContentTitle("Backup in progress").setContentText(detail)
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(detail))
+            .setProgress(100, percent, false).setOngoing(true).setSilent(true).setOnlyAlertOnce(true).setShowWhen(false).build();
     }
     private void progress(int value) throws Exception {
         check(); if (value == lastProgress) return; lastProgress = value;

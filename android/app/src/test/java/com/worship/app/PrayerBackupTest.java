@@ -72,4 +72,17 @@ public class PrayerBackupTest {
             assertEquals(5000 + interval * PrayerBackupPlugin.DAY, PrayerBackupPlugin.due(cfg));
         }
     }
+    @Test public void expandedBackupNotificationShowsStageAndPercentageAboveProgressBar() {
+        for (int percent : new int[]{0, 5, 40, 45, 67, 99}) {
+            Notification notification = PrayerBackupWorker.notification(context, percent);
+            String detail = (percent < 45 ? "Preparing backup" : "Uploading backup") + " (" + percent + "%)";
+            assertEquals("Backup in progress", notification.extras.getCharSequence(Notification.EXTRA_TITLE));
+            assertEquals(detail, notification.extras.getCharSequence(Notification.EXTRA_TEXT));
+            assertEquals(detail, notification.extras.getCharSequence(Notification.EXTRA_BIG_TEXT));
+            assertEquals("android.app.Notification$BigTextStyle", notification.extras.getString(Notification.EXTRA_TEMPLATE));
+            assertEquals(percent, notification.extras.getInt(Notification.EXTRA_PROGRESS));
+            assertEquals(100, notification.extras.getInt(Notification.EXTRA_PROGRESS_MAX));
+            assertFalse(notification.extras.getBoolean(Notification.EXTRA_PROGRESS_INDETERMINATE));
+        }
+    }
 }

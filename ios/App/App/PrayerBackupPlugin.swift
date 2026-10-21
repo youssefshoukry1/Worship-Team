@@ -211,10 +211,10 @@ final class PrayerBackupEngine: NSObject, URLSessionTaskDelegate, URLSessionData
         try check(generation); lock.lock(); defer { lock.unlock() }
         defaults.set(value, forKey: prefix + "progress"); setState("running")
         // iOS has no standard notification progress bar; update one silent notification with actual percentages.
-        guard value == 0 || value / 5 != lastNotificationProgress / 5 else { return }
+        guard value != lastNotificationProgress else { return }
         lastNotificationProgress = value
         let content = UNMutableNotificationContent(); content.title = "Backup in progress"
-        content.body = value < 45 ? "Preparing prayers and recordings…" : "Backing up to Google Drive · \(value)%"
+        content.body = "\(value < 45 ? "Preparing backup" : "Uploading backup") (\(value)%)"
         content.sound = nil; content.interruptionLevel = .passive; content.threadIdentifier = "wasla.backup"
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: Self.notificationID, content: content, trigger: nil))
     }
