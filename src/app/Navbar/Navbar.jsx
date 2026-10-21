@@ -4,9 +4,8 @@ import React, { useEffect, useRef, useState, useContext } from "react";
 import { motion, AnimatePresence, easeOut } from "framer-motion";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, X, Globe, ChevronDown, Mic, Music, LogOut, LogIn, ShieldAlert, Sun, Moon } from "lucide-react";
+import { Globe, ChevronDown, Mic, Music, LogOut, LogIn, ShieldAlert } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
-import { useTheme } from "../context/ThemeContext";
 // Adjust import according to your file structure
 import { UserContext } from "../context/User_Context";
 import Image from "next/image";
@@ -15,7 +14,6 @@ import WaslaLogo from "./WaslaLogo";
 
 export default function Navbar() {
     const { t, language, setLanguage } = useLanguage();
-    const { theme, toggleTheme, isDark } = useTheme();
     const {
         isLogin, setLogin,
         UserRole, setUserRole,
@@ -71,7 +69,6 @@ export default function Navbar() {
     const router = useRouter();
     const pathname = usePathname();
     const pendingSection = useRef(null);
-    const [menuOpen, setMenuOpen] = useState(false);
 
     const handleNavClick = (e, path, sectionId) => {
         if (pathname === path) {
@@ -83,7 +80,6 @@ export default function Navbar() {
         } else {
             pendingSection.current = sectionId;
         }
-        setMenuOpen(false);
     };
 
     useEffect(() => {
@@ -378,258 +374,10 @@ export default function Navbar() {
                     </AnimatePresence>
                 </div>
 
-                {/* Theme Toggle Desktop */}
-                <div className="relative ml-1">
-                    <button
-                        onClick={toggleTheme}
-                        className="p-2 rounded-xl border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-all duration-200 active:scale-95 flex items-center justify-center cursor-pointer shadow-sm"
-                        title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                        aria-label="Toggle theme"
-                    >
-                        {isDark ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} className="text-sky-300" />}
-                    </button>
-                </div>
+
             </motion.ul>
 
-            {/* Mobile Actions */}
-            <div className={`relative flex items-center gap-1 md:hidden transition-opacity duration-500 ${
-                introStage === "center" ? "opacity-0 pointer-events-none" : "opacity-100"
-            }`}>
-                <button
-                    onClick={toggleTheme}
-                    className="p-2 rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-white transition active:scale-90"
-                    title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                    aria-label="Toggle theme"
-                >
-                    {isDark ? <Sun size={19} className="text-amber-400" /> : <Moon size={19} className="text-sky-300" />}
-                </button>
-                <button
-                    onClick={() => setMenuOpen((prev) => !prev)}
-                    className="text-white hover:text-sky-400 p-2 transition"
-                >
-                    {menuOpen ? <X size={28} /> : <Menu size={28} />}
-                </button>
 
-                <AnimatePresence>
-                    {menuOpen && (
-                        <motion.ul
-                            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                            transition={{ duration: 0.2, ease: easeOut }}
-                            className="absolute right-0 mt-4 w-56 bg-[#0f172a]/95 backdrop-blur-2xl text-white flex flex-col p-2 gap-1 rounded-2xl z-50 border border-white/10 shadow-2xl origin-top-right"
-                        >
-                            {/* Mobile nav items */}
-                            {navItems.map(({ name, path, id }) => (
-                                <li key={name}>
-                                    <Link
-                                        href={path}
-                                        onClick={(e) => handleNavClick(e, path, id)}
-                                        className={`block w-full text-left px-4 py-3 rounded-xl transition-all font-medium text-sm
-                                        ${pathname === path
-                                                ? "bg-sky-500/20 text-sky-400"
-                                                : "text-gray-300 hover:bg-white/5 hover:text-white"
-                                            }`}
-                                    >
-                                        {t(name)}
-                                    </Link>
-                                </li>
-                            ))}
-
-
-
-                            {/* Mobile Admin Tasks Button */}
-                            {isLogin && UserRole && ["WEBSITE_ADMIN", "PROGRAMER", "MUSIC_ADMIN"].includes(UserRole) && (
-                                <li>
-                                    <Link
-                                        href="/Website_Admin_Profile"
-                                        onClick={() => setMenuOpen(false)}
-                                        className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-bold text-sm border border-transparent
-                                        ${pathname === "/Website_Admin_Profile"
-                                                ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
-                                                : "text-gray-300 hover:bg-white/5 hover:text-white"
-                                            }`}
-                                    >
-                                        <ShieldAlert size={18} />
-                                        {t("adminTasks")}
-                                    </Link>
-                                </li>
-                            )}
-
-                            {/* Mobile Workspace Link */}
-                            <li>
-                                <Link
-                                    href="/WorkSpace"
-                                    onClick={() => setMenuOpen(false)}
-                                    className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl transition-all font-medium text-sm
-                                    ${pathname === "/WorkSpace"
-                                            ? "bg-sky-500/20 text-sky-400"
-                                            : "text-gray-300 hover:bg-white/5 hover:text-white"
-                                        }`}
-                                >
-                                    {workspaceLabel}
-                                </Link>
-                            </li>
-
-
-
-
-                            {/* Mobile Mode Switcher */}
-                            <li className="w-full">
-                                <div className="relative w-full">
-                                    <button
-                                        onClick={() => setModeMenuOpen(!modeMenuOpen)}
-                                        className="flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all font-medium text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-                                    >
-                                        <span className="flex items-center gap-2">
-                                            {vocalsMode ? <Mic size={20} /> : <Music size={20} />}
-                                            <span>{vocalsMode ? t("vocalMode") : t("musicianMode")}</span>
-                                        </span>
-                                        <ChevronDown size={14} className={'transition-transform ' + (modeMenuOpen ? 'rotate-180' : '')} />
-                                    </button>
-
-                                    <AnimatePresence>
-                                        {modeMenuOpen && (
-                                            <motion.div
-                                                initial={{ opacity: 0, height: 0 }}
-                                                animate={{ opacity: 1, height: "auto" }}
-                                                exit={{ opacity: 0, height: 0 }}
-                                                transition={{ duration: 0.2 }}
-                                                className="mt-1 bg-[#0f172a] border border-white/10 rounded-lg shadow-inner overflow-hidden py-1"
-                                            >
-                                                <button
-                                                    onClick={() => {
-                                                        setVocalsMode(true);
-                                                        setModeMenuOpen(false);
-                                                        setMenuOpen(false);
-                                                    }}
-                                                    className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition flex items-center gap-2
-                                                    ${vocalsMode ? "text-sky-400 font-bold bg-white/5" : "text-gray-300"}
-                                                    `}
-                                                >
-                                                    <Mic size={16} />
-                                                    <span>{t("vocalMode")}</span>
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        if (canUseMusicMode) {
-                                                            setVocalsMode(false);
-                                                        }
-                                                        setModeMenuOpen(false);
-                                                        setMenuOpen(false);
-                                                    }}
-                                                    className={`w-full text-left px-4 py-3 text-sm transition flex items-center gap-2
-                                                    ${canUseMusicMode
-                                                            ? !vocalsMode
-                                                                ? "text-sky-400 font-bold bg-white/5"
-                                                                : "text-gray-300 hover:bg-white/5"
-                                                            : "text-gray-400 cursor-not-allowed opacity-50 "
-                                                        }`}
-                                                    title={canUseMusicMode ? t("musicianMode") : t("musicianModeSoon")}
-                                                >
-                                                    <Music size={16} />
-                                                    <span>{canUseMusicMode ? t("musicianMode") : t("musicianModeSoon")}</span>
-                                                </button>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                            </li>
-
-                            {/* Mobile Language Switcher */}
-                            <li className="w-full">
-                                <div className="relative w-full">
-                                    <button
-                                        onClick={() => setLangMenuOpen(!langMenuOpen)}
-                                        className="flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all font-medium text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-                                    >
-                                        <span className="flex items-center gap-2">
-                                            <Globe size={20} />
-                                            <span className="uppercase">{language}</span>
-                                        </span>
-                                        <ChevronDown size={14} className={'transition-transform ' + (langMenuOpen ? 'rotate-180' : '')} />
-                                    </button>
-
-                                    <AnimatePresence>
-                                        {langMenuOpen && (
-                                            <motion.div
-                                                initial={{ opacity: 0, height: 0 }}
-                                                animate={{ opacity: 1, height: "auto" }}
-                                                exit={{ opacity: 0, height: 0 }}
-                                                transition={{ duration: 0.2 }}
-                                                className="mt-1 bg-[#0f172a] border border-white/10 rounded-lg shadow-inner overflow-hidden py-1"
-                                            >
-                                                {["en", "ar"].map((lang) => (
-                                                    <button
-                                                        key={lang}
-                                                        onClick={() => {
-                                                            setLanguage(lang);
-                                                            setLangMenuOpen(false);
-                                                            setMenuOpen(false);
-                                                        }}
-                                                        className={
-                                                            'block w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition ' +
-                                                            (language === lang ? 'text-sky-400 font-bold' : 'text-gray-300')
-                                                        }
-                                                    >
-                                                        {lang === "en" ? "English" : lang === "ar" ? "العربية" : "Deutsch"}
-                                                    </button>
-                                                ))}
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                            </li>
-
-                            {/* Mobile Theme Switcher */}
-                            <li className="w-full">
-                                <button
-                                    onClick={() => {
-                                        toggleTheme();
-                                        setMenuOpen(false);
-                                    }}
-                                    className="flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all font-medium text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-                                >
-                                    <span className="flex items-center gap-2">
-                                        {isDark ? <Sun size={20} className="text-amber-400" /> : <Moon size={20} className="text-sky-300" />}
-                                        <span>{isDark ? "Light Mode" : "Dark Mode"}</span>
-                                    </span>
-                                    <span className="text-[11px] font-bold uppercase tracking-wider text-white/40">{theme}</span>
-                                </button>
-                            </li>
-
-                            {/* Mobile Auth Buttons */}
-                            <li className="w-full mt-2 pt-2 border-t border-white/10">
-                                {!isLogin ? (
-                                    <div className="p-2">
-                                        <Link
-                                            href="/login"
-                                            onClick={() => setMenuOpen(false)}
-                                            className="flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-400 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 shadow-md active:scale-95 cursor-pointer"
-                                        >
-                                            <LogIn size={18} />
-                                            <span>{t("signIn")}</span>
-                                        </Link>
-                                    </div>
-                                ) : (
-                                    <div className="p-2">
-                                        <button
-                                            onClick={() => {
-                                                handleLogout();
-                                                setMenuOpen(false);
-                                            }}
-                                            className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-2 rounded-xl border border-red-500/20 transition-all duration-300"
-                                        >
-                                            <LogOut size={18} />
-                                            <span className="text-sm font-bold">{t("logout")}</span>
-                                        </button>
-                                    </div>
-                                )}
-                            </li>
-                        </motion.ul>
-                    )}
-                </AnimatePresence>
-            </div>
 
 
         </nav>

@@ -334,13 +334,15 @@ html.lenis {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(120, 120, 120, 0.1);
+  background: transparent;
   border-radius: 20px;
   border: 1px solid transparent;
   background-clip: content-box;
+  transition: background-color 0.3s ease;
 }
+.custom-scrollbar[data-scrolling="true"]::-webkit-scrollbar-thumb,
 .custom-scrollbar:hover::-webkit-scrollbar-thumb {
-  background: rgba(120, 120, 120, 0.3);
+  background: rgba(120, 120, 120, 0.35);
   background-clip: content-box;
 }
 
@@ -352,15 +354,22 @@ html.lenis {
   background: transparent;
 }
 .custom-scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: transparent;
   border-radius: 9999px;
+  transition: background-color 0.3s ease;
 }
-.custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4);
+.custom-scrollbar-thin[data-scrolling="true"]::-webkit-scrollbar-thumb,
+.custom-scrollbar-thin:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
 }
 .custom-scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s ease;
+}
+.custom-scrollbar-thin[data-scrolling="true"],
+.custom-scrollbar-thin:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
 
 /* ─────────────────────────────────────────────────────────── */

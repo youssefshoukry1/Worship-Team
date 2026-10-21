@@ -4,6 +4,33 @@ import { useEffect } from "react";
 import Lenis from "lenis";
 
 export default function SmoothScroll({ children }) {
+  // Auto-hide scrollbars when scrolling stops
+  useEffect(() => {
+    const scrollTimeouts = new WeakMap();
+
+    const handleScroll = (e) => {
+      const el = e.target;
+      if (!(el instanceof HTMLElement)) return;
+
+      el.setAttribute("data-scrolling", "true");
+
+      const prev = scrollTimeouts.get(el);
+      if (prev) clearTimeout(prev);
+
+      const timer = setTimeout(() => {
+        el.removeAttribute("data-scrolling");
+        scrollTimeouts.delete(el);
+      }, 800);
+
+      scrollTimeouts.set(el, timer);
+    };
+
+    window.addEventListener("scroll", handleScroll, { capture: true, passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll, { capture: true });
+    };
+  }, []);
+
   useEffect(() => {
     // Disable on mobile and touch devices
     const isTouchOrMobile =

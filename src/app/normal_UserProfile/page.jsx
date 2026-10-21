@@ -1,6 +1,7 @@
 'use client';
 
 import { useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,9 +20,11 @@ import {
     Check,
     ChevronRight,
     Edit3,
+    Globe,
     Heart,
     List,
     Loader2,
+    LogOut,
     Mail,
     Moon,
     RotateCcw,
@@ -285,13 +288,41 @@ const getHighlightHex = (colorId) => {
 };
 
 export default function NormalUserProfile() {
-    const { user_id, isLogin, setLogin, setUsername, profilePhoto, setProfilePhoto } = useContext(UserContext);
+    const { user_id, isLogin, setLogin, setUsername, profilePhoto, setProfilePhoto, setUserRole, setUser_id, setChurchId, setHymnIds, setUserStatus } = useContext(UserContext);
+    const router = useRouter();
+    const { language, setLanguage } = useLanguage();
     const { src: profileAvatarSrc, markFailed: markProfileAvatarFailed } = useOfflineAvatar(user_id, profilePhoto);
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const { theme, toggleTheme, isDark } = useTheme?.() || {};
     const [currentView, setCurrentView] = useState('menu');
+
+    // Clears user session and navigates to sign-in
+    const handleLogout = () => {
+        localStorage.removeItem('user_Taspe7_Token');
+        localStorage.removeItem('user_Taspe7_GlobalRole');
+        localStorage.removeItem('user_Taspe7_SubRole');
+        localStorage.removeItem('user_Taspe7_Role');
+        localStorage.removeItem('user_Taspe7_ID');
+        localStorage.removeItem('user_Taspe7_ChurchId');
+        localStorage.removeItem('user_Taspe7_HymnIds');
+        localStorage.removeItem('user_Taspe7_Status');
+        localStorage.removeItem('user_Taspe7_Username');
+        localStorage.removeItem('user_Taspe7_Teams');
+        localStorage.removeItem('user_Taspe7_ProfilePhoto');
+
+        setLogin(null);
+        if (setUserRole) setUserRole(null);
+        if (setUser_id) setUser_id(null);
+        if (setChurchId) setChurchId(null);
+        if (setHymnIds) setHymnIds([]);
+        if (setUserStatus) setUserStatus(null);
+        if (setUsername) setUsername(null);
+        if (setProfilePhoto) setProfilePhoto(null);
+
+        router.push('/login');
+    };
 
     // Bible settings synced with Bible reader
     const [bibleTranslation, setBibleTranslation] = useState(() => {
@@ -1235,6 +1266,62 @@ export default function NormalUserProfile() {
                                         <ChevronRight className="w-4 h-4 text-slate-500" />
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* Translations Group */}
+                            <div>
+                                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
+                                    {language === 'ar' ? 'الترجمة واللغة' : 'Translations & Language'}
+                                </h3>
+                                <div className="rounded-2xl bg-zinc-900/60 sm:bg-white/[0.03] border border-white/5 p-4 shadow-xl shadow-black/20 flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3.5 min-w-0">
+                                        <Globe className="w-5 h-5 text-slate-300 shrink-0" />
+                                        <div>
+                                            <p className="text-sm sm:text-base font-semibold text-white">
+                                                {language === 'ar' ? 'لغة التطبيق' : 'App Language'}
+                                            </p>
+                                            <p className="text-xs text-slate-400">
+                                                {language === 'ar' ? 'العربية' : 'English'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1 bg-black/40 border border-white/10 rounded-xl p-1 shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => setLanguage('ar')}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                                language === 'ar'
+                                                    ? 'bg-sky-500 text-slate-950 shadow-md'
+                                                    : 'text-slate-400 hover:text-white'
+                                            }`}
+                                        >
+                                            العربية
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setLanguage('en')}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                                language === 'en'
+                                                    ? 'bg-sky-500 text-slate-950 shadow-md'
+                                                    : 'text-slate-400 hover:text-white'
+                                            }`}
+                                        >
+                                            English
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Logout Button */}
+                            <div className="pt-2">
+                                <button
+                                    type="button"
+                                    onClick={handleLogout}
+                                    className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 hover:border-rose-500/30 font-bold text-sm sm:text-base transition-all duration-200 active:scale-[0.99] cursor-pointer"
+                                >
+                                    <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+                                    <span>{language === 'ar' ? 'تسجيل الخروج' : 'Log Out'}</span>
+                                </button>
                             </div>
                         </div>
                     </>

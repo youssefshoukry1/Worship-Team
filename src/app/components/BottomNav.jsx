@@ -2,12 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Heart, BookOpen, Music, Users, User } from 'lucide-react';
+import { Heart, BookOpen, Music, Users, User } from 'lucide-react';
 import { ensureNavigationServiceWorker, navigateDocumentFallback } from '../utils/appNavigation';
 import { useTheme } from '../context/ThemeContext';
 
 const NAV_ITEMS = [
-  { label: 'Home', icon: Home, href: '/' },
   { label: 'Pray', icon: Heart, href: '/pray' },
   { label: 'Bible', icon: BookOpen, href: '/bible_form' },
   { label: 'Hymns', icon: Music, href: '/hymns' },
