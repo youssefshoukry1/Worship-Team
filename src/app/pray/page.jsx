@@ -1013,7 +1013,15 @@ export default function PrayPage() {
                                 <Heart className="w-5 h-5 text-sky-300" />
                                 <h3 className="text-base sm:text-lg font-bold text-white">{t('prayTime')}</h3>
                             </div>
-                            <MyPraysBackup prayTime={prayList} token={isGuest ? null : token} userId={userId} onRestored={refreshRecordings} />
+                            <MyPraysBackup
+                                prayTime={prayList}
+                                token={isGuest ? null : token}
+                                userId={userId}
+                                onRestored={async () => {
+                                    refreshRecordings();
+                                    setGuestPrays(await getGuestPrays());
+                                }}
+                            />
                         </div>
                         <div className="mb-3.5 flex items-center gap-2 flex-wrap">
                             <button

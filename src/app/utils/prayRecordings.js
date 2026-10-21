@@ -294,7 +294,19 @@ export async function buildMyPraysZip(prayTime = [], onProgress = () => {}) {
     const index = await readIndex();
     const files = {};
     const allRecs = Object.entries(index.recordings).flatMap(([prayId, list]) => list.map((rec) => ({ prayId, rec })));
-    const knownIds = new Set(prayTime.map((entry) => String(entry._id)));
+
+    const allPraysMap = new Map();
+    (index.guestPrays || []).forEach((p) => {
+        if (p && p._id) allPraysMap.set(String(p._id), p);
+    });
+    (prayTime || []).forEach((p) => {
+        if (p && p._id) {
+            const existing = allPraysMap.get(String(p._id));
+            allPraysMap.set(String(p._id), { ...existing, ...p });
+        }
+    });
+    const combinedPrays = Array.from(allPraysMap.values());
+    const knownIds = new Set(combinedPrays.map((entry) => String(entry._id)));
     const zipPathFor = (prayId, rec) => `audio/${prayId}/${rec.id}.${rec.ext}`;
 
     let done = 0;
@@ -317,13 +329,15 @@ export async function buildMyPraysZip(prayTime = [], onProgress = () => {}) {
         type: 'my-prays-backup',
         version: 1,
         createdAt: new Date().toISOString(),
-        prays: prayTime.map((entry) => ({
+        prays: combinedPrays.map((entry) => ({
             _id: entry._id,
             words: entry.words,
             feeling: entry.feeling,
             prayType: entry.prayType,
             churchId: entry.churchId,
             date: entry.date,
+            sharedWith: entry.sharedWith || null,
+            sharedFrom: entry.sharedFrom || null,
             recordings: withFile(String(entry._id)),
         })),
         // Recordings whose prayer is not in the currently loaded list (e.g. another team)
@@ -376,23 +390,33 @@ export async function restoreMyPraysZip(zipBytes, onProgress = () => {}) {
 
         if (Array.isArray(manifest.prays) && manifest.prays.length > 0) {
             const currentPrays = index.guestPrays || [];
-            const currentIds = new Set(currentPrays.map((p) => String(p._id)));
-            const restoredPrays = manifest.prays
+            const currentMap = new Map(currentPrays.map((p) => [String(p._id), p]));
+
+            manifest.prays
                 .filter((p) => p && p.words)
-                .map((p) => ({
-                    _id: String(p._id || `local-${Date.now()}`),
-                    words: p.words,
-                    prayType: p.prayType || 'general',
-                    date: p.date || new Date().toISOString(),
-                    feeling: p.feeling,
-                    sharedWith: p.sharedWith,
-                    sharedFrom: p.sharedFrom,
-                }));
-            const mergedPrays = [
-                ...currentPrays,
-                ...restoredPrays.filter((p) => !currentIds.has(p._id))
-            ].sort(byNewest);
-            index.guestPrays = mergedPrays;
+                .forEach((p) => {
+                    const id = String(p._id || `local-${Date.now()}`);
+                    const existing = currentMap.get(id);
+                    if (!existing) {
+                        currentMap.set(id, {
+                            _id: id,
+                            words: p.words,
+                            prayType: p.prayType || 'general',
+                            date: p.date || new Date().toISOString(),
+                            feeling: p.feeling,
+                            sharedWith: p.sharedWith || null,
+                            sharedFrom: p.sharedFrom || null,
+                        });
+                    } else {
+                        currentMap.set(id, {
+                            ...existing,
+                            sharedWith: existing.sharedWith || p.sharedWith || null,
+                            sharedFrom: existing.sharedFrom || p.sharedFrom || null,
+                        });
+                    }
+                });
+
+            index.guestPrays = Array.from(currentMap.values()).sort(byNewest);
         }
     });
 
