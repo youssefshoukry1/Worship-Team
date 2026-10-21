@@ -3,9 +3,23 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import WaslaLogo from "../Navbar/WaslaLogo";
 
+function parseVersion(version) {
+    if (typeof version !== "string" || !/^v?\d+(\.\d+)*$/.test(version)) return null;
+    const parts = version.replace(/^v/, "").split(".").map(Number);
+    return parts.every(Number.isSafeInteger) ? parts : null;
+}
+
+function isHigherVersion(current, previous) {
+    for (let index = 0; index < Math.max(current.length, previous.length); index++) {
+        const difference = (current[index] || 0) - (previous[index] || 0);
+        if (difference !== 0) return difference > 0;
+    }
+    return false;
+}
+
 export default function WaslaSplashIntro() {
     const [showSplash, setShowSplash] = useState(false);
-    const [appVersion, setAppVersion] = useState("1.0.0");
+    const [appVersion, setAppVersion] = useState(null);
 
     const finishSplash = () => {
         if (typeof window !== "undefined") {
@@ -16,32 +30,49 @@ export default function WaslaSplashIntro() {
     };
 
     useEffect(() => {
+        let cancelled = false;
+
         const checkSplashRequirement = async () => {
             try {
-                const res = await fetch(`/version.json?t=${Date.now()}`, { cache: "no-store" });
-                if (res.ok) {
-                    const data = await res.json();
-                    const ver = data.version || "1.0.0";
-                    setAppVersion(ver);
-                    const savedVer = localStorage.getItem("wasla_splash_version");
-                    if (savedVer !== ver) {
+                let version;
+                const { Capacitor } = await import("@capacitor/core");
+                if (Capacitor.isNativePlatform()) {
+                    const { CapacitorUpdater } = await import("@capgo/capacitor-updater");
+                    const { bundle } = await CapacitorUpdater.current();
+                    // Only an active OTA bundle counts; queued downloads do not.
+                    if (bundle?.id !== "builtin" && bundle?.version !== "builtin") {
+                        version = bundle?.version;
+                    }
+                }
+
+                // On web and for the native built-in bundle, read its local metadata.
+                if (!version) {
+                    const res = await fetch(`/version.json?t=${Date.now()}`, { cache: "no-store" });
+                    if (res.ok) version = (await res.json()).version;
+                }
+                if (cancelled) return;
+
+                const current = parseVersion(version);
+                if (current) {
+                    const previous = parseVersion(localStorage.getItem("wasla_splash_version"));
+                    if (!previous) {
+                        // First opening establishes a baseline without announcing an update.
+                        localStorage.setItem("wasla_splash_version", version);
+                    } else if (isHigherVersion(current, previous)) {
+                        setAppVersion(version);
                         window.__wasla_splash_active = true;
                         setShowSplash(true);
                         return;
                     }
                 }
-            } catch (_) {}
+            } catch {}
 
-            const savedVer = localStorage.getItem("wasla_splash_version");
-            if (!savedVer) {
-                window.__wasla_splash_active = true;
-                setShowSplash(true);
-            } else {
-                finishSplash();
-            }
+            // Missing/invalid version data must never announce an update.
+            if (!cancelled) finishSplash();
         };
 
         checkSplashRequirement();
+        return () => { cancelled = true; };
     }, []);
 
     const handleAnimationComplete = () => {
@@ -52,7 +83,7 @@ export default function WaslaSplashIntro() {
                 localStorage.setItem("wasla_splash_version", appVersion);
                 // Also align 3-day navbar timer so animations don't conflict
                 localStorage.setItem("wasla_intro_last_time", Date.now().toString());
-            } catch (_) {}
+            } catch {}
         }, 600);
     };
 
