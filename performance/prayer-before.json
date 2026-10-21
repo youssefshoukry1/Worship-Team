@@ -1,0 +1,145 @@
+{
+  "measuredAt": "2026-10-21T22:49:43.053Z",
+  "environment": {
+    "platform": "win32",
+    "cpu": "12th Gen Intel(R) Core(TM) i5-12450H",
+    "browser": "155.0.8059.85",
+    "viewport": "390x844 CSS pixels",
+    "host": "localhost static export; mocked backend; Electron UA selects native data path"
+  },
+  "data": {
+    "hymns": 8349,
+    "verses": 31102,
+    "syntheticPersonalPrayers": 200,
+    "friends": 0
+  },
+  "definition": "Trusted browser click event to ready route content plus one rendering opportunity. First visits share the normal app prefetch behavior. 4x CPU is a desktop simulation, not a phone.",
+  "profiles": [
+    {
+      "cpuRate": 1,
+      "launchToHymnsContentMs": 551.7,
+      "firstVisitsMs": {
+        "/friends/": 58.1,
+        "/pray/": 178.5,
+        "/normal_UserProfile/": 50.3,
+        "/bible_form/": 122.7,
+        "/hymns/": 47.3
+      },
+      "warmTabs": {
+        "/friends/": {
+          "samples": 10,
+          "medianMs": 44.2,
+          "p95Ms": 45.7,
+          "maxMs": 45.7
+        },
+        "/pray/": {
+          "samples": 10,
+          "medianMs": 58.8,
+          "p95Ms": 73.8,
+          "maxMs": 73.8
+        },
+        "/normal_UserProfile/": {
+          "samples": 10,
+          "medianMs": 43.9,
+          "p95Ms": 45.5,
+          "maxMs": 45.5
+        },
+        "/bible_form/": {
+          "samples": 10,
+          "medianMs": 44.8,
+          "p95Ms": 45.7,
+          "maxMs": 45.7
+        },
+        "/hymns/": {
+          "samples": 10,
+          "medianMs": 44.6,
+          "p95Ms": 52.5,
+          "maxMs": 52.5
+        }
+      },
+      "allWarmTabs": {
+        "samples": 50,
+        "medianMs": 44.6,
+        "p95Ms": 66.8,
+        "maxMs": 73.8
+      },
+      "rapidTapBursts": {
+        "samples": 20,
+        "medianMs": 30.6,
+        "p95Ms": 31.2,
+        "maxMs": 31.3,
+        "clicksPerBurst": 4,
+        "wrongDestinations": 0,
+        "documentReloads": 0
+      },
+      "longTasksOver50ms": {
+        "count": 2,
+        "maxMs": 56
+      },
+      "initialHymnEntryScripts": 1189156
+    },
+    {
+      "cpuRate": 4,
+      "launchToHymnsContentMs": 1795.9,
+      "firstVisitsMs": {
+        "/friends/": 197.3,
+        "/pray/": 410.3,
+        "/normal_UserProfile/": 372.3,
+        "/bible_form/": 993.5,
+        "/hymns/": 371.4
+      },
+      "warmTabs": {
+        "/friends/": {
+          "samples": 10,
+          "medianMs": 115.1,
+          "p95Ms": 193.5,
+          "maxMs": 193.5
+        },
+        "/pray/": {
+          "samples": 10,
+          "medianMs": 272.9,
+          "p95Ms": 419.4,
+          "maxMs": 419.4
+        },
+        "/normal_UserProfile/": {
+          "samples": 10,
+          "medianMs": 131.3,
+          "p95Ms": 217.1,
+          "maxMs": 217.1
+        },
+        "/bible_form/": {
+          "samples": 10,
+          "medianMs": 157.5,
+          "p95Ms": 209.8,
+          "maxMs": 209.8
+        },
+        "/hymns/": {
+          "samples": 10,
+          "medianMs": 150.1,
+          "p95Ms": 205.6,
+          "maxMs": 205.6
+        }
+      },
+      "allWarmTabs": {
+        "samples": 50,
+        "medianMs": 151.6,
+        "p95Ms": 284.1,
+        "maxMs": 419.4
+      },
+      "rapidTapBursts": {
+        "samples": 20,
+        "medianMs": 99.7,
+        "p95Ms": 110.7,
+        "maxMs": 113.9,
+        "clicksPerBurst": 4,
+        "wrongDestinations": 0,
+        "documentReloads": 0
+      },
+      "longTasksOver50ms": {
+        "count": 67,
+        "maxMs": 387
+      },
+      "initialHymnEntryScripts": 1189156
+    }
+  ]
+}

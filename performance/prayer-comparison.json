@@ -1,0 +1,93 @@
+{
+  "measuredAt": "2026-10-21T23:04:12.668Z",
+  "scope": "Prayer page opening and saved-list rendering",
+  "method": "Trusted browser click event to ready route content plus one rendering opportunity. First visits share the normal app prefetch behavior. 4x CPU is a desktop simulation, not a phone.",
+  "data": {
+    "hymns": 8349,
+    "verses": 31102,
+    "syntheticPersonalPrayers": 200,
+    "friends": 0
+  },
+  "environment": {
+    "platform": "win32",
+    "cpu": "12th Gen Intel(R) Core(TM) i5-12450H",
+    "browser": "155.0.8059.85",
+    "viewport": "390x844 CSS pixels",
+    "host": "localhost static export; mocked backend; Electron UA selects native data path"
+  },
+  "source": {
+    "beforePrayerPageSha256": "92749be53c09d89460c3ee782e05a82e8c5d4b8ba27e8d6015da0d70fa63b539",
+    "afterPrayerPageSha256": "cca81e90ae554a1c49f08e6a3ca988a90bc0c2e9491114b6fb6bbdeba96ddcb3",
+    "retainedListSha256": "38be2ca72282304a5353c0e2a6768aa01647f245004903a34aeb6115782d2383"
+  },
+  "profiles": [
+    {
+      "cpuRate": 1,
+      "repeatedOpening": {
+        "before": {
+          "samples": 10,
+          "medianMs": 58.8,
+          "p95Ms": 73.8,
+          "maxMs": 73.8
+        },
+        "after": {
+          "samples": 10,
+          "medianMs": 47,
+          "p95Ms": 49.7,
+          "maxMs": 49.7
+        },
+        "medianReductionPercent": 20.1
+      },
+      "firstOpeningSingleSampleMs": {
+        "before": 178.5,
+        "after": 153.3
+      }
+    },
+    {
+      "cpuRate": 4,
+      "repeatedOpening": {
+        "before": {
+          "samples": 10,
+          "medianMs": 272.9,
+          "p95Ms": 419.4,
+          "maxMs": 419.4
+        },
+        "after": {
+          "samples": 10,
+          "medianMs": 176.9,
+          "p95Ms": 187.5,
+          "maxMs": 187.5
+        },
+        "medianReductionPercent": 35.2
+      },
+      "firstOpeningSingleSampleMs": {
+        "before": 410.3,
+        "after": 373.7
+      }
+    }
+  ],
+  "validation": {
+    "productionBuild": "passed",
+    "unitTests": 103,
+    "browserChecks": 30,
+    "newLintErrors": 0,
+    "covered": [
+      "Bounded initial offscreen controls",
+      "Keyboard access to deferred cards",
+      "Deep cached notification targets with stalled network",
+      "Latest reply drafts",
+      "Edit/save/delete",
+      "Saved-audio playback while scrolling and typing",
+      "Live microphone recording, pause/resume and cleanup",
+      "Observer-unavailable fallback",
+      "Native backup progress and schedules",
+      "Hymn version updates and force-sync"
+    ]
+  },
+  "limits": [
+    "Desktop Chrome with local static assets and mocked backend. CPU slowdown is a simulation, not a physical phone.",
+    "Warm-page statistics use ten samples per route/profile. First-opening timings are single samples.",
+    "Cards stay mounted after being visited; the list does not evict active audio players.",
+    "Startup and first Bible opening were not optimized in this change."
+  ]
+}

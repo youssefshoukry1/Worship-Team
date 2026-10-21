@@ -124,7 +124,7 @@ const stats = values => {
         console.log(JSON.stringify(result));
       } finally { await context.close(); }
     }
-    const destination = path.resolve(__dirname, '../performance/navigation-benchmark.json');
+    const destination = path.resolve(__dirname, '..', process.argv[2] || 'performance/navigation-benchmark.json');
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.writeFileSync(destination, JSON.stringify(report, null, 2) + '\n');
     console.log('Saved:', destination);

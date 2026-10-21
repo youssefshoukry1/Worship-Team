@@ -16,6 +16,7 @@ import { findNotificationPrayer, readPrayerNotificationTarget } from '../utils/p
 import { readCachedProfile, refreshProfile } from '../utils/profileCache';
 import { readTabJson, tabReadKey } from '../utils/tabRequests';
 import { runSessionTask } from '../utils/sessionTasks';
+import RetainedPrayerList from './RetainedPrayerList';
 
 const API_URL = getApiBaseUrl();
 
@@ -47,11 +48,14 @@ const getPrayTypeStyle = (type) => {
     }
 };
 
+const dateFormatters = new Map();
 const formatDate = (value, fallback = 'N/A', lang = 'ar') => {
     if (!value) return fallback;
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return fallback;
-    return date.toLocaleDateString(lang === 'ar' ? 'ar-EG' : undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    const locale = lang === 'ar' ? 'ar-EG' : undefined;
+    if (!dateFormatters.has(locale)) dateFormatters.set(locale, new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'short', day: 'numeric' }));
+    return dateFormatters.get(locale).format(date);
 };
 
 // Section markers written into the saved text by the block editor ("Pray for me" blocks write "[ PRAY FOR ME ]")
@@ -75,6 +79,7 @@ const getPrayTypeMarker = (type) => {
 // Saved for voice-only sections because the API requires non-empty words; never shown to the user
 const VOICE_ONLY_TEXT = '🎙️ Voice prayer';
 const stripVoiceOnlyText = (text = '') => text.split(VOICE_ONLY_TEXT).join('');
+const prayerPreview = entry => typeof entry.words === 'string' && entry.words.startsWith('enc:v1:') ? '...' : stripVoiceOnlyText(entry.words);
 const SECTION_SPLIT = /(\[ PRAY FOR ME \]|\[ PRAYER FOR ME \]|\[ PRAYER FOR OTHERS \]|\[ CHAPTER REFLECTION \])/gi;
 
 /** Split saved prayer text into ordered sections: general words first, then each marked block. */
@@ -168,14 +173,338 @@ const PrayEntryContent = memo(function PrayEntryContent({ entry, recordings, onR
     );
 });
 
-function ListPanel({ title, icon: Icon, iconBgClass, items, emptyText, recordsLabel, renderItem }) {
+const PrayerCard = memo(function PrayerCard({ entry, isExpanded, isOpened, recordings, responseValue, isConfirming, resolveFriendProfile, myProfilePhoto, myUsername, getPrayTypeLabel, t, language, actions }) {
+    const { handleConfirmSharedPrayer, handleDeletePrayTime, handleEditPrayTime, refreshRecordings, toggleFriendPrayerExpand, onResponseChange } = actions;
+    const formattedDate = useMemo(() => formatDate(entry.date, 'N/A', language), [entry.date, language]);
+
+    const isReceived = isReceivedPrayer(entry);
+    const isSent = isSentPrayer(entry);
+    const isPersonal = !isReceived && !isSent;
+    const isPendingConfirmation = isReceived && (entry.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed';
+    const isConfirmedReceived = isReceived && !isPendingConfirmation;
+    const isSnapRow = isReceived;
+
+    const isUnopened = !isOpened && isPendingConfirmation;
+
+    const senderInfo = resolveFriendProfile(entry.sharedFrom, true);
+    const targetInfo = resolveFriendProfile(entry.sharedWith, false);
+    const senderUsername = senderInfo.username || 'friend';
+    const targetUsername = targetInfo.username || 'friend';
+    const isAnonReceived = Boolean(senderInfo.isAnonymous || entry.sharedFrom?.isAnonymous);
+
+    if (isPersonal) {
+        return (
+            <div key={entry._id} data-prayer-id={String(entry._id)} style={PRAYER_CARD_RENDERING} className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 ${getPrayTypeStyle(entry.prayType).cardBg}`}>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {entry.prayType && entry.prayType !== 'general' && (
+                            <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
+                        )}
+                        <span className="text-[10px] text-slate-500 font-bold">{formattedDate}</span>
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={() => handleEditPrayTime(entry)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-sky-300 hover:bg-sky-500/10 transition-all border border-white/5" title={t('editNote')}><Edit3 className="w-4 h-4" /></button>
+                        <button onClick={() => handleDeletePrayTime(entry._id)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5" title={t('deleteNote')}><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                </div>
+                <PrayEntryContent entry={entry} recordings={recordings} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
+            </div>
+        );
+    }
+
+    if (isSent) {
+        const isConfirmed = (targetInfo.status || entry.sharedWith?.status) === 'confirmed';
+        const isAnonSent = Boolean(entry.sharedWith?.isAnonymous);
+        return (
+            <div key={entry._id} data-prayer-id={String(entry._id)} style={isExpanded ? undefined : PRAYER_CARD_RENDERING}
+                className="rounded-2xl border transition-all duration-300 bg-white/[0.03] border-white/10 hover:border-[#00C2FF]/30 overflow-hidden">
+                <div
+                    onClick={() => toggleFriendPrayerExpand(entry._id)}
+                    className="flex items-center justify-between p-3.5 sm:p-4 cursor-pointer hover:bg-white/[0.04] transition-colors gap-3 select-none"
+                >
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative shrink-0">
+                            <UserAvatar
+                                photo={myProfilePhoto}
+                                username={myUsername}
+                                size="md"
+                            />
+                            {isConfirmed ? (
+                                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center ring-2 ring-slate-900 shadow-sm" title="Replied">
+                                    <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                </span>
+                            ) : (
+                                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-slate-500 ring-2 ring-slate-900" />
+                            )}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                <span className="text-xs sm:text-sm font-bold text-white truncate">
+                                    You:
+                                </span>
+                                {isAnonSent && (
+                                    <span className="bg-indigo-500/15 text-indigo-300 text-[9px] font-semibold px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 inline-flex items-center gap-1">
+                                        <EyeOff className="w-2.5 h-2.5" />
+                                        Anonymous
+                                    </span>
+                                )}
+                                {entry.prayType && entry.prayType !== 'general' && (
+                                    <span className="bg-white/10 text-white/70 text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-md border border-white/10 shrink-0">
+                                        {getPrayTypeLabel(entry.prayType)}
+                                    </span>
+                                )}
+                            </div>
+                            <span className="text-[10px] text-slate-500 font-medium">
+                                {isAnonSent ? <span className="text-indigo-300/90 font-semibold">Sent anonymously to @{targetUsername}</span> : `Sent to @${targetUsername}`} • {formattedDate}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="shrink-0 flex items-center gap-1.5">
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditPrayTime(entry);
+                            }}
+                            className="p-1.5 sm:p-2 rounded-lg bg-white/5 text-slate-400 hover:text-sky-300 hover:bg-sky-500/10 transition-all border border-white/5"
+                            title={t('editNote')}
+                        >
+                            <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeletePrayTime(entry._id);
+                            }}
+                            className="p-1.5 sm:p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5"
+                            title={t('deleteNote')}
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                        <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-90 text-[#00C2FF]' : ''}`} />
+                    </div>
+                </div>
+
+                {isExpanded && (
+                    <div className="p-4 sm:p-5 pt-3.5 border-t border-white/5">
+                        <PrayEntryContent entry={entry} recordings={recordings} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
+                        {isConfirmed && (entry.sharedWith?.responseWords || targetInfo.responseWords) && (
+                            <div className="mt-3.5 pt-3 border-t border-white/10 flex flex-col gap-2 text-xs bg-white/[0.02] p-3 rounded-xl border border-white/5">
+                                <div className="flex items-center gap-2">
+                                    <UserAvatar
+                                        photo={targetInfo.profilePhoto}
+                                        name={targetInfo.name}
+                                        username={targetInfo.username}
+                                        size="xs"
+                                    />
+                                    <span className="text-[11px] text-[#00C2FF] font-semibold flex items-center gap-1.5">
+                                        @{targetUsername} replay:
+                                    </span>
+                                </div>
+                                <p dir="auto" className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
+                                    {entry.sharedWith?.responseWords || targetInfo.responseWords}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <div key={entry._id} data-prayer-id={String(entry._id)} style={isExpanded ? undefined : PRAYER_CARD_RENDERING}
+            className={`rounded-2xl border transition-all duration-300 ${isSnapRow ? (isConfirmedReceived ? 'bg-white/[0.03] border-white/10 hover:border-[#00C2FF]/30 overflow-hidden' : 'bg-white/[0.03] border-[#00C2FF]/30 hover:border-[#00C2FF]/50 overflow-hidden') : 'p-4 sm:p-5 bg-white/[0.03] border-white/10'}`}>
+            {isSnapRow && (
+                <div
+                    onClick={() => toggleFriendPrayerExpand(entry._id)}
+                    className="flex items-center justify-between p-3.5 sm:p-4 cursor-pointer hover:bg-white/[0.04] transition-colors gap-3 select-none"
+                >
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative shrink-0">
+                            {isAnonReceived ? (
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0 shadow-sm" title="Anonymous">
+                                    <EyeOff className="w-4 h-4" />
+                                </div>
+                            ) : (
+                                <UserAvatar
+                                photo={senderInfo.profilePhoto}
+                                name={senderInfo.name}
+                                username={senderInfo.username}
+                                size="md"
+                            />
+                        )}
+                            {isConfirmedReceived ? (
+                                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center ring-2 ring-slate-900 shadow-sm" title="Replied">
+                                    <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                </span>
+                            ) : isUnopened ? (
+                                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#00C2FF] ring-2 ring-slate-900 shadow-[0_0_8px_#00C2FF] animate-pulse" title="Unread prayer" />
+                            ) : (
+                                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-slate-500 ring-2 ring-slate-900" />
+                            )}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                {isAnonReceived ? (
+                                    <span className="bg-indigo-500/15 text-indigo-300 text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 inline-flex items-center gap-1">
+                                        <EyeOff className="w-3 h-3" />
+                                        Anonymous
+                                    </span>
+                                ) : (
+                                    <span className="text-xs sm:text-sm font-bold text-[#00C2FF] truncate">
+                                        @{senderUsername}
+                                    </span>
+                                )}
+                                {entry.prayType && entry.prayType !== 'general' && (
+                                    <span className="bg-white/10 text-white/70 text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-md border border-white/10 shrink-0">
+                                        {getPrayTypeLabel(entry.prayType)}
+                                    </span>
+                                )}
+                            </div>
+                            <span className="text-[10px] text-slate-500 font-medium">
+                                {isAnonReceived ? 'Sent you an anonymous prayer' : 'Sent you a prayer'} • {formattedDate}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="shrink-0 flex items-center gap-1.5">
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeletePrayTime(entry._id);
+                            }}
+                            className="p-1.5 sm:p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5"
+                            title={t('deleteNote')}
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                        <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-90 text-[#00C2FF]' : ''}`} />
+                    </div>
+                </div>
+            )}
+
+            {(!isSnapRow || isExpanded) && (
+                <div className={isSnapRow ? 'p-4 sm:p-5 pt-3.5 border-t border-white/5' : ''}>
+                    {!isSnapRow && (
+                        <div className="flex items-start justify-between gap-3 mb-2.5">
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                {isAnonReceived ? (
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0 shadow-sm" title="Anonymous">
+                                        <EyeOff className="w-4 h-4" />
+                                    </div>
+                                ) : (
+                                    <UserAvatar
+                                    photo={senderInfo.profilePhoto}
+                                    name={senderInfo.name}
+                                    username={senderInfo.username}
+                                    size="md"
+                                />
+                            )}
+                                <div className="min-w-0 flex flex-col">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        {isAnonReceived ? (
+                                            <span className="bg-indigo-500/15 text-indigo-300 text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 inline-flex items-center gap-1">
+                                                <EyeOff className="w-3 h-3" />
+                                                Anonymous
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs sm:text-sm font-bold text-[#00C2FF] truncate">
+                                                @{senderUsername}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span className="text-[10px] text-slate-500 font-medium">
+                                        {formattedDate}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex gap-2 shrink-0">
+                                <button onClick={() => handleDeletePrayTime(entry._id)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5" title={t('deleteNote')}><Trash2 className="w-4 h-4" /></button>
+                            </div>
+                        </div>
+                    )}
+
+                    {isConfirmedReceived ? (
+                        <>
+                            <div className="mt-2 text-sm text-slate-100 font-medium leading-relaxed whitespace-pre-wrap">
+                                {(typeof entry.words === 'string' && entry.words.startsWith('enc:v1:')) ? '...' : stripVoiceOnlyText(entry.words).trim()}
+                            </div>
+                            <SavedPrayRecordings prayId={entry._id} recordings={recordings} onChanged={refreshRecordings} />
+
+                            {entry.sharedFrom?.responseWords && (
+                                <div className="mt-3.5 pt-3 border-t border-white/10 flex flex-col gap-2 text-xs bg-white/[0.02] p-3 rounded-xl border border-white/5">
+                                    <div className="flex items-center gap-2">
+                                        <UserAvatar
+                                            photo={myProfilePhoto}
+                                            username={myUsername}
+                                            size="xs"
+                                        />
+                                        <span className="text-[11px] text-[#00C2FF] font-semibold flex items-center gap-1.5">
+                                            You:
+                                        </span>
+                                    </div>
+                                    <p dir="auto" className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
+                                        {entry.sharedFrom?.responseWords}
+                                    </p>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <>
+                            <div dir="auto" className="mt-2 text-sm text-slate-100 font-medium leading-relaxed whitespace-pre-wrap">
+                                {(typeof entry.words === 'string' && entry.words.startsWith('enc:v1:')) ? '...' : stripVoiceOnlyText(entry.words).trim()}
+                            </div>
+                            <SavedPrayRecordings prayId={entry._id} recordings={recordings} onChanged={refreshRecordings} />
+
+                            <div className="mt-3 pt-3 border-t border-white/10 flex flex-col gap-2.5">
+                                <div className="flex items-start gap-2.5">
+                                    <UserAvatar
+                                        photo={myProfilePhoto}
+                                        username={myUsername}
+                                        size="sm"
+                                    />
+                                    <div className="flex-1 flex flex-col gap-2">
+                                        <textarea
+                                            dir="auto"
+                                            rows={3}
+                                            value={responseValue}
+                                            onChange={(e) => onResponseChange(entry._id, e.target.value)}
+                                            placeholder={`Write prayer response to ${isAnonReceived ? 'Anonymous Friend' : `@${senderUsername}`}...`}
+                                            className="w-full px-3.5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#00C2FF]/60 transition-all resize-none leading-relaxed"
+                                        />
+                                        <div className="flex justify-end">
+                                            <button
+                                                onClick={() => handleConfirmSharedPrayer(entry._id)}
+                                                disabled={isConfirming}
+                                                className="px-4 py-2 text-xs font-bold bg-[#00C2FF] text-[#020817] hover:brightness-110 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-[#00C2FF]/20 disabled:opacity-50"
+                                            >
+                                                {isConfirming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                                                <span>Send reply</span>
+                                                <ArrowRight className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+
+});
+
+const ListPanel = memo(function ListPanel({ title, icon: Icon, items, emptyText, renderItem, forceRenderId }) {
     return (
         <div className="flex flex-col rounded-3xl border border-white/5 bg-white/[0.03] backdrop-blur-2xl shadow-xl shadow-black/20">
             <div className="flex items-center gap-3 border-b border-white/5 p-4 sm:p-5 bg-black/20">
                 <h2 className="text-sm sm:text-base font-bold text-white tracking-wide">{title}</h2>
             </div>
             <div className="flex-1 p-3 sm:p-5 space-y-2.5">
-                {items.length > 0 ? items.map((item, index) => renderItem(item, index)) : (
+                {items.length > 0 ? <RetainedPrayerList items={items} renderItem={renderItem} forceRenderId={forceRenderId} preview={prayerPreview} /> : (
                     <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 h-[200px]">
                         <Icon className="w-10 h-10 mb-3 opacity-20" />
                         <p className="text-xs font-semibold">{emptyText}</p>
@@ -184,7 +513,7 @@ function ListPanel({ title, icon: Icon, iconBgClass, items, emptyText, recordsLa
             </div>
         </div>
     );
-}
+});
 
 export default function PrayPage() {
     const mountedRef = useRef(true);
@@ -993,6 +1322,30 @@ export default function PrayPage() {
 
 
 
+    // Event callbacks read the latest page state. Keeping their identity stable
+    // lets unchanged saved cards skip composer/recording-timer renders.
+    const cardActionsRef = useRef(null);
+    useLayoutEffect(() => {
+        cardActionsRef.current = { handleConfirmSharedPrayer, handleDeletePrayTime, handleEditPrayTime, refreshRecordings, toggleFriendPrayerExpand };
+    });
+    const cardActions = useMemo(() => ({
+        handleConfirmSharedPrayer: (...args) => cardActionsRef.current.handleConfirmSharedPrayer(...args),
+        handleDeletePrayTime: (...args) => cardActionsRef.current.handleDeletePrayTime(...args),
+        handleEditPrayTime: (...args) => cardActionsRef.current.handleEditPrayTime(...args),
+        refreshRecordings: (...args) => cardActionsRef.current.refreshRecordings(...args),
+        toggleFriendPrayerExpand: (...args) => cardActionsRef.current.toggleFriendPrayerExpand(...args),
+        onResponseChange: (id, words) => setResponseInputs(previous => ({ ...previous, [id]: words })),
+    }), []);
+    const renderPrayer = useCallback(entry => (
+        <PrayerCard key={entry._id} entry={entry}
+            isExpanded={expandedFriendPrayers.has(entry._id)}
+            isOpened={openedFriendPrayers.has(entry._id) || openedFriendPrayers.has(String(entry._id))}
+            recordings={recordingsIndex[entry._id]} responseValue={responseInputs[entry._id] || ''}
+            isConfirming={Boolean(isConfirmingShare[entry._id])}
+            resolveFriendProfile={resolveFriendProfile} myProfilePhoto={myProfilePhoto} myUsername={myUsername}
+            getPrayTypeLabel={getPrayTypeLabel} t={t} language={language} actions={cardActions} />
+    ), [expandedFriendPrayers, openedFriendPrayers, recordingsIndex, responseInputs, isConfirmingShare, resolveFriendProfile, myProfilePhoto, myUsername, getPrayTypeLabel, t, language, cardActions]);
+
     return (
         <section className="min-h-screen bg-[var(--app-bg)] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(14,165,233,0.07),rgba(0,0,0,0))] pb-[100px] pt-8 px-4 text-white transition-colors duration-150">
             <div className="max-w-5xl mx-auto">
@@ -1290,326 +1643,8 @@ export default function PrayPage() {
                                             ? 'No confirmed prayers yet'
                                             : 'No shared prayers in your Prayer Circle yet'
                         }
-                        recordsLabel={t('records')}
-                        renderItem={(entry) => {
-                            const isReceived = isReceivedPrayer(entry);
-                            const isSent = isSentPrayer(entry);
-                            const isPersonal = !isReceived && !isSent;
-                            const isPendingConfirmation = isReceived && (entry.sharedFrom?.status || 'pending').toLowerCase() !== 'confirmed';
-                            const isConfirmedReceived = isReceived && !isPendingConfirmation;
-                            const isSnapRow = isReceived;
-                            const isExpanded = expandedFriendPrayers.has(entry._id);
-                            const isUnopened = !openedFriendPrayers.has(entry._id) && !openedFriendPrayers.has(String(entry._id)) && isPendingConfirmation;
-
-                            const senderInfo = resolveFriendProfile(entry.sharedFrom, true);
-                            const targetInfo = resolveFriendProfile(entry.sharedWith, false);
-                            const senderUsername = senderInfo.username || 'friend';
-                            const targetUsername = targetInfo.username || 'friend';
-                            const isAnonReceived = Boolean(senderInfo.isAnonymous || entry.sharedFrom?.isAnonymous);
-
-                            if (isPersonal) {
-                                return (
-                                    <div key={entry._id} data-prayer-id={String(entry._id)} style={PRAYER_CARD_RENDERING} className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 ${getPrayTypeStyle(entry.prayType).cardBg}`}>
-                                        <div className="flex items-start justify-between gap-3 mb-2">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                {entry.prayType && entry.prayType !== 'general' && (
-                                                    <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
-                                                )}
-                                                <span className="text-[10px] text-slate-500 font-bold">{formatDate(entry.date, 'N/A', language)}</span>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => handleEditPrayTime(entry)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-sky-300 hover:bg-sky-500/10 transition-all border border-white/5" title={t('editNote')}><Edit3 className="w-4 h-4" /></button>
-                                                <button onClick={() => handleDeletePrayTime(entry._id)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5" title={t('deleteNote')}><Trash2 className="w-4 h-4" /></button>
-                                            </div>
-                                        </div>
-                                        <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
-                                    </div>
-                                );
-                            }
-
-                            if (isSent) {
-                                const isConfirmed = (targetInfo.status || entry.sharedWith?.status) === 'confirmed';
-                                const isAnonSent = Boolean(entry.sharedWith?.isAnonymous);
-                                return (
-                                    <div key={entry._id} data-prayer-id={String(entry._id)} style={isExpanded ? undefined : PRAYER_CARD_RENDERING}
-                                        className="rounded-2xl border transition-all duration-300 bg-white/[0.03] border-white/10 hover:border-[#00C2FF]/30 overflow-hidden">
-                                        <div
-                                            onClick={() => toggleFriendPrayerExpand(entry._id)}
-                                            className="flex items-center justify-between p-3.5 sm:p-4 cursor-pointer hover:bg-white/[0.04] transition-colors gap-3 select-none"
-                                        >
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <div className="relative shrink-0">
-                                                    <UserAvatar
-                                                        photo={myProfilePhoto}
-                                                        username={myUsername}
-                                                        size="md"
-                                                    />
-                                                    {isConfirmed ? (
-                                                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center ring-2 ring-slate-900 shadow-sm" title="Replied">
-                                                            <Check className="w-2.5 h-2.5 stroke-[3]" />
-                                                        </span>
-                                                    ) : (
-                                                        <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-slate-500 ring-2 ring-slate-900" />
-                                                    )}
-                                                </div>
-                                                <div className="flex flex-col min-w-0">
-                                                    <div className="flex items-center gap-2 flex-wrap min-w-0">
-                                                        <span className="text-xs sm:text-sm font-bold text-white truncate">
-                                                            You:
-                                                        </span>
-                                                        {isAnonSent && (
-                                                            <span className="bg-indigo-500/15 text-indigo-300 text-[9px] font-semibold px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 inline-flex items-center gap-1">
-                                                                <EyeOff className="w-2.5 h-2.5" />
-                                                                Anonymous
-                                                            </span>
-                                                        )}
-                                                        {entry.prayType && entry.prayType !== 'general' && (
-                                                            <span className="bg-white/10 text-white/70 text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-md border border-white/10 shrink-0">
-                                                                {getPrayTypeLabel(entry.prayType)}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <span className="text-[10px] text-slate-500 font-medium">
-                                                        {isAnonSent ? <span className="text-indigo-300/90 font-semibold">Sent anonymously to @{targetUsername}</span> : `Sent to @${targetUsername}`} • {formatDate(entry.date, 'N/A', language)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="shrink-0 flex items-center gap-1.5">
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleEditPrayTime(entry);
-                                                    }}
-                                                    className="p-1.5 sm:p-2 rounded-lg bg-white/5 text-slate-400 hover:text-sky-300 hover:bg-sky-500/10 transition-all border border-white/5"
-                                                    title={t('editNote')}
-                                                >
-                                                    <Edit3 className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDeletePrayTime(entry._id);
-                                                    }}
-                                                    className="p-1.5 sm:p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5"
-                                                    title={t('deleteNote')}
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                                <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-90 text-[#00C2FF]' : ''}`} />
-                                            </div>
-                                        </div>
-
-                                        {isExpanded && (
-                                            <div className="p-4 sm:p-5 pt-3.5 border-t border-white/5">
-                                                <PrayEntryContent entry={entry} recordings={recordingsIndex[entry._id]} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
-                                                {isConfirmed && (entry.sharedWith?.responseWords || targetInfo.responseWords) && (
-                                                    <div className="mt-3.5 pt-3 border-t border-white/10 flex flex-col gap-2 text-xs bg-white/[0.02] p-3 rounded-xl border border-white/5">
-                                                        <div className="flex items-center gap-2">
-                                                            <UserAvatar
-                                                                photo={targetInfo.profilePhoto}
-                                                                name={targetInfo.name}
-                                                                username={targetInfo.username}
-                                                                size="xs"
-                                                            />
-                                                            <span className="text-[11px] text-[#00C2FF] font-semibold flex items-center gap-1.5">
-                                                                @{targetUsername} replay:
-                                                            </span>
-                                                        </div>
-                                                        <p dir="auto" className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
-                                                            {entry.sharedWith?.responseWords || targetInfo.responseWords}
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            }
-
-                            return (
-                                <div key={entry._id} data-prayer-id={String(entry._id)} style={isExpanded ? undefined : PRAYER_CARD_RENDERING}
-                                    className={`rounded-2xl border transition-all duration-300 ${isSnapRow ? (isConfirmedReceived ? 'bg-white/[0.03] border-white/10 hover:border-[#00C2FF]/30 overflow-hidden' : 'bg-white/[0.03] border-[#00C2FF]/30 hover:border-[#00C2FF]/50 overflow-hidden') : 'p-4 sm:p-5 bg-white/[0.03] border-white/10'}`}>
-                                    {isSnapRow && (
-                                        <div
-                                            onClick={() => toggleFriendPrayerExpand(entry._id)}
-                                            className="flex items-center justify-between p-3.5 sm:p-4 cursor-pointer hover:bg-white/[0.04] transition-colors gap-3 select-none"
-                                        >
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <div className="relative shrink-0">
-                                                    {isAnonReceived ? (
-                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0 shadow-sm" title="Anonymous">
-                                                            <EyeOff className="w-4 h-4" />
-                                                        </div>
-                                                    ) : (
-                                                        <UserAvatar
-                                                        photo={senderInfo.profilePhoto}
-                                                        name={senderInfo.name}
-                                                        username={senderInfo.username}
-                                                        size="md"
-                                                    />
-                                                )}
-                                                    {isConfirmedReceived ? (
-                                                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center ring-2 ring-slate-900 shadow-sm" title="Replied">
-                                                            <Check className="w-2.5 h-2.5 stroke-[3]" />
-                                                        </span>
-                                                    ) : isUnopened ? (
-                                                        <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#00C2FF] ring-2 ring-slate-900 shadow-[0_0_8px_#00C2FF] animate-pulse" title="Unread prayer" />
-                                                    ) : (
-                                                        <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-slate-500 ring-2 ring-slate-900" />
-                                                    )}
-                                                </div>
-                                                <div className="flex flex-col min-w-0">
-                                                    <div className="flex items-center gap-2 flex-wrap min-w-0">
-                                                        {isAnonReceived ? (
-                                                            <span className="bg-indigo-500/15 text-indigo-300 text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 inline-flex items-center gap-1">
-                                                                <EyeOff className="w-3 h-3" />
-                                                                Anonymous
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-xs sm:text-sm font-bold text-[#00C2FF] truncate">
-                                                                @{senderUsername}
-                                                            </span>
-                                                        )}
-                                                        {entry.prayType && entry.prayType !== 'general' && (
-                                                            <span className="bg-white/10 text-white/70 text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-md border border-white/10 shrink-0">
-                                                                {getPrayTypeLabel(entry.prayType)}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <span className="text-[10px] text-slate-500 font-medium">
-                                                        {isAnonReceived ? 'Sent you an anonymous prayer' : 'Sent you a prayer'} • {formatDate(entry.date, 'N/A', language)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="shrink-0 flex items-center gap-1.5">
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDeletePrayTime(entry._id);
-                                                    }}
-                                                    className="p-1.5 sm:p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5"
-                                                    title={t('deleteNote')}
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                                <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-90 text-[#00C2FF]' : ''}`} />
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {(!isSnapRow || isExpanded) && (
-                                        <div className={isSnapRow ? 'p-4 sm:p-5 pt-3.5 border-t border-white/5' : ''}>
-                                            {!isSnapRow && (
-                                                <div className="flex items-start justify-between gap-3 mb-2.5">
-                                                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                                        {isAnonReceived ? (
-                                                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0 shadow-sm" title="Anonymous">
-                                                                <EyeOff className="w-4 h-4" />
-                                                            </div>
-                                                        ) : (
-                                                            <UserAvatar
-                                                            photo={senderInfo.profilePhoto}
-                                                            name={senderInfo.name}
-                                                            username={senderInfo.username}
-                                                            size="md"
-                                                        />
-                                                    )}
-                                                        <div className="min-w-0 flex flex-col">
-                                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                                {isAnonReceived ? (
-                                                                    <span className="bg-indigo-500/15 text-indigo-300 text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 inline-flex items-center gap-1">
-                                                                        <EyeOff className="w-3 h-3" />
-                                                                        Anonymous
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="text-xs sm:text-sm font-bold text-[#00C2FF] truncate">
-                                                                        @{senderUsername}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <span className="text-[10px] text-slate-500 font-medium">
-                                                                {formatDate(entry.date, 'N/A', language)}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex gap-2 shrink-0">
-                                                        <button onClick={() => handleDeletePrayTime(entry._id)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5" title={t('deleteNote')}><Trash2 className="w-4 h-4" /></button>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {isConfirmedReceived ? (
-                                                <>
-                                                    <div className="mt-2 text-sm text-slate-100 font-medium leading-relaxed whitespace-pre-wrap">
-                                                        {(typeof entry.words === 'string' && entry.words.startsWith('enc:v1:')) ? '...' : stripVoiceOnlyText(entry.words).trim()}
-                                                    </div>
-                                                    <SavedPrayRecordings prayId={entry._id} recordings={recordingsIndex[entry._id]} onChanged={refreshRecordings} />
-
-                                                    {entry.sharedFrom?.responseWords && (
-                                                        <div className="mt-3.5 pt-3 border-t border-white/10 flex flex-col gap-2 text-xs bg-white/[0.02] p-3 rounded-xl border border-white/5">
-                                                            <div className="flex items-center gap-2">
-                                                                <UserAvatar
-                                                                    photo={myProfilePhoto}
-                                                                    username={myUsername}
-                                                                    size="xs"
-                                                                />
-                                                                <span className="text-[11px] text-[#00C2FF] font-semibold flex items-center gap-1.5">
-                                                                    You:
-                                                                </span>
-                                                            </div>
-                                                            <p dir="auto" className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
-                                                                {entry.sharedFrom?.responseWords}
-                                                            </p>
-                                                        </div>
-                                                    )}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <div dir="auto" className="mt-2 text-sm text-slate-100 font-medium leading-relaxed whitespace-pre-wrap">
-                                                        {(typeof entry.words === 'string' && entry.words.startsWith('enc:v1:')) ? '...' : stripVoiceOnlyText(entry.words).trim()}
-                                                    </div>
-                                                    <SavedPrayRecordings prayId={entry._id} recordings={recordingsIndex[entry._id]} onChanged={refreshRecordings} />
-
-                                                    <div className="mt-3 pt-3 border-t border-white/10 flex flex-col gap-2.5">
-                                                        <div className="flex items-start gap-2.5">
-                                                            <UserAvatar
-                                                                photo={myProfilePhoto}
-                                                                username={myUsername}
-                                                                size="sm"
-                                                            />
-                                                            <div className="flex-1 flex flex-col gap-2">
-                                                                <textarea
-                                                                    dir="auto"
-                                                                    rows={3}
-                                                                    value={responseInputs[entry._id] || ''}
-                                                                    onChange={(e) => setResponseInputs((prev) => ({ ...prev, [entry._id]: e.target.value }))}
-                                                                    placeholder={`Write prayer response to ${isAnonReceived ? 'Anonymous Friend' : `@${senderUsername}`}...`}
-                                                                    className="w-full px-3.5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#00C2FF]/60 transition-all resize-none leading-relaxed"
-                                                                />
-                                                                <div className="flex justify-end">
-                                                                    <button
-                                                                        onClick={() => handleConfirmSharedPrayer(entry._id)}
-                                                                        disabled={isConfirmingShare[entry._id]}
-                                                                        className="px-4 py-2 text-xs font-bold bg-[#00C2FF] text-[#020817] hover:brightness-110 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-[#00C2FF]/20 disabled:opacity-50"
-                                                                    >
-                                                                        {isConfirmingShare[entry._id] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                                                                        <span>Send reply</span>
-                                                                        <ArrowRight className="w-3.5 h-3.5" />
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        }}
+                        forceRenderId={notificationPrayerId}
+                        renderItem={renderPrayer}
                     />
                 </div>
             </div>

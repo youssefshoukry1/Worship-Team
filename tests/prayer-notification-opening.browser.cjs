@@ -35,13 +35,139 @@ after(async () => {
 const received = id => ({ _id: `received-${id}`, words: `Prayer ${id}`, date: new Date().toISOString(), sharedFrom: { username: 'friend', shareId: id, status: 'pending' } });
 const sent = { _id: 'sent-789', words: 'Sent prayer', date: new Date().toISOString(), sharedWith: { username: 'friend', shareId: '789', status: 'sent' } };
 
+const mockPrayerApi = (route, base) => route.request().url().startsWith(base) ? route.continue()
+  : route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } });
+const personalPrayers = count => Array.from({ length: count }, (_, i) => ({ _id: 'personal-' + i, words: 'Personal prayer ' + i, date: '2026-10-01T00:00:00.000Z' }));
+
+test('large prayer lists defer offscreen controls while keyboard access, editing, saving and deletion still work', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    page.on('dialog', dialog => dialog.accept());
+    await seed(page, personalPrayers(200)); await page.goto(base + '/pray/');
+    const first = page.locator('[data-prayer-id="personal-0"]');
+    await first.getByText('Personal prayer 0', { exact: true }).waitFor();
+    assert.equal(await page.locator('[data-prayer-row]').count(), 200);
+    assert.ok(await page.locator('[data-prayer-id]').count() < 30);
+    await page.locator('[data-prayer-placeholder="personal-199"]').focus();
+    await page.locator('[data-prayer-id="personal-199"]').getByText('Personal prayer 199', { exact: true }).waitFor();
+    await first.getByRole('button', { name: 'Edit Note', exact: true }).click();
+    await page.getByRole('textbox').first().fill('Edited personal prayer');
+    await page.getByRole('button', { name: 'Update Note', exact: true }).click();
+    await first.getByText('Edited personal prayer', { exact: true }).waitFor();
+    await page.getByRole('textbox').first().fill('New prayer from the latest draft');
+    await page.getByRole('button', { name: 'Save Note', exact: true }).click();
+    const created = page.locator('[data-prayer-id]').filter({ hasText: 'New prayer from the latest draft' });
+    await created.waitFor();
+    await created.getByRole('button', { name: 'Delete Note', exact: true }).click();
+    await created.waitFor({ state: 'detached' });
+    await first.getByRole('button', { name: 'Delete Note', exact: true }).click();
+    await first.waitFor({ state: 'detached' });
+  } finally { await context.close(); }
+});
+
+test('deep notification targets render immediately in a long list even while the backend is stalled', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let release; const pending = new Promise(resolve => { release = resolve; });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', async route => {
+      if (route.request().url().startsWith(base)) return route.continue();
+      await pending; await route.fulfill({ json: {} }).catch(() => {});
+    });
+    await seed(page, Array.from({ length: 300 }, (_, i) => ({ ...received(String(i)), date: '2026-10-01T00:00:00.000Z' })));
+    await page.goto(base + '/pray/?notificationType=PRAY_SHARED&shareId=299', { waitUntil: 'domcontentloaded' });
+    const card = page.locator('[data-prayer-id="received-299"]');
+    await card.getByText('Prayer 299', { exact: true }).waitFor();
+    assert.ok(await page.locator('[data-prayer-id]').count() < 40);
+    await page.waitForFunction(() => {
+      const rect = document.querySelector('[data-prayer-id="received-299"]')?.getBoundingClientRect();
+      return rect && rect.top < innerHeight && rect.bottom > 0;
+    });
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('taspe7:open-prayer', { detail: { href: '/pray/?notificationType=PRAY_SHARED&shareId=150' }, cancelable: true })));
+    await page.locator('[data-prayer-id="received-150"]').getByText('Prayer 150', { exact: true }).waitFor();
+    assert.equal(await card.count(), 1, 'Previously opened cards stay mounted after a new notification target');
+  } finally { release(); await context.close(); }
+});
+
+test('saved-card actions use the latest reply text after other cards and composer state change', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let posted;
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', async route => {
+      if (route.request().url().includes('/confirm-share')) { posted = route.request().postDataJSON(); return route.fulfill({ json: { success: true } }); }
+      return mockPrayerApi(route, base);
+    });
+    await seed(page, [received('first'), received('second')]);
+    await page.goto(base + '/pray/?notificationType=PRAY_SHARED&shareId=first');
+    const card = page.locator('[data-prayer-id="received-first"]');
+    await card.getByRole('textbox').fill('Old reply');
+    await page.getByRole('textbox').first().fill('Unrelated composer draft');
+    await card.getByRole('textbox').fill('Latest reply');
+    await card.getByRole('button', { name: 'Send reply', exact: true }).click();
+    await card.getByRole('textbox').waitFor({ state: 'detached' });
+    await card.getByText('Latest reply', { exact: true }).waitFor();
+    assert.equal(posted.shareId, 'first'); assert.equal(posted.responseWords, 'Latest reply');
+    assert.equal(await page.getByRole('textbox').first().inputValue(), 'Unrelated composer draft');
+  } finally { await context.close(); }
+});
+
+test('large prayer lists remain accessible when IntersectionObserver is unavailable', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    await page.addInitScript(() => { window.IntersectionObserver = undefined; });
+    await seed(page, personalPrayers(40)); await page.goto(base + '/pray/');
+    await page.waitForFunction(() => document.querySelectorAll('[data-prayer-id]').length === 40);
+    await page.locator('[data-prayer-id="personal-39"]').scrollIntoViewIfNeeded();
+    await page.locator('[data-prayer-id="personal-39"]').getByText('Personal prayer 39', { exact: true }).waitFor();
+  } finally { await context.close(); }
+});
+
+test('a live microphone recording survives composer updates and offscreen-card loading', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    await page.addInitScript(() => {
+      navigator.mediaDevices.getUserMedia = async () => {
+        const context = new AudioContext();
+        const tone = context.createOscillator(), destination = context.createMediaStreamDestination();
+        tone.connect(destination); tone.start(); await context.resume();
+        window.__fakeMicStream = destination.stream;
+        return destination.stream;
+      };
+      const Recorder = window.MediaRecorder;
+      window.MediaRecorder = class extends Recorder {
+        constructor(...args) { super(...args); window.__prayerRecorder = this; }
+      };
+    });
+    await seed(page, personalPrayers(200)); await page.goto(base + '/pray/');
+    await page.getByRole('button', { name: 'Record voice', exact: true }).click();
+    await page.getByRole('button', { name: 'Discard recording', exact: true }).waitFor();
+    await page.getByRole('textbox').first().fill('Draft written while recording');
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.locator('[data-prayer-id="personal-199"]').getByText('Personal prayer 199', { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.__prayerRecorder.state), 'recording');
+    await page.getByRole('button', { name: 'Pause recording', exact: true }).click();
+    assert.equal(await page.evaluate(() => window.__prayerRecorder.state), 'paused');
+    await page.getByRole('button', { name: 'Resume recording', exact: true }).click();
+    assert.equal(await page.evaluate(() => window.__prayerRecorder.state), 'recording');
+    await page.getByRole('button', { name: 'Discard recording', exact: true }).click();
+    await page.waitForFunction(() => window.__prayerRecorder.state === 'inactive' && window.__fakeMicStream.getTracks().every(track => track.readyState === 'ended'));
+  } finally { await context.close(); }
+});
+
 test('long prayer lists retain audio playback while offscreen and while the composer changes', async () => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
     const page = await context.newPage();
     await page.route('**/*', route => route.request().url().startsWith(base) ? route.continue()
       : route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } }));
-    const prayers = Array.from({ length: 200 }, (_, i) => ({ _id: 'personal-' + i, words: 'Personal prayer ' + i, date: new Date().toISOString() }));
+    const prayers = personalPrayers(200);
     await seed(page, prayers);
     await page.evaluate(async () => {
       const bytes = new ArrayBuffer(44 + 8000 * 60 * 2), view = new DataView(bytes);
@@ -62,6 +188,7 @@ test('long prayer lists retain audio playback while offscreen and while the comp
     });
     await page.goto(base + '/pray/');
     const first = page.locator('[data-prayer-id="personal-0"]');
+    await page.locator('[data-prayer-row="personal-0"]').scrollIntoViewIfNeeded();
     await first.getByRole('button', { name: 'Play', exact: true }).click();
     await first.getByRole('button', { name: 'Pause', exact: true }).waitFor();
     await page.evaluate(() => { window.__firstPrayerCard = document.querySelector('[data-prayer-id="personal-0"]'); window.scrollTo(0, document.documentElement.scrollHeight); });
