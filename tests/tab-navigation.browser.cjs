@@ -278,6 +278,34 @@ function bibleApi(requests) {
   };
 }
 
+test('the Bible tab opens its reader without flashing the deferred-panel loading screen', async () => {
+  const { context, page } = await setup({ electron: true, api: bibleApi([]) });
+  try {
+    await observeBibleStorage(page);
+    await openHymns(page); await controlled(page);
+    const session = await page.evaluate(() => window.__navigationSession);
+    await page.evaluate(() => {
+      window.__bibleLoadingFlashes = [];
+      const inspect = node => {
+        if (node.textContent?.includes('Loading Bible reader')) window.__bibleLoadingFlashes.push(node.textContent);
+      };
+      new MutationObserver(records => {
+        for (const record of records) {
+          if (record.type === 'characterData') inspect(record.target);
+          for (const node of record.addedNodes) inspect(node);
+        }
+      }).observe(document.body, { childList: true, characterData: true, subtree: true });
+    });
+    for (let i = 0; i < 3; i++) {
+      await taps(page, ['/bible_form']); await page.waitForURL(base + '/bible_form/');
+      await page.locator('[data-feature="bible-reader"]').getByText('Verse', { exact: true }).waitFor();
+      await taps(page, ['/hymns']); await page.waitForURL(base + '/hymns/');
+    }
+    assert.deepEqual(await page.evaluate(() => window.__bibleLoadingFlashes), []);
+    assert.equal(await page.evaluate(() => window.__navigationSession), session);
+  } finally { await context.close(); }
+});
+
 test('closed Hymns tools never hydrate a saved Bible; repeated Bible visits share one disk read', async t => {
   const requests = [];
   const { context, page } = await setup({ electron: true, api: bibleApi(requests) });

@@ -2,10 +2,13 @@
 
 import { useRouter } from 'next/navigation';
 import { useBibleForm } from './useBibleForm';
-import { createDeferredFeature } from '../components/DeferredFeature';
+import BibleReader from './BibleReader';
 
 export { useBibleForm } from './useBibleForm';
-export const BibleForm = createDeferredFeature(() => import('./BibleReader'), 'Bible reader');
+// The reader is the page's primary content. Load it with the route so even a
+// cached revisit cannot briefly commit the optional-panel loading screen.
+// The optional reader inside Hymns keeps its own deferred boundary.
+export const BibleForm = BibleReader;
 
 export default function BibleFormPage() {
   const router = useRouter();
@@ -15,5 +18,5 @@ export default function BibleFormPage() {
     onClose: () => router.back(),
     onPresent: () => {},
   });
-  return <BibleForm controller={controller} isPage onLoadClose={() => router.back()} />;
+  return <BibleForm controller={controller} isPage />;
 }
