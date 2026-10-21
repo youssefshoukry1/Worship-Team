@@ -65,3 +65,12 @@ test('SwiftPM paths remain portable when synchronizing from Windows', () => {
     assert.ok(fs.existsSync(path.resolve(path.dirname(packageFile), match[1])));
   }
 });
+
+test('automatic backup sources are included in the app and background processing is configured', () => {
+  const sources = targetFiles(app[1], 'PBXSourcesBuildPhase').map(file => objects.PBXFileReference[file.fileRef]?.path?.replace(/^"|"$/g, ''));
+  assert.ok(sources.includes('PrayerBackupPlugin.swift'));
+  assert.ok(sources.includes('PrayerBackupArchive.swift'));
+  const info = readPlist('App/Info.plist');
+  assert.ok(info.UIBackgroundModes.includes('processing'));
+  assert.ok(info.BGTaskSchedulerPermittedIdentifiers.includes('com.wasla.wasla.prayerbackup'));
+});

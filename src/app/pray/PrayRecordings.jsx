@@ -11,6 +11,7 @@ import { showToast } from '../components/ToastContainer';
 import { openVoiceInput } from '../utils/voiceProcessing';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useLanguage } from '../context/LanguageContext';
+import { cacheBackupOwner, hasNativeBackup, prayerBackupStatus, readBackupSettings, saveBackupSettings, startPrayerBackup } from '../services/prayerBackupService';
 import WaveSurfer from 'wavesurfer.js';
 import RecordPlugin from 'wavesurfer.js/dist/plugins/record.esm.js';
 
@@ -410,6 +411,23 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
     const [accounts, setAccounts] = useState([]);
     const [openPanel, setOpenPanel] = useState(null); // 'accounts' | 'restore' | null
     const [activatingEmail, setActivatingEmail] = useState(null);
+    const [schedule, setSchedule] = useState({ intervalDays: 0, wifiOnly: true });
+    const [nextBackup, setNextBackup] = useState(0);
+    const [savingSchedule, setSavingSchedule] = useState(false);
+    const nativeBackup = hasNativeBackup();
+    const labels = language === 'ar' ? {
+        automatic: 'النسخ الاحتياطي التلقائي', off: 'إيقاف', days: n => `كل ${n} أيام`, wifi: 'Wi-Fi فقط',
+        next: 'النسخة التالية', last: 'آخر نسخة ناجحة', hint: 'يحدد الهاتف وقت بدء النسخ حسب الاتصال والبطارية. الإشعارات صامتة.',
+        native: 'النسخ التلقائي متاح في تطبيق الهاتف بعد تحديثه.', queued: 'بانتظار الاتصال والبطارية المناسبة…', running: 'جارٍ النسخ الاحتياطي…', complete: 'اكتمل النسخ الاحتياطي',
+    } : language === 'de' ? {
+        automatic: 'Automatische Sicherung', off: 'Aus', days: n => `Alle ${n} Tage`, wifi: 'Nur WLAN',
+        next: 'Nächste Sicherung', last: 'Letzte erfolgreiche Sicherung', hint: 'Das Telefon bestimmt den Start je nach Verbindung und Akku. Benachrichtigungen sind lautlos.',
+        native: 'Automatische Sicherungen sind in der aktualisierten mobilen App verfügbar.', queued: 'Warten auf Verbindung und Akku…', running: 'Sicherung läuft…', complete: 'Sicherung abgeschlossen',
+    } : {
+        automatic: 'Automatic backup', off: 'Off', days: n => `Every ${n} days`, wifi: 'Wi-Fi only',
+        next: 'Next backup due', last: 'Last successful backup', hint: 'Your phone schedules the start based on connection and battery. Backup notifications are silent.',
+        native: 'Automatic backups are available in the updated mobile app.', queued: 'Waiting for connection and battery…', running: 'Backup in progress…', complete: 'Backup completed',
+    };
     const menuRef = useRef(null);
     const panelRef = useRef(null);
 
@@ -417,7 +435,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
         if (!isOpen) return;
         const handleClickOutside = (e) => {
             if (menuRef.current && !menuRef.current.contains(e.target)) {
-                if (!busy) setIsOpen(false);
+                if (busy !== 'restore') setIsOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -436,7 +454,34 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
 
     useEffect(() => {
         try { setLastBackup(localStorage.getItem(lastBackupKey)); } catch { }
-    }, [lastBackupKey]);
+        setSchedule(readBackupSettings(userId));
+    }, [lastBackupKey, userId]);
+
+    useEffect(() => { cacheBackupOwner(userId).catch(() => {}); }, [userId]);
+
+    useEffect(() => {
+        if (!nativeBackup || !token || !userId) return;
+        let cancelled = false;
+        const refresh = async () => {
+            try {
+                const value = await prayerBackupStatus(userId);
+                if (cancelled) return;
+                setNextBackup(value.nextBackupAt || 0);
+                if (value.lastSuccess) setLastBackup(new Date(value.lastSuccess).toISOString());
+                if (['queued', 'running'].includes(value.state)) {
+                    setBusy(current => current === 'restore' ? current : 'backup'); setProgress(value.progress || 0);
+                    setStatus(value.state === 'queued' ? labels.queued : labels.running);
+                } else {
+                    setBusy(current => current === 'backup' ? null : current);
+                    if (value.state === 'complete') setStatus(labels.complete);
+                    if (value.state === 'error') setStatus(`Error: ${value.error}`);
+                }
+            } catch { /* Older app builds keep the existing manual backup flow. */ }
+        };
+        refresh();
+        const timer = setInterval(refresh, isOpen || busy === 'backup' ? 1500 : 15000);
+        return () => { cancelled = true; clearInterval(timer); };
+    }, [nativeBackup, token, userId, isOpen, busy, labels.complete, labels.queued, labels.running]);
 
     const loadAccounts = useCallback(async () => {
         if (!token) return;
@@ -490,10 +535,28 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
     const defaultAccount = accounts.find((a) => a.isDefault) || accounts[0];
     const activeEmail = defaultAccount?.email || null;
 
+    const changeSchedule = async (patch) => {
+        if (savingSchedule) return;
+        if (!activeEmail) { setNeedsLink(true); return; }
+        setSavingSchedule(true);
+        try {
+            await cacheBackupOwner(userId);
+            const next = { ...schedule, ...patch, email: activeEmail };
+            const result = await saveBackupSettings(userId, token, next);
+            setSchedule(next); setNextBackup(result?.nextBackupAt || 0);
+        } catch (err) { fail(err); } finally { setSavingSchedule(false); }
+    };
+
     const handleBackup = async (targetEmail = null) => {
         setBusy('backup'); setProgress(0); setNeedsLink(false);
         try {
             const emailToUse = targetEmail || activeEmail;
+            if (nativeBackup) {
+                await cacheBackupOwner(userId);
+                await startPrayerBackup(userId, token, emailToUse || '');
+                setStatus(labels.queued);
+                return;
+            }
             const targetLabel = emailToUse ? ` (${emailToUse})` : '';
             setStatus(`Connecting to Google Drive${targetLabel}...`);
             const accessToken = await getDriveAccessToken(token, emailToUse);
@@ -514,7 +577,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
             setProgress(100);
             setStatus('Backup completed successfully!');
             showToast({ message: '"my prays" backed up to Google Drive.', type: 'success', duration: 4000 });
-        } catch (err) { fail(err); } finally { setBusy(null); }
+        } catch (err) { fail(err); setBusy(null); } finally { if (!nativeBackup) setBusy(null); }
     };
 
     const executeRestore = async (accountEmail = null) => {
@@ -555,6 +618,10 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
         setActivatingEmail(email);
         try {
             await setDefaultDriveAccount(token, email);
+            if (nativeBackup) {
+                const next = { ...schedule, email };
+                await saveBackupSettings(userId, token, next); setSchedule(next);
+            }
             await loadAccounts();
             showToast({ message: `Active account switched to ${email}`, type: 'success', duration: 3000 });
         } catch (err) {
@@ -568,6 +635,10 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
         if (!window.confirm(`Disconnect Google Drive account (${email})?`)) return;
         try {
             await disconnectDriveAccount(token, email);
+            if (nativeBackup && schedule.email === email) {
+                const next = { ...schedule, intervalDays: 0, email: '' };
+                await saveBackupSettings(userId, token, next); setSchedule(next); setNextBackup(0);
+            }
             await loadAccounts();
             showToast({ message: 'Drive account disconnected', type: 'info', duration: 3000 });
         } catch (err) {
@@ -590,7 +661,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl shadow-[0_12px_36px_rgba(0,0,0,0.65)] p-3 z-50 animate-in fade-in zoom-in-95">
+                <div className="absolute right-0 top-full mt-2 w-64 max-h-[70dvh] overflow-y-auto rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-2xl shadow-[0_12px_36px_rgba(0,0,0,0.65)] p-3 z-50 animate-in fade-in zoom-in-95">
                     {/* Header */}
                     <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
                         <div className="flex items-center gap-1.5 min-w-0">
@@ -601,7 +672,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                         </div>
                         <button
                             type="button"
-                            onClick={() => !busy && setIsOpen(false)}
+                            onClick={() => busy !== 'restore' && setIsOpen(false)}
                             className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
                         >
                             <X className="w-3.5 h-3.5" />
@@ -616,6 +687,24 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                         </div>
                     ) : (
                         <div className="space-y-1">
+                            <div className="px-1 pb-2 mb-1 border-b border-white/10 space-y-2">
+                                <label className="block text-xs text-slate-200">
+                                    {labels.automatic}
+                                    <select aria-label={labels.automatic} value={schedule.intervalDays} disabled={!nativeBackup || savingSchedule || Boolean(busy)}
+                                        onChange={e => changeSchedule({ intervalDays: Number(e.target.value) })}
+                                        className="mt-1.5 w-full rounded-lg border border-white/15 bg-slate-800 px-2 py-2 text-xs text-white disabled:opacity-50">
+                                        <option value={0}>{labels.off}</option>
+                                        {[7, 14, 30].map(days => <option key={days} value={days}>{labels.days(days)}</option>)}
+                                    </select>
+                                </label>
+                                <label className="flex items-center gap-2 text-xs text-slate-300">
+                                    <input type="checkbox" checked={schedule.wifiOnly} disabled={!nativeBackup || savingSchedule || Boolean(busy)} onChange={e => changeSchedule({ wifiOnly: e.target.checked })} />
+                                    {labels.wifi}
+                                </label>
+                                <p className="text-[10px] leading-relaxed text-slate-400">{nativeBackup ? labels.hint : labels.native}</p>
+                                {lastBackup && <p className="text-[10px] text-slate-400">{labels.last}: {new Date(lastBackup).toLocaleString(language)}</p>}
+                                {schedule.intervalDays > 0 && nextBackup > 0 && <p className="text-[10px] text-slate-400">{labels.next}: {new Date(nextBackup).toLocaleDateString(language)}</p>}
+                            </div>
                             {/* Backup Button */}
                             <button
                                 type="button"
@@ -704,6 +793,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                                                 <div
                                                     key={acc.email}
                                                     onClick={() => {
+                                                        if (busy) return;
                                                         if (openPanel === 'restore') executeRestore(acc.email);
                                                         else if (!isDef && !isActivating) handleSetDefault(acc.email);
                                                     }}
@@ -724,6 +814,12 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                                                     ) : isDef ? (
                                                         <span className="text-emerald-400 font-bold">{t('activeStatus')}</span>
                                                     ) : null}
+                                                    {openPanel !== 'restore' && <button type="button" disabled={Boolean(busy)}
+                                                        aria-label={`Disconnect ${acc.email}`} title={`Disconnect ${acc.email}`}
+                                                        onClick={event => { event.stopPropagation(); handleDisconnect(acc.email); }}
+                                                        className="p-1 rounded text-slate-400 hover:text-red-400 disabled:opacity-40">
+                                                        <Trash2 className="w-3 h-3" />
+                                                    </button>}
                                                 </div>
                                             );
                                         })}

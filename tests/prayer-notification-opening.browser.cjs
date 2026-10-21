@@ -53,6 +53,50 @@ async function seed(page, prayers) {
   }, { prayers, version });
 }
 
+test('native backup settings save intervals and manual progress continues after closing settings', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await page.addInitScript(() => {
+      window.backupCalls = [];
+      window.backupStatus = { state: 'idle', progress: 0, intervalDays: 0 };
+      window.CapacitorCustomPlatform = { name: 'ios' };
+      window.Capacitor = {
+        PluginHeaders: [{ name: 'PrayerBackup', methods: ['configure', 'getStatus', 'runNow', 'suspend', 'setOwner'].map(name => ({ name, rtype: 'promise' })) }],
+        nativePromise: async (plugin, method, options) => {
+          window.backupCalls.push({ method, options });
+          if (method === 'configure') window.backupStatus = { ...window.backupStatus, ...options, nextBackupAt: Date.now() + options.intervalDays * 86400000 };
+          if (method === 'runNow') window.backupStatus = { ...window.backupStatus, state: 'running', progress: 57 };
+          return window.backupStatus;
+        },
+      };
+    });
+    await page.route('**/*', route => {
+      if (route.request().url().startsWith(base)) return route.continue();
+      if (route.request().url().includes('/backup/drive-accounts')) return route.fulfill({ json: { accounts: [{ email: 'drive@test', isDefault: true }] } });
+      return route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } });
+    });
+    await seed(page, []); await page.goto(base + '/pray/');
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    const select = page.getByRole('combobox', { name: 'Automatic backup' });
+    await select.waitFor(); await page.getByText('drive@test', { exact: true }).waitFor();
+    for (const days of [7, 14, 30]) {
+      await select.selectOption(String(days));
+      await page.waitForFunction(days => JSON.parse(localStorage.getItem('my_prays_schedule_tester') || '{}').intervalDays === days, days);
+    }
+    await page.getByRole('button', { name: 'Backup', exact: true }).click();
+    await page.waitForFunction(() => window.backupCalls.some(call => call.method === 'runNow'));
+    await page.getByText('57%', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await select.waitFor({ state: 'hidden' });
+    assert.equal(await page.evaluate(() => window.backupStatus.state), 'running');
+    await page.evaluate(() => { window.backupStatus = { ...window.backupStatus, state: 'complete', progress: 100, lastSuccess: Date.now() }; });
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByText('Backup completed', { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('my_prays_schedule_tester')).email), 'drive@test');
+  } finally { await context.close(); }
+});
+
 test('cached cards open while every backend request is stalled; further taps do not reload', async t => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   let release;

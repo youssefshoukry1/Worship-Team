@@ -21,6 +21,8 @@
 		6CF3CE71F67840C7BB3B46DE /* PrayerNotificationService.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = F8539AA3AB774DB68F9539AB /* PrayerNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, CodeSignOnCopy, ); }; };
 		0471EFB108474347BAA300D5 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 37BBFA4612D84D3E9846FA03 /* FirebaseCore */; };
 		F9D80D6EEBB24D38ABFC6558 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 00D8472A78894069923150D0 /* FirebaseMessaging */; };
+		B27C49FCAB424DE4833461A0 /* PrayerBackupPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8CFE415654B47F6BD0E9CEE /* PrayerBackupPlugin.swift */; };
+		D3A6B19EA33B49C8855B23B2 /* PrayerBackupArchive.swift in Sources */ = {isa = PBXBuildFile; fileRef = D866491966AD4D5AB0E23A4C /* PrayerBackupArchive.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,6 +43,8 @@
 		A1BB2C830C9C4052921162BE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		0DCA53D1F7874D19BE19351B /* PrayerNotificationService.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PrayerNotificationService.entitlements; sourceTree = "<group>"; };
 		F8539AA3AB774DB68F9539AB /* PrayerNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PrayerNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8CFE415654B47F6BD0E9CEE /* PrayerBackupPlugin.swift */ = {isa = PBXFileReference; name = "PrayerBackupPlugin.swift"; path = "PrayerBackupPlugin.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; includeInIndex = 0; };
+		D866491966AD4D5AB0E23A4C /* PrayerBackupArchive.swift */ = {isa = PBXFileReference; name = "PrayerBackupArchive.swift"; path = "PrayerBackupArchive.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,6 +101,8 @@
 				5B9C77182DCD4EB88A6E9533 /* PrayerBridgeViewController.swift */,
 				D463C8D26C644440AD5F601A /* GoogleService-Info.plist */,
 				BDCE63EE4D144B37863B529B /* App.entitlements */,
+				D8CFE415654B47F6BD0E9CEE /* PrayerBackupPlugin.swift */,
+				D866491966AD4D5AB0E23A4C /* PrayerBackupArchive.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -234,6 +240,8 @@
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				23E21D88E7FF4A779CA23C1E /* PrayerBridgeViewController.swift in Sources */,
+				B27C49FCAB424DE4833461A0 /* PrayerBackupPlugin.swift in Sources */,
+				D3A6B19EA33B49C8855B23B2 /* PrayerBackupArchive.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -567,7 +575,7 @@
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
 			requirement = {
 				kind = exactVersion;
-                version = 12.19.2;
+				version = 12.19.2;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

@@ -7,6 +7,7 @@ final class PrayerBridgeViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(PrayerNotificationsPlugin())
+        bridge?.registerPluginInstance(PrayerBackupPlugin())
     }
 }
 

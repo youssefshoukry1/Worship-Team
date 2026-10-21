@@ -13,6 +13,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(PrayerNotificationsPlugin.class);
+        registerPlugin(PrayerBackupPlugin.class);
         super.onCreate(savedInstanceState);
     }
 

@@ -11,6 +11,7 @@ import ReactQueryProvider from "../app/utils/ReactQueryProvider";
 import CapgoUpdater from "./CapgoUpdater";
 import WaslaSplashIntro from "./components/WaslaSplashIntro";
 import AppAuthGatekeeper from "./components/AppAuthGatekeeper";
+import PrayerBackupLifecycle from "./components/PrayerBackupLifecycle";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -67,6 +68,7 @@ export default function RootLayout({
                         <ThemeProvider>
                             <LanguageProvider>
                                 <UserContextProvider>
+                                    <PrayerBackupLifecycle />
                                     <HymnsContextProvider>
                                         <AppAuthGatekeeper>
                                             <main>

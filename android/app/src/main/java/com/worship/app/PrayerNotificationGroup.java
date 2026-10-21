@@ -66,7 +66,10 @@ final class PrayerNotificationGroup {
     }
 
     static void clear(Context context) {
-        context.getSystemService(NotificationManager.class).cancelAll();
+        NotificationManager manager = context.getSystemService(NotificationManager.class);
+        for (android.service.notification.StatusBarNotification notification : manager.getActiveNotifications()) {
+            if (notification.getId() != PrayerBackupWorker.NOTIFICATION_ID) manager.cancel(notification.getTag(), notification.getId());
+        }
         children = null;
         hasSummary = false;
     }

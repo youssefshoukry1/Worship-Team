@@ -66,5 +66,11 @@
     <array>
       <string>INSendMessageIntent</string>
     </array>
+    <key>UIBackgroundModes</key>
+    <array><string>processing</string></array>
+    <key>BGTaskSchedulerPermittedIdentifiers</key>
+    <array>
+      <string>com.wasla.wasla.prayerbackup</string>
+    </array>
   </dict>
 </plist>

@@ -13,6 +13,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, MessagingDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         if FirebaseApp.app() == nil { FirebaseApp.configure() }
         Messaging.messaging().delegate = self
+        PrayerBackupEngine.shared.register()
         return true
     }
 
@@ -31,7 +32,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, MessagingDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+        UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
+            let ids = notifications.map { $0.request.identifier }.filter { $0 != PrayerBackupEngine.notificationID }
+            UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
+        }
         application.applicationIconBadgeNumber = 0
     }
 
@@ -58,6 +62,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, MessagingDelegate {
 
     func applicationWillTerminate(_ application: UIApplication) {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
+    }
+
+    func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
+        if identifier == PrayerBackupEngine.sessionID { PrayerBackupEngine.shared.attachBackgroundCompletion(completionHandler) }
+        else { completionHandler() }
     }
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
