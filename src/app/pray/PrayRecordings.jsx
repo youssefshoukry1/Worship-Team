@@ -14,8 +14,6 @@ import { createPortal } from 'react-dom';
 import backupStyles from './PrayerBackup.module.css';
 import { useLanguage } from '../context/LanguageContext';
 import { cacheBackupOwner, hasNativeBackup, prayerBackupStatus, readBackupSettings, saveBackupSettings, startPrayerBackup } from '../services/prayerBackupService';
-import WaveSurfer from 'wavesurfer.js';
-import RecordPlugin from 'wavesurfer.js/dist/plugins/record.esm.js';
 
 const BACKUP_FOLDER = 'my-prays-backups';
 const BACKUP_FILE = 'my prays.zip';
@@ -190,31 +188,41 @@ export function usePrayRecorder(onFinish) {
 function LiveRecordingBar({ recorder, tone }) {
     const waveRef = useRef(null);
     const pluginRef = useRef(null);
+    const pausedRef = useRef(recorder.isPaused);
 
     useEffect(() => {
         if (!waveRef.current || !recorder.stream) return;
-        const wavesurfer = WaveSurfer.create({
-            container: waveRef.current,
-            waveColor: tone.hex,
-            progressColor: tone.hex,
-            height: 36,
-            barWidth: 3,
-            barGap: 2,
-            barRadius: 3,
-            cursorWidth: 0,
-            interact: false,
-        });
-        const plugin = wavesurfer.registerPlugin(RecordPlugin.create({ scrollingWaveform: true, scrollingWaveformWindow: 4, renderRecordedAudio: false }));
-        pluginRef.current = plugin;
-        const micView = plugin.renderMicStream(recorder.stream);
+        let active = true, wavesurfer, micView;
+        // Recording already owns the microphone; only its visual waveform waits
+        // for these modules, so loading never delays permission or captures.
+        Promise.all([import('wavesurfer.js'), import('wavesurfer.js/dist/plugins/record.esm.js')]).then(([{ default: WaveSurfer }, { default: RecordPlugin }]) => {
+            if (!active || !waveRef.current) return;
+            wavesurfer = WaveSurfer.create({
+                container: waveRef.current,
+                waveColor: tone.hex,
+                progressColor: tone.hex,
+                height: 36,
+                barWidth: 3,
+                barGap: 2,
+                barRadius: 3,
+                cursorWidth: 0,
+                interact: false,
+            });
+            const plugin = wavesurfer.registerPlugin(RecordPlugin.create({ scrollingWaveform: true, scrollingWaveformWindow: 4, renderRecordedAudio: false }));
+            pluginRef.current = plugin;
+            micView = plugin.renderMicStream(recorder.stream);
+            plugin.isWaveformPaused = pausedRef.current;
+        }).catch(error => { if (active) console.warn('Recording waveform unavailable:', error); });
         return () => {
-            micView.onDestroy();
+            active = false;
+            micView?.onDestroy();
             pluginRef.current = null;
-            wavesurfer.destroy();
+            wavesurfer?.destroy();
         };
     }, [recorder.stream, tone.hex]);
 
     useEffect(() => {
+        pausedRef.current = recorder.isPaused;
         if (pluginRef.current) pluginRef.current.isWaveformPaused = recorder.isPaused;
     }, [recorder.isPaused]);
 
@@ -253,44 +261,51 @@ export function VoiceClip({ url, fallbackDuration = 0, tone, label, onDelete }) 
     useEffect(() => {
         if (!waveRef.current || !url) return;
         let active = true;
-        const wavesurfer = WaveSurfer.create({
-            container: waveRef.current,
-            waveColor: 'rgba(148, 163, 184, 0.35)',
-            progressColor: tone.hex,
-            cursorWidth: 0,
-            height: 32,
-            barWidth: 3,
-            barGap: 2,
-            barRadius: 3,
-            normalize: true,
-            dragToSeek: true,
-            url,
-        });
-        wavesurferRef.current = wavesurfer;
-        wavesurfer.on('ready', (seconds) => {
-            if (!active) return;
-            setIsReady(true);
-            if (seconds && Number.isFinite(seconds)) setDuration(seconds);
-        });
-        wavesurfer.on('timeupdate', (seconds) => { if (active) setCurrentTime(seconds); });
-        wavesurfer.on('play', () => {
-            if (activePlayer && activePlayer !== wavesurfer) activePlayer.pause();
-            activePlayer = wavesurfer;
-            if (active) setIsPlaying(true);
-        });
-        wavesurfer.on('pause', () => { if (active) setIsPlaying(false); });
-        wavesurfer.on('finish', () => {
-            if (active) {
-                setIsPlaying(false);
-                wavesurfer.seekTo(0);
-                setCurrentTime(0);
-            }
-        });
-        wavesurfer.on('error', () => { if (active) setFailed(true); });
+        let wavesurfer;
+        import('wavesurfer.js').then(({ default: WaveSurfer }) => {
+            if (!active || !waveRef.current) return;
+            setIsReady(false);
+            setFailed(false);
+            setIsPlaying(false);
+            wavesurfer = WaveSurfer.create({
+                container: waveRef.current,
+                waveColor: 'rgba(148, 163, 184, 0.35)',
+                progressColor: tone.hex,
+                cursorWidth: 0,
+                height: 32,
+                barWidth: 3,
+                barGap: 2,
+                barRadius: 3,
+                normalize: true,
+                dragToSeek: true,
+                url,
+            });
+            wavesurferRef.current = wavesurfer;
+            wavesurfer.on('ready', (seconds) => {
+                if (!active) return;
+                setIsReady(true);
+                if (seconds && Number.isFinite(seconds)) setDuration(seconds);
+            });
+            wavesurfer.on('timeupdate', (seconds) => { if (active) setCurrentTime(seconds); });
+            wavesurfer.on('play', () => {
+                if (activePlayer && activePlayer !== wavesurfer) activePlayer.pause();
+                activePlayer = wavesurfer;
+                if (active) setIsPlaying(true);
+            });
+            wavesurfer.on('pause', () => { if (active) setIsPlaying(false); });
+            wavesurfer.on('finish', () => {
+                if (active) {
+                    setIsPlaying(false);
+                    wavesurfer.seekTo(0);
+                    setCurrentTime(0);
+                }
+            });
+            wavesurfer.on('error', () => { if (active) setFailed(true); });
+        }).catch(() => { if (active) setFailed(true); });
         return () => {
             active = false;
             if (activePlayer === wavesurfer) activePlayer = null;
-            wavesurfer.destroy();
+            wavesurfer?.destroy();
             wavesurferRef.current = null;
         };
     }, [url, tone.hex]);

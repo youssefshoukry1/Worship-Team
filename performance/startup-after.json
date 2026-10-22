@@ -1,0 +1,64 @@
+{
+  "environment": {
+    "browser": "155.0.8059.85",
+    "cpu": "12th Gen Intel(R) Core(TM) i5-12450H",
+    "viewport": "390x844",
+    "backend": "all backend requests deliberately stalled",
+    "data": "returning signed-in user; empty saved-prayer list",
+    "note": "Fresh browser context per trial; localhost assets; 4x CPU simulates a slower CPU, not a phone. Native process/WebView startup is excluded."
+  },
+  "profiles": [
+    {
+      "cpuRate": 1,
+      "trials": [
+        {
+          "layout": 80.90000000037253,
+          "editor": 248.90000000037253
+        },
+        {
+          "layout": 75.30000000074506,
+          "editor": 199.7000000011176,
+          "fcp": 104
+        },
+        {
+          "layout": 62.80000000074506,
+          "editor": 199,
+          "fcp": 80
+        }
+      ],
+      "medianLayoutMs": 75.30000000074506,
+      "medianEditorMs": 199.7000000011176
+    },
+    {
+      "cpuRate": 4,
+      "trials": [
+        {
+          "layout": 223.5,
+          "editor": 979.5999999996275,
+          "fcp": 256
+        },
+        {
+          "layout": 231,
+          "editor": 1020.6000000014901,
+          "fcp": 260
+        },
+        {
+          "layout": 232.80000000074506,
+          "editor": 1029.2000000011176,
+          "fcp": 272
+        }
+      ],
+      "medianLayoutMs": 231,
+      "medianEditorMs": 1020.6000000014901
+    }
+  ],
+  "entryScripts": {
+    "bytes": 1072005,
+    "gzipBytes": 339202
+  },
+  "definitions": {
+    "layout": "First rendering opportunity with the Prayer layout present. After optimization this is a public, inert shell; it cannot accept input.",
+    "editor": "First rendering opportunity with the authenticated Prayer textarea present and not disabled. Does not wait for backend requests.",
+    "scope": "Web document startup only. These are three-trial medians on desktop Chrome; CPU throttling does not reproduce a real phone or native process/WebView startup."
+  }
+}

@@ -268,6 +268,36 @@ async function observeBibleStorage(page) {
   });
 }
 
+test('Prayer launch defers the offline hymn warm-up, which still runs at idle and is reused on Hymns', async () => {
+  const { context, page } = await setup({ electron: true, api: bibleApi([]) });
+  try {
+    await page.addInitScript(() => {
+      window.__hymnReads = 0;
+      const get = IDBObjectStore.prototype.get;
+      IDBObjectStore.prototype.get = function (key) {
+        if (key === 'taspe7_hymns_json') window.__hymnReads++;
+        return get.call(this, key);
+      };
+      const callbacks = new Map(); let next = 0;
+      window.requestIdleCallback = callback => { callbacks.set(++next, callback); return next; };
+      window.cancelIdleCallback = id => callbacks.delete(id);
+      window.__runStartupIdle = () => {
+        const pending = [...callbacks.values()]; callbacks.clear();
+        pending.forEach(callback => callback({ timeRemaining: () => 50, didTimeout: false }));
+      };
+    });
+    await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Save Note', exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.__hymnReads), 0);
+    await page.evaluate(() => window.__runStartupIdle());
+    await page.waitForFunction(() => window.__hymnReads === 1);
+    await controlled(page);
+    await taps(page, ['/hymns']); await page.waitForURL(base + '/hymns/');
+    await page.getByText('Old hymn', { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.__hymnReads), 1);
+  } finally { await context.close(); }
+});
+
 function bibleApi(requests) {
   return async route => {
     const pathname = new URL(route.request().url()).pathname;

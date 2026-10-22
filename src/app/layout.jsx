@@ -52,7 +52,7 @@ export default function RootLayout({
             <head>
                 <script
                     dangerouslySetInnerHTML={{
-                        __html: `(function(){try{var t=localStorage.getItem("taspe7_theme");if(t==="dark"){document.documentElement.classList.add("dark");document.documentElement.setAttribute("data-theme","dark");}}catch(_){}})();`
+                        __html: `(function(){try{var r=document.documentElement,t=localStorage.getItem("taspe7_theme"),l=localStorage.getItem("app-language");if(t==="dark"){r.classList.add("dark");r.setAttribute("data-theme","dark");}r.setAttribute("data-startup-language",["en","ar","de"].includes(l)?l:"ar");r.setAttribute("data-startup-session",localStorage.getItem("user_Taspe7_Token")&&localStorage.getItem("user_Taspe7_Username")?"returning":"guest");}catch(_){}})();`
                     }}
                 />
             </head>

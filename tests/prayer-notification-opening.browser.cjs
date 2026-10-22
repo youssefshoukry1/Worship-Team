@@ -39,6 +39,53 @@ const mockPrayerApi = (route, base) => route.request().url().startsWith(base) ? 
   : route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } });
 const personalPrayers = count => Array.from({ length: count }, (_, i) => ({ _id: 'personal-' + i, words: 'Personal prayer ' + i, date: '2026-10-01T00:00:00.000Z' }));
 
+test('returning users see the Prayer layout before JavaScript loads, then receive the authenticated screen', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  let release; const scriptsReady = new Promise(resolve => { release = resolve; });
+  try {
+    const page = await context.newPage();
+    const errors = []; page.on('pageerror', error => errors.push(error.message));
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    await seed(page, personalPrayers(1));
+    await page.route('**/_next/static/chunks/*.js', async route => {
+      await scriptsReady; await route.continue().catch(() => {});
+    });
+    await page.goto(base + '/', { waitUntil: 'commit' });
+    const shell = page.locator('[data-startup-prayer]');
+    await shell.waitFor({ state: 'visible' });
+    assert.equal(await shell.getAttribute('inert'), '');
+    assert.equal(await page.locator('[data-startup-loading]').isVisible(), false);
+    assert.equal(await page.locator('textarea').count(), 0, 'The public shell must not contain an editable draft');
+    assert.equal(await page.getByText('Personal prayer 0', { exact: true }).count(), 0, 'Private data remains behind authentication');
+    const screenshot = path.join(require('node:os').tmpdir(), 'wasla-startup-shell.png');
+    await page.screenshot({ path: screenshot });
+    release();
+    await page.getByRole('button', { name: 'Save Note', exact: true }).waitFor();
+    await page.getByText('Personal prayer 0', { exact: true }).waitFor();
+    assert.equal(await page.locator('[data-startup-shell]').count(), 0);
+    assert.deepEqual(errors, []);
+  } finally { release(); await context.close(); }
+});
+
+test('the startup layout never exposes Prayer for signed-out users while scripts are loading', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let release; const scriptsReady = new Promise(resolve => { release = resolve; });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    await page.route('**/_next/static/chunks/*.js', async route => {
+      await scriptsReady; await route.continue().catch(() => {});
+    });
+    await page.goto(base + '/', { waitUntil: 'commit' });
+    await page.getByRole('status', { name: 'Loading', exact: true }).waitFor({ state: 'visible' });
+    assert.equal(await page.locator('[data-startup-loading] img, [data-startup-loading] svg').count(), 0);
+    assert.equal(await page.locator('[data-startup-prayer]').isVisible(), false);
+    release();
+    await page.locator('input[type="email"]').waitFor();
+    assert.equal(await page.locator('nav[aria-label="Primary navigation"]').count(), 0);
+  } finally { release(); await context.close(); }
+});
+
 test('app startup renders Prayer directly without an empty navigation shell or a second document navigation', async t => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   let release; const pending = new Promise(resolve => { release = resolve; });
@@ -215,6 +262,48 @@ test('large prayer lists remain accessible when IntersectionObserver is unavaila
   } finally { await context.close(); }
 });
 
+test('recording starts, pauses and cancels while waveform code is still loading', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let release; const pending = new Promise(resolve => { release = resolve; });
+  let seen; const started = new Promise(resolve => { seen = resolve; });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    const chunkDir = path.join(root, '_next/static/chunks');
+    const chunks = new Set(fs.readdirSync(chunkDir).filter(name => name.endsWith('.js') && fs.readFileSync(path.join(chunkDir, name), 'utf8').includes('continuousWaveformDuration')));
+    assert.ok(chunks.size > 0);
+    await page.route('**/_next/static/chunks/*.js', async route => {
+      if (chunks.has(path.basename(new URL(route.request().url()).pathname))) { seen(); await pending; }
+      await route.continue().catch(() => {});
+    });
+    await page.addInitScript(() => {
+      window.__micCalls = 0;
+      navigator.mediaDevices.getUserMedia = async () => {
+        window.__micCalls++;
+        const audio = new AudioContext(), tone = audio.createOscillator(), destination = audio.createMediaStreamDestination();
+        tone.connect(destination); tone.start(); await audio.resume();
+        window.__fakeMicStream = destination.stream;
+        return destination.stream;
+      };
+      const Recorder = window.MediaRecorder;
+      window.MediaRecorder = class extends Recorder {
+        constructor(...args) { super(...args); window.__prayerRecorder = this; }
+      };
+    });
+    await seed(page, []); await page.goto(base + '/');
+    await page.getByRole('button', { name: 'Record voice', exact: true }).click();
+    await started;
+    assert.equal(await page.evaluate(() => window.__prayerRecorder.state), 'recording');
+    await page.getByRole('button', { name: 'Pause recording', exact: true }).click();
+    assert.equal(await page.evaluate(() => window.__prayerRecorder.state), 'paused');
+    await page.getByRole('button', { name: 'Discard recording', exact: true }).click();
+    await page.waitForFunction(() => window.__prayerRecorder.state === 'inactive' && window.__fakeMicStream.getTracks().every(track => track.readyState === 'ended'));
+    release();
+    await page.getByRole('button', { name: 'Record voice', exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.__micCalls), 1);
+  } finally { release(); await context.close(); }
+});
+
 test('a live microphone recording survives composer updates and offscreen-card loading', async () => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
@@ -237,7 +326,9 @@ test('a live microphone recording survives composer updates and offscreen-card l
     await page.getByRole('button', { name: 'Record voice', exact: true }).click();
     await page.getByRole('button', { name: 'Discard recording', exact: true }).waitFor();
     await page.getByRole('textbox').first().fill('Draft written while recording');
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    // A trusted user scroll remains allowed while typing; the app intentionally
+    // blocks programmatic scroll jumps while the prayer input is focused.
+    await page.mouse.wheel(0, 100000);
     await page.locator('[data-prayer-id="personal-199"]').getByText('Personal prayer 199', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.__prayerRecorder.state), 'recording');
     await page.getByRole('button', { name: 'Pause recording', exact: true }).click();

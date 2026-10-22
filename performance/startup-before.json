@@ -1,0 +1,59 @@
+{
+  "environment": {
+    "browser": "155.0.8059.85",
+    "cpu": "12th Gen Intel(R) Core(TM) i5-12450H",
+    "viewport": "390x844",
+    "backend": "all backend requests deliberately stalled",
+    "data": "returning signed-in user; empty saved-prayer list",
+    "note": "Fresh browser context per trial; localhost assets; 4x CPU simulates a slower CPU, not a phone. Native process/WebView startup is excluded."
+  },
+  "profiles": [
+    {
+      "cpuRate": 1,
+      "trials": [
+        {
+          "layout": 260.90000000037253,
+          "editor": 261
+        },
+        {
+          "layout": 205.59999999962747,
+          "editor": 205.59999999962747
+        },
+        {
+          "layout": 216,
+          "editor": 216
+        }
+      ],
+      "medianLayoutMs": 216,
+      "medianEditorMs": 216
+    },
+    {
+      "cpuRate": 4,
+      "trials": [
+        {
+          "layout": 1113.6000000014901,
+          "editor": 1113.6000000014901
+        },
+        {
+          "layout": 1055.4000000003725,
+          "editor": 1055.699999999255
+        },
+        {
+          "layout": 924.4000000003725,
+          "editor": 924.4000000003725
+        }
+      ],
+      "medianLayoutMs": 1055.4000000003725,
+      "medianEditorMs": 1055.699999999255
+    }
+  ],
+  "entryScripts": {
+    "bytes": 1174224,
+    "gzipBytes": 368140
+  },
+  "definitions": {
+    "layout": "First rendering opportunity with the Prayer layout present. After optimization this is a public, inert shell; it cannot accept input.",
+    "editor": "First rendering opportunity with the authenticated Prayer textarea present and not disabled. Does not wait for backend requests.",
+    "scope": "Web document startup only. These are three-trial medians on desktop Chrome; CPU throttling does not reproduce a real phone or native process/WebView startup."
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "definitions": {
+    "layout": "First rendering opportunity with the Prayer layout present. After optimization this is a public, inert shell; it cannot accept input.",
+    "editor": "First rendering opportunity with the authenticated Prayer textarea present and not disabled. Does not wait for backend requests.",
+    "scope": "Web document startup only. These are three-trial medians on desktop Chrome; CPU throttling does not reproduce a real phone or native process/WebView startup."
+  },
+  "entryScripts": {
+    "before": {
+      "bytes": 1174224,
+      "gzipBytes": 368140
+    },
+    "after": {
+      "bytes": 1072005,
+      "gzipBytes": 339202
+    },
+    "rawReductionPercent": 8.705238523484448,
+    "gzipReductionPercent": 7.86059651219645
+  },
+  "profiles": [
+    {
+      "cpuRate": 1,
+      "layoutMs": {
+        "before": 216,
+        "after": 75.30000000074506
+      },
+      "editorMs": {
+        "before": 216,
+        "after": 199.7000000011176
+      }
+    },
+    {
+      "cpuRate": 4,
+      "layoutMs": {
+        "before": 1055.4000000003725,
+        "after": 231
+      },
+      "editorMs": {
+        "before": 1055.699999999255,
+        "after": 1020.6000000014901
+      }
+    }
+  ]
+}

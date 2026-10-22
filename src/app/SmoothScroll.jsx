@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import Lenis from "lenis";
 import { preserveManualInputScroll } from "./utils/manualInputScroll";
 
 export default function SmoothScroll({ children }) {
@@ -42,36 +41,40 @@ export default function SmoothScroll({ children }) {
 
     if (isTouchOrMobile) return preserveManualInputScroll();
 
-    const lenis = new Lenis({
-      duration: 1,
-      lerp: 0.1,
-      smoothWheel: true,
-      wheelMultiplier: 1,
-      touchMultiplier: 1,
-      infinite: false,
-      prevent: (node) => {
-        if (!node || typeof node !== "object") return false;
-        if (!(node instanceof HTMLElement)) return false;
+    let disposed = false, lenis, rafId;
+    import('lenis').then(({ default: Lenis }) => {
+      if (disposed) return;
+      lenis = new Lenis({
+        duration: 1,
+        lerp: 0.1,
+        smoothWheel: true,
+        wheelMultiplier: 1,
+        touchMultiplier: 1,
+        infinite: false,
+        prevent: (node) => {
+          if (!node || typeof node !== "object") return false;
+          if (!(node instanceof HTMLElement)) return false;
 
-        return (
-          node.hasAttribute("data-lenis-prevent") ||
-          node.hasAttribute("data-lenis-prevent-wheel") ||
-          node.hasAttribute("data-lenis-prevent-touch")
-        );
-      },
-    });
+          return (
+            node.hasAttribute("data-lenis-prevent") ||
+            node.hasAttribute("data-lenis-prevent-wheel") ||
+            node.hasAttribute("data-lenis-prevent-touch")
+          );
+        },
+      });
 
-    let rafId;
-    function raf(time) {
-      lenis.raf(time);
+      function raf(time) {
+        lenis.raf(time);
+        rafId = requestAnimationFrame(raf);
+      }
+
       rafId = requestAnimationFrame(raf);
-    }
-
-    rafId = requestAnimationFrame(raf);
+    }).catch(error => console.warn('Smooth scrolling unavailable:', error));
 
     return () => {
+      disposed = true;
       if (rafId) cancelAnimationFrame(rafId);
-      lenis.destroy();
+      lenis?.destroy();
     };
   }, []);
 

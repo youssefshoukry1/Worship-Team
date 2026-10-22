@@ -27,9 +27,17 @@ export default function ReactQueryProvider({ children }) {
   }));
 
   useEffect(() => {
-    if (isApp) {
-      void queryClient.prefetchQuery(downloadedHymnsQueryOptions);
+    if (!isApp) return;
+    // Reading the entire offline hymn library is a warm-up, not a requirement
+    // for Prayer. Let the first screen paint before cloning it from storage.
+    // Opening Hymns sooner still starts the same deduplicated query immediately.
+    const warmHymns = () => { void queryClient.prefetchQuery(downloadedHymnsQueryOptions); };
+    if (typeof window.requestIdleCallback === 'function') {
+      const idle = window.requestIdleCallback(warmHymns, { timeout: 2000 });
+      return () => window.cancelIdleCallback(idle);
     }
+    const timer = window.setTimeout(warmHymns, 100);
+    return () => window.clearTimeout(timer);
   }, [queryClient]);
 
   return (

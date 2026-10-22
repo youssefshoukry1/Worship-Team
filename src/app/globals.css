@@ -37,6 +37,16 @@ body {
   transition: background-color 0.15s ease-out;
 }
 
+/* The exported HTML can show the public Prayer layout while JavaScript loads.
+   No private data is rendered, and the authentication gate still owns access. */
+[data-startup-prayer] { display: none; }
+html[data-startup-session="returning"] [data-startup-prayer] { display: block; }
+html[data-startup-session="returning"] [data-prayer-entry="true"] [data-startup-loading] { display: none; }
+[data-startup-lang] { display: none; }
+html[data-startup-language="en"] [data-startup-lang="en"],
+html[data-startup-language="ar"] [data-startup-lang="ar"],
+html[data-startup-language="de"] [data-startup-lang="de"] { display: inline; }
+
 /* Focus and keyboard layout changes must not anchor the page to an input. */
 .manual-input-scroll:has(textarea:focus, input:focus, [contenteditable="true"]:focus),
 .manual-input-scroll:has(textarea:focus, input:focus, [contenteditable="true"]:focus) body {

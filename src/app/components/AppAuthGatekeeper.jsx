@@ -4,14 +4,16 @@ import React, { useContext, useRef, useState, useEffect, useSyncExternalStore } 
 import { usePathname, useRouter } from "next/navigation";
 import axios from "axios";
 import { UserContext } from "../context/User_Context";
-import AuthForm from "./AuthForm";
-import ClaimUsernameModal from "./ClaimUsernameModal";
+import dynamic from 'next/dynamic';
+import AppStartupShell from './AppStartupShell';
 import Navbar from "../Navbar/Navbar";
 import Footer from "../Footer/Footer";
 import PageTransition from "../page-transition/page-transition";
 import BottomNav from "./BottomNav";
 
 const PUBLIC_ROUTES = ["/privacy-policy"];
+const AuthForm = dynamic(() => import('./AuthForm'), { ssr: false, loading: () => <AppStartupShell /> });
+const ClaimUsernameModal = dynamic(() => import('./ClaimUsernameModal'), { ssr: false, loading: () => <AppStartupShell /> });
 
 // React 19 recommended hydration check
 const subscribe = () => () => {};
@@ -22,6 +24,7 @@ export default function AppAuthGatekeeper({ children }) {
   const isMounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const { isLogin, username, setUsername, profilePhoto, setProfilePhoto } = useContext(UserContext);
   const pathname = usePathname();
+  const isPrayerEntry = ['/', '/index.html', '/pray', '/pray/', '/pray/index.html'].includes(pathname);
   const router = useRouter();
   const isCheckingRef = useRef(false);
 
@@ -77,13 +80,9 @@ export default function AppAuthGatekeeper({ children }) {
     }
   }, [isLogin, username, setUsername, setProfilePhoto, apiBase]);
 
-  // Initial SSR / mount loader
+  // Static public layout is ready before hydration; private data remains gated.
   if (!isMounted) {
-    return (
-      <div className="min-h-screen bg-[#020617] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <AppStartupShell prayerEntry={isPrayerEntry} />;
   }
 
   // Allow public routes without authentication
