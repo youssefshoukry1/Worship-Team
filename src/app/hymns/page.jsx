@@ -27,15 +27,17 @@ import { invalidateProfile, readCachedProfile, refreshProfile, writeCachedProfil
 import { buildHymnPresentationSlides, normalizeStanzaForEdit, prepareLyricsForSave } from '../utils/hymnSlides';
 import { useCategoryHymnsTour } from '../Tour/useCategoryHymnsTour';
 import { useBibleForm } from '../bible_form/useBibleForm';
-import { createDeferredFeature } from '../components/DeferredFeature';
+import { createDeferredFeature, createFeatureBoundary } from '../components/DeferredFeature';
+import HymnLyricsView from './HymnLyrics';
+import HymnPresentationView from './HymnPresentation';
 import { useLocalHymns } from '../hooks/useLocalHymns';
 import { selectLocalHymns } from '../utils/hymnSearch';
 
 const BibleForm = createDeferredFeature(() => import('../bible_form/BibleReader'), 'Bible reader');
 const Pray = createDeferredFeature(() => import('../pray/page'), 'prayer form', { inline: true });
 const HymnEditor = createDeferredFeature(() => import('./HymnEditor'), 'hymn editor');
-const HymnLyrics = createDeferredFeature(() => import('./HymnLyrics'), 'lyrics');
-const HymnPresentation = createDeferredFeature(() => import('./HymnPresentation'), 'presentation');
+const HymnLyrics = createFeatureBoundary(HymnLyricsView, 'lyrics');
+const HymnPresentation = createFeatureBoundary(HymnPresentationView, 'presentation');
 
 const API_ROOT = getApiBaseUrl();
 const EMPTY_HYMNS = [];
@@ -280,7 +282,7 @@ export default function Category_Humns() {
   }, [showDataShow]);
 
   const dataShowSlides = React.useMemo(() => {
-    if (!selectedLyricsHymn?.lyrics) return [];
+    if (!showDataShow || !selectedLyricsHymn?.lyrics) return [];
 
     let lyricsArray = selectedLyricsHymn.lyrics;
 
@@ -310,6 +312,7 @@ export default function Category_Humns() {
 
     return [];
   }, [
+    showDataShow,
     selectedLyricsHymn?.lyrics,
     selectedLyricsHymn?.transposeStep,
     showChords,

@@ -2,7 +2,7 @@
 
 import LocalFullscreenButton from '../presentation/local/LocalFullscreenButton';
 import { motion, AnimatePresence } from 'framer-motion';
-import Portal from '../Portal/Portal';
+import { createPortal } from 'react-dom';
 import { PlusCircle, X, Search, Eye, EyeOff, Tv2, Mic, MicOff, ChevronDown, Loader2, Moon, RotateCcw, ZoomOut, ZoomIn } from 'lucide-react';
 import { buildHymnPresentationSlides } from '../utils/hymnSlides';
 
@@ -69,8 +69,9 @@ export default function HymnPresentation({ view }) {
     toggleAudio,
     toggleBlackout
   } = view;
-  return (
-    <Portal>
+  // Opened by a client action, so render into the document on the first commit.
+  if (typeof document === 'undefined') return null;
+  return createPortal(
       <div id="showDataContainer" data-feature="hymn-presentation" className="fixed inset-0 z-10000 bg-[#020617] flex flex-col" data-lenis-prevent>
         {/* ── Shared Header ── */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-[#0f172a] border-b border-white/10 shrink-0 z-20">
@@ -113,7 +114,7 @@ export default function HymnPresentation({ view }) {
         {/* ══ MOBILE VIEW ══ */}
         <div className="flex-1 flex flex-col sm:hidden min-h-0">
           <div id="mobileSlideArea" className="flex-1 flex flex-col min-h-0 relative">
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={dataShowIndex}
                 initial={{ opacity: 0, x: -30 }}
@@ -740,7 +741,7 @@ export default function HymnPresentation({ view }) {
     
         </div>
     
-      </div >
-    </Portal >
+      </div>,
+    document.body
   );
 }

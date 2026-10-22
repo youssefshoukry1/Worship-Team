@@ -37,6 +37,21 @@ body {
   transition: background-color 0.15s ease-out;
 }
 
+/* Focus and keyboard layout changes must not anchor the page to an input. */
+.manual-input-scroll:has(textarea:focus, input:focus, [contenteditable="true"]:focus),
+.manual-input-scroll:has(textarea:focus, input:focus, [contenteditable="true"]:focus) body {
+  overflow-anchor: none;
+}
+
+/* iOS zooms small form text on focus, moving the viewport in the process. */
+@media (pointer: coarse) {
+  .manual-input-scroll textarea,
+  .manual-input-scroll input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  .manual-input-scroll [contenteditable="true"] {
+    font-size: max(16px, 1em);
+  }
+}
+
 ::-webkit-scrollbar {
   width: 3px; 
   height: 3px;

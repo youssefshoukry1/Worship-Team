@@ -20,6 +20,26 @@ function FeatureStatus({ label, error, retry, close, inline }) {
   );
 }
 
+// Frequently opened screens can load with their route and still isolate render
+// errors, without passing through Suspense's loading screen on every mount.
+export function createFeatureBoundary(View, label) {
+  return class FeatureBoundary extends Component {
+    state = { error: null };
+
+    static getDerivedStateFromError(error) { return { error }; }
+
+    retry = () => this.setState({ error: null });
+
+    render() {
+      const { onLoadClose, ...props } = this.props;
+      if (this.state.error) {
+        return <FeatureStatus label={label} error={this.state.error} retry={this.retry} close={onLoadClose} />;
+      }
+      return <View {...props} />;
+    }
+  };
+}
+
 // Create boundaries at module scope. Loading or render errors stay local to the
 // panel, so dismissing them keeps the parent page and background work running.
 export function createDeferredFeature(load, label, { inline = false } = {}) {

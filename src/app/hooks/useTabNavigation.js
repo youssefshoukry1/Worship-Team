@@ -6,6 +6,9 @@ import { ensureNavigationServiceWorker, navigateDocumentFallback } from '../util
 
 export function normalizeTabPath(path) {
   const routePath = (path || '/').replace(/\/index\.html\/?$/i, '/');
+  // The launch route renders Prayer directly, including native index.html URLs.
+  // Treat both addresses as the same tab so a tap preserves the current draft.
+  if (routePath === '/') return '/pray/';
   return routePath.endsWith('/') ? routePath : `${routePath}/`;
 }
 

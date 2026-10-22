@@ -1,15 +1,4 @@
-"use client";
-
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
-export default function Home() {
-    const router = useRouter();
-
-    useEffect(() => {
-        router.replace("/pray");
-    }, [router]);
-
-    return null;
-}
+// The app launches at /. Render the same Prayer screen in the entry route
+// instead of committing an empty page and fetching a second route after mount.
+export { default } from './pray/page';
 

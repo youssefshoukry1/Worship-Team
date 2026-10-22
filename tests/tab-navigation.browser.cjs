@@ -506,14 +506,14 @@ async function featurePage(api) {
     await new Promise(resolve => {
       const tx = db.transaction('bible_store', 'readwrite');
       tx.objectStore('bible_store').put([{ _id: 'old', title: 'Lazy hymn', party: ['all'], scale: 'C', relatedChords: 'C G', BPM: 120, timeSignature: '4/4',
-        lyrics: [{ _id: 'stanza', type: 'verse', title: '1', text: '[C] First line\nSecond line', slideMode: 'manual', slideBreaks: [1] }], usageCount: 1 }], 'taspe7_hymns_json');
+        lyrics: [{ _id: 'stanza', type: 'verse', title: '1', text: '[C] First line\nSecond line', slideMode: 'manual', slideBreaks: [0] }], usageCount: 1 }], 'taspe7_hymns_json');
       tx.oncomplete = resolve;
     }); db.close();
   });
   return { context, page };
 }
 
-test('Hymns defers reader/editor/lyrics/presentation chunks until requested and editing still saves', async () => {
+test('Hymns readies lyrics/presentation with the route while reader/editor stay deferred and editing still saves', async () => {
   let saved;
   const { context, page } = await featurePage(async route => {
     if (route.request().method() === 'PATCH' && new URL(route.request().url()).pathname.endsWith('/hymns/old')) {
@@ -528,7 +528,8 @@ test('Hymns defers reader/editor/lyrics/presentation chunks until requested and 
   try {
     assert.ok(chunks.every(group => group.size > 0));
     await openHymns(page); await controlled(page); await page.getByText('Lazy hymn', { exact: true }).waitFor();
-    assert.ok(chunks.every(group => !loaded(group)));
+    assert.equal(loaded(chunks[0]), false); assert.equal(loaded(chunks[3]), false);
+    assert.equal(loaded(chunks[1]), true); assert.equal(loaded(chunks[2]), true);
     await page.getByRole('button', { name: 'Lyrics', exact: true }).click();
     const lyrics = page.locator('[data-feature="hymn-lyrics"]');
     await lyrics.getByText('First line', { exact: false }).first().waitFor();
@@ -540,7 +541,7 @@ test('Hymns defers reader/editor/lyrics/presentation chunks until requested and 
     await editor.getByRole('button', { name: 'Update Song', exact: true }).click();
     await page.getByText('Updated lazy hymn', { exact: true }).waitFor();
     assert.equal(saved.title, 'Updated lazy hymn'); assert.equal(saved.lyrics[0].text, '[C] First line\nSecond line');
-    assert.equal(loaded(chunks[0]), true); assert.equal(loaded(chunks[2]), false);
+    assert.equal(loaded(chunks[0]), true);
     await page.locator('#tour-presentation-desktop').click(); await page.locator('#showDataContainer').waitFor();
     assert.equal(loaded(chunks[2]), true);
     await page.getByRole('button', { name: 'Close', exact: true }).click();
@@ -550,26 +551,50 @@ test('Hymns defers reader/editor/lyrics/presentation chunks until requested and 
   } finally { await context.close(); }
 });
 
-test('a presentation can be dismissed while its chunk loads and reopened afterward', async () => {
+test('lyrics and presentation open on first and repeated taps without a loading overlay', async t => {
   const { context, page } = await featurePage();
-  const files = featureChunks('hymn-presentation');
-  let release; const pending = new Promise(resolve => { release = resolve; });
-  await page.route('**/_next/static/chunks/*.js', async route => {
-    if (files.has(path.basename(new URL(route.request().url()).pathname))) await pending;
-    return route.continue().catch(() => {});
-  });
   try {
-    await openHymns(page); await controlled(page); await page.locator('#tour-presentation-desktop').click();
-    await page.getByText('Loading presentation…', { exact: true }).waitFor();
-    await page.getByRole('button', { name: 'Close', exact: true }).click(); release();
-    await page.waitForTimeout(200); assert.equal(await page.locator('#showDataContainer').count(), 0);
-    await page.locator('#tour-presentation-desktop').click(); await page.locator('#showDataContainer').waitFor();
-  } finally { release(); await context.close(); }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openHymns(page); await controlled(page); await page.getByText('Lazy hymn', { exact: true }).waitFor();
+    await page.evaluate(() => {
+      window.__panelLoadingScreens = [];
+      new MutationObserver(records => {
+        for (const record of records) for (const node of record.addedNodes) {
+          if (/Loading (lyrics|presentation)/.test(node.textContent || '')) window.__panelLoadingScreens.push(node.textContent);
+        }
+      }).observe(document.body, { childList: true, subtree: true });
+    });
+    const timings = [];
+    const open = async (button, selector) => {
+      await button.evaluate(button => { window.__panelTap = performance.now(); button.click(); });
+      await page.locator(selector).waitFor();
+      timings.push(await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => resolve(performance.now() - window.__panelTap)))));
+    };
+    for (let i = 0; i < 3; i++) {
+      await open(page.getByRole('button', { name: 'Lyrics', exact: true }), '[data-feature="hymn-lyrics"]');
+      const lyrics = page.locator('[data-feature="hymn-lyrics"]');
+      await lyrics.getByText('First line', { exact: false }).first().waitFor();
+      await lyrics.getByRole('button', { name: 'A+', exact: true }).click();
+      await lyrics.getByRole('button', { name: 'Warm', exact: true }).click();
+      await lyrics.locator('button').filter({ has: page.locator('svg.lucide-x') }).first().click();
+      await open(page.locator('#tour-presentation-mobile'), '#showDataContainer');
+      await page.locator('#mobileSlideArea').getByText('First line', { exact: false }).first().waitFor();
+      // The opening optimization must still prepare all slides and attach the
+      // controls immediately; later slide changes retain their animation.
+      await page.keyboard.press('ArrowLeft');
+      await page.locator('#mobileSlideArea').getByText('Second line', { exact: true }).waitFor();
+      await page.keyboard.press('ArrowRight');
+      await page.locator('#mobileSlideArea').getByText('First line', { exact: false }).first().waitFor();
+      await page.getByRole('button', { name: 'Close', exact: true }).click();
+    }
+    t.diagnostic(`Tap to panel and next frame on desktop Chrome with a mobile viewport (lyrics/presentation pairs, ms): ${timings.map(n => n.toFixed(1)).join(', ')}`);
+    assert.deepEqual(await page.evaluate(() => window.__panelLoadingScreens), []);
+  } finally { await context.close(); }
 });
 
 test('a failed feature chunk stays dismissible and offers an explicit reload to recover', async () => {
   const { context, page } = await featurePage();
-  const files = featureChunks('hymn-lyrics'); let fail = true;
+  const files = featureChunks('hymn-editor'); let fail = true;
   await page.route('**/_next/static/chunks/*.js', route => {
     if (fail && files.has(path.basename(new URL(route.request().url()).pathname))) return route.abort();
     return route.continue();
@@ -577,18 +602,18 @@ test('a failed feature chunk stays dismissible and offers an explicit reload to 
   try {
     await openHymns(page); await controlled(page);
     const session = await page.evaluate(() => window.__navigationSession);
-    await page.getByRole('button', { name: 'Lyrics', exact: true }).click();
-    await page.getByRole('alert').getByText('Unable to open lyrics.', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Edit Song', exact: true }).click();
+    await page.getByRole('alert').getByText('Unable to open hymn editor.', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Close', exact: true }).click();
     assert.equal(await page.evaluate(() => window.__navigationSession), session);
     await page.getByText('Lazy hymn', { exact: true }).waitFor();
-    await page.getByRole('button', { name: 'Lyrics', exact: true }).click();
+    await page.getByRole('button', { name: 'Edit Song', exact: true }).click();
     await page.getByRole('alert').waitFor();
     fail = false;
     await page.getByRole('button', { name: 'Reload app', exact: true }).click();
     await page.waitForFunction(previous => window.__navigationSession !== previous, session);
-    await page.getByRole('button', { name: 'Lyrics', exact: true }).click();
-    await page.locator('[data-feature="hymn-lyrics"]').getByText('First line', { exact: false }).first().waitFor();
+    await page.getByRole('button', { name: 'Edit Song', exact: true }).click();
+    await page.locator('[data-feature="hymn-editor"]').getByPlaceholder('e.g. Amazing Grace').waitFor();
   } finally { await context.close(); }
 });
 

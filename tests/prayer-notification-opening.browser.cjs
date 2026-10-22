@@ -39,6 +39,94 @@ const mockPrayerApi = (route, base) => route.request().url().startsWith(base) ? 
   : route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } });
 const personalPrayers = count => Array.from({ length: count }, (_, i) => ({ _id: 'personal-' + i, words: 'Personal prayer ' + i, date: '2026-10-01T00:00:00.000Z' }));
 
+test('app startup renders Prayer directly without an empty navigation shell or a second document navigation', async t => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let release; const pending = new Promise(resolve => { release = resolve; });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', async route => {
+      if (route.request().url().startsWith(base)) {
+        // Expose the old redirect gap even on a fast desktop with local assets.
+        if (new URL(route.request().url()).pathname.startsWith('/pray')) await new Promise(resolve => setTimeout(resolve, 250));
+        return route.continue();
+      }
+      await pending;
+      await route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } }).catch(() => {});
+    });
+    await seed(page, personalPrayers(1));
+    await page.addInitScript(() => {
+      window.__startup = { emptyShellFrames: Number(sessionStorage.getItem('startup_empty_frames') || 0), frames: 0, session: Math.random() };
+      const sample = () => {
+        window.__startup.frames++;
+        if (document.querySelector('nav[aria-label="Primary navigation"]') && !document.querySelector('textarea')) {
+          window.__startup.emptyShellFrames++;
+          sessionStorage.setItem('startup_empty_frames', String(window.__startup.emptyShellFrames));
+        }
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
+    const prayerDocumentRequests = [];
+    page.on('request', request => {
+      if (request.isNavigationRequest() && new URL(request.url()).pathname.startsWith('/pray')) prayerDocumentRequests.push(request.url());
+    });
+    // No service worker or warmed route cache: reproduce a cold app launch.
+    await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Save Note', exact: true }).waitFor();
+    await page.getByText('Personal prayer 0', { exact: true }).waitFor();
+    const startup = await page.evaluate(() => window.__startup);
+    t.diagnostic(`Startup frames with navigation but no Prayer composer: ${startup.emptyShellFrames}`);
+    assert.equal(startup.emptyShellFrames, 0);
+    assert.equal(new URL(page.url()).pathname, '/');
+    assert.deepEqual(prayerDocumentRequests, []);
+    const prayTab = page.locator('nav[aria-label="Primary navigation"] a').filter({ hasText: 'Pray' });
+    assert.equal(await prayTab.getAttribute('aria-current'), 'page');
+    await page.getByRole('textbox').first().fill('Keep this startup draft');
+    await prayTab.click();
+    await page.waitForTimeout(100);
+    assert.equal(new URL(page.url()).pathname, '/');
+    assert.equal(await page.getByRole('textbox').first().inputValue(), 'Keep this startup draft');
+    assert.equal(await page.evaluate(() => window.__startup.session), startup.session);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Save Note', exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.__startup.emptyShellFrames), 0);
+  } finally { release(); await context.close(); }
+});
+
+test('the native index.html entry keeps Prayer drafts and opens notification targets without reloading', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    await seed(page, [received('launch-target')]);
+    await page.goto(base + '/index.html');
+    await page.getByRole('button', { name: 'Save Note', exact: true }).waitFor();
+    const draft = page.getByRole('textbox').first();
+    await draft.fill('Native launch draft');
+    await page.locator('nav[aria-label="Primary navigation"] a[aria-current="page"]').filter({ hasText: 'Pray' }).click();
+    assert.equal(await draft.inputValue(), 'Native launch draft');
+    const href = page.url();
+    assert.equal(await page.evaluate(() => !window.dispatchEvent(new CustomEvent('taspe7:open-prayer', {
+      detail: { href: '/pray/?notificationType=PRAY_SHARED&shareId=launch-target' }, cancelable: true,
+    }))), true);
+    await page.locator('[data-prayer-id="received-launch-target"]').getByRole('textbox').waitFor();
+    assert.equal(page.url(), href);
+    assert.equal(await draft.inputValue(), 'Native launch draft');
+  } finally { await context.close(); }
+});
+
+test('the direct Prayer entry still requires sign-in before mounting the app', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    await page.goto(base + '/');
+    await page.locator('input[type="email"]').waitFor();
+    assert.equal(await page.locator('nav[aria-label="Primary navigation"]').count(), 0);
+    assert.equal(await page.getByRole('button', { name: 'Save Note', exact: true }).count(), 0);
+  } finally { await context.close(); }
+});
+
 test('large prayer lists defer offscreen controls while keyboard access, editing, saving and deletion still work', async () => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
@@ -251,10 +339,15 @@ test('native backup settings save intervals and manual progress continues after 
       await select.selectOption(String(days));
       await page.waitForFunction(days => JSON.parse(localStorage.getItem('my_prays_schedule_tester') || '{}').intervalDays === days, days);
     }
+    const wifi = page.getByRole('checkbox', { name: 'Wi-Fi only' });
+    await wifi.uncheck();
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('my_prays_schedule_tester')).wifiOnly === false);
+    await wifi.check();
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('my_prays_schedule_tester')).wifiOnly === true);
     await page.getByRole('button', { name: 'Backup', exact: true }).click();
     await page.waitForFunction(() => window.backupCalls.some(call => call.method === 'runNow'));
     await page.getByText('57%', { exact: true }).waitFor();
-    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByRole('button', { name: 'close', exact: true }).click();
     await select.waitFor({ state: 'hidden' });
     assert.equal(await page.evaluate(() => window.backupStatus.state), 'running');
     await page.evaluate(() => { window.backupStatus = { ...window.backupStatus, state: 'complete', progress: 100, lastSuccess: Date.now() }; });
@@ -456,4 +549,85 @@ test('a late background response cannot restore a request that the user has alre
     await page.getByRole('button', { name: /My Friends/ }).click();
     await page.locator('[data-friend-id="alice"]').getByText('Alice', { exact: true }).waitFor({ state: 'visible' });
   } finally { release(); await context.close(); }
+});
+
+for (const theme of ['light', 'dark']) {
+  for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 667, height: 375 }, { width: 1280, height: 800 }]) {
+    test(`backup dialog stays above cards and navigation in ${theme} mode at ${viewport.width}x${viewport.height}`, async () => {
+      const context = await browser.newContext({ viewport });
+      try {
+        const page = await context.newPage();
+        const accounts = Array.from({ length: 8 }, (_, index) => ({ email: `long.backup.account.${index}@example.com`, isDefault: index === 0 }));
+        await page.route('**/*', route => {
+          if (route.request().url().startsWith(base)) return route.continue();
+          if (route.request().url().includes('/backup/drive-accounts')) return route.fulfill({ json: { accounts } });
+          return mockPrayerApi(route, base);
+        });
+        await seed(page, personalPrayers(3));
+        await page.evaluate(theme => localStorage.setItem('taspe7_theme', theme), theme);
+        await page.goto(base + '/pray/');
+        const trigger = page.getByRole('button', { name: 'Settings', exact: true });
+        await trigger.click();
+        const dialog = page.getByRole('dialog', { name: 'My Prays Backup' });
+        const account = dialog.getByRole('button', { name: 'Change Drive Email: ' + accounts[0].email, exact: true });
+        await account.waitFor();
+        assert.equal(await dialog.evaluate(el => el.matches(':modal')), true);
+        assert.equal(await page.evaluate(() => document.body.style.overflow), 'hidden');
+        assert.equal(await dialog.getByRole('combobox', { name: 'Automatic backup' }).count(), 1);
+        assert.equal(await dialog.getByRole('combobox').isDisabled(), true);
+        assert.equal(await dialog.getByRole('checkbox', { name: 'Wi-Fi only' }).count(), 1);
+        assert.equal(await dialog.getByRole('checkbox').isChecked(), true);
+        const background = await dialog.evaluate(el => getComputedStyle(el).backgroundColor);
+        assert.equal(background, theme === 'dark' ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+        await account.click();
+        await dialog.getByText('Connected Google Accounts', { exact: true }).waitFor();
+        await dialog.getByRole('button', { name: 'Disconnect ' + accounts[7].email, exact: true }).scrollIntoViewIfNeeded();
+        assert.equal(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth), true);
+        const bounds = await dialog.boundingBox();
+        assert.ok(bounds.x >= 15 && bounds.y >= 15);
+        assert.ok(bounds.x + bounds.width <= viewport.width - 15 && bounds.y + bounds.height <= viewport.height - 15);
+        const disconnect = dialog.getByRole('button', { name: 'Disconnect ' + accounts[7].email, exact: true });
+        assert.equal(await disconnect.evaluate(el => {
+          const rect = el.getBoundingClientRect();
+          return el.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+        }), true, 'expanded accounts cannot be covered by cards or navigation');
+        await page.keyboard.press('Tab');
+        assert.equal(await dialog.evaluate(el => el.contains(document.activeElement)), true);
+        await page.keyboard.press('Escape');
+        await dialog.waitFor({ state: 'detached' });
+        assert.equal(await trigger.evaluate(el => el === document.activeElement), true);
+        assert.equal(await page.evaluate(() => document.body.style.overflow), '');
+        await trigger.click();
+        await dialog.waitFor();
+        assert.equal(await dialog.getByText('Connected Google Accounts', { exact: true }).count(), 0);
+        await page.mouse.click(4, 4);
+        await dialog.waitFor({ state: 'detached' });
+      } finally { await context.close(); }
+    });
+  }
+}
+
+test('mobile prayer typing keeps the page position through keyboard viewport changes', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    await seed(page, personalPrayers(3));
+    await page.goto(base + '/pray/');
+    const input = page.getByRole('textbox').first();
+    await input.waitFor();
+    const baseline = await page.evaluate(() => scrollY);
+    await input.tap();
+    assert.equal(await input.evaluate(el => getComputedStyle(el).fontSize), '16px');
+    await input.fill('Typing a prayer without moving the page');
+    await page.setViewportSize({ width: 390, height: 480 });
+    await page.evaluate(() => window.scrollBy({ top: 180, behavior: 'instant' }));
+    await page.waitForTimeout(100);
+    assert.equal(await page.evaluate(() => scrollY), baseline);
+    assert.equal(await input.inputValue(), 'Typing a prayer without moving the page');
+    await input.evaluate(el => el.blur());
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(100);
+    assert.equal(await page.evaluate(() => scrollY), baseline);
+  } finally { await context.close(); }
 });

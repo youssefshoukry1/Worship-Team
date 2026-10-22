@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Lenis from "lenis";
+import { preserveManualInputScroll } from "./utils/manualInputScroll";
 
 export default function SmoothScroll({ children }) {
   // Auto-hide scrollbars when scrolling stops
@@ -39,7 +40,7 @@ export default function SmoothScroll({ children }) {
       window.innerWidth <= 768 ||
       Boolean(window.Capacitor?.isNativePlatform?.());
 
-    if (isTouchOrMobile) return;
+    if (isTouchOrMobile) return preserveManualInputScroll();
 
     const lenis = new Lenis({
       duration: 1,

@@ -1,6 +1,6 @@
 'use client';
 
-import Portal from '../Portal/Portal';
+import { createPortal } from 'react-dom';
 import { X, Monitor, Guitar, EyeOff, Mic, Copy, Share2, ClipboardCheck } from 'lucide-react';
 
 export default function HymnLyrics({ view }) {
@@ -27,8 +27,10 @@ export default function HymnLyrics({ view }) {
     showChords,
     vocalsMode
   } = view;
-  return (
-    <Portal>
+  // This screen only mounts after a client action; its first commit can portal
+  // directly instead of spending a paint waiting for Portal's mount effect.
+  if (typeof document === 'undefined') return null;
+  return createPortal(
       <div data-feature="hymn-lyrics"
         className="fixed inset-0 z-9999 flex justify-center items-end sm:items-center bg-black/70"
       >
@@ -95,6 +97,7 @@ export default function HymnLyrics({ view }) {
                       </button>
     
                       <button
+                        aria-label="Close lyrics"
                         onClick={closeLyricsModal}
                         className={`p-2 rounded-full transition-all ${lyricsTheme === 'warm' ? 'hover:bg-black/5 text-black/40 hover:text-black' : 'hover:bg-white/5 text-white/40 hover:text-white'}`}
                       >
@@ -238,7 +241,7 @@ export default function HymnLyrics({ view }) {
             }`}
           />
         </div>
-      </div>
-    </Portal>
+      </div>,
+    document.body
   );
 }
