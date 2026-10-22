@@ -1028,6 +1028,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       if (token) headers.Authorization = `Bearer ${token}`;
       const { data } = await axios.post(`${API_ROOT}/ai/analyze-verse`, {
         verseId,
+        verseReference: getSelectedVersesRef(),
         textContent,
         analysisType
       }, { headers });
