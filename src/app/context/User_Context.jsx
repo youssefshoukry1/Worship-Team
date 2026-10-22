@@ -7,6 +7,7 @@ import { uploadProfilePhotoBlob } from '../utils/profilePhoto';
 import { saveAvatarBlob } from '../utils/avatarStorage';
 import { invalidateProfile, readCachedProfile, writeCachedProfile } from '../utils/profileCache';
 import { getApiBaseUrl } from '../utils/apiBase';
+import { recordLocalAppActivity } from '../utils/aiPersonalization';
 import { showToast } from '../components/ToastContainer';
 
 export const UserContext = createContext();
@@ -146,6 +147,31 @@ export default function UserContextProvider({ children }) {
       syncFcmTokenWithBackend();
     }
   }, [isLogin]);
+
+  useEffect(() => {
+    if (!isLogin || !user_id) return;
+    let lastTouch = 0;
+    const touch = (event) => {
+      const leaving = event?.type === 'pagehide';
+      if (!leaving && document.visibilityState === 'hidden') return;
+      if (!leaving && Date.now() - lastTouch < 60 * 1000) return;
+      lastTouch = Date.now();
+      recordLocalAppActivity(user_id);
+    };
+    touch();
+    document.addEventListener('visibilitychange', touch);
+    document.addEventListener('pointerdown', touch, { passive: true });
+    document.addEventListener('keydown', touch);
+    window.addEventListener('focus', touch);
+    window.addEventListener('pagehide', touch);
+    return () => {
+      document.removeEventListener('visibilitychange', touch);
+      document.removeEventListener('pointerdown', touch);
+      document.removeEventListener('keydown', touch);
+      window.removeEventListener('focus', touch);
+      window.removeEventListener('pagehide', touch);
+    };
+  }, [isLogin, user_id]);
 
   // Switch the active team: calls backend, refreshes JWT + context
   const switchTeam = async (team) => {

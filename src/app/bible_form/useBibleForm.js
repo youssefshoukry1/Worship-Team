@@ -10,7 +10,8 @@ import { normalizeBibleBooksFromApi } from '../utils/bibleBooks';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { initLocalBible, prepareLocalBible, getLocalBibleIndex, searchLocalBible, isTranslationDownloaded, downloadTranslationToLocal, getKnownDownloadedTranslations, getDownloadedTranslations } from '../utils/bibleSync';
 import { queueOfflineAction } from '../utils/offlineQueue';
-import { invalidateProfile, refreshProfile } from '../utils/profileCache';
+import { invalidateProfile, readCachedProfile, refreshProfile } from '../utils/profileCache';
+import { prepareLocalAiOpening, completeLocalAiRequest, cancelLocalAiOpening } from '../utils/aiPersonalization';
 import { readTabJson, readTabResource, tabReadKey } from '../utils/tabRequests';
 import { HIGHLIGHT_COLORS, BIBLE_LAST_POS_KEY } from './bibleShared';
 
@@ -1022,18 +1023,49 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     const textContent = selectedVersesData.map(v => `[${v.verseNumber}] ${v.text}`).join(' ');
     const verseId = Array.from(bibleSelectedVerseIds).sort().join('-');
     setAiAnalysis({ loading: true, type: analysisType, text: '', error: null, isLimit: false });
+    let openingReservation = null;
+    let requestUserId = null;
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('user_Taspe7_Token') : null;
+      requestUserId = token ? localStorage.getItem('user_Taspe7_ID') : null;
+      const sameAccount = () => requestUserId && localStorage.getItem('user_Taspe7_ID') === requestUserId
+        && localStorage.getItem('user_Taspe7_Token') === token;
+      if (sameAccount()) {
+        const profile = await readCachedProfile(requestUserId);
+        if (sameAccount()) {
+          openingReservation = await prepareLocalAiOpening({
+            userId: requestUserId,
+            realName: profile?.user?.Name,
+            bookName: bibleModalBook?.bookName,
+            chapter: Number(bibleModalChapter)
+          });
+        }
+      }
       const headers = {};
       if (token) headers.Authorization = `Bearer ${token}`;
       const { data } = await axios.post(`${API_ROOT}/ai/analyze-verse`, {
         verseId,
         verseReference: getSelectedVersesRef(),
         textContent,
-        analysisType
+        analysisType,
+        ...(openingReservation && sameAccount() ? { openingContext: openingReservation.context } : {})
       }, { headers });
-      setAiAnalysis({ loading: false, type: analysisType, text: data.explanation || '', error: null, isLimit: false });
+      let explanation = data.explanation || '';
+      if (explanation && sameAccount()) {
+        const opening = await completeLocalAiRequest({
+          userId: requestUserId,
+          bookName: bibleModalBook?.bookName,
+          chapter: Number(bibleModalChapter),
+          reservationId: openingReservation?.id,
+          generatedOpening: data.opening
+        });
+        if (opening && sameAccount()) explanation = `${opening}\n${explanation}`;
+      } else {
+        await cancelLocalAiOpening(requestUserId, openingReservation?.id);
+      }
+      setAiAnalysis({ loading: false, type: analysisType, text: explanation, error: null, isLimit: false });
     } catch (err) {
+      await cancelLocalAiOpening(requestUserId, openingReservation?.id);
       const responseMessage = err?.response?.data?.message || 'حدث خطأ، حاول مجدداً.';
       const isLimit = err?.response?.status === 429;
       setAiAnalysis({ loading: false, type: analysisType, text: '', error: responseMessage, isLimit });
