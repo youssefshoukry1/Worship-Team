@@ -12,7 +12,11 @@ export function useOfflineAvatar(userKey, remoteUrl) {
     let objectUrl = null;
 
     const applyRecord = (record) => {
-      if (!record || !active) return false;
+      if (!record) return false;
+      if (!active) {
+        if (record.objectUrl) URL.revokeObjectURL(record.src);
+        return false;
+      }
       if (objectUrl && objectUrl !== record.src) URL.revokeObjectURL(objectUrl);
       objectUrl = record.objectUrl ? record.src : null;
       setSrc(record.src);
@@ -31,12 +35,15 @@ export function useOfflineAvatar(userKey, remoteUrl) {
         }
         return;
       }
+      // Display the image while the offline copy downloads in the background.
+      if (active) setSrc(remoteUrl);
       try {
         const cached = await readCachedAvatar(userKey, remoteUrl);
-        const hasCached = applyRecord(cached);
         const isCurrent = cached?.remoteUrl === (remoteUrl || null);
+        const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+        const hasCached = (isCurrent || isOffline) && applyRecord(cached);
 
-        if (isCurrent || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+        if (isCurrent || isOffline) {
           if (!hasCached && active) setSrc(remoteUrl);
           return;
         }
@@ -45,8 +52,10 @@ export function useOfflineAvatar(userKey, remoteUrl) {
           const downloaded = await downloadAndCacheAvatar(userKey, remoteUrl);
           applyRecord(downloaded);
         } catch {
-          // A previous cached image is preferable to a broken image while offline.
-          if (!hasCached && active) setSrc(remoteUrl);
+          // Keep the last saved photo if connectivity fails during a refresh.
+          if (!applyRecord(cached) && active) setSrc(remoteUrl);
+        } finally {
+          if (cached?.objectUrl && cached.src !== objectUrl) URL.revokeObjectURL(cached.src);
         }
       } catch {
         if (active) setSrc(remoteUrl || null);

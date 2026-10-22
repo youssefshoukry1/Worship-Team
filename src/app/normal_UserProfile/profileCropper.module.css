@@ -1,0 +1,137 @@
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  container-type: size;
+}
+
+.cropper {
+  display: block;
+  flex: none;
+}
+
+.cropper .image {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: calc(100dvh - 128px);
+  max-width: 100cqw;
+  max-height: 100cqh;
+}
+
+.cropper :global(.ReactCrop__crop-selection) {
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: none !important;
+  animation: none !important;
+  box-shadow: none;
+}
+
+.cropper :global(.ReactCrop__crop-selection:focus) {
+  outline: none;
+}
+
+.cropper :global(.ReactCrop__crop-selection:focus-visible) {
+  outline: 2px solid white;
+  outline-offset: -2px;
+}
+
+.cropper :global(.ReactCrop__rule-of-thirds-vt)::before,
+.cropper :global(.ReactCrop__rule-of-thirds-vt)::after,
+.cropper :global(.ReactCrop__rule-of-thirds-hz)::before,
+.cropper :global(.ReactCrop__rule-of-thirds-hz)::after {
+  background: rgba(255, 255, 255, 0.45);
+  pointer-events: none;
+}
+
+/* Keep each 44px touch target inside the selection. The visible bracket
+   sits 1px inside its border, without the library's half-handle offsets. */
+.cropper :global(.ReactCrop__drag-handle) {
+  display: block !important;
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  transform: none;
+  z-index: 2;
+}
+
+.cropper :global(.ReactCrop__drag-handle)::before,
+.cropper :global(.ReactCrop__drag-handle)::after {
+  content: '';
+  position: absolute;
+  background: white;
+  pointer-events: none;
+}
+
+.cropper :global(.ord-nw) { top: 0; left: 0; }
+.cropper :global(.ord-ne) { top: 0; right: 0; }
+.cropper :global(.ord-sw) { bottom: 0; left: 0; }
+.cropper :global(.ord-se) { bottom: 0; right: 0; }
+.cropper :global(.ord-nw)::before,
+.cropper :global(.ord-ne)::before { top: 1px; width: 26px; height: 3px; }
+.cropper :global(.ord-sw)::before,
+.cropper :global(.ord-se)::before { bottom: 1px; width: 26px; height: 3px; }
+.cropper :global(.ord-nw)::after,
+.cropper :global(.ord-ne)::after { top: 1px; width: 3px; height: 26px; }
+.cropper :global(.ord-sw)::after,
+.cropper :global(.ord-se)::after { bottom: 1px; width: 3px; height: 26px; }
+.cropper :global(.ord-nw)::before,
+.cropper :global(.ord-nw)::after,
+.cropper :global(.ord-sw)::before,
+.cropper :global(.ord-sw)::after { left: 1px; }
+.cropper :global(.ord-ne)::before,
+.cropper :global(.ord-ne)::after,
+.cropper :global(.ord-se)::before,
+.cropper :global(.ord-se)::after { right: 1px; }
+
+.cropper :global(.ReactCrop__drag-handle.ord-n),
+.cropper :global(.ReactCrop__drag-handle.ord-s) {
+  left: 50%;
+  transform: translateX(-50%);
+  height: 32px;
+}
+.cropper :global(.ReactCrop__drag-handle.ord-e),
+.cropper :global(.ReactCrop__drag-handle.ord-w) {
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+}
+.cropper :global(.ord-n)::before,
+.cropper :global(.ord-s)::before {
+  left: 50%;
+  width: 24px;
+  height: 3px;
+  transform: translateX(-50%);
+}
+.cropper :global(.ord-n)::before { top: 1px; }
+.cropper :global(.ord-s)::before { bottom: 1px; }
+.cropper :global(.ord-e)::before,
+.cropper :global(.ord-w)::before {
+  top: 50%;
+  width: 3px;
+  height: 24px;
+  transform: translateY(-50%);
+}
+.cropper :global(.ord-e)::before { right: 1px; }
+.cropper :global(.ord-w)::before { left: 1px; }
+.cropper :global(.ord-n)::after,
+.cropper :global(.ord-s)::after,
+.cropper :global(.ord-e)::after,
+.cropper :global(.ord-w)::after { display: none; }
+
+.cropper :global(.ReactCrop__drag-handle:focus-visible) {
+  outline: 2px solid white;
+  outline-offset: -5px;
+}
+
+.actions {
+  flex-shrink: 0;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+}

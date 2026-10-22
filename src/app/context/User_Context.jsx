@@ -1,8 +1,13 @@
 "use client";
 
-import { createContext, useState, useEffect } from "react";
+import { createContext, useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { syncFcmTokenWithBackend } from "../services/pushNotificationService";
+import { uploadProfilePhotoBlob } from '../utils/profilePhoto';
+import { saveAvatarBlob } from '../utils/avatarStorage';
+import { invalidateProfile, readCachedProfile, writeCachedProfile } from '../utils/profileCache';
+import { getApiBaseUrl } from '../utils/apiBase';
+import { showToast } from '../components/ToastContainer';
 
 export const UserContext = createContext();
 
@@ -61,6 +66,60 @@ export default function UserContextProvider({ children }) {
     if (typeof window === "undefined") return null;
     return localStorage.getItem("user_Taspe7_ProfilePhoto") || null;
   });
+
+  // The provider outlives profile-page navigation, so the preview and upload do too.
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploadingPhotoFor, setUploadingPhotoFor] = useState(null);
+  const photoUpload = useRef(null);
+  const previewUser = photoPreview?.userId === user_id && photoPreview?.token === isLogin;
+  const profilePhotoPreview = previewUser ? photoPreview.src : null;
+  const isUploadingProfilePhoto = uploadingPhotoFor === user_id && !!user_id;
+
+  useEffect(() => {
+    const src = photoPreview?.src;
+    return () => { if (src) URL.revokeObjectURL(src); };
+  }, [photoPreview]);
+
+  const clearProfilePhotoPreview = () => setPhotoPreview(null);
+
+  const uploadProfilePhoto = async (blob) => {
+    if (!user_id || !isLogin || photoUpload.current) return;
+    const userId = user_id;
+    const token = isLogin;
+    const apiBase = getApiBaseUrl();
+    const task = {};
+    photoUpload.current = task;
+    setUploadingPhotoFor(userId);
+    setPhotoPreview({ userId, token, src: URL.createObjectURL(blob) });
+    const isCurrentAccount = () => localStorage.getItem('user_Taspe7_ID') === userId
+      && localStorage.getItem('user_Taspe7_Token') === token;
+
+    try {
+      const remoteUrl = await uploadProfilePhotoBlob(apiBase, token, blob);
+      if (!isCurrentAccount()) return;
+      setProfilePhoto(remoteUrl);
+      localStorage.setItem('user_Taspe7_ProfilePhoto', remoteUrl);
+      invalidateProfile(apiBase, token);
+      // Persistence must not delay rendering or turn a successful upload into a failure.
+      saveAvatarBlob(userId, remoteUrl, blob).catch(console.warn);
+      readCachedProfile(userId).then(profile => {
+        if (profile && isCurrentAccount()) {
+          return writeCachedProfile(userId, { ...profile, user: { ...profile.user, profilePhoto: remoteUrl } });
+        }
+      }).catch(console.warn);
+      showToast({ message: 'Profile photo updated!', type: 'success' });
+    } catch (error) {
+      if (isCurrentAccount()) {
+        clearProfilePhotoPreview();
+        showToast({ message: error.message || 'Photo upload failed. Please try again.', type: 'error' });
+      }
+    } finally {
+      if (photoUpload.current === task) {
+        photoUpload.current = null;
+        setUploadingPhotoFor(null);
+      }
+    }
+  };
 
   const [vocalsMode, setVocalsMode] = useState(true);
 
@@ -124,6 +183,7 @@ export default function UserContextProvider({ children }) {
         teams, setTeams,
         username, setUsername,
         profilePhoto, setProfilePhoto,
+        profilePhotoPreview, clearProfilePhotoPreview, isUploadingProfilePhoto, uploadProfilePhoto,
         switchTeam,
         refreshTeams
       }}>

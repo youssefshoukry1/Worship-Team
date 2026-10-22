@@ -9,7 +9,9 @@ import Portal from '../Portal/Portal';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { showToast } from '../components/ToastContainer';
 import { useOfflineAvatar } from '../hooks/useOfflineAvatar';
-import { removeCachedAvatar, saveAvatarBlob } from '../utils/avatarStorage';
+import { removeCachedAvatar } from '../utils/avatarStorage';
+import { cropProfilePhoto, resizeSquareCrop } from '../utils/profilePhoto';
+import cropStyles from './profileCropper.module.css';
 import {
     Activity,
     AlignJustify,
@@ -288,13 +290,20 @@ const getHighlightHex = (colorId) => {
 };
 
 export default function NormalUserProfile() {
-    const { user_id, isLogin, setLogin, setUsername, profilePhoto, setProfilePhoto, setUserRole, setUser_id, setChurchId, setHymnIds, setUserStatus } = useContext(UserContext);
+    const { user_id, isLogin, setLogin, setUsername, profilePhoto, setProfilePhoto, profilePhotoPreview, clearProfilePhotoPreview, isUploadingProfilePhoto, uploadProfilePhoto, setUserRole, setUser_id, setChurchId, setHymnIds, setUserStatus } = useContext(UserContext);
     const router = useRouter();
     const { language, setLanguage } = useLanguage();
-    const { src: profileAvatarSrc, markFailed: markProfileAvatarFailed } = useOfflineAvatar(user_id, profilePhoto);
+    const { src: cachedProfileAvatarSrc, markFailed: markProfileAvatarFailed } = useOfflineAvatar(user_id, profilePhoto);
+    const profileAvatarSrc = profilePhotoPreview || cachedProfileAvatarSrc;
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    useEffect(() => {
+        setProfile(previous => previous && previous.user?.profilePhoto !== profilePhoto
+            ? { ...previous, user: { ...previous.user, profilePhoto } }
+            : previous);
+    }, [profilePhoto]);
     const { theme, toggleTheme, isDark } = useTheme?.() || {};
     const [currentView, setCurrentView] = useState('menu');
 
@@ -454,14 +463,15 @@ export default function NormalUserProfile() {
         return () => window.removeEventListener('popstate', handlePopState);
     }, []);
     
-    const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+    const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+    const isUploadingPhoto = isProcessingPhoto || isUploadingProfilePhoto;
     const fileInputRef = useRef(null);
 
     const [isViewingPhoto, setIsViewingPhoto] = useState(false);
     const [photoToCrop, setPhotoToCrop] = useState(null);
     const [crop, setCrop] = useState();
-    const [completedCrop, setCompletedCrop] = useState(null);
     const imgRef = useRef(null);
+    const edgeDragCleanup = useRef(null);
 
     // Edit Name & Username state
     const [editModal, setEditModal] = useState(null);
@@ -489,10 +499,53 @@ export default function NormalUserProfile() {
     const onImageLoad = (e) => {
         const { width, height } = e.currentTarget;
         const initialCrop = centerCrop(
-            makeAspectCrop({ unit: '%', width: 85 }, 1, width, height),
+            makeAspectCrop({ unit: '%', width: 100 }, 1, width, height),
             width, height
         );
         setCrop(initialCrop);
+    };
+
+    const onCropEdgePointerDown = (event) => {
+        const edge = event.target.closest('.ReactCrop__drag-handle')?.dataset.ord;
+        if (!['n', 's', 'e', 'w'].includes(edge) || !crop || !imgRef.current || event.isPrimary === false) return;
+        event.preventDefault();
+        event.stopPropagation();
+        edgeDragCleanup.current?.();
+        const initialCrop = crop;
+        const bounds = imgRef.current.getBoundingClientRect();
+        const start = edge === 'n' || edge === 's' ? event.clientY : event.clientX;
+        const pointerId = event.pointerId;
+        const move = (moveEvent) => {
+            if (moveEvent.pointerId !== pointerId) return;
+            if (moveEvent.cancelable) moveEvent.preventDefault();
+            const position = edge === 'n' || edge === 's' ? moveEvent.clientY : moveEvent.clientX;
+            const nextCrop = resizeSquareCrop(initialCrop, edge, position - start, bounds.width, bounds.height);
+            setCrop(nextCrop);
+        };
+        const finish = (upEvent) => {
+            if (upEvent.pointerId === pointerId) edgeDragCleanup.current?.();
+        };
+        edgeDragCleanup.current = () => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', finish);
+            window.removeEventListener('pointercancel', finish);
+            edgeDragCleanup.current = null;
+        };
+        window.addEventListener('pointermove', move, { passive: false });
+        window.addEventListener('pointerup', finish);
+        window.addEventListener('pointercancel', finish);
+    };
+
+    const onCropEdgeKeyDown = (event) => {
+        const edge = event.target.closest('.ReactCrop__drag-handle')?.dataset.ord;
+        const horizontal = edge === 'e' || edge === 'w';
+        const delta = (horizontal ? { ArrowLeft: -1, ArrowRight: 1 } : { ArrowUp: -1, ArrowDown: 1 })[event.key];
+        if (!['n', 's', 'e', 'w'].includes(edge) || !delta || !crop || !imgRef.current) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const { width, height } = imgRef.current.getBoundingClientRect();
+        const nextCrop = resizeSquareCrop(crop, edge, delta * (event.shiftKey ? 10 : 1), width, height);
+        setCrop(nextCrop);
     };
 
     const [noteModalConfig, setNoteModalConfig] = useState(null);
@@ -648,132 +701,52 @@ export default function NormalUserProfile() {
         }
     };
 
+    // Object URLs avoid copying large camera photos into base64 strings.
+    useEffect(() => {
+        return () => {
+            edgeDragCleanup.current?.();
+            if (photoToCrop) URL.revokeObjectURL(photoToCrop);
+        };
+    }, [photoToCrop]);
+
     const handleFileSelect = (e) => {
         const file = e.target.files?.[0];
-        if (!file) return;
-
-        if (file.size > 5 * 1024 * 1024) {
-            showToast({ message: 'File is too large (max 5MB)', type: 'error' });
+        e.target.value = '';
+        if (!file || isUploadingPhoto) return;
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+            showToast({ message: 'Please choose a JPEG, PNG, or WebP photo', type: 'error' });
             return;
         }
-
-        const reader = new FileReader();
-        reader.addEventListener('load', () => setPhotoToCrop(reader.result));
-        reader.readAsDataURL(file);
-        
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        // The upload limit applies to the compressed image, not the camera original.
+        if (file.size > 25 * 1024 * 1024) {
+            showToast({ message: 'File is too large (max 25MB)', type: 'error' });
+            return;
+        }
+        setCrop(undefined);
+        setPhotoToCrop(URL.createObjectURL(file));
     };
 
     const confirmCropAndUpload = async () => {
-        if (!photoToCrop || !completedCrop || !imgRef.current) return;
-        setIsUploadingPhoto(true);
-
+        if (!photoToCrop || !crop || !imgRef.current || isUploadingPhoto) return;
+        setIsProcessingPhoto(true);
         try {
-            const image = imgRef.current;
-            const scaleX = image.naturalWidth / image.width;
-            const scaleY = image.naturalHeight / image.height;
-
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            canvas.width = completedCrop.width * scaleX;
-            canvas.height = completedCrop.height * scaleY;
-
-            ctx.drawImage(
-                image,
-                completedCrop.x * scaleX,
-                completedCrop.y * scaleY,
-                completedCrop.width * scaleX,
-                completedCrop.height * scaleY,
-                0,
-                0,
-                completedCrop.width * scaleX,
-                completedCrop.height * scaleY
-            );
-            
+            const blob = await cropProfilePhoto(imgRef.current, crop);
+            // Publish the local preview before starting the network work. The
+            // provider keeps both alive if the user navigates to another page.
+            void uploadProfilePhoto(blob);
             setPhotoToCrop(null);
-
-            const MAX_WIDTH = 500;
-            const MAX_HEIGHT = 500;
-            let width = canvas.width;
-            let height = canvas.height;
-
-            if (width > height && width > MAX_WIDTH) {
-                height *= MAX_WIDTH / width;
-                width = MAX_WIDTH;
-            } else if (height > MAX_HEIGHT) {
-                width *= MAX_HEIGHT / height;
-                height = MAX_HEIGHT;
-            }
-
-            const scaleCanvas = document.createElement('canvas');
-            scaleCanvas.width = width;
-            scaleCanvas.height = height;
-            const scaleCtx = scaleCanvas.getContext('2d');
-            scaleCtx.drawImage(canvas, 0, 0, width, height);
-            
-            const blob = await new Promise(resolve => scaleCanvas.toBlob(resolve, 'image/webp', 0.8));
-            if (!blob) throw new Error("Compression failed");
-
-            // 1. Get upload URL
-            const urlRes = await fetch(`${API_URL}/users/profile-photo/upload-url`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${isLogin}`
-                },
-                body: JSON.stringify({
-                    fileSize: blob.size,
-                    mimeType: 'image/webp',
-                    fileExt: 'webp'
-                })
-            });
-            const urlData = await urlRes.json();
-            if (!urlRes.ok) throw new Error(urlData.message || 'Failed to get upload URL');
-
-            // 2. Upload to R2
-            const uploadRes = await fetch(urlData.uploadUrl, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'image/webp',
-                    'Cache-Control': 'public, max-age=31536000, immutable'
-                },
-                body: blob
-            });
-            if (!uploadRes.ok) throw new Error('Failed to upload image to storage');
-
-            // 3. Confirm with backend
-            const confirmRes = await fetch(`${API_URL}/users/profile-photo/confirm`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${isLogin}`
-                },
-                body: JSON.stringify({ fileUrl: urlData.fileUrl })
-            });
-            const confirmData = await confirmRes.json();
-            if (!confirmRes.ok) throw new Error(confirmData.message || 'Failed to confirm upload');
-
-            try {
-                await saveAvatarBlob(user_id, confirmData.profilePhoto, blob);
-            } catch (cacheError) {
-                console.warn('Profile photo was uploaded but could not be cached:', cacheError);
-            }
-            setProfilePhoto(confirmData.profilePhoto);
-            updateProfileState(prev => prev ? { ...prev, user: { ...prev.user, profilePhoto: confirmData.profilePhoto } } : prev);
-            localStorage.setItem("user_Taspe7_ProfilePhoto", confirmData.profilePhoto);
-            showToast({ message: 'Profile photo updated!', type: 'success' });
+            setIsViewingPhoto(false);
         } catch (error) {
-            console.error('Photo upload error:', error);
-            showToast({ message: error.message || 'Upload failed', type: 'error' });
+            showToast({ message: error.message || 'Unable to process photo', type: 'error' });
         } finally {
-            setIsUploadingPhoto(false);
+            setIsProcessingPhoto(false);
         }
     };
 
     const handlePhotoRemove = async () => {
+        if (isUploadingPhoto) return;
         if (!window.confirm('Are you sure you want to remove your profile photo?')) return;
-        setIsUploadingPhoto(true);
+        setIsProcessingPhoto(true);
         try {
             const res = await fetch(`${API_URL}/users/profile-photo`, {
                 method: 'DELETE',
@@ -786,6 +759,7 @@ export default function NormalUserProfile() {
             } catch (cacheError) {
                 console.warn('Profile photo cache cleanup failed:', cacheError);
             }
+            clearProfilePhotoPreview();
             setProfilePhoto(null);
             updateProfileState(prev => prev ? { ...prev, user: { ...prev.user, profilePhoto: null } } : prev);
             localStorage.removeItem("user_Taspe7_ProfilePhoto");
@@ -794,7 +768,7 @@ export default function NormalUserProfile() {
             console.error('Photo remove error:', error);
             showToast({ message: error.message || 'Removal failed', type: 'error' });
         } finally {
-            setIsUploadingPhoto(false);
+            setIsProcessingPhoto(false);
         }
     };
 
@@ -1073,7 +1047,7 @@ export default function NormalUserProfile() {
                                         <div 
                                             className="w-20 h-20 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-sky-500/20 bg-black/40 flex items-center justify-center shadow-xl shadow-black/50 cursor-pointer"
                                             onClick={() => {
-                                                if (profilePhoto) {
+                                                if (profileAvatarSrc) {
                                                     setIsViewingPhoto(true);
                                                 } else {
                                                     fileInputRef.current?.click();
@@ -1878,12 +1852,13 @@ export default function NormalUserProfile() {
 
             {/* --- FULL IMAGE VIEWER MODAL --- */}
             <Portal>
-                {isViewingPhoto && profilePhoto && (
+                {isViewingPhoto && profileAvatarSrc && (
                     <div
                         onClick={() => setIsViewingPhoto(false)}
                         className="fixed inset-0 z-[10001] flex flex-col bg-black"
                     >
-                        <div className="flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent">
+                        <div className="shrink-0 flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent"
+                            style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
                             <button
                                 onClick={() => setIsViewingPhoto(false)}
                                 className="p-2 text-white hover:bg-white/10 rounded-full transition-colors"
@@ -1898,6 +1873,7 @@ export default function NormalUserProfile() {
                                     }}
                                     className="p-2 text-white hover:bg-white/10 rounded-full transition-colors"
                                     title="Change Photo"
+                                    disabled={isUploadingPhoto}
                                 >
                                     <Edit3 className="w-5 h-5" />
                                 </button>
@@ -1909,16 +1885,17 @@ export default function NormalUserProfile() {
                                     }}
                                     className="p-2 text-rose-500 hover:bg-white/10 rounded-full transition-colors"
                                     title="Remove Photo"
+                                    disabled={isUploadingPhoto}
                                 >
                                     <Trash2 className="w-5 h-5" />
                                 </button>
                             </div>
                         </div>
-                        <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
+                        <div className="relative flex-1 min-h-0 m-4 overflow-hidden">
                             <img
-                                src={profileAvatarSrc || profilePhoto}
+                                src={profileAvatarSrc}
                                 alt="Profile"
-                                className="max-w-full max-h-full object-contain"
+                                className="absolute inset-0 w-full h-full object-contain"
                                 onError={markProfileAvatarFailed}
                                 onClick={(e) => e.stopPropagation()}
                             />
@@ -1937,32 +1914,33 @@ export default function NormalUserProfile() {
                             exit={{ opacity: 0, y: 50 }}
                             className="fixed inset-0 z-[10002] flex flex-col bg-black"
                         >
-                            {/* Single black flex container — image is centered, black gaps appear naturally top + bottom */}
-                            <div className="flex-1 flex items-center justify-center bg-black overflow-hidden">
+                            <div className={cropStyles.stage}
+                                onPointerDownCapture={onCropEdgePointerDown}
+                                onKeyDownCapture={onCropEdgeKeyDown}>
                                 <ReactCrop 
                                     crop={crop} 
-                                    onChange={c => setCrop(c)} 
-                                    onComplete={c => setCompletedCrop(c)}
+                                    onChange={(_, percentCrop) => setCrop(percentCrop)}
                                     aspect={1}
                                     ruleOfThirds
-                                    style={{ display: 'block' }}
+                                    className={cropStyles.cropper}
+                                    keepSelection
+                                    minWidth={48}
+                                    minHeight={48}
                                 >
                                     <img 
                                         ref={imgRef} 
                                         src={photoToCrop} 
-                                        onLoad={onImageLoad} 
-                                        alt="Crop me" 
-                                        style={{ 
-                                            maxWidth: '100vw',
-                                            maxHeight: '62vh',
-                                            width: 'auto',
-                                            height: 'auto',
-                                            display: 'block'
+                                        onLoad={onImageLoad}
+                                        onError={() => {
+                                            setPhotoToCrop(null);
+                                            showToast({ message: 'Unable to open this photo. Please choose another image.', type: 'error' });
                                         }}
+                                        alt="Crop me"
+                                        className={cropStyles.image}
                                     />
                                 </ReactCrop>
                             </div>
-                            <div className="px-6 py-5 bg-[#020817] flex justify-between items-center z-10 border-t border-sky-500/10">
+                            <div className={`${cropStyles.actions} px-6 py-5 bg-[#020817] flex justify-between items-center z-10 border-t border-sky-500/10`}>
                                 <button
                                     onClick={() => setPhotoToCrop(null)}
                                     className="text-sky-500 hover:text-sky-400 font-semibold text-lg transition-colors"
@@ -1970,14 +1948,15 @@ export default function NormalUserProfile() {
                                     Cancel
                                 </button>
                                 <button
+                                    onClick={() => { if (imgRef.current) onImageLoad({ currentTarget: imgRef.current }); }}
                                     className="p-3 rounded-full text-white hover:bg-white/10 transition-colors"
-                                    title="Rotate"
+                                    title="Reset crop"
                                 >
                                     <RotateCcw className="w-6 h-6" />
                                 </button>
                                 <button
                                     onClick={confirmCropAndUpload}
-                                    disabled={isUploadingPhoto}
+                                    disabled={isUploadingPhoto || !crop}
                                     className="text-sky-500 hover:text-sky-400 font-bold text-lg transition-colors flex items-center gap-2"
                                 >
                                     {isUploadingPhoto ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Done'}
@@ -2122,97 +2101,6 @@ export default function NormalUserProfile() {
                 .custom-scrollbar-hide::-webkit-scrollbar { display: none; }
                 .custom-scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
-                /* ─── Remove default react-image-crop styles ─── */
-                .ReactCrop__crop-selection {
-                    border: none !important;
-                    box-shadow: none !important;
-                }
-
-                /* Solid thin white border around the selection */
-                .ReactCrop__crop-selection::before {
-                    content: '';
-                    position: absolute;
-                    inset: 0;
-                    border: 1px solid rgba(255,255,255,0.75);
-                    pointer-events: none;
-                    z-index: 1;
-                }
-
-                /* 3×3 grid: horizontal lines */
-                .ReactCrop__crop-selection::after {
-                    content: '';
-                    position: absolute;
-                    inset: 0;
-                    background-image:
-                        linear-gradient(to bottom, transparent calc(33.33% - 0.5px), rgba(255,255,255,0.4) calc(33.33% - 0.5px), rgba(255,255,255,0.4) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px)),
-                        linear-gradient(to bottom, transparent calc(66.66% - 0.5px), rgba(255,255,255,0.4) calc(66.66% - 0.5px), rgba(255,255,255,0.4) calc(66.66% + 0.5px), transparent calc(66.66% + 0.5px)),
-                        linear-gradient(to right,  transparent calc(33.33% - 0.5px), rgba(255,255,255,0.4) calc(33.33% - 0.5px), rgba(255,255,255,0.4) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px)),
-                        linear-gradient(to right,  transparent calc(66.66% - 0.5px), rgba(255,255,255,0.4) calc(66.66% - 0.5px), rgba(255,255,255,0.4) calc(66.66% + 0.5px), transparent calc(66.66% + 0.5px));
-                    pointer-events: none;
-                    z-index: 1;
-                }
-
-                /* ─── All handles: large transparent hit area, no default visuals ─── */
-                .ReactCrop__drag-handle {
-                    background: transparent !important;
-                    border: none !important;
-                    box-shadow: none !important;
-                    width: 44px !important;
-                    height: 44px !important;
-                    opacity: 1 !important;
-                    z-index: 10;
-                    overflow: visible !important;
-                }
-
-                /* ─── Corner handles: L-shape via pseudo-elements ─── */
-                .ReactCrop__drag-handle::before,
-                .ReactCrop__drag-handle::after {
-                    content: '';
-                    position: absolute;
-                    background: white;
-                    border-radius: 1px;
-                }
-
-                /* NW corner ─── top-left */
-                .ReactCrop__drag-handle.ord-nw { top: -2px !important; left: -2px !important; }
-                .ReactCrop__drag-handle.ord-nw::before { top: 0; left: 0; width: 28px; height: 3px; }
-                .ReactCrop__drag-handle.ord-nw::after  { top: 0; left: 0; width: 3px;  height: 28px; }
-
-                /* NE corner ─── top-right */
-                .ReactCrop__drag-handle.ord-ne { top: -2px !important; right: -2px !important; left: auto !important; }
-                .ReactCrop__drag-handle.ord-ne::before { top: 0; right: 0; width: 28px; height: 3px; }
-                .ReactCrop__drag-handle.ord-ne::after  { top: 0; right: 0; width: 3px;  height: 28px; }
-
-                /* SW corner ─── bottom-left */
-                .ReactCrop__drag-handle.ord-sw { bottom: -2px !important; left: -2px !important; top: auto !important; }
-                .ReactCrop__drag-handle.ord-sw::before { bottom: 0; left: 0; width: 28px; height: 3px; }
-                .ReactCrop__drag-handle.ord-sw::after  { bottom: 0; left: 0; width: 3px;  height: 28px; }
-
-                /* SE corner ─── bottom-right */
-                .ReactCrop__drag-handle.ord-se { bottom: -2px !important; right: -2px !important; top: auto !important; left: auto !important; }
-                .ReactCrop__drag-handle.ord-se::before { bottom: 0; right: 0; width: 28px; height: 3px; }
-                .ReactCrop__drag-handle.ord-se::after  { bottom: 0; right: 0; width: 3px;  height: 28px; }
-
-                /* ─── Edge center handles: small white dash ─── */
-                .ReactCrop__drag-handle.ord-n  { top: -2px !important; left: 50% !important; transform: translateX(-50%) !important; width: 44px !important; height: 20px !important; }
-                .ReactCrop__drag-handle.ord-n::before  { top: 0; left: 50%; transform: translateX(-50%); width: 24px; height: 3px; }
-                .ReactCrop__drag-handle.ord-n::after   { display: none; }
-
-                .ReactCrop__drag-handle.ord-s  { bottom: -2px !important; left: 50% !important; transform: translateX(-50%) !important; top: auto !important; width: 44px !important; height: 20px !important; }
-                .ReactCrop__drag-handle.ord-s::before  { bottom: 0; left: 50%; transform: translateX(-50%); width: 24px; height: 3px; }
-                .ReactCrop__drag-handle.ord-s::after   { display: none; }
-
-                .ReactCrop__drag-handle.ord-e  { right: -2px !important; top: 50% !important; transform: translateY(-50%) !important; left: auto !important; width: 20px !important; height: 44px !important; }
-                .ReactCrop__drag-handle.ord-e::before  { right: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 24px; }
-                .ReactCrop__drag-handle.ord-e::after   { display: none; }
-
-                .ReactCrop__drag-handle.ord-w  { left: -2px !important; top: 50% !important; transform: translateY(-50%) !important; width: 20px !important; height: 44px !important; }
-                .ReactCrop__drag-handle.ord-w::before  { left: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 24px; }
-                .ReactCrop__drag-handle.ord-w::after   { display: none; }
-
-                /* ─── ruleOfThirds lines (from library prop) — keep them but hide, we draw our own ─── */
-                .ReactCrop__rule-of-thirds-vt,
-                .ReactCrop__rule-of-thirds-hz { display: none !important; }
             `}} />
         </main>
     );
