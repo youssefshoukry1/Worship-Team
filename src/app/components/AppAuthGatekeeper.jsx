@@ -7,7 +7,6 @@ import { UserContext } from "../context/User_Context";
 import dynamic from 'next/dynamic';
 import AppStartupShell from './AppStartupShell';
 import Navbar from "../Navbar/Navbar";
-import Footer from "../Footer/Footer";
 import PageTransition from "../page-transition/page-transition";
 import BottomNav from "./BottomNav";
 
@@ -153,7 +152,6 @@ export default function AppAuthGatekeeper({ children }) {
     <>
       <Navbar />
       <PageTransition>{children}</PageTransition>
-      <Footer />
       <BottomNav />
     </>
   );
