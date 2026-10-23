@@ -41,7 +41,7 @@ enum PrayerBackupArchive {
             }
         }
         let prays: [[String: Any]] = prayers.map { id, prayer in
-            var copy = prayer.filter { ["_id", "words", "feeling", "prayType", "churchId", "date", "sharedWith", "sharedFrom"].contains($0.key) }
+            var copy = prayer.filter { ["_id", "words", "feeling", "prayType", "churchId", "date", "sharedWith", "sharedFrom", "_sync"].contains($0.key) }
             copy["recordings"] = withFiles[id] ?? []; return copy
         }
         let others: [[String: Any]] = recordings.keys.filter { prayers[$0] == nil }.map { id in

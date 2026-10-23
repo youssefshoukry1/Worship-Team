@@ -114,6 +114,20 @@ export const readAudioBytes = async (rec) => {
 
 export async function getRecordingBase64(rec) {
     try {
+        if (isNative()) {
+            const file = await Filesystem.readFile({ path: audioPath(rec), directory: Directory.Data });
+            if (typeof file.data === 'string') return file.data;
+        } else if (typeof FileReader !== 'undefined') {
+            const blob = await webStore().getItem(`audio_${rec.id}`);
+            if (!blob) return null;
+            // Browser encoding avoids a large synchronous byte-to-string loop on small devices.
+            return await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result).split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
         const bytes = await readAudioBytes(rec);
         return bytes ? uint8ToBase64(bytes) : null;
     } catch {
@@ -171,7 +185,7 @@ export async function addRecordings(prayId, items, pendingWords) {
     for (const item of items) {
         const mimeType = item.mimeType || item.blob.type || 'audio/webm';
         const rec = {
-            id: `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+            id: item.id || `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
             blockType: item.blockType || 'general',
             // Position of the prayer section (general text first, then each block) this clip belongs to
             sectionIndex: Number.isInteger(item.sectionIndex) ? item.sectionIndex : null,
@@ -185,7 +199,7 @@ export async function addRecordings(prayId, items, pendingWords) {
         saved.push(rec);
     }
     await updateIndex((index) => {
-        index.recordings[prayId] = [...(index.recordings[prayId] || []), ...saved];
+        index.recordings[prayId] = [...(index.recordings[prayId] || []).filter(rec => !saved.some(item => item.id === rec.id)), ...saved];
         if (pendingWords) index.pendingWords[prayId] = pendingWords;
     });
 }
@@ -195,7 +209,35 @@ const byNewest = (a, b) => new Date(b.date) - new Date(a.date);
 
 export async function getGuestPrays() {
     const index = await readIndex();
-    return index.guestPrays.filter(entry => !isRevokedPrayer(index, entry)).sort(byNewest);
+    return index.guestPrays.filter(entry => !isRevokedPrayer(index, entry) && !entry._sync?.hidden).sort(byNewest);
+}
+
+// The action lives beside its prayer, so text and the outbox cannot drift apart.
+// Credentials are supplied by the active session and are never stored here.
+export async function stagePrayerAction(entry) {
+    return updateIndex(index => {
+        if (isRevokedPrayer(index, entry)) return false;
+        const current = index.guestPrays.find(item => String(item._id) === String(entry._id));
+        const next = { ...current, ...entry };
+        index.guestPrays = [...index.guestPrays.filter(item => String(item._id) !== String(entry._id)), next];
+        return true;
+    }, Boolean);
+}
+
+export async function getPrayerActions(ownerId) {
+    const index = await readIndex();
+    return index.guestPrays.filter(entry => !isRevokedPrayer(index, entry) && entry._sync && entry._sync.ownerId === String(ownerId || 'guest'))
+        .map(entry => ({ entry, recordings: index.recordings[entry._id] || [] }));
+}
+
+// A late acknowledgement must not overwrite a newer action or a revocation.
+export async function settlePrayerAction(id, requestId, change) {
+    return updateIndex(index => {
+        const entry = index.guestPrays.find(item => String(item._id) === String(id));
+        if (!entry || entry._sync?.requestId !== requestId || isRevokedPrayer(index, entry)) return false;
+        Object.assign(entry, typeof change === 'function' ? change(entry) : change);
+        return true;
+    }, Boolean);
 }
 
 export async function getPrayerDeletionState(ownerId) {
@@ -295,7 +337,7 @@ export function applyPrayerReplies(updates) {
         index.guestPrays.forEach((entry, position) => {
             if (!entry.sharedWith) return;
             if (entry.sharedWith.shareId) byShare.set(String(entry.sharedWith.shareId).replace(/^received-/, ''), position);
-            else if (entry.sharedWith.status === 'sent') {
+            else if (entry.sharedWith.status === 'sent' && entry._sync?.kind !== 'send') {
                 const id = String(entry.sharedWith.userId || '');
                 legacyByRecipient.set(id, legacyByRecipient.has(id) ? null : position);
             }
@@ -466,6 +508,7 @@ export async function buildMyPraysZip(prayTime = [], onProgress = () => {}) {
             date: entry.date,
             sharedWith: entry.sharedWith || null,
             sharedFrom: entry.sharedFrom || null,
+            _sync: entry._sync || null,
             recordings: withFile(String(entry._id)),
         })),
         // Recordings whose prayer is not in the currently loaded list (e.g. another team)
@@ -548,6 +591,8 @@ export async function restoreMyPraysZip(zipBytes, onProgress = () => {}) {
                             feeling: p.feeling,
                             sharedWith: p.sharedWith || null,
                             sharedFrom: p.sharedFrom || null,
+                            // Restoring a backup never silently resends an old action.
+                            _sync: p._sync ? { ...p._sync, state: 'failed', hidden: false, nextAttemptAt: 0 } : null,
                         });
                     } else {
                         currentMap.set(id, {

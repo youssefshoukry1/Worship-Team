@@ -39,6 +39,114 @@ const mockPrayerApi = (route, base) => route.request().url().startsWith(base) ? 
   : route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } });
 const personalPrayers = count => Array.from({ length: count }, (_, i) => ({ _id: 'personal-' + i, words: 'Personal prayer ' + i, date: '2026-10-01T00:00:00.000Z' }));
 
+test('optimistic sends show a clock before acknowledgement and resume the same action after reload on a throttled CPU', async t => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let release; const pending = new Promise(resolve => { release = resolve; });
+  const bodies = [];
+  try {
+    const page = await context.newPage(); const errors = []; page.on('pageerror', error => errors.push(error.message));
+    await page.route('**/*', async route => {
+      const url = route.request().url();
+      if (url.endsWith('/pray-time/share')) {
+        bodies.push(route.request().postDataJSON()); await pending;
+        return route.fulfill({ json: { success: true, shareId: 'new-share', date: new Date().toISOString() } }).catch(() => {});
+      }
+      if (url.endsWith('/users/friends')) return route.fulfill({ json: { friends: [{ _id: 'friend', username: 'friend' }] } });
+      return mockPrayerApi(route, base);
+    });
+    await seed(page, []);
+    const cpu = await context.newCDPSession(page); await cpu.send('Emulation.setCPUThrottlingRate', { rate: 6 });
+    await page.goto(base + '/pray/');
+    await page.getByRole('button', { name: 'Share with friend...', exact: true }).click();
+    await page.getByRole('button', { name: 'Select', exact: true }).click();
+    await page.getByRole('textbox').first().fill('Immediate prayer');
+    const started = performance.now();
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    const card = page.locator('[data-prayer-id]').filter({ hasText: 'Sending' });
+    await card.getByRole('status').waitFor();
+    await card.screenshot({ path: path.join(require('node:os').tmpdir(), 'wasla-prayer-pending.png') });
+    t.diagnostic(`Pending card at 6x CPU throttling: ${Math.round(performance.now() - started)} ms; server response still held`);
+    assert.equal(await page.getByRole('textbox').first().inputValue(), '');
+    assert.equal(await card.locator('time').count(), 1);
+    assert.equal(await card.getByRole('button', { name: 'Delete Note', exact: true }).count(), 0);
+    await page.waitForRequest(request => request.url().endsWith('/pray-time/share'), { timeout: 5000 }).catch(() => assert.ok(bodies.length));
+    const id = await card.getAttribute('data-prayer-id');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: /^Prayer Circle/ }).click();
+    const restored = page.locator(`[data-prayer-id="${id}"]`);
+    await restored.getByText('Sending', { exact: true }).waitFor();
+    await restored.getByText('You:', { exact: true }).click();
+    await restored.getByText('Immediate prayer', { exact: true }).waitFor();
+    release();
+    await restored.getByRole('status').waitFor({ state: 'detached' });
+    await restored.getByRole('button', { name: 'Delete Note', exact: true }).waitFor();
+    assert.ok(bodies.length >= 2); assert.equal(new Set(bodies.map(body => body.requestId)).size, 1);
+    assert.equal(await page.locator('[data-prayer-id]').count(), 1); assert.deepEqual(errors, []);
+  } finally { release(); await context.close(); }
+});
+
+test('resumed audio sends encode saved clips without losing their section or making a second card', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let posted;
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', async route => {
+      if (route.request().url().endsWith('/pray-time/share')) {
+        posted = route.request().postDataJSON();
+        return route.fulfill({ json: { success: true, shareId: 'audio-share', date: new Date().toISOString() } });
+      }
+      return mockPrayerApi(route, base);
+    });
+    await seed(page, [{ _id: 'local-audio', words: 'Audio prayer', date: new Date().toISOString(), prayType: 'general',
+      sharedWith: { username: 'friend', userId: 'friend', status: 'sent', shareId: null },
+      _sync: { kind: 'send', ownerId: 'tester', requestId: '12345678-1234-4234-8234-123456789abc', state: 'pending', audioCount: 1 } }]);
+    await page.evaluate(async () => {
+      const db = await new Promise(resolve => { const request = indexedDB.open('my_prays', 2); request.onsuccess = () => resolve(request.result); });
+      const index = await new Promise(resolve => { const request = db.transaction('keyvaluepairs').objectStore('keyvaluepairs').get('index'); request.onsuccess = () => resolve(request.result); });
+      index.recordings['local-audio'] = [{ id: 'audio-clip', blockType: 'general', sectionIndex: 0, mimeType: 'audio/webm', ext: 'webm', duration: 2 }];
+      await new Promise(resolve => { const tx = db.transaction('keyvaluepairs', 'readwrite'), store = tx.objectStore('keyvaluepairs'); store.put(index, 'index'); store.put(new Blob(['audio bytes'], { type: 'audio/webm' }), 'audio_audio-clip'); tx.oncomplete = resolve; });
+      db.close();
+    });
+    await page.goto(base + '/pray/');
+    await page.getByRole('button', { name: /^Prayer Circle/ }).click();
+    const card = page.locator('[data-prayer-id="local-audio"]');
+    await card.getByRole('button', { name: 'Delete Note', exact: true }).waitFor();
+    assert.equal(posted.recordings[0].data, Buffer.from('audio bytes').toString('base64'));
+    assert.equal(posted.recordings[0].sectionIndex, 0); assert.equal(posted.recordings[0].id, 'audio-clip');
+    assert.equal(await page.locator('[data-prayer-id]').count(), 1);
+  } finally { await context.close(); }
+});
+
+test('optimistic replies appear immediately, retain failed text, and offer a compact Retry', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let release; const pending = new Promise(resolve => { release = resolve; }); const bodies = [];
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', async route => {
+      if (route.request().url().endsWith('/confirm-share')) {
+        bodies.push(route.request().postDataJSON());
+        if (bodies.length === 1) { await pending; return route.fulfill({ status: 503, json: { msg: 'Offline' } }); }
+        return route.fulfill({ json: { success: true, respondedAt: new Date().toISOString() } });
+      }
+      return mockPrayerApi(route, base);
+    });
+    await seed(page, [received('reply')]);
+    await page.goto(base + '/pray/?notificationType=PRAY_SHARED&shareId=reply');
+    const card = page.locator('[data-prayer-id="received-reply"]');
+    await card.getByRole('textbox').fill('Keep this reply');
+    await card.getByRole('button', { name: 'Send reply', exact: true }).click();
+    await card.getByText('Keep this reply', { exact: true }).waitFor();
+    await card.getByText('Sending', { exact: true }).waitFor();
+    assert.equal(await card.getByRole('textbox').count(), 0);
+    release(); await card.getByRole('button', { name: 'Retry', exact: true }).waitFor();
+    assert.equal(await card.getByText('Keep this reply', { exact: true }).count(), 1);
+    await card.getByRole('button', { name: 'Retry', exact: true }).click();
+    await card.getByRole('status').waitFor({ state: 'detached' });
+    assert.equal(bodies.length, 2); assert.equal(bodies[0].requestId, bodies[1].requestId);
+    assert.equal(await card.locator('time').count(), 1);
+  } finally { release(); await context.close(); }
+});
+
 test('returning users see the Prayer layout before JavaScript loads, then receive the authenticated screen', async () => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   let release; const scriptsReady = new Promise(resolve => { release = resolve; });
@@ -286,9 +394,11 @@ test('deleting a sent prayer removes both device copies after reconnect; failed 
     assert.equal(await receivedCard.getByRole('button', { name: 'Delete Note', exact: true }).count(), 0);
     await receiver.setOffline(true);
     await sentCard.getByRole('button', { name: 'Delete Note', exact: true }).click();
-    await senderPage.waitForFunction(() => !document.querySelector('[data-prayer-id="sent-live"] button:disabled'));
+    await sentCard.getByRole('button', { name: 'Retry', exact: true }).waitFor();
     assert.equal(deleted, false); assert.equal(await sentCard.count(), 1); assert.equal(await receivedCard.count(), 1);
-    await sentCard.getByRole('button', { name: 'Delete Note', exact: true }).click();
+    const acknowledged = senderPage.waitForResponse(response => response.url().endsWith('/pray-time/share/live') && response.request().method() === 'DELETE');
+    await sentCard.getByRole('button', { name: 'Retry', exact: true }).click();
+    await acknowledged;
     await sentCard.waitFor({ state: 'detached' });
     assert.equal(deleted, true); assert.equal(await receivedCard.count(), 1, 'an offline device reconciles on reconnect');
     await receiver.setOffline(false);
@@ -343,6 +453,7 @@ test('saved-card actions use the latest reply text after other cards and compose
     await card.getByRole('button', { name: 'Send reply', exact: true }).click();
     await card.getByRole('textbox').waitFor({ state: 'detached' });
     await card.getByText('Latest reply', { exact: true }).waitFor();
+    await page.waitForFunction(() => document.querySelector('[data-prayer-id="received-first"] [role="status"]') === null);
     assert.equal(posted.shareId, 'first'); assert.equal(posted.responseWords, 'Latest reply');
     assert.equal(await page.getByRole('textbox').first().inputValue(), 'Unrelated composer draft');
   } finally { await context.close(); }

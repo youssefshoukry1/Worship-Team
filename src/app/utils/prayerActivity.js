@@ -50,7 +50,7 @@ export function reconcilePrayerEntries(previous, next) {
         const existing = old.get(String(entry._id));
         const keys = Object.keys(entry);
         const same = existing && keys.length === Object.keys(existing).length && keys.every(key =>
-            key === 'sharedFrom' || key === 'sharedWith' ? sameParty(existing[key], entry[key]) : existing[key] === entry[key]);
+            key === 'sharedFrom' || key === 'sharedWith' || key === '_sync' ? sameParty(existing[key], entry[key]) : existing[key] === entry[key]);
         const retained = same ? existing : entry;
         if (retained !== previous[index]) changed = true;
         return retained;

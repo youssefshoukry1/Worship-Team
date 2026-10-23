@@ -12,6 +12,7 @@ import CapgoUpdater from "./CapgoUpdater";
 import WaslaSplashIntro from "./components/WaslaSplashIntro";
 import AppAuthGatekeeper from "./components/AppAuthGatekeeper";
 import PrayerBackupLifecycle from "./components/PrayerBackupLifecycle";
+import PrayerSyncLifecycle from "./components/PrayerSyncLifecycle";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -69,6 +70,7 @@ export default function RootLayout({
                                 <UserContextProvider>
                                     <CapgoUpdater />
                                     <PrayerBackupLifecycle />
+                                    <PrayerSyncLifecycle />
                                     <HymnsContextProvider>
                                         <AppAuthGatekeeper>
                                             <main>

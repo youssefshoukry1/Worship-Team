@@ -79,6 +79,15 @@ test('reply matching uses exact share IDs and refuses ambiguous legacy recipient
     assert.equal(g.writes, 0);
 });
 
+test('a queued send cannot consume a reply to an older prayer to the same friend', async () => {
+    const pending = { ...sent('queued', '2026-10-24'), sharedWith: { userId: 'friend', status: 'sent', shareId: null },
+        _sync: { kind: 'send', requestId: 'new-request', state: 'pending' } };
+    const f = fixture([pending]);
+    const result = await f.api.applyPrayerReplies([{ shareId: 'older-share', recipientId: 'friend', responseWords: 'For another prayer', respondedAt: '2026-10-24' }]);
+    assert.equal(result.prayers, null); assert.equal(result.acknowledged.length, 0);
+    assert.equal(f.index.guestPrays[0].sharedWith.status, 'sent'); assert.equal(f.writes, 0);
+});
+
 test('stale openings cannot mark a newer reply as read; concurrent read writes preserve both owners', async () => {
     const f = fixture([sent('a', '2026-10-01', { status: 'confirmed', respondedAt: '2026-10-22', seenActivityBy: {} })]);
     assert.equal(await f.api.markPrayerActivitySeen('sent-a', 'alice', 'reply:a:2026-10-21'), null);

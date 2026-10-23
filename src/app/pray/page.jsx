@@ -2,11 +2,11 @@
 
 import { memo, useMemo, useCallback, useEffect, useLayoutEffect, useState, useContext, useRef } from 'react';
 import { UserContext } from '../context/User_Context';
-import { Check, Heart, Loader2, Trash2, X, Share2, Search, Users, ChevronRight, ArrowRight, Send, Inbox, Lock, Layers, EyeOff, SlidersHorizontal } from 'lucide-react';
+import { Check, Clock3, CircleAlert, Heart, Loader2, Trash2, X, Share2, Search, Users, ChevronRight, ArrowRight, Send, Inbox, Lock, Layers, EyeOff, SlidersHorizontal } from 'lucide-react';
 import Portal from '../Portal/Portal';
 import { getApiBaseUrl } from '../utils/apiBase';
 import {
-    addGuestPray, addRecordings, deleteGuestPray, getGuestPrays, getRecordingsIndex, updateGuestPray, addExternalRecording, extensionForMime,
+    addGuestPray, getGuestPrays, getRecordingsIndex, updateGuestPray, addExternalRecording,
     mergeIncomingPrayers, applyPrayerReplies, markPrayerActivitySeen, migratePrayerReadState, getPrayerDeletionState, applyPrayerRevocations
 } from '../utils/prayRecordings';
 import { MyPraysBackup, SavedPrayRecordings, VoiceRecorderPanel, usePrayRecorder } from './PrayRecordings';
@@ -21,6 +21,7 @@ import RetainedPrayerList from './RetainedPrayerList';
 import { incomingPrayerActivity, isPrayerUnread, reconcilePrayerEntries, reconcilePrayerRecordings, seenPrayerChanges, sortPrayerActivity } from '../utils/prayerActivity';
 import { prayerCircleText, formatActivityTime } from './prayerCircleText';
 import usePrayerCircleOrder from './usePrayerCircleOrder';
+import { newPrayerAction, preparePrayerAction, retryPrayerAction, localPrayerOverlay, PRAYER_SYNC_EVENT } from '../services/prayerSync';
 import usePrayerDeleteWindow, { prayerDeleteAvailable } from './usePrayerDeleteWindow';
 
 const API_URL = getApiBaseUrl();
@@ -113,20 +114,6 @@ const groupRecordingsBySection = (sections, recordings = []) => {
     return { grouped, leftovers };
 };
 
-const blobToBase64 = (blob) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-        const result = reader.result;
-        if (typeof result === 'string') {
-            resolve(result.split(',')[1] || result);
-        } else {
-            resolve('');
-        }
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-});
-
 function UserAvatar({ photo, name, username, size = 'sm', className = '' }) {
     const { src, markFailed } = useOfflineAvatar(username || name || photo, photo);
     const initial = (name || username || 'U').charAt(0).toUpperCase();
@@ -177,7 +164,20 @@ const PrayEntryContent = memo(function PrayEntryContent({ entry, recordings, onR
     );
 });
 
-const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUnread, recordings, responseValue, isConfirming, isDeleting, replyError, resolveFriendProfile, myProfilePhoto, myUsername, getPrayTypeLabel, t, language, actions }) {
+function PrayerSyncStatus({ entry, language, actions }) {
+    const job = entry._sync;
+    if (!job) return null;
+    const ar = language === 'ar', de = language === 'de';
+    const failed = job.state === 'failed';
+    const label = failed ? (ar ? '\u062a\u0639\u0630\u0631' : de ? 'Fehlgeschlagen' : 'Failed') :
+        job.kind === 'save' ? (ar ? '\u062d\u0641\u0638' : de ? 'Speichern' : 'Saving') : (ar ? '\u062c\u0627\u0631\u064a \u0627\u0644\u0625\u0631\u0633\u0627\u0644' : de ? 'Senden' : 'Sending');
+    return <span role="status" className={`inline-flex items-center gap-1 text-[10px] ${failed ? 'text-amber-300' : 'text-slate-400'}`}>
+        {failed ? <CircleAlert className="w-3 h-3" /> : <Clock3 className="w-3 h-3" />}<span>{label}</span>
+        {failed && job.retryable !== false && <button type="button" onClick={event => { event.stopPropagation(); void actions.retryPrayerAction(entry); }} className="underline underline-offset-2 font-semibold px-1 py-0.5">{ar ? '\u0625\u0639\u0627\u062f\u0629' : de ? 'Erneut' : 'Retry'}</button>}
+    </span>;
+}
+
+const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUnread, recordings, responseValue, resolveFriendProfile, myProfilePhoto, myUsername, getPrayTypeLabel, t, language, actions }) {
     const { handleConfirmSharedPrayer, handleDeletePrayTime, refreshRecordings, toggleFriendPrayerExpand, onResponseChange } = actions;
     const formattedDate = useMemo(() => formatDate(entry.date, 'N/A', language), [entry.date, language]);
 
@@ -244,6 +244,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                             <span className="bg-white/10 text-white/80 text-[10px] font-black px-2 py-0.5 rounded-md border border-white/10">{getPrayTypeLabel(entry.prayType)}</span>
                         )}
                         <span className="text-[10px] text-slate-500 font-bold">{formattedDate}</span>
+                        <PrayerSyncStatus entry={entry} language={language} actions={actions} />
                     </div>
                     {canDelete && <div className="flex gap-2">
                         <button onClick={() => handleDeletePrayTime(entry._id)} className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5" title={t('deleteNote')}><Trash2 className="w-4 h-4" /></button>
@@ -302,12 +303,13 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                             <div className="flex items-center gap-2 flex-wrap mt-1">
                                 {activityLabel && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-sky-500/15 text-sky-300">{activityLabel}</span>}
                                 <time className="text-[10px] text-slate-500" dateTime={sentTime ? new Date(sentTime).toISOString() : undefined}>{sentTimeLabel}</time>
+                                <PrayerSyncStatus entry={entry} language={language} actions={actions} />
                             </div>
                         </div>
                     </div>
                     <div className="shrink-0 flex items-center gap-1.5">
                         {canDelete && <button
-                            type="button" disabled={isDeleting}
+                            type="button"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeletePrayTime(entry._id);
@@ -315,7 +317,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                             className="p-1.5 sm:p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5"
                             title={t('deleteNote')}
                         >
-                            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                            <Trash2 className="w-4 h-4" />
                         </button>}
                         <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-90 text-[#00C2FF]' : ''}`} />
                     </div>
@@ -402,6 +404,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                             <div className="flex items-center gap-2 flex-wrap mt-1">
                                 {activityLabel && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-sky-500/15 text-sky-300">{activityLabel}</span>}
                                 <time className="text-[10px] text-slate-500" dateTime={sentTime ? new Date(sentTime).toISOString() : undefined}>{sentTimeLabel}</time>
+                                <PrayerSyncStatus entry={entry} language={language} actions={actions} />
                             </div>
                         </div>
                     </div>
@@ -500,15 +503,12 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                                         <div className="flex justify-end">
                                             <button
                                                 onClick={() => handleConfirmSharedPrayer(entry._id)}
-                                                disabled={isConfirming}
                                                 className="px-4 py-2 text-xs font-bold bg-[#00C2FF] text-[#020817] hover:brightness-110 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-[#00C2FF]/20 disabled:opacity-50"
                                             >
-                                                {isConfirming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
                                                 <span>Send reply</span>
                                                 <ArrowRight className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
-                                        {replyError && <p role="alert" className="text-xs text-red-400">{circleText.replyFailed}</p>}
                                     </div>
                                 </div>
                             </div>
@@ -685,69 +685,25 @@ export default function PrayPage() {
     };
 
     const [responseInputs, setResponseInputs] = useState({});
-    const [isConfirmingShare, setIsConfirmingShare] = useState({});
-    const [replyErrors, setReplyErrors] = useState({});
-    const [deletingIds, setDeletingIds] = useState(() => new Set());
-
+    const [localActivityId, setLocalActivityId] = useState('');
     const handleSelectShareUser = (targetUser) => {
         setSelectedShareUser(targetUser);
         setShowShareSettings(false);
         setIsShareOpen(false);
     };
 
-    const handleConfirmSharedPrayer = async (prayId, quickReplyText) => {
-        const rawText = quickReplyText !== undefined ? quickReplyText : (responseInputs[prayId] || '');
-        const responseText = (rawText || 'Amen 🙏').trim();
-        try {
-            setIsConfirmingShare((prev) => ({ ...prev, [prayId]: true }));
-            setReplyErrors(prev => ({ ...prev, [prayId]: false }));
-            const currentPrays = await getGuestPrays();
-            const currentEntry = currentPrays.find((p) => String(p._id) === String(prayId));
-            const rawShareId = currentEntry?.sharedFrom?.shareId || currentEntry?.sharedFrom?.originalPrayId || prayId;
-            const shareId = String(rawShareId).replace(/^received-/, '');
-            let respondedAt = new Date().toISOString();
-
-            if (token) {
-                const res = await fetch(`${API_URL}/users/pray-time/confirm-share`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        shareId,
-                        prayId,
-                        responseWords: responseText
-                    })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.msg || 'Failed to confirm prayer');
-                respondedAt = data.respondedAt || data.prayEntry?.sharedFrom?.respondedAt || respondedAt;
-            }
-
-            await updateGuestPray(prayId, {
-                sharedFrom: {
-                    ...(currentEntry?.sharedFrom || {}),
-                    status: 'confirmed',
-                    responseWords: responseText,
-                    respondedAt,
-                    seenActivityBy: { ...currentEntry?.sharedFrom?.seenActivityBy, [String(userId || 'guest')]: incomingPrayerActivity(currentEntry) }
-                }
-            });
-            setGuestPrays(await getGuestPrays());
-
-            setResponseInputs((prev) => {
-                const next = { ...prev };
-                delete next[prayId];
-                return next;
-            });
-            // Confirmed silently
-        } catch (err) {
-            console.error('Confirm prayer error:', err);
-            setReplyErrors(prev => ({ ...prev, [prayId]: true }));
-        } finally {
-            setIsConfirmingShare((prev) => ({ ...prev, [prayId]: false }));
-        }
+    const handleConfirmSharedPrayer = (prayId, quickReplyText) => {
+        const current = prayList.find(entry => String(entry._id) === String(prayId));
+        if (!current || current._sync || current.sharedFrom?.status === 'confirmed') return;
+        const responseText = ((quickReplyText ?? responseInputs[prayId]) || 'Amen 🙏').trim();
+        const entry = { ...current, sharedFrom: { ...current.sharedFrom, status: 'confirmed',
+            responseWords: responseText, respondedAt: new Date().toISOString(),
+            seenActivityBy: { ...current.sharedFrom?.seenActivityBy, [String(userId || 'guest')]: incomingPrayerActivity(current) } },
+            _sync: newPrayerAction('reply', userId) };
+        setGuestPrays(previous => previous.map(item => item._id === prayId ? entry : item));
+        setLocalActivityId(entry._sync.requestId);
+        setResponseInputs(previous => { const next = { ...previous }; delete next[prayId]; return next; });
+        void preparePrayerAction(entry);
     };
 
     useEffect(() => {
@@ -792,14 +748,18 @@ export default function PrayPage() {
     const { t, language } = useLanguage();
 
     const [prayWords, setPrayWords] = useState('');
-    const [isSubmittingPray, setIsSubmittingPray] = useState(false);
     const [prayBlocks, setPrayBlocks] = useState([]);
     const [recordingsIndex, setRecordingsIndex] = useState({});
     const [generalRecordings, setGeneralRecordings] = useState([]);
     // All prayers are stored 100% on this device
     const isGuest = !token || !userId;
     const [guestPrays, setGuestPraysState] = useState([]);
-    const setGuestPrays = useCallback(next => setGuestPraysState(previous => reconcilePrayerEntries(previous, typeof next === 'function' ? next(previous) : next)), []);
+    const setGuestPrays = useCallback(next => setGuestPraysState(previous => {
+        const incoming = typeof next === 'function' ? next(previous) : next;
+        const overlay = localPrayerOverlay();
+        const ids = new Set(overlay.map(entry => String(entry._id)));
+        return reconcilePrayerEntries(previous, [...overlay.filter(entry => !entry._sync?.hidden), ...incoming.filter(entry => !entry._sync?.hidden && !ids.has(String(entry._id)))]);
+    }), []);
     const rawPrayList = guestPrays;
     const prayList = useMemo(() => Array.from(new Map(rawPrayList.map(item => [String(item._id || item.date), item])).values()), [rawPrayList]);
     const { personalPrayList, receivedPrayList, sentPrayList } = useMemo(() => {
@@ -813,7 +773,7 @@ export default function PrayPage() {
         }
         return { personalPrayList, receivedPrayList, sentPrayList };
     }, [prayList]);
-    const deleteCandidates = useMemo(() => [...personalPrayList, ...sentPrayList.filter(entry => entry.sharedWith?.shareId)], [personalPrayList, sentPrayList]);
+    const deleteCandidates = useMemo(() => [...personalPrayList, ...sentPrayList.filter(entry => entry.sharedWith?.shareId)].filter(entry => !entry._sync), [personalPrayList, sentPrayList]);
     const deletablePrayerIds = usePrayerDeleteWindow(deleteCandidates);
 
     const [activePrayTab, setActivePrayTab] = useState('personal');
@@ -889,19 +849,19 @@ export default function PrayPage() {
     const unreadReceivedCount = receivedPrayList.filter(entry => unreadPrayerIds.has(String(entry._id))).length;
     const circleText = prayerCircleText(language);
     const circleAnchorRef = useRef(null);
-    const { visibleItems: orderedPrayList, pendingUpdates, revealUpdates } = usePrayerCircleOrder(visiblePrayList, `${userId || 'guest'}:${activePrayTab}:${circleFilter}`, circleAnchorRef, notificationPrayerId);
+    const { visibleItems: orderedPrayList, pendingUpdates, revealUpdates } = usePrayerCircleOrder(visiblePrayList, `${userId || 'guest'}:${activePrayTab}:${circleFilter}`, circleAnchorRef, `${notificationPrayerId || ''}:${localActivityId}`);
     const seenWrites = useRef(new Set());
     const markSeen = useCallback(async (id, activity) => {
         const key = `${userId || 'guest'}:${id}:${activity}`;
         if (seenWrites.current.has(key)) return;
         seenWrites.current.add(key);
+        setGuestPrays(previous => previous.map(entry => {
+            if (String(entry._id) !== String(id)) return entry;
+            const changes = seenPrayerChanges(entry, userId, activity);
+            return changes ? { ...entry, ...changes } : entry;
+        }));
         try {
             await markPrayerActivitySeen(id, userId, activity);
-            if (mountedRef.current) setGuestPrays(previous => previous.map(entry => {
-                if (String(entry._id) !== String(id)) return entry;
-                const changes = seenPrayerChanges(entry, userId, activity);
-                return changes ? { ...entry, ...changes } : entry;
-            }));
         } catch (error) { console.warn('Could not save prayer read state:', error); }
         finally { seenWrites.current.delete(key); }
     }, [userId, setGuestPrays]);
@@ -933,6 +893,22 @@ export default function PrayPage() {
     }, []);
 
     useEffect(() => { refreshRecordings(); }, [refreshRecordings]);
+    useEffect(() => {
+        let active = true;
+        let sequence = 0;
+        const refresh = async event => {
+            const current = ++sequence;
+            const localFailure = event?.detail?.entry;
+            const entries = await getGuestPrays();
+            if (!active || current !== sequence) return;
+            if (localFailure) setGuestPrays(previous => [localFailure, ...previous.filter(entry => entry._id !== localFailure._id)]);
+            else setGuestPrays(entries);
+            refreshRecordings();
+        };
+        window.addEventListener(PRAYER_SYNC_EVENT, refresh);
+        return () => { active = false; window.removeEventListener(PRAYER_SYNC_EVENT, refresh); };
+    }, [setGuestPrays, refreshRecordings]);
+
 
     useEffect(() => {
         let isCancelled = false;
@@ -1175,168 +1151,45 @@ export default function PrayPage() {
 
     const hasBlockContent = (block) => block.words.trim() || (block.recordings || []).length > 0;
 
-    const savePendingRecordings = async (prayId, pendingWords, hasGeneralSection) => {
-        // Section order matches the saved text: general words first, then each non-empty block
-        const blockOffset = hasGeneralSection ? 1 : 0;
-        const items = [
-            ...generalRecordings.map((rec) => ({ ...rec, blockType: 'general', sectionIndex: 0 })),
-            ...prayBlocks.filter(hasBlockContent).flatMap((block, index) => (block.recordings || []).map((rec) => ({ ...rec, blockType: block.prayType, sectionIndex: blockOffset + index }))),
-        ];
-        if (!prayId || !items.length) return;
-        try {
-            await addRecordings(prayId, items, pendingWords);
-            refreshRecordings();
-        } catch (err) {
-            console.error('Saving prayer recordings failed:', err);
-        }
-    };
-
-    const handleSubmitPrayTime = async () => {
+    const handleSubmitPrayTime = () => {
         if (recorder.isRecording) return;
-        const extraText = prayBlocks.filter(hasBlockContent).map((block) => `\n\n[ ${getPrayTypeMarker(block.prayType)} ]\n${block.words.trim() || VOICE_ONLY_TEXT}`).join('');
+        const blocks = prayBlocks.filter(hasBlockContent);
+        const extraText = blocks.map(block => `\n\n[ ${getPrayTypeMarker(block.prayType)} ]\n${block.words.trim() || VOICE_ONLY_TEXT}`).join('');
         const generalText = prayWords.trim() || (generalRecordings.length ? VOICE_ONLY_TEXT : '');
-        const finalWords = (generalText + extraText).trim();
-        if (!finalWords) return;
-        setIsSubmittingPray(true);
-
-        // Case 1: Sharing with a user via Cloudflare R2
-        if (selectedShareUser) {
-            try {
-                const blockOffset = generalText ? 1 : 0;
-                const pendingRecordings = [
-                    ...generalRecordings.map((rec) => ({ ...rec, blockType: 'general', sectionIndex: 0 })),
-                    ...prayBlocks.filter(hasBlockContent).flatMap((block, index) => (block.recordings || []).map((rec) => ({ ...rec, blockType: block.prayType, sectionIndex: blockOffset + index }))),
-                ];
-
-                const serializedRecordings = [];
-                for (const rec of pendingRecordings) {
-                    let base64 = null;
-                    if (rec.blob) {
-                        base64 = await blobToBase64(rec.blob);
-                    }
-                    if (base64) {
-                        serializedRecordings.push({
-                            id: rec.id || `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-                            blockType: rec.blockType || 'general',
-                            sectionIndex: rec.sectionIndex,
-                            mimeType: rec.blob?.type || 'audio/webm',
-                            ext: extensionForMime(rec.blob?.type || 'audio/webm'),
-                            duration: Math.round(rec.duration || 0),
-                            data: base64
-                        });
-                    }
-                }
-
-                // 1. Save locally on sender device first
-                const targetUsername = selectedShareUser.username || selectedShareUser.Name || 'friend';
-                const createdPray = await addGuestPray({
-                    words: finalWords,
-                    prayType: 'general',
-                    sharedWith: {
-                        userId: selectedShareUser._id,
-                        username: targetUsername,
-                        name: selectedShareUser.Name || selectedShareUser.username,
-                        profilePhoto: selectedShareUser.profilePhoto || null,
-                        status: 'sent',
-                        seenActivityBy: {},
-                        shareId: null,
-                        isAnonymous: isAnonymousShare
-                    }
-                });
-
-                if (createdPray?._id) {
-                    await savePendingRecordings(createdPray._id, undefined, Boolean(generalText));
-                }
-
-                // 2. Upload prayer bundle to Cloudflare R2 via backend transit route
-                if (token) {
-                    const res = await fetch(`${API_URL}/users/pray-time/share`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Authorization: `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                            words: finalWords,
-                            prayType: 'general',
-                            targetUserId: selectedShareUser._id,
-                            recordings: serializedRecordings,
-                            isAnonymous: isAnonymousShare
-                        })
-                    });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.msg || 'Failed to share prayer');
-
-                    if (data.shareId) {
-                        await updateGuestPray(createdPray._id, {
-                            date: data.date || createdPray.date,
-                            sharedWith: {
-                                userId: selectedShareUser._id,
-                                username: targetUsername,
-                                name: selectedShareUser.Name || selectedShareUser.username,
-                                profilePhoto: selectedShareUser.profilePhoto || null,
-                                status: 'sent',
-                                seenActivityBy: {},
-                                shareId: data.shareId,
-                                isAnonymous: isAnonymousShare
-                            }
-                        });
-                    }
-                }
-
-                setGuestPrays(await getGuestPrays());
-                resetPrayForm();
-                setActivePrayTab('shared');
-                setCircleFilter('sent');
-            } catch (shareError) {
-                console.error('Share error:', shareError);
-            } finally {
-                setIsSubmittingPray(false);
-            }
-            return;
-        }
-
-        // Case 2: Personal Prayer (saved 100% locally on user phone)
-        try {
-            const entry = await addGuestPray({ words: finalWords, prayType: 'general' });
-            await savePendingRecordings(entry._id, undefined, Boolean(generalText));
-            setGuestPrays(await getGuestPrays());
-            resetPrayForm();
-        } catch (localError) {
-            console.error('Local prayer save error:', localError);
-            alert(t('couldNotSaveLocalPrayer') || 'Failed to save prayer locally');
-        } finally {
-            setIsSubmittingPray(false);
-        }
+        const words = (generalText + extraText).trim();
+        if (!words) return;
+        const blockOffset = generalText ? 1 : 0;
+        const recordings = [
+            ...generalRecordings.map(rec => ({ ...rec, blockType: 'general', sectionIndex: 0 })),
+            ...blocks.flatMap((block, index) => (block.recordings || []).map(rec => ({ ...rec, blockType: block.prayType, sectionIndex: blockOffset + index }))),
+        ];
+        const sharedWith = selectedShareUser ? {
+            userId: selectedShareUser._id, username: selectedShareUser.username || selectedShareUser.Name || 'friend',
+            name: selectedShareUser.Name || selectedShareUser.username, profilePhoto: selectedShareUser.profilePhoto || null,
+            status: 'sent', seenActivityBy: {}, shareId: null, isAnonymous: isAnonymousShare,
+        } : undefined;
+        const entry = { _id: `local-${crypto.randomUUID()}`, words, prayType: 'general', date: new Date().toISOString(),
+            ...(sharedWith ? { sharedWith } : {}), _sync: newPrayerAction(sharedWith ? 'send' : 'save', userId, { audioCount: recordings.length }) };
+        setGuestPrays(previous => [entry, ...previous]);
+        setLocalActivityId(entry._sync.requestId);
+        resetPrayForm();
+        if (sharedWith) { setActivePrayTab('shared'); setCircleFilter('sent'); }
+        // Yield until after React paints before touching audio/storage.
+        void preparePrayerAction(entry, recordings);
     };
 
-    const handleDeletePrayTime = async (prayId) => {
-        const entry = prayList.find(item => String(item._id) === String(prayId));
-        if (!entry || isReceivedPrayer(entry) || !prayerDeleteAvailable(entry.date) || deletingIds.has(String(prayId))) return;
-        const sent = isSentPrayer(entry);
-        if (sent && (!token || !entry.sharedWith?.shareId)) return;
+    const handleDeletePrayTime = (prayId) => {
+        const current = prayList.find(item => String(item._id) === String(prayId));
+        if (!current || current._sync || isReceivedPrayer(current) || !prayerDeleteAvailable(current.date)) return;
+        const sent = isSentPrayer(current);
+        if (sent && (!token || !current.sharedWith?.shareId)) return;
         if (!window.confirm(sent ? circleText.deleteForEveryone : t('deletePrayerConfirm'))) return;
-        if (!prayerDeleteAvailable(entry.date)) return;
-        setDeletingIds(previous => new Set(previous).add(String(prayId)));
-        try {
-            if (sent) {
-                const shareId = entry.sharedWith.shareId;
-                const response = await fetch(`${API_URL}/users/pray-time/share/${encodeURIComponent(shareId)}`, {
-                    method: 'DELETE', headers: { Authorization: `Bearer ${token}` }
-                });
-                const result = await response.json();
-                if (!response.ok || result.success !== true || result.shareId !== shareId) throw new Error('Shared prayer deletion was not accepted');
-                await applyPrayerRevocations([shareId], userId);
-            } else await deleteGuestPray(prayId);
-            if (mountedRef.current) { setGuestPrays(await getGuestPrays()); refreshRecordings(); }
-        } catch (error) {
-            console.error('Prayer delete error:', error);
-            alert(sent ? circleText.deleteFailed : t('couldNotDeleteLocalPrayer'));
-        } finally {
-            setDeletingIds(previous => { const next = new Set(previous); next.delete(String(prayId)); return next; });
-        }
+        if (!prayerDeleteAvailable(current.date)) return;
+        const entry = { ...current, _sync: newPrayerAction(sent ? 'delete' : 'delete-local', userId, { hidden: true }) };
+        // Functional updates remove the card in this frame; the durable copy remains until acknowledgement.
+        setGuestPraysState(previous => previous.filter(item => String(item._id) !== String(prayId)));
+        void preparePrayerAction(entry);
     };
-
 
     // Event callbacks read the latest page state. Keeping their identity stable
     // lets unchanged saved cards skip composer/recording-timer renders.
@@ -1350,6 +1203,7 @@ export default function PrayPage() {
         refreshRecordings: (...args) => cardActionsRef.current.refreshRecordings(...args),
         toggleFriendPrayerExpand: (...args) => cardActionsRef.current.toggleFriendPrayerExpand(...args),
         markSeen: (...args) => cardActionsRef.current.markSeen(...args),
+        retryPrayerAction,
         onResponseChange: (id, words) => setResponseInputs(previous => ({ ...previous, [id]: words })),
     }), []);
     const renderPrayer = useCallback(entry => (
@@ -1358,10 +1212,9 @@ export default function PrayPage() {
             isExpanded={expandedFriendPrayers.has(entry._id)}
             isUnread={unreadPrayerIds.has(String(entry._id))}
             recordings={recordingsIndex[entry._id]} responseValue={responseInputs[entry._id] || ''}
-            isDeleting={deletingIds.has(String(entry._id))} isConfirming={Boolean(isConfirmingShare[entry._id])} replyError={Boolean(replyErrors[entry._id])}
             resolveFriendProfile={resolveFriendProfile} myProfilePhoto={myProfilePhoto} myUsername={myUsername}
             getPrayTypeLabel={getPrayTypeLabel} t={t} language={language} actions={cardActions} />
-    ), [deletablePrayerIds, deletingIds, expandedFriendPrayers, unreadPrayerIds, recordingsIndex, responseInputs, isConfirmingShare, replyErrors, resolveFriendProfile, myProfilePhoto, myUsername, getPrayTypeLabel, t, language, cardActions]);
+    ), [deletablePrayerIds, expandedFriendPrayers, unreadPrayerIds, recordingsIndex, responseInputs, resolveFriendProfile, myProfilePhoto, myUsername, getPrayTypeLabel, t, language, cardActions]);
 
     return (
         <section className="min-h-screen bg-[var(--app-bg)] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(14,165,233,0.07),rgba(0,0,0,0))] pb-[100px] pt-8 px-4 text-white transition-colors duration-150">
@@ -1513,8 +1366,8 @@ export default function PrayPage() {
                         <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-4">
                             <p className="text-[11px] text-slate-400">{(prayWords + ' ' + prayBlocks.map((block) => block.words).join(' ')).trim().split(/\s+/).filter(Boolean).length} {t('totalWords')}</p>
                             <div className="flex items-center gap-2">
-                                <button onClick={handleSubmitPrayTime} disabled={isSubmittingPray || recorder.isRecording || (!prayWords.trim() && !generalRecordings.length && !prayBlocks.some(hasBlockContent))} className={`px-4 py-2 rounded-lg text-xs font-bold ${selectedShareUser ? 'bg-[#00C2FF] text-[#020817] hover:brightness-110 shadow-[#00C2FF]/20' : 'bg-sky-500 hover:bg-sky-400 text-white shadow-sky-500/20'} transition-all disabled:opacity-40 flex items-center gap-2 shadow-lg`}>
-                                    {isSubmittingPray ? <Loader2 className="w-4 h-4 animate-spin" /> : (isAnonymousShare ? <EyeOff className="w-4 h-4" /> : <Check className="w-4 h-4" />)}{selectedShareUser ? 'Send' : t('saveNote')}
+                                <button onClick={handleSubmitPrayTime} disabled={recorder.isRecording || (!prayWords.trim() && !generalRecordings.length && !prayBlocks.some(hasBlockContent))} className={`px-4 py-2 rounded-lg text-xs font-bold ${selectedShareUser ? 'bg-[#00C2FF] text-[#020817] hover:brightness-110 shadow-[#00C2FF]/20' : 'bg-sky-500 hover:bg-sky-400 text-white shadow-sky-500/20'} transition-all disabled:opacity-40 flex items-center gap-2 shadow-lg`}>
+                                    {isAnonymousShare ? <EyeOff className="w-4 h-4" /> : <Check className="w-4 h-4" />}{selectedShareUser ? 'Send' : t('saveNote')}
                                 </button>
                             </div>
                         </div>

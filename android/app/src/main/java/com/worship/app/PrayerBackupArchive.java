@@ -56,7 +56,7 @@ final class PrayerBackupArchive {
             JSONArray prays = new JSONArray(), others = new JSONArray();
             for (Map.Entry<String, JSONObject> item : prayers.entrySet()) {
                 JSONObject p = item.getValue(), copy = new JSONObject();
-                for (String field : new String[]{"_id", "words", "feeling", "prayType", "churchId", "date", "sharedWith", "sharedFrom"}) if (p.has(field)) copy.put(field, p.get(field));
+                for (String field : new String[]{"_id", "words", "feeling", "prayType", "churchId", "date", "sharedWith", "sharedFrom", "_sync"}) if (p.has(field)) copy.put(field, p.get(field));
                 copy.put("recordings", withFiles.optJSONArray(item.getKey()) == null ? new JSONArray() : withFiles.getJSONArray(item.getKey())); prays.put(copy);
             }
             for (Iterator<String> it = recordings.keys(); it.hasNext();) {
