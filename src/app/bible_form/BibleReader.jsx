@@ -12,6 +12,63 @@ import WaslaWaveLogo from '../components/WaslaWaveLogo';
 import { useRouter, usePathname } from 'next/navigation';
 import { HIGHLIGHT_COLORS, BIBLE_LAST_POS_KEY } from './bibleShared';
 
+function AiResponseText({ text }) {
+  const scrollRef = useRef(null);
+  const [thumb, setThumb] = useState({ height: 0, top: 0 });
+  const [scrollbarVisible, setScrollbarVisible] = useState(true);
+
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    let hideTimer;
+
+    const updateThumb = () => {
+      const { clientHeight, scrollHeight, scrollTop } = scroller;
+      const height = scrollHeight > clientHeight ? Math.max(12, clientHeight * clientHeight / scrollHeight * 0.65) : 0;
+      const progress = scrollHeight > clientHeight ? Math.min(1, Math.max(0, scrollTop / (scrollHeight - clientHeight))) : 0;
+      setThumb({ height, top: (clientHeight - height) * progress });
+    };
+
+    const handleScroll = () => {
+      updateThumb();
+      setScrollbarVisible(true);
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => setScrollbarVisible(false), 800);
+    };
+
+    const observer = new ResizeObserver(updateThumb);
+    observer.observe(scroller);
+    scroller.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      observer.disconnect();
+      scroller.removeEventListener('scroll', handleScroll);
+      clearTimeout(hideTimer);
+    };
+  }, []);
+
+  return (
+    <div className="relative mx-auto max-w-[65ch] font-arabic text-[13px] font-normal leading-[2] tracking-normal text-right text-slate-100 whitespace-pre-line break-words antialiased">
+      <p
+        ref={scrollRef}
+        lang="ar"
+        dir="rtl"
+        data-ai-response-scroll
+        data-lenis-prevent-wheel
+        className="max-h-[10em] overflow-y-auto overscroll-y-contain touch-pan-y hide-scrollbar"
+      >
+        {text}
+      </p>
+      {thumb.height > 0 && (
+        <span
+          aria-hidden="true"
+          data-ai-response-scrollbar
+          className="pointer-events-none absolute left-0 top-0 w-[2px] rounded-full bg-white/30 transition-opacity duration-300"
+          style={{ height: thumb.height, transform: `translateY(${thumb.top}px)`, opacity: scrollbarVisible ? 1 : 0 }}
+        />
+      )}
+    </div>
+  );
+}
+
 const LEGACY_COLOR_MAP = {
   cyan: '#2fc4c9',
   lavender: '#DAB6FC',
@@ -546,6 +603,7 @@ export function BibleForm({ controller, isPage = false }) {
     bibleAddedSuccess, bibleModalBrowseLoading, biblePickerOpen, setBiblePickerOpen,
     bibleBookPickerRef, bibleChapterPickerRef, isSavingBible, bibleVerseSpacing,
     handleSetBibleVerseSpacing, bibleViewMode, handleSetBibleViewMode, bibleHighlights, imageCardConfig, setImageCardConfig,
+    bibleVerseGap, handleSetBibleVerseGap,
     prayModeActive, setPrayModeActive, highlightColorsList, setHighlightColorsList,
     showColorCustomizer, setShowColorCustomizer, customColorHex, setCustomColorHex,
     colorInputRef, handleTriggerColorPicker, handleColorPickerChange, handleApplyHighlight,
@@ -1023,6 +1081,11 @@ export function BibleForm({ controller, isPage = false }) {
 
                             const isConnectedRight = prev && prev.bg !== 'transparent' && prev.bg === curr.bg;
                             const isConnectedLeft = next && next.bg !== 'transparent' && next.bg === curr.bg;
+                            // Keep verse numbers inside painted backgrounds and clear of the previous verse.
+                            const touchesBackground = curr.bg !== 'transparent' || (prev && prev.bg !== 'transparent');
+                            const verseNumberGap = idx === 0 ? 0 : touchesBackground
+                              ? Math.max(bibleVerseGap, isConnectedRight ? bibleVerseFontSize / 5 : 0)
+                              : bibleVerseGap;
 
                             let borderRadius = '5px';
                             let padding = '2px 5px';
@@ -1062,7 +1125,7 @@ export function BibleForm({ controller, isPage = false }) {
                                     ? isDark ? 'text-sky-500/70 bg-white/5 border-white/10' : 'text-sky-400 bg-sky-500/20 border-sky-400/30'
                                     : isDark ? 'text-white/30 bg-white/5 border-white/10' : 'text-sky-300/60 bg-sky-500/10 border-sky-400/15'
                                     }`}
-                                  style={{ verticalAlign: 'middle', transform: 'translateY(-1px)' }}
+                                  style={{ verticalAlign: 'middle', transform: 'translateY(-1px)', marginInlineStart: `${verseNumberGap}px` }}
                                 >
                                   {verse.verseNumber}
                                   {existingNote && (
@@ -1299,14 +1362,7 @@ export function BibleForm({ controller, isPage = false }) {
                             )}
                           </>
                         ) : (
-                          <p
-                            lang="ar"
-                            dir="rtl"
-                            data-ai-response-scroll
-                            className="mx-auto max-w-[65ch] max-h-[10em] overflow-y-auto overscroll-y-contain touch-pan-y custom-scrollbar-thin font-arabic text-[13px] font-normal leading-[2] tracking-normal text-right text-slate-100 whitespace-pre-line break-words antialiased"
-                          >
-                            {aiAnalysis.text}
-                          </p>
+                          <AiResponseText key={aiAnalysis.text} text={aiAnalysis.text} />
                         )}
                       </div>
                     </div>
@@ -1581,6 +1637,37 @@ export function BibleForm({ controller, isPage = false }) {
                             </button>
                           </div>
                         </div>
+
+                        {bibleViewMode === 'paragraph' && (
+                          <div
+                            role="group"
+                            aria-label={language === 'ar' ? 'المسافة بين الآيات' : 'Verse gap'}
+                            className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-white/5"
+                          >
+                            <span className="text-[11px] font-bold text-gray-300">
+                              {language === 'ar' ? 'المسافة بين الآيات' : 'Verse gap'}
+                            </span>
+                            <div className="flex items-center border border-white/10 rounded-lg overflow-hidden bg-black/20 shrink-0">
+                              <button
+                                onClick={() => handleSetBibleVerseGap(bibleVerseGap - 2)}
+                                disabled={bibleVerseGap <= -8}
+                                className="h-5 px-2 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] transition-all active:bg-white/20 disabled:opacity-30"
+                                aria-label={language === 'ar' ? 'تقليل المسافة بين الآيات' : 'Decrease verse gap'}
+                              >
+                                -
+                              </button>
+                              <output className="font-bold min-w-[22px] px-1 text-center text-[11px] text-sky-400" aria-live="polite">{bibleVerseGap + 6}px</output>
+                              <button
+                                onClick={() => handleSetBibleVerseGap(bibleVerseGap + 2)}
+                                disabled={bibleVerseGap >= 32}
+                                className="h-5 px-2 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] transition-all active:bg-white/20 disabled:opacity-30"
+                                aria-label={language === 'ar' ? 'زيادة المسافة بين الآيات' : 'Increase verse gap'}
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Selection Actions */}
                         <div className="flex items-center gap-1 pt-1.5 border-t border-white/5">

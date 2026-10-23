@@ -245,6 +245,21 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     }
   };
 
+  const [bibleVerseGap, setBibleVerseGap] = useState(() => {
+    if (typeof window === 'undefined') return -6;
+    const stored = localStorage.getItem('taspe7_bible_verse_gap');
+    const saved = stored === null ? -6 : Number(stored);
+    return Number.isFinite(saved) ? Math.min(32, Math.max(-8, saved)) : -6;
+  });
+
+  const handleSetBibleVerseGap = (val) => {
+    const gap = Math.min(32, Math.max(-8, val));
+    setBibleVerseGap(gap);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('taspe7_bible_verse_gap', gap.toString());
+    }
+  };
+
   // View mode: 'list' (under each other) vs 'paragraph' (beside each other)
   const [bibleViewMode, setBibleViewMode] = useState(() => {
     if (typeof window === 'undefined') return 'list';
@@ -1240,6 +1255,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     bibleBookPickerRef, bibleChapterPickerRef,
     isSavingBible,
     bibleVerseSpacing, handleSetBibleVerseSpacing,
+    bibleVerseGap, handleSetBibleVerseGap,
     bibleViewMode, handleSetBibleViewMode,
     bibleHighlights,
     imageCardConfig, setImageCardConfig,
