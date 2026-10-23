@@ -29,8 +29,9 @@ final class PrayerBackupArchive {
         for (JSONArray list : new JSONArray[]{ index.optJSONArray("guestPrays") }) {
             if (list != null) for (int i = 0; i < list.length(); i++) { JSONObject p = list.getJSONObject(i); if (p.has("_id")) prayers.put(p.getString("_id"), p); }
         }
-        if (prayers.isEmpty() && recordings.length() == 0) throw new IOException("No prayers to back up yet");
+        if (prayers.isEmpty() && recordings.length() == 0 && (index.optJSONObject("revokedPrayerShares") == null || index.optJSONObject("revokedPrayerShares").length() == 0)) throw new IOException("No prayers to back up yet");
         JSONObject manifest = new JSONObject().put("type", "my-prays-backup").put("version", 1).put("createdAt", new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US) {{ setTimeZone(TimeZone.getTimeZone("UTC")); }}.format(new Date()));
+        manifest.put("revokedPrayerShares", index.optJSONObject("revokedPrayerShares") == null ? new JSONObject() : index.optJSONObject("revokedPrayerShares"));
         JSONObject withFiles = new JSONObject(); int total = 0, done = 0;
         for (Iterator<String> it = recordings.keys(); it.hasNext();) total += recordings.getJSONArray(it.next()).length();
         try (ZipOutputStream zip = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(output)))) {

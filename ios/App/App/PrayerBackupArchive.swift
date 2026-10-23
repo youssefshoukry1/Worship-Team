@@ -27,7 +27,7 @@ enum PrayerBackupArchive {
         for p in index["guestPrays"] as? [[String: Any]] ?? [] {
             if let id = p["_id"] as? String { prayers[id] = p }
         }
-        guard !prayers.isEmpty || !recordings.isEmpty else { throw PrayerBackupError.message("No prayers to back up yet") }
+        guard !prayers.isEmpty || !recordings.isEmpty || !(index["revokedPrayerShares"] as? [String: Any] ?? [:]).isEmpty else { throw PrayerBackupError.message("No prayers to back up yet") }
         var entries: [Entry] = [], withFiles: [String: [[String: Any]]] = [:]
         for (id, list) in recordings {
             _ = try component(id)
@@ -48,7 +48,7 @@ enum PrayerBackupArchive {
             var group: [String: Any] = ["prayId": id, "recordings": withFiles[id] ?? []]
             if let pending = (index["pendingWords"] as? [String: String])?[id] { group["pendingWords"] = pending }; return group
         }
-        let manifest: [String: Any] = ["type": "my-prays-backup", "version": 1, "createdAt": ISO8601DateFormatter().string(from: Date()), "prays": prays, "otherRecordings": others]
+        let manifest: [String: Any] = ["type": "my-prays-backup", "version": 1, "createdAt": ISO8601DateFormatter().string(from: Date()), "prays": prays, "otherRecordings": others, "revokedPrayerShares": index["revokedPrayerShares"] ?? [:]]
         entries.append(Entry(name: "prays.json", file: nil, data: try JSONSerialization.data(withJSONObject: manifest)))
         try write(entries, to: output, progress: progress)
     }

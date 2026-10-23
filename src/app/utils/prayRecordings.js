@@ -13,6 +13,7 @@ import localforage from 'localforage';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
+import { incomingPrayerActivity, isPrayerUnread, seenPrayerChanges } from './prayerActivity';
 
 const ROOT = 'my_prays';
 const INDEX_PATH = `${ROOT}/index.json`;
@@ -28,7 +29,10 @@ const webStore = () => {
 };
 
 // guestPrays: prayer text for users who are not logged in (never sent to the server)
-const emptyIndex = () => ({ version: 1, recordings: {}, pendingWords: {}, guestPrays: [] });
+const emptyIndex = () => ({ version: 1, recordings: {}, pendingWords: {}, guestPrays: [], revokedPrayerShares: {}, prayerDeletionCursors: {} });
+const normalizeShareId = value => String(value || '').replace(/^received-/, '');
+const entryShareId = entry => normalizeShareId(entry.sharedWith?.shareId || entry.sharedFrom?.shareId || entry.sharedFrom?.originalPrayId || (String(entry._id).startsWith('received-') ? entry._id : ''));
+const isRevokedPrayer = (index, entry) => Boolean(index.revokedPrayerShares?.[entryShareId(entry)]);
 
 // ─── Binary helpers ─────────────────────────────────────────────────────────
 const uint8ToBase64 = (bytes) => {
@@ -79,11 +83,11 @@ const writeIndex = async (index) => {
     }
 };
 
-const updateIndex = (mutator) => {
+const updateIndex = (mutator, shouldWrite = () => true) => {
     const run = _indexLock.then(async () => {
         const index = await readIndex();
         const result = await mutator(index);
-        await writeIndex(index);
+        if (shouldWrite(result)) await writeIndex(index);
         return result;
     });
     _indexLock = run.catch(() => {});
@@ -132,9 +136,12 @@ export async function addExternalRecording(prayId, recInfo, base64OrBytes) {
         createdAt: recInfo.createdAt || new Date().toISOString(),
     };
     await writeAudio(rec, bytes);
-    await updateIndex((index) => {
+    const kept = await updateIndex((index) => {
+        if (index.revokedPrayerShares?.[normalizeShareId(prayId)]) return false;
         index.recordings[prayId] = [...(index.recordings[prayId] || []).filter(r => r.id !== rec.id), rec];
-    });
+        return true;
+    }, Boolean);
+    if (!kept) { await removeAudio(rec); return null; }
     return rec;
 }
 
@@ -187,7 +194,55 @@ export async function addRecordings(prayId, items, pendingWords) {
 const byNewest = (a, b) => new Date(b.date) - new Date(a.date);
 
 export async function getGuestPrays() {
-    return [...((await readIndex()).guestPrays || [])].sort(byNewest);
+    const index = await readIndex();
+    return index.guestPrays.filter(entry => !isRevokedPrayer(index, entry)).sort(byNewest);
+}
+
+export async function getPrayerDeletionState(ownerId) {
+    const index = await readIndex();
+    return { cursor: index.prayerDeletionCursors?.[String(ownerId)] || null, seen: new Set(Object.keys(index.revokedPrayerShares || {})) };
+}
+
+// Persist removals before deleting audio bytes. Late deliveries and old backups cannot resurrect a prayer.
+export async function applyPrayerRevocations(shareIds, ownerId, cursor) {
+    const ids = shareIds.map(normalizeShareId).filter(Boolean);
+    const result = await updateIndex(index => {
+        let changed = false;
+        const audio = [];
+        index.revokedPrayerShares ||= {};
+        index.prayerDeletionCursors ||= {};
+        for (const id of ids) if (!index.revokedPrayerShares[id]) { index.revokedPrayerShares[id] = true; changed = true; }
+        const retained = index.guestPrays.filter(entry => {
+            if (!isRevokedPrayer(index, entry)) return true;
+            audio.push(...(index.recordings[entry._id] || []));
+            delete index.recordings[entry._id]; delete index.pendingWords[entry._id];
+            return false;
+        });
+        const removed = retained.length !== index.guestPrays.length;
+        if (removed) { index.guestPrays = retained; changed = true; }
+        if (cursor && Number.isFinite(Date.parse(cursor)) && index.prayerDeletionCursors[String(ownerId)] !== cursor) {
+            index.prayerDeletionCursors[String(ownerId)] = cursor; changed = true;
+        }
+        return { changed, audio, prayers: removed ? [...index.guestPrays].sort(byNewest) : null };
+    }, result => result.changed);
+    for (const rec of result.audio) await removeAudio(rec);
+    return result;
+}
+
+// Upgrade older browser-only read markers once, so native/web backups carry the same state.
+export function migratePrayerReadState(ownerId, legacyOpened) {
+    return updateIndex(index => {
+        let changed = false;
+        index.guestPrays = index.guestPrays.map(entry => {
+            const field = entry.sharedWith ? 'sharedWith' : entry.sharedFrom ? 'sharedFrom' : null;
+            if (!field || entry[field].seenActivityBy) return entry;
+            const activity = incomingPrayerActivity(entry);
+            const seenActivityBy = activity && !isPrayerUnread(entry, ownerId, legacyOpened) ? { [String(ownerId || 'guest')]: activity } : {};
+            changed = true;
+            return { ...entry, [field]: { ...entry[field], seenActivityBy } };
+        });
+        return { changed, prayers: [...index.guestPrays].sort(byNewest) };
+    }, result => result.changed).then(result => result.prayers);
 }
 
 /** @returns {Promise<object>} the saved entry (with a local `_id`) */
@@ -201,10 +256,11 @@ export async function addGuestPray({ words, prayType, sharedWith, sharedFrom, _i
         ...(sharedWith ? { sharedWith } : {}),
         ...(sharedFrom ? { sharedFrom } : {}),
     };
-    await updateIndex((index) => {
+    return updateIndex((index) => {
+        if (isRevokedPrayer(index, entry)) return null;
         index.guestPrays = [entry, ...(index.guestPrays || []).filter((e) => String(e._id) !== String(entry._id))];
-    });
-    return entry;
+        return entry;
+    }, Boolean);
 }
 
 export async function updateGuestPray(prayId, changes) {
@@ -212,6 +268,77 @@ export async function updateGuestPray(prayId, changes) {
         index.guestPrays = (index.guestPrays || []).map((entry) => String(entry._id) === String(prayId) ? { ...entry, ...changes } : entry);
         return [...index.guestPrays].sort(byNewest);
     });
+}
+
+// One index read/write per inbox batch. Retries never replace an already replied/read prayer.
+export function mergeIncomingPrayers(bundles) {
+    return updateIndex(index => {
+        const ids = new Set(index.guestPrays.map(entry => String(entry._id)));
+        const added = [];
+        for (const bundle of bundles) {
+            const id = `received-${bundle.shareId}`;
+            if (ids.has(id) || index.revokedPrayerShares?.[normalizeShareId(bundle.shareId)]) continue;
+            ids.add(id);
+            added.push({ _id: id, words: bundle.words, prayType: bundle.prayType || 'general', date: bundle.date || new Date().toISOString(),
+                sharedFrom: { userId: bundle.senderId, username: bundle.senderUsername, name: bundle.senderName || bundle.senderUsername,
+                    profilePhoto: bundle.senderProfilePhoto || null, shareId: bundle.shareId, originalPrayId: bundle.shareId,
+                    status: 'pending', isAnonymous: Boolean(bundle.isAnonymous), seenActivityBy: {} } });
+        }
+        if (added.length) index.guestPrays = [...added, ...index.guestPrays];
+        return { changed: added.length > 0, prayers: added.length ? [...index.guestPrays].sort(byNewest) : null };
+    }, result => result.changed);
+}
+
+export function applyPrayerReplies(updates) {
+    return updateIndex(index => {
+        const byShare = new Map(), legacyByRecipient = new Map();
+        index.guestPrays.forEach((entry, position) => {
+            if (!entry.sharedWith) return;
+            if (entry.sharedWith.shareId) byShare.set(String(entry.sharedWith.shareId).replace(/^received-/, ''), position);
+            else if (entry.sharedWith.status === 'sent') {
+                const id = String(entry.sharedWith.userId || '');
+                legacyByRecipient.set(id, legacyByRecipient.has(id) ? null : position);
+            }
+        });
+        let changed = false;
+        const acknowledged = [];
+        for (const update of updates) {
+            const shareId = String(update.shareId).replace(/^received-/, '');
+            const recipient = String(update.recipientId?._id || update.recipientId || '');
+            const position = byShare.get(shareId) ?? legacyByRecipient.get(recipient);
+            if (position == null) continue; // Never guess between multiple prayers to the same person.
+            const entry = index.guestPrays[position];
+            const old = entry.sharedWith;
+            if (old.status === 'confirmed' && old.respondedAt && update.respondedAt && Date.parse(old.respondedAt) > Date.parse(update.respondedAt)) continue;
+            const party = { ...old, shareId, status: 'confirmed', responseWords: update.responseWords,
+                respondedAt: update.respondedAt || old.respondedAt || null,
+                profilePhoto: update.recipientProfilePhoto || old.profilePhoto || null,
+                name: update.recipientName || old.name || '',
+                username: update.recipientUsername && update.recipientUsername !== 'Anonymous' ? update.recipientUsername : old.username || 'friend' };
+            // A newly arriving reply to a legacy sent prayer needs explicit unread tracking.
+            if (old.status !== 'confirmed') party.seenActivityBy = old.seenActivityBy || {};
+            if (JSON.stringify(old) !== JSON.stringify(party)) {
+                index.guestPrays[position] = { ...entry, sharedWith: party };
+                changed = true;
+            }
+            acknowledged.push(update.shareId);
+            legacyByRecipient.delete(recipient);
+        }
+        return { changed, acknowledged, prayers: changed ? [...index.guestPrays].sort(byNewest) : null };
+    }, result => result.changed);
+}
+
+// Check the exact activity again inside the serialized write: opening an older reply cannot clear a newer one.
+export function markPrayerActivitySeen(prayId, ownerId, activity) {
+    return updateIndex(index => {
+        const position = index.guestPrays.findIndex(entry => String(entry._id) === String(prayId));
+        if (position < 0) return null;
+        const entry = index.guestPrays[position];
+        if (incomingPrayerActivity(entry) !== activity) return null;
+        const changes = seenPrayerChanges(entry, ownerId, activity);
+        if (changes) index.guestPrays[position] = { ...entry, ...changes };
+        return changes;
+    }, Boolean);
 }
 
 export async function deleteGuestPray(prayId) {
@@ -329,6 +456,7 @@ export async function buildMyPraysZip(prayTime = [], onProgress = () => {}) {
         type: 'my-prays-backup',
         version: 1,
         createdAt: new Date().toISOString(),
+        revokedPrayerShares: index.revokedPrayerShares || {},
         prays: combinedPrays.map((entry) => ({
             _id: entry._id,
             words: entry.words,
@@ -359,13 +487,16 @@ export async function restoreMyPraysZip(zipBytes, onProgress = () => {}) {
     const files = unzipSync(zipBytes);
     if (!files[BACKUP_JSON]) throw new Error('This file is not a "my prays" backup.');
     const manifest = JSON.parse(strFromU8(files[BACKUP_JSON]));
+    const manifestPrayers = new Map((manifest.prays || []).map(entry => [String(entry._id), entry]));
 
+    const existing = await readIndex();
+    const revokedPrayerShares = { ...existing.revokedPrayerShares, ...manifest.revokedPrayerShares };
+    const revokedIds = new Set((manifest.prays || []).filter(entry => isRevokedPrayer({ revokedPrayerShares }, entry)).map(entry => String(entry._id)));
     const groups = [
         ...(manifest.prays || []).map((p) => ({ prayId: String(p._id), recordings: p.recordings || [] })),
         ...(manifest.otherRecordings || []).map((o) => ({ prayId: String(o.prayId), recordings: o.recordings || [], pendingWords: o.pendingWords })),
-    ].filter((group) => group.recordings.length);
+    ].filter((group) => group.recordings.length && !revokedIds.has(group.prayId) && !revokedPrayerShares[normalizeShareId(group.prayId)]);
 
-    const existing = await readIndex();
     const existingIds = new Set(Object.values(existing.recordings).flat().map((rec) => rec.id));
     const total = groups.reduce((sum, group) => sum + group.recordings.length, 0);
     const toAdd = [];
@@ -382,18 +513,29 @@ export async function restoreMyPraysZip(zipBytes, onProgress = () => {}) {
         }
     }
 
+    const revokedAudio = [];
     await updateIndex((index) => {
+        index.revokedPrayerShares = { ...index.revokedPrayerShares, ...revokedPrayerShares };
+        index.prayerDeletionCursors = {}; // A restored backup must reconcile all server removals again.
+        index.guestPrays = index.guestPrays.filter(entry => {
+            if (!isRevokedPrayer(index, entry)) return true;
+            revokedAudio.push(...(index.recordings[entry._id] || []));
+            delete index.recordings[entry._id]; delete index.pendingWords[entry._id];
+            return false;
+        });
         for (const { prayId, rec, pendingWords } of toAdd) {
+            const prayer = manifestPrayers.get(prayId);
+            if (index.revokedPrayerShares[normalizeShareId(prayId)] || (prayer && isRevokedPrayer(index, prayer))) { revokedAudio.push(rec); continue; }
             index.recordings[prayId] = [...(index.recordings[prayId] || []), rec];
             if (pendingWords) index.pendingWords[prayId] = pendingWords;
         }
 
         if (Array.isArray(manifest.prays) && manifest.prays.length > 0) {
-            const currentPrays = index.guestPrays || [];
+            const currentPrays = (index.guestPrays || []).filter(entry => !isRevokedPrayer(index, entry));
             const currentMap = new Map(currentPrays.map((p) => [String(p._id), p]));
 
             manifest.prays
-                .filter((p) => p && p.words)
+                .filter((p) => p && p.words && !isRevokedPrayer(index, p))
                 .forEach((p) => {
                     const id = String(p._id || `local-${Date.now()}`);
                     const existing = currentMap.get(id);
@@ -420,6 +562,7 @@ export async function restoreMyPraysZip(zipBytes, onProgress = () => {}) {
         }
     });
 
+    for (const rec of revokedAudio) await removeAudio(rec);
     const totalPraysCount = Math.max(
         new Set(toAdd.map((item) => item.prayId)).size,
         Array.isArray(manifest.prays) ? manifest.prays.length : 0

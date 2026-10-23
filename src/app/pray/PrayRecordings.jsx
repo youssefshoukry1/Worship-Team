@@ -313,7 +313,7 @@ export function VoiceClip({ url, fallbackDuration = 0, tone, label, onDelete }) 
     const showTime = isPlaying || currentTime > 0 ? currentTime : duration;
 
     return (
-        <div className={`group flex items-center gap-2.5 sm:gap-3 rounded-2xl border ${tone.frame} bg-white/[0.04] p-1.5 sm:p-2 pr-2 sm:pr-3`}>
+        <div data-prayer-playing={isPlaying ? 'true' : undefined} className={`group flex items-center gap-2.5 sm:gap-3 rounded-2xl border ${tone.frame} bg-white/[0.04] p-1.5 sm:p-2 pr-2 sm:pr-3`}>
             <button
                 type="button"
                 onClick={() => wavesurferRef.current?.playPause()}

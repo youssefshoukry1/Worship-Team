@@ -155,7 +155,7 @@ export async function initPushNotifications() {
                 markFriendsCacheDirty(localStorage.getItem('user_Taspe7_ID'));
                 window.dispatchEvent(new Event('taspe7:friends-push'));
             }
-            if (['PRAY_SHARED', 'PRAY_CONFIRMED'].includes(notification.data?.type)) {
+            if (['PRAY_SHARED', 'PRAY_CONFIRMED', 'PRAY_DELETED'].includes(notification.data?.type)) {
                 window.dispatchEvent(new Event('taspe7:prayer-push'));
             }
         }));

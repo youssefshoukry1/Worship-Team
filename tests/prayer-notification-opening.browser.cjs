@@ -174,7 +174,7 @@ test('the direct Prayer entry still requires sign-in before mounting the app', a
   } finally { await context.close(); }
 });
 
-test('large prayer lists defer offscreen controls while keyboard access, editing, saving and deletion still work', async () => {
+test('large prayer lists defer offscreen controls while keyboard access, saving and deletion still work', async () => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
     const page = await context.newPage();
@@ -187,19 +187,118 @@ test('large prayer lists defer offscreen controls while keyboard access, editing
     assert.ok(await page.locator('[data-prayer-id]').count() < 30);
     await page.locator('[data-prayer-placeholder="personal-199"]').focus();
     await page.locator('[data-prayer-id="personal-199"]').getByText('Personal prayer 199', { exact: true }).waitFor();
-    await first.getByRole('button', { name: 'Edit Note', exact: true }).click();
-    await page.getByRole('textbox').first().fill('Edited personal prayer');
-    await page.getByRole('button', { name: 'Update Note', exact: true }).click();
-    await first.getByText('Edited personal prayer', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Edit Note', exact: true }).count(), 0);
     await page.getByRole('textbox').first().fill('New prayer from the latest draft');
     await page.getByRole('button', { name: 'Save Note', exact: true }).click();
     const created = page.locator('[data-prayer-id]').filter({ hasText: 'New prayer from the latest draft' });
     await created.waitFor();
     await created.getByRole('button', { name: 'Delete Note', exact: true }).click();
     await created.waitFor({ state: 'detached' });
-    await first.getByRole('button', { name: 'Delete Note', exact: true }).click();
-    await first.waitFor({ state: 'detached' });
+    assert.equal(await first.getByRole('button', { name: 'Delete Note', exact: true }).count(), 0, 'older personal prayers cannot be deleted');
   } finally { await context.close(); }
+});
+
+test('personal prayer delete buttons expire one minute after saving and stay hidden after reload', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await page.clock.install({ time: new Date('2026-10-24T11:59:00Z') });
+    await page.clock.pauseAt(new Date('2026-10-24T12:00:00Z'));
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    await seed(page, [
+      { _id: 'fresh', words: 'Just saved personal prayer', date: '2026-10-24T12:00:00Z' },
+      { _id: 'older', words: 'Older personal prayer', date: '2026-10-24T11:58:00Z' },
+      received('shared-delete'),
+    ]);
+    await page.goto(base + '/pray/');
+    const fresh = page.locator('[data-prayer-id="fresh"]');
+    const older = page.locator('[data-prayer-id="older"]');
+    await fresh.getByRole('button', { name: 'Delete Note', exact: true }).waitFor();
+    assert.equal(await older.getByRole('button', { name: 'Delete Note', exact: true }).count(), 0);
+    await page.clock.fastForward(59_999);
+    assert.equal(await fresh.getByRole('button', { name: 'Delete Note', exact: true }).count(), 1);
+    await page.clock.fastForward(1);
+    await fresh.getByRole('button', { name: 'Delete Note', exact: true }).waitFor({ state: 'detached' });
+    await page.reload();
+    await fresh.getByText('Just saved personal prayer', { exact: true }).waitFor();
+    assert.equal(await fresh.getByRole('button', { name: 'Delete Note', exact: true }).count(), 0);
+    await page.getByRole('button', { name: /^Prayer Circle/ }).click();
+    const receivedCard = page.locator('[data-prayer-id="received-shared-delete"]');
+    await receivedCard.waitFor();
+    assert.equal(await receivedCard.getByRole('button', { name: 'Delete Note', exact: true }).count(), 0);
+  } finally { await context.close(); }
+});
+
+test('sent prayer delete buttons expire after one minute; received prayers never show delete', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await page.clock.install({ time: new Date('2026-10-24T11:59:00Z') });
+    await page.clock.pauseAt(new Date('2026-10-24T12:00:00Z'));
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    await seed(page, [{ ...sent, date: '2026-10-24T12:00:00Z' }, received('read-only')]);
+    await page.goto(base + '/pray/');
+    await page.getByRole('button', { name: /^Prayer Circle/ }).click();
+    const sentCard = page.locator('[data-prayer-id="sent-789"]');
+    await sentCard.getByRole('button', { name: 'Delete Note', exact: true }).waitFor();
+    assert.equal(await page.locator('[data-prayer-id="received-read-only"]').getByRole('button', { name: 'Delete Note', exact: true }).count(), 0);
+    await page.clock.fastForward(59_999);
+    assert.equal(await sentCard.getByRole('button', { name: 'Delete Note', exact: true }).count(), 1);
+    await page.clock.fastForward(1);
+    await sentCard.getByRole('button', { name: 'Delete Note', exact: true }).waitFor({ state: 'detached' });
+    await page.reload();
+    await page.getByRole('button', { name: /^Prayer Circle/ }).click();
+    await sentCard.waitFor();
+    assert.equal(await sentCard.getByRole('button', { name: 'Delete Note', exact: true }).count(), 0);
+  } finally { await context.close(); }
+});
+
+test('deleting a sent prayer removes both device copies after reconnect; failed requests keep both copies', async () => {
+  const sender = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const receiver = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let deleted = false, attempts = 0;
+  const deletedAt = new Date().toISOString();
+  try {
+    const senderPage = await sender.newPage(), receiverPage = await receiver.newPage();
+    for (const [page, recipient] of [[senderPage, false], [receiverPage, true]]) {
+      page.on('dialog', dialog => dialog.accept());
+      await page.route('**/*', route => {
+        const request = route.request();
+        if (request.url().startsWith(base)) return route.continue();
+        const url = new URL(request.url());
+        if (url.pathname.endsWith('/pray-time/share/live') && request.method() === 'DELETE') {
+          attempts++;
+          if (attempts === 1) return route.fulfill({ json: { success: false, msg: 'Deletion not accepted' } });
+          deleted = true;
+          return route.fulfill({ json: { success: true, shareId: 'live' } });
+        }
+        if (url.pathname.endsWith('/pray-time/inbox')) return route.fulfill({ json: { inbox: [], deletedShareIds: recipient && deleted ? ['live'] : [], deletionCursor: recipient && deleted ? deletedAt : null } });
+        return mockPrayerApi(route, base);
+      });
+      await seed(page, [recipient ? { ...received('live'), words: 'Shared private prayer' }
+        : { ...sent, _id: 'sent-live', date: new Date().toISOString(), sharedWith: { ...sent.sharedWith, shareId: 'live' } }]);
+      if (recipient) await page.evaluate(() => { localStorage.setItem('user_Taspe7_ID', 'friend'); localStorage.setItem('user_Taspe7_Username', 'friend'); });
+      await page.goto(base + '/pray/');
+      await page.getByRole('button', { name: /^Prayer Circle/ }).click();
+    }
+    const sentCard = senderPage.locator('[data-prayer-id="sent-live"]');
+    const receivedCard = receiverPage.locator('[data-prayer-id="received-live"]');
+    assert.equal(await receivedCard.getByRole('button', { name: 'Delete Note', exact: true }).count(), 0);
+    await receiver.setOffline(true);
+    await sentCard.getByRole('button', { name: 'Delete Note', exact: true }).click();
+    await senderPage.waitForFunction(() => !document.querySelector('[data-prayer-id="sent-live"] button:disabled'));
+    assert.equal(deleted, false); assert.equal(await sentCard.count(), 1); assert.equal(await receivedCard.count(), 1);
+    await sentCard.getByRole('button', { name: 'Delete Note', exact: true }).click();
+    await sentCard.waitFor({ state: 'detached' });
+    assert.equal(deleted, true); assert.equal(await receivedCard.count(), 1, 'an offline device reconciles on reconnect');
+    await receiver.setOffline(false);
+    await receiverPage.evaluate(() => window.dispatchEvent(new Event('online')));
+    await receivedCard.waitFor({ state: 'detached' });
+    await receiverPage.reload();
+    await receiverPage.getByRole('button', { name: /^Prayer Circle/ }).click();
+    assert.equal(await receivedCard.count(), 0);
+    assert.equal(attempts, 2);
+  } finally { await sender.close(); await receiver.close(); }
 });
 
 test('deep notification targets render immediately in a long list even while the backend is stalled', async () => {
@@ -381,6 +480,200 @@ test('long prayer lists retain audio playback while offscreen and while the comp
   } finally { await context.close(); }
 });
 
+test('prayer circle orders latest activity, distinguishes new replies, and persists read state', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    const errors = []; page.on('pageerror', error => errors.push(error.message));
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    const oldPending = { ...received('old'), date: '2026-10-01T10:00:00Z' };
+    const newPrayer = { ...received('new'), date: '2026-10-20T10:00:00Z' };
+    const reply = { ...sent, date: '2026-09-01T10:00:00Z', sharedWith: { ...sent.sharedWith, status: 'confirmed', respondedAt: '2026-10-22T10:00:00Z', responseWords: 'Praying with you today', seenActivityBy: {} } };
+    await seed(page, [oldPending, reply, newPrayer]);
+    await page.goto(base + '/pray/');
+    await page.getByRole('button', { name: /^Prayer Circle/ }).click();
+    assert.deepEqual(await page.locator('[data-prayer-row]').evaluateAll(rows => rows.map(row => row.dataset.prayerRow)), ['sent-789', 'received-new', 'received-old']);
+    const card = page.locator('[data-prayer-id="sent-789"]');
+    await card.getByText('New reply', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Edit Note', exact: true }).count(), 0);
+    assert.equal(await card.locator('time').getAttribute('datetime'), '2026-09-01T10:00:00.000Z');
+    await card.getByText('Sent to @friend', { exact: true }).click();
+    await card.getByText('Praying with you today', { exact: true }).last().scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => document.querySelector('[data-prayer-id="sent-789"]')?.dataset.prayerUnread === 'false');
+    const filters = page.getByRole('group', { name: 'Prayer Circle' });
+    await filters.getByRole('button', { name: /^Unread/ }).click();
+    const incoming = page.locator('[data-prayer-id="received-new"]');
+    await incoming.getByText('New prayer', { exact: true }).waitFor();
+    await incoming.getByText('@friend', { exact: true }).click();
+    await incoming.getByRole('textbox').fill('My reply draft');
+    await page.waitForFunction(() => document.querySelector('[data-prayer-id="received-new"]')?.dataset.prayerUnread === 'false');
+    assert.equal(await incoming.getByRole('textbox').inputValue(), 'My reply draft', 'reading an Unread result must not remove the reply composer');
+    assert.equal(await incoming.getByText('Awaiting your reply', { exact: true }).count(), 0);
+    assert.equal(await incoming.locator('time').count(), 1);
+    assert.equal(await incoming.locator('time').getAttribute('datetime'), '2026-10-20T10:00:00.000Z');
+    assert.equal(await incoming.getByText(/Original prayer/).count(), 0);
+    await page.reload();
+    await page.getByRole('button', { name: /^Prayer Circle/ }).click();
+    assert.equal(await page.locator('[data-prayer-id="sent-789"]').getAttribute('data-prayer-unread'), 'false');
+    assert.equal(await page.locator('[data-prayer-id="received-new"]').getAttribute('data-prayer-unread'), 'false');
+    assert.equal(await page.locator('[data-prayer-id="received-old"]').getAttribute('data-prayer-unread'), 'true');
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
+
+test('prayer circle defers new activity while typing on a throttled CPU and keeps offscreen cards lightweight', async t => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let inbox = [];
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => route.request().url().endsWith('/pray-time/inbox') ? route.fulfill({ json: { inbox } }) : mockPrayerApi(route, base));
+    await seed(page, Array.from({ length: 300 }, (_, i) => ({ ...received(String(i)), date: '2026-10-01T10:00:00Z' })));
+    const session = await context.newCDPSession(page);
+    await session.send('Emulation.setCPUThrottlingRate', { rate: 6 });
+    await page.goto(base + '/pray/');
+    await page.getByRole('button', { name: /^Prayer Circle/ }).click();
+    assert.equal(await page.locator('[data-prayer-row]').count(), 300);
+    t.diagnostic(`300 prayers at 6× CPU throttling: ${await page.locator('[data-prayer-id]').count()} mounted cards initially`);
+    assert.ok(await page.locator('[data-prayer-id]').count() < 30);
+    const first = page.locator('[data-prayer-id="received-0"]');
+    await first.getByText('@friend', { exact: true }).click();
+    await first.getByRole('textbox').fill('Keep this response while new prayers arrive');
+    await page.waitForFunction(() => document.querySelector('[data-prayer-id="received-0"]')?.dataset.prayerUnread === 'false');
+    await page.evaluate(() => { window.__existingPrayer = document.querySelector('[data-prayer-id="received-0"]'); window.__beforeUpdateScroll = scrollY; });
+    inbox = [{ shareId: 'live', words: 'Newly delivered prayer', senderUsername: 'mary', date: '2026-10-23T10:00:00Z' }];
+    await page.evaluate(() => window.dispatchEvent(new Event('taspe7:prayer-push')));
+    const updates = page.getByRole('button', { name: 'View new updates: 1', exact: true });
+    await updates.waitFor();
+    assert.equal(await page.locator('[data-prayer-row="received-live"]').count(), 0);
+    assert.equal(await first.getByRole('textbox').inputValue(), 'Keep this response while new prayers arrive');
+    assert.equal(await page.evaluate(() => window.__existingPrayer === document.querySelector('[data-prayer-id="received-0"]')), true);
+    assert.ok(await page.evaluate(() => Math.abs(scrollY - window.__beforeUpdateScroll)) < 3, 'background activity must preserve scroll position');
+    await updates.click();
+    await page.locator('[data-prayer-id="received-live"]').getByText('New prayer', { exact: true }).waitFor();
+    assert.equal(await page.locator('[data-prayer-row]').first().getAttribute('data-prayer-row'), 'received-live');
+    assert.equal(await first.getByRole('textbox').inputValue(), 'Keep this response while new prayers arrive');
+    await page.evaluate(() => {
+      window.__circleMutations = 0; window.__indexWrites = 0;
+      const put = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function (...args) { if (this.transaction.db.name === 'my_prays' && args[1] === 'index') window.__indexWrites++; return put.apply(this, args); };
+      new MutationObserver(records => { window.__circleMutations += records.length; }).observe(document.querySelector('[data-prayer-id="received-0"]'), { childList: true, subtree: true, attributes: true, characterData: true });
+    });
+    await page.evaluate(() => window.dispatchEvent(new Event('taspe7:prayer-push')));
+    await page.waitForTimeout(800);
+    assert.equal(await page.evaluate(() => window.__indexWrites), 0, 'duplicate delivery must not rewrite the prayer index');
+    assert.equal(await page.evaluate(() => window.__circleMutations), 0, 'unchanged cards must not mutate during duplicate sync');
+  } finally { await context.close(); }
+});
+
+test('prayer circle reply notification waits for its payload before opening the sent prayer', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let release, requested, waitForReply = false;
+  const payload = new Promise(resolve => { release = resolve; });
+  const requestStarted = new Promise(resolve => { requested = resolve; });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', async route => {
+      if (route.request().url().endsWith('/pray-time/sent-updates') && waitForReply) {
+        requested(); await payload;
+        return route.fulfill({ json: { updates: [{ shareId: '789', recipientId: 'friend', responseWords: 'Delayed reply', respondedAt: '2026-10-23T10:00:00Z' }] } });
+      }
+      return mockPrayerApi(route, base);
+    });
+    await seed(page, [{ ...sent, date: '2026-10-01T10:00:00Z' }]);
+    await page.goto(base + '/pray/');
+    await page.getByRole('button', { name: 'Save Note', exact: true }).waitFor();
+    waitForReply = true;
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('taspe7:open-prayer', { detail: { href: '/pray/?notificationType=PRAY_CONFIRMED&shareId=789' }, cancelable: true })));
+    await requestStarted;
+    const card = page.locator('[data-prayer-id="sent-789"]');
+    assert.equal(await card.getByText('Sent prayer', { exact: true }).count(), 0, 'old content stays closed while the reply is loading');
+    release();
+    await card.getByText('Delayed reply', { exact: true }).last().waitFor();
+    await card.getByText('Delayed reply', { exact: true }).last().scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => document.querySelector('[data-prayer-id="sent-789"]')?.dataset.prayerUnread === 'false');
+  } finally { release(); await context.close(); }
+});
+
+test('prayer circle retains playing audio when updates are revealed and cards reorder', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let inbox = [];
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => route.request().url().endsWith('/pray-time/inbox') ? route.fulfill({ json: { inbox } }) : mockPrayerApi(route, base));
+    await seed(page, [{ ...received('audio'), date: '2026-10-01T10:00:00Z' }]);
+    await page.evaluate(async () => {
+      const bytes = new ArrayBuffer(44 + 8000 * 60 * 2), view = new DataView(bytes);
+      const text = (offset, value) => { for (let i = 0; i < value.length; i++) view.setUint8(offset + i, value.charCodeAt(i)); };
+      text(0, 'RIFF'); view.setUint32(4, bytes.byteLength - 8, true); text(8, 'WAVE'); text(12, 'fmt ');
+      view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+      view.setUint32(24, 8000, true); view.setUint32(28, 16000, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+      text(36, 'data'); view.setUint32(40, bytes.byteLength - 44, true);
+      const db = await new Promise(resolve => { const req = indexedDB.open('my_prays', 2); req.onsuccess = () => resolve(req.result); });
+      const index = await new Promise(resolve => { const req = db.transaction('keyvaluepairs').objectStore('keyvaluepairs').get('index'); req.onsuccess = () => resolve(req.result); });
+      index.recordings['received-audio'] = [{ id: 'circle-audio', ext: 'wav', mimeType: 'audio/wav', duration: 60, blockType: 'general', sectionIndex: 0 }];
+      await new Promise(resolve => { const tx = db.transaction('keyvaluepairs', 'readwrite'); const store = tx.objectStore('keyvaluepairs'); store.put(index, 'index'); store.put(new Blob([bytes], { type: 'audio/wav' }), 'audio_circle-audio'); tx.oncomplete = resolve; });
+      db.close();
+    });
+    await page.addInitScript(() => {
+      const play = HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play = function () { window.__circleAudio = this; return play.call(this); };
+    });
+    await page.goto(base + '/pray/?notificationType=PRAY_SHARED&shareId=audio');
+    const first = page.locator('[data-prayer-id="received-audio"]');
+    await first.getByRole('button', { name: 'Play', exact: true }).click();
+    await first.getByRole('button', { name: 'Pause', exact: true }).waitFor();
+    await page.waitForFunction(() => document.querySelector('[data-prayer-id="received-audio"]')?.dataset.prayerUnread === 'false');
+    await page.evaluate(() => { window.__audioCard = document.querySelector('[data-prayer-id="received-audio"]'); });
+    const wav = Buffer.alloc(44 + 16000);
+    wav.write('RIFF', 0); wav.writeUInt32LE(wav.length - 8, 4); wav.write('WAVEfmt ', 8);
+    wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
+    wav.writeUInt32LE(8000, 24); wav.writeUInt32LE(16000, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34);
+    wav.write('data', 36); wav.writeUInt32LE(16000, 40);
+    inbox = [{ shareId: 'newer', words: 'New prayer while listening', senderUsername: 'mary', date: '2026-10-23T10:00:00Z',
+      recordings: [{ id: 'incoming-clip', mimeType: 'audio/wav', ext: 'wav', duration: 1, data: wav.toString('base64') }] }];
+    await page.evaluate(() => window.dispatchEvent(new Event('taspe7:prayer-push')));
+    await page.getByRole('button', { name: 'View new updates: 1', exact: true }).click();
+    await page.locator('[data-prayer-id="received-newer"]').waitFor();
+    await page.locator('[data-prayer-id="received-newer"]').getByText('@mary', { exact: true }).click();
+    await page.locator('[data-prayer-id="received-newer"]').getByRole('button', { name: 'Play', exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => !window.__circleAudio.paused && window.__audioCard === document.querySelector('[data-prayer-id="received-audio"]')), true);
+    assert.equal(await page.locator('[data-prayer-row]').first().getAttribute('data-prayer-row'), 'received-newer');
+  } finally { await context.close(); }
+});
+
+test('prayer circle labels and cards fit narrow screens in light/dark English and Arabic', async t => {
+  const context = await browser.newContext({ viewport: { width: 320, height: 740 } });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    await seed(page, [received('layout'), { ...sent, sharedWith: { ...sent.sharedWith, status: 'confirmed', respondedAt: '2026-10-23T10:00:00Z', responseWords: 'May God give you peace today', seenActivityBy: {} } }]);
+    for (const theme of ['light', 'dark']) for (const language of ['en', 'ar']) {
+      await page.setViewportSize({ width: 320, height: 740 });
+      await page.evaluate(({ theme, language }) => { localStorage.setItem('taspe7_theme', theme); localStorage.setItem('app-language', language); }, { theme, language });
+      await page.goto(base + '/pray/');
+      await page.getByRole('button', { name: language === 'ar' ? /دائرة الصلاة/ : /^Prayer Circle/ }).click();
+      const filters = page.getByRole('group', { name: language === 'ar' ? 'دائرة الصلاة' : 'Prayer Circle' });
+      await filters.waitFor();
+      await filters.evaluate(el => el.scrollIntoView({ block: 'start' }));
+      const screenshot = path.join(require('node:os').tmpdir(), `wasla-prayer-circle-${theme}-${language}.png`);
+      await page.screenshot({ path: screenshot });
+      t.diagnostic(screenshot);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      assert.equal(await page.locator('[data-prayer-id]').evaluateAll(cards => cards.every(card => card.scrollWidth <= card.clientWidth)), true);
+      for (const width of [280, 320, 390, 768, 1280]) {
+        await page.setViewportSize({ width, height: 740 });
+        assert.equal(await filters.evaluate(el => {
+          const bounds = el.getBoundingClientRect();
+          return el.scrollWidth <= el.clientWidth && Array.from(el.querySelectorAll('button')).every(button => {
+            const rect = button.getBoundingClientRect();
+            return rect.left >= bounds.left && rect.right <= bounds.right && rect.top >= bounds.top && rect.bottom <= bounds.bottom;
+          });
+        }), true, `All filters must fit without horizontal scrolling at ${width}px (${theme}, ${language})`);
+      }
+    }
+  } finally { await context.close(); }
+});
+
 async function seed(page, prayers) {
   await page.goto(base + '/__seed');
   await page.evaluate(async ({ prayers, version }) => {
@@ -512,7 +805,7 @@ test('uncached prayers and replies appear before acknowledgement requests finish
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('taspe7:open-prayer', {
       detail: { href: '/pray/?notificationType=PRAY_CONFIRMED&shareId=789' }, cancelable: true,
     })));
-    await page.locator('[data-prayer-id="sent-789"]').getByText('New reply', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator('[data-prayer-id="sent-789"]').getByText('New reply', { exact: true }).last().waitFor({ state: 'visible', timeout: 5000 });
   } finally { release(); await context.close(); }
 });
 
@@ -707,6 +1000,7 @@ test('mobile prayer typing keeps the page position through keyboard viewport cha
     await page.goto(base + '/pray/');
     const input = page.getByRole('textbox').first();
     await input.waitFor();
+    await page.waitForFunction(() => document.documentElement.classList.contains('manual-input-scroll'));
     const baseline = await page.evaluate(() => scrollY);
     await input.tap();
     assert.equal(await input.evaluate(el => getComputedStyle(el).fontSize), '16px');
