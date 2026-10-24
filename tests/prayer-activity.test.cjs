@@ -4,15 +4,18 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { performance } = require('node:perf_hooks');
+const { zipSync, strToU8 } = require('fflate');
+const archive = (prays, files = {}) => zipSync({ 'prays.json': strToU8(JSON.stringify({ type: 'my-prays-backup', version: 1, prays })), ...files });
 
 function fixture(prayers = []) {
     let index = { version: 1, recordings: {}, pendingWords: {}, guestPrays: structuredClone(prayers) };
     let writes = 0;
     const removedAudio = [];
+    const audio = new Map();
     const storage = {
-        getItem: async key => key === 'index' ? structuredClone(index) : null,
-        setItem: async (key, value) => { if (key === 'index') { index = structuredClone(value); writes++; } },
-        removeItem: async key => { removedAudio.push(key); },
+        getItem: async key => key === 'index' ? structuredClone(index) : audio.get(key) || null,
+        setItem: async (key, value) => { if (key === 'index') { index = structuredClone(value); writes++; } else audio.set(key, value); },
+        removeItem: async key => { removedAudio.push(key); audio.delete(key); },
     };
     const context = { ...require('fflate'), console, Blob, window: {}, Capacitor: { isNativePlatform: () => false }, localforage: { createInstance: () => storage } };
     vm.createContext(context);
@@ -123,6 +126,120 @@ test('legacy opened prayers migrate once and keep their read status after restor
     await g.api.restoreMyPraysZip(await f.api.buildMyPraysZip());
     assert.equal(g.api.isPrayerUnread(g.index.guestPrays.find(p => p._id === 'received-legacy-opened'), 'alice'), false);
     assert.equal(g.api.isPrayerUnread(g.index.guestPrays.find(p => p._id === 'received-legacy-opened'), 'bob'), true);
+});
+
+test('Drive restore merges saved replies and read receipts into an older pending local card', async () => {
+    const f = fixture([received('history', '2026-10-01', { seenActivityBy: {} })]);
+    const saved = received('history', '2026-10-01', { status: 'confirmed', responseWords: 'Already replied', respondedAt: '2026-10-02', seenActivityBy: { alice: 'prayer:history' } });
+    const zip = archive([saved]);
+    await f.api.restoreMyPraysZip(zip, undefined, { ownerId: 'alice' });
+    const prayer = (await f.api.getGuestPrays())[0];
+    assert.equal(prayer.sharedFrom.status, 'confirmed'); assert.equal(prayer.sharedFrom.responseWords, 'Already replied');
+    assert.equal(prayer.sharedFrom.respondedAt, '2026-10-02'); assert.equal(prayer.date, '2026-10-01');
+    assert.equal(f.api.isPrayerUnread(prayer, 'alice'), false);
+    assert.equal(f.api.isPrayerUnread(prayer, 'bob'), true);
+    const before = JSON.stringify(f.index.guestPrays);
+    await f.api.restoreMyPraysZip(zip, undefined, { ownerId: 'alice' });
+    await f.api.migratePrayerReadState('alice', new Set());
+    assert.equal(JSON.stringify(f.index.guestPrays), before, 'repeated restores and a reload must not reactivate history');
+});
+
+test('creating a backup with a stale screen snapshot cannot drop persisted replies or read receipts', async () => {
+    const saved = received('history', '2026-10-01', { status: 'confirmed', responseWords: 'Already replied', respondedAt: '2026-10-02', seenActivityBy: { alice: 'prayer:history' } });
+    const f = fixture([saved]);
+    const zip = await f.api.buildMyPraysZip([received('history', '2026-10-01', { seenActivityBy: {} })]);
+    const restored = fixture(); await restored.api.restoreMyPraysZip(zip, undefined, { ownerId: 'alice' });
+    const prayer = (await restored.api.getGuestPrays())[0];
+    assert.equal(prayer.sharedFrom.status, 'confirmed'); assert.equal(prayer.sharedFrom.responseWords, 'Already replied');
+    assert.equal(restored.api.isPrayerUnread(prayer, 'alice'), false);
+});
+
+test('imported history stays quiet even with old unread markers, while live unread prayers remain unread', async () => {
+    const f = fixture([received('live', '2026-10-24', { seenActivityBy: {} })]);
+    await f.api.restoreMyPraysZip(archive([received('legacy', '2026-10-01'), received('saved-unread', '2026-10-01', { seenActivityBy: {} }),
+        sent('old-reply', '2026-10-01', { status: 'confirmed', respondedAt: '2026-10-02' })]), undefined, { ownerId: 'alice' });
+    const byId = new Map((await f.api.getGuestPrays()).map(p => [p._id, p]));
+    assert.equal(f.api.isPrayerUnread(byId.get('received-legacy'), 'alice'), false);
+    assert.equal(f.api.isPrayerUnread(byId.get('received-legacy'), 'bob'), true);
+    assert.equal(f.api.isPrayerUnread(byId.get('received-saved-unread'), 'alice'), false);
+    assert.equal(f.api.isPrayerUnread(byId.get('received-saved-unread'), 'bob'), true);
+    assert.equal(f.api.isPrayerUnread(byId.get('received-live'), 'alice'), true);
+    assert.equal(f.api.isPrayerUnread(byId.get('sent-old-reply'), 'alice'), false);
+    assert.equal(byId.get('received-legacy').sharedFrom.status, 'pending', 'read status does not invent a reply');
+});
+
+test('reply activity newly imported from an old unread backup is history for only the restoring account', async () => {
+    const f = fixture([sent('reply', '2026-10-01', { status: 'sent', seenActivityBy: {} })]);
+    await f.api.restoreMyPraysZip(archive([sent('reply', '2026-10-01', { status: 'confirmed', responseWords: 'Restored reply', respondedAt: '2026-10-20', seenActivityBy: {} })]), undefined, { ownerId: 'alice' });
+    const prayer = (await f.api.getGuestPrays())[0];
+    assert.equal(f.api.isPrayerUnread(prayer, 'alice'), false);
+    assert.equal(f.api.isPrayerUnread(prayer, 'bob'), true);
+    await f.api.applyPrayerReplies([{ shareId: 'reply', responseWords: 'A new reply', respondedAt: '2026-10-24' }]);
+    assert.equal(f.api.isPrayerUnread((await f.api.getGuestPrays())[0], 'alice'), true);
+});
+
+test('newer local replies and read markers cannot be rolled back by an old backup', async () => {
+    for (const alreadyRead of [true, false]) {
+        const local = sent('reply', '2026-10-01', { status: 'confirmed', responseWords: 'Latest reply', respondedAt: '2026-10-23', seenActivityBy: { alice: alreadyRead ? 'reply:reply:2026-10-23' : 'reply:reply:2026-10-20' } });
+        const f = fixture([local]);
+        await f.api.restoreMyPraysZip(archive([sent('reply', '2026-10-01', { status: 'confirmed', responseWords: 'Old reply', respondedAt: '2026-10-20', seenActivityBy: { alice: 'reply:reply:2026-10-20', bob: 'reply:reply:2026-10-20' } })]), undefined, { ownerId: 'alice' });
+        const prayer = (await f.api.getGuestPrays())[0];
+        assert.equal(prayer.sharedWith.responseWords, 'Latest reply'); assert.equal(prayer.sharedWith.respondedAt, '2026-10-23');
+        assert.equal(f.api.isPrayerUnread(prayer, 'alice'), !alreadyRead);
+        assert.equal(f.api.isPrayerUnread(prayer, 'bob'), true, 'a read receipt for an older reply cannot hide the new reply');
+    }
+});
+
+test('a newer backup reply retains its matching read receipt when the local receipt is older', async () => {
+    const f = fixture([sent('reply', '2026-10-01', { status: 'confirmed', responseWords: 'Old', respondedAt: '2026-10-20', seenActivityBy: { alice: 'reply:reply:2026-10-20' } })]);
+    await f.api.restoreMyPraysZip(archive([sent('reply', '2026-10-01', { status: 'confirmed', responseWords: 'New', respondedAt: '2026-10-23', seenActivityBy: { alice: 'reply:reply:2026-10-23', bob: 'reply:reply:2026-10-20' } })]), undefined, { ownerId: 'alice' });
+    const prayer = (await f.api.getGuestPrays())[0];
+    assert.equal(prayer.sharedWith.responseWords, 'New'); assert.equal(f.api.isPrayerUnread(prayer, 'alice'), false);
+    assert.equal(f.api.isPrayerUnread(prayer, 'bob'), true);
+});
+
+test('restore collapses duplicate share IDs, keeps all recordings and ignores inbox replays under a different local ID', async () => {
+    const legacy = { ...received('same-share', '2026-10-01', { seenActivityBy: { alice: 'prayer:same-share' } }), _id: 'legacy-local-id' };
+    const f = fixture([legacy, received('same-share', '2026-10-01', { seenActivityBy: {} })]);
+    await f.api.addExternalRecording('legacy-local-id', { id: 'clip-a' }, new Uint8Array([1, 2]));
+    await f.api.addExternalRecording('received-same-share', { id: 'clip-b' }, new Uint8Array([3, 4]));
+    const saved = received('same-share', '2026-10-01', { status: 'confirmed', responseWords: 'Replied', respondedAt: '2026-10-02', seenActivityBy: { alice: 'prayer:same-share' } });
+    saved.recordings = [{ id: 'clip-c', ext: 'webm', mimeType: 'audio/webm', file: 'audio/clip-c.webm' }];
+    const zip = archive([saved], { 'audio/clip-c.webm': new Uint8Array([5, 6]) });
+    await f.api.restoreMyPraysZip(zip, undefined, { ownerId: 'alice' });
+    const prayer = (await f.api.getGuestPrays())[0];
+    assert.equal(f.index.guestPrays.length, 1); assert.equal(prayer._id, 'legacy-local-id');
+    assert.equal(prayer.sharedFrom.status, 'confirmed'); assert.equal(f.api.isPrayerUnread(prayer, 'alice'), false);
+    assert.deepEqual(Array.from(f.index.recordings['legacy-local-id'], rec => rec.id), ['clip-a', 'clip-b', 'clip-c']);
+    assert.equal(f.index.recordings['received-same-share'], undefined);
+    const writes = f.writes;
+    const incoming = await f.api.mergeIncomingPrayers([{ shareId: 'same-share', words: 'Replayed from server' }]);
+    assert.equal(incoming.prayers, null); assert.equal(incoming.prayerIds['same-share'], 'legacy-local-id'); assert.equal(f.writes, writes);
+    await f.api.restoreMyPraysZip(zip, undefined, { ownerId: 'alice' });
+    assert.equal(f.index.recordings['legacy-local-id'].length, 3); assert.equal(f.index.guestPrays.length, 1);
+});
+
+test('activity delivered during restore remains unread and wins over the backup snapshot', async () => {
+    const f = fixture([sent('live-reply', '2026-10-01', { status: 'sent', seenActivityBy: {} })]);
+    const saved = sent('live-reply', '2026-10-01', { status: 'confirmed', responseWords: 'Backup reply', respondedAt: '2026-10-20', seenActivityBy: { alice: 'reply:live-reply:2026-10-20' } });
+    saved.recordings = [{ id: 'clip', ext: 'webm', mimeType: 'audio/webm', file: 'audio/clip.webm' }];
+    let incoming;
+    await f.api.restoreMyPraysZip(archive([saved], { 'audio/clip.webm': new Uint8Array([1]) }), () => {
+        incoming ||= f.api.applyPrayerReplies([{ shareId: 'live-reply', responseWords: 'Live reply', respondedAt: '2026-10-24' }]);
+    }, { ownerId: 'alice' });
+    await incoming;
+    const prayer = (await f.api.getGuestPrays())[0];
+    assert.equal(prayer.sharedWith.responseWords, 'Live reply'); assert.equal(f.api.isPrayerUnread(prayer, 'alice'), true);
+});
+
+test('undated legacy history is not assigned the restore time or announced as newly sent', async () => {
+    const f = fixture();
+    const undated = received('undated'); delete undated.date;
+    await f.api.restoreMyPraysZip(archive([undated, received('dated', '2026-10-01')]), undefined, { ownerId: 'alice' });
+    const prayer = f.index.guestPrays.find(entry => entry._id === 'received-undated');
+    assert.equal(prayer.date, null); assert.equal(f.api.prayerActivityTime(prayer), 0);
+    assert.equal(f.api.isPrayerUnread(prayer, 'alice'), false);
+    assert.equal(f.api.sortPrayerActivity(f.index.guestPrays)[0]._id, 'received-dated');
 });
 
 test('large snapshots retain unchanged card identities; sorting parses each date once', t => {

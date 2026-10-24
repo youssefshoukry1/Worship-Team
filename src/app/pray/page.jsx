@@ -1039,7 +1039,7 @@ export default function PrayPage() {
                 // Save text first, then audio, then acknowledge durable delivery.
                 const knownRecordings = await getRecordingsIndex();
                 for (const bundle of prioritizedInbox) {
-                    const localId = `received-${bundle.shareId}`;
+                    const localId = result.prayerIds?.[String(bundle.shareId).replace(/^received-/, '')] || `received-${bundle.shareId}`;
                     const existingIds = new Set((knownRecordings[localId] || []).map(rec => rec.id));
                     for (const rec of bundle.recordings || []) {
                         if (rec.data && !existingIds.has(rec.id)) {
@@ -1235,6 +1235,7 @@ export default function PrayPage() {
                                     checkIncomingSharedPrayers(true);
                                     refreshRecordings();
                                     setGuestPrays(await getGuestPrays());
+                                    setLocalActivityId(`restore-${crypto.randomUUID()}`);
                                 }}
                             />
                         </div>

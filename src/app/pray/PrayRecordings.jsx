@@ -626,7 +626,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
             const bytes = await downloadDriveFile(accessToken, file.id);
             setProgress(50);
             setStatus('Restoring recordings...');
-            const result = await restoreMyPraysZip(bytes, (ratio) => setProgress(50 + Math.round(ratio * 50)));
+            const result = await restoreMyPraysZip(bytes, (ratio) => setProgress(50 + Math.round(ratio * 50)), { ownerId: userId || 'guest' });
             setProgress(100);
             setStatus(`Restored ${result.restored} recording(s) across ${result.prays} prayer(s).`);
             showToast({ message: `Restored ${result.restored} recording(s) successfully.`, type: 'success', duration: 4000 });

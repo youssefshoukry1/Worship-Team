@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '../out');
 const version = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../public/version.json'))).version;
+const { zipSync, strToU8 } = require('fflate');
 const contentTypes = { '.js': 'application/javascript', '.css': 'text/css', '.html': 'text/html', '.json': 'application/json', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 let browser, server, base;
 
@@ -38,6 +39,63 @@ const sent = { _id: 'sent-789', words: 'Sent prayer', date: new Date().toISOStri
 const mockPrayerApi = (route, base) => route.request().url().startsWith(base) ? route.continue()
   : route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } });
 const personalPrayers = count => Array.from({ length: count }, (_, i) => ({ _id: 'personal-' + i, words: 'Personal prayer ' + i, date: '2026-10-01T00:00:00.000Z' }));
+
+test('Drive restore keeps friend history read and replied across repeat restore, inbox replay and reload', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let restores = 0; const outboundMutations = [];
+  const historical = { ...received('history'), _id: 'legacy-history', date: '2026-10-01T10:00:00.000Z',
+    sharedFrom: { username: 'friend', shareId: 'history', status: 'confirmed', responseWords: 'Already replied', respondedAt: '2026-10-02T10:00:00.000Z', seenActivityBy: { tester: 'prayer:history' } } };
+  const legacy = { ...received('legacy'), date: '2026-10-01T09:00:00.000Z' };
+  const archivedUnread = { ...received('archived-unread'), date: '2026-10-01T08:00:00.000Z', sharedFrom: { username: 'friend', shareId: 'archived-unread', status: 'pending', seenActivityBy: {} } };
+  const bytes = Buffer.from(zipSync({ 'prays.json': strToU8(JSON.stringify({ version: 1, type: 'my-prays-backup', prays: [historical, legacy, archivedUnread] })) }));
+  try {
+    const page = await context.newPage(); const errors = []; page.on('pageerror', error => errors.push(error.message));
+    page.on('dialog', dialog => dialog.accept());
+    await page.route('**/*', route => {
+      const request = route.request(), url = new URL(request.url());
+      if (request.url().startsWith(base)) return route.continue();
+      if (request.method() === 'POST' && /\/(share|confirm-share)$/.test(url.pathname)) outboundMutations.push(url.pathname);
+      if (url.pathname.endsWith('/backup/drive-accounts')) return route.fulfill({ json: { accounts: [{ email: 'drive@test', isDefault: true }] } });
+      if (url.pathname.endsWith('/backup/drive-token')) return route.fulfill({ json: { access_token: 'mock-drive-token' } });
+      if (url.hostname === 'www.googleapis.com') {
+        if (url.searchParams.get('alt') === 'media') { restores++; return route.fulfill({ contentType: 'application/zip', body: bytes }); }
+        return route.fulfill({ json: { files: [{ id: url.searchParams.get('q').includes('application/vnd.google-apps.folder') ? 'folder' : 'backup' }] } });
+      }
+      if (url.pathname.endsWith('/pray-time/inbox') && restores) return route.fulfill({ json: { inbox: [{ shareId: 'history', words: 'Prayer history', senderUsername: 'friend', date: historical.date }], deletedShareIds: [] } });
+      return mockPrayerApi(route, base);
+    });
+    await seed(page, [received('history'), received('truly-new')]);
+    await page.goto(base + '/pray/');
+    const restore = async () => {
+      await page.getByRole('button', { name: 'Settings', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'My Prays Backup' });
+      await dialog.getByRole('button', { name: 'Restore', exact: true }).click();
+      await dialog.getByText('Restored 0 recording(s) across 3 prayer(s).', { exact: true }).waitFor();
+      await page.keyboard.press('Escape');
+    };
+    await restore();
+    await page.getByRole('button', { name: /^Prayer Circle/ }).click();
+    const history = page.locator('[data-prayer-id="received-history"]');
+    await page.waitForFunction(() => document.querySelector('[data-prayer-id="received-history"]')?.dataset.prayerUnread === 'false');
+    await page.waitForFunction(() => document.querySelector('[data-prayer-id="received-legacy"]')?.dataset.prayerUnread === 'false');
+    assert.equal(await page.locator('[data-prayer-id="received-truly-new"]').getAttribute('data-prayer-unread'), 'true');
+    await history.getByText('@friend', { exact: true }).click();
+    await history.getByText('Already replied', { exact: true }).waitFor();
+    assert.equal(await history.getByRole('textbox').count(), 0); assert.equal(await page.locator('[data-prayer-id="legacy-history"]').count(), 0);
+    await restore();
+    await page.evaluate(() => window.dispatchEvent(new Event('taspe7:prayer-push')));
+    await page.reload();
+    await page.getByRole('button', { name: /^Prayer Circle/ }).click();
+    await history.waitFor();
+    assert.equal(await history.getAttribute('data-prayer-unread'), 'false');
+    assert.equal(await page.locator('[data-prayer-id="received-legacy"]').getAttribute('data-prayer-unread'), 'false');
+    assert.equal(await page.locator('[data-prayer-id="received-truly-new"]').getAttribute('data-prayer-unread'), 'true');
+    assert.equal(await page.locator('[data-prayer-id="received-archived-unread"]').getAttribute('data-prayer-unread'), 'false');
+    assert.equal(await page.locator('[data-prayer-id]').count(), 4);
+    assert.deepEqual(outboundMutations, [], 'restoring history never sends or replies to friends');
+    assert.equal(restores, 2); assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
 
 test('optimistic sends show a clock before acknowledgement and resume the same action after reload on a throttled CPU', async t => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });

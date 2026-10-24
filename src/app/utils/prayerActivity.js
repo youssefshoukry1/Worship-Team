@@ -41,6 +41,38 @@ export function seenPrayerChanges(entry, ownerId, activity = incomingPrayerActiv
     return { [field]: { ...party, seenActivityBy: { ...party.seenActivityBy, [owner]: activity } } };
 }
 
+// Restore is a merge of history, not a new delivery. Replies and read receipts
+// must move forward even when a device and its backup contain different snapshots.
+export function mergeRestoredPrayer(existing, restored, ownerId) {
+    const result = { ...restored, ...existing };
+    result.date = existing?.date || restored.date || null;
+    const field = result.sharedWith ? 'sharedWith' : result.sharedFrom ? 'sharedFrom' : null;
+    if (!field) return result;
+    const local = existing?.[field], backup = restored[field];
+    const localConfirmed = local?.status === 'confirmed', backupConfirmed = backup?.status === 'confirmed';
+    const winner = !local || (backupConfirmed && (!localConfirmed || timestamp(backup.respondedAt) > timestamp(local.respondedAt))) ? backup : local;
+    const party = { ...backup, ...local, ...winner };
+    result[field] = party;
+    const activity = incomingPrayerActivity(result);
+    const seen = { ...backup?.seenActivityBy, ...local?.seenActivityBy };
+    for (const source of [restored, existing]) {
+        if (!source || incomingPrayerActivity(source) !== activity) continue;
+        for (const [owner, receipt] of Object.entries(source[field]?.seenActivityBy || {})) {
+            if (receipt === activity) seen[owner] = activity;
+        }
+    }
+    // Newly imported activities are history, including unread snapshots from an
+    // old backup. Activities already on this device keep their current unread
+    // state; a genuinely newer live reply must never be cleared by restoration.
+    if (activity && ownerId != null && ownerId !== '') {
+        const owner = String(ownerId);
+        if (!existing || (incomingPrayerActivity(restored) === activity && incomingPrayerActivity(existing) !== activity) || [existing, restored].some(source =>
+            source && incomingPrayerActivity(source) === activity && !source[field]?.seenActivityBy && !isPrayerUnread(source, owner))) seen[owner] = activity;
+    }
+    if (local?.seenActivityBy || backup?.seenActivityBy || Object.keys(seen).length) party.seenActivityBy = seen;
+    return result;
+}
+
 // Storage returns fresh JSON objects. Retain unchanged card props so memoized cards/audio skip work.
 const sameParty = (a, b) => a === b || JSON.stringify(a) === JSON.stringify(b);
 export function reconcilePrayerEntries(previous, next) {

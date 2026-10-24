@@ -13,7 +13,7 @@ import localforage from 'localforage';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
-import { incomingPrayerActivity, isPrayerUnread, seenPrayerChanges } from './prayerActivity';
+import { incomingPrayerActivity, isPrayerUnread, seenPrayerChanges, mergeRestoredPrayer } from './prayerActivity';
 
 const ROOT = 'my_prays';
 const INDEX_PATH = `${ROOT}/index.json`;
@@ -33,6 +33,10 @@ const emptyIndex = () => ({ version: 1, recordings: {}, pendingWords: {}, guestP
 const normalizeShareId = value => String(value || '').replace(/^received-/, '');
 const entryShareId = entry => normalizeShareId(entry.sharedWith?.shareId || entry.sharedFrom?.shareId || entry.sharedFrom?.originalPrayId || (String(entry._id).startsWith('received-') ? entry._id : ''));
 const isRevokedPrayer = (index, entry) => Boolean(index.revokedPrayerShares?.[entryShareId(entry)]);
+const prayerShareKey = entry => {
+    const id = entryShareId(entry);
+    return id ? `${entry.sharedWith ? 'sent' : 'received'}:${id}` : null;
+};
 
 // ─── Binary helpers ─────────────────────────────────────────────────────────
 const uint8ToBase64 = (bytes) => {
@@ -316,18 +320,24 @@ export async function updateGuestPray(prayId, changes) {
 export function mergeIncomingPrayers(bundles) {
     return updateIndex(index => {
         const ids = new Set(index.guestPrays.map(entry => String(entry._id)));
+        const byShare = new Map(index.guestPrays.filter(entry => !entry.sharedWith && entry.sharedFrom)
+            .map(entry => [entryShareId(entry), String(entry._id)]));
+        const prayerIds = {};
         const added = [];
         for (const bundle of bundles) {
-            const id = `received-${bundle.shareId}`;
-            if (ids.has(id) || index.revokedPrayerShares?.[normalizeShareId(bundle.shareId)]) continue;
+            const shareId = normalizeShareId(bundle.shareId);
+            const id = `received-${shareId}`;
+            prayerIds[shareId] = byShare.get(shareId) || id;
+            if (byShare.has(shareId) || ids.has(id) || index.revokedPrayerShares?.[shareId]) continue;
             ids.add(id);
+            byShare.set(shareId, id);
             added.push({ _id: id, words: bundle.words, prayType: bundle.prayType || 'general', date: bundle.date || new Date().toISOString(),
                 sharedFrom: { userId: bundle.senderId, username: bundle.senderUsername, name: bundle.senderName || bundle.senderUsername,
                     profilePhoto: bundle.senderProfilePhoto || null, shareId: bundle.shareId, originalPrayId: bundle.shareId,
                     status: 'pending', isAnonymous: Boolean(bundle.isAnonymous), seenActivityBy: {} } });
         }
         if (added.length) index.guestPrays = [...added, ...index.guestPrays];
-        return { changed: added.length > 0, prayers: added.length ? [...index.guestPrays].sort(byNewest) : null };
+        return { changed: added.length > 0, prayers: added.length ? [...index.guestPrays].sort(byNewest) : null, prayerIds };
     }, result => result.changed);
 }
 
@@ -471,7 +481,7 @@ export async function buildMyPraysZip(prayTime = [], onProgress = () => {}) {
     (prayTime || []).forEach((p) => {
         if (p && p._id) {
             const existing = allPraysMap.get(String(p._id));
-            allPraysMap.set(String(p._id), { ...existing, ...p });
+            allPraysMap.set(String(p._id), existing ? mergeRestoredPrayer({ ...existing, ...p }, existing) : p);
         }
     });
     const combinedPrays = Array.from(allPraysMap.values());
@@ -522,11 +532,11 @@ export async function buildMyPraysZip(prayTime = [], onProgress = () => {}) {
 }
 
 /**
- * Restore recordings from a "my prays.zip". Prayer text stays in MongoDB, so only
- * audio + the local index are restored. Existing recordings are kept (merged by id).
+ * Restore prayer text, read/reply state and recordings from a "my prays.zip".
+ * Existing history is merged by prayer/share identity; newer activity always wins.
  * @returns {Promise<{restored: number, prays: number}>}
  */
-export async function restoreMyPraysZip(zipBytes, onProgress = () => {}) {
+export async function restoreMyPraysZip(zipBytes, onProgress = () => {}, { ownerId } = {}) {
     const files = unzipSync(zipBytes);
     if (!files[BACKUP_JSON]) throw new Error('This file is not a "my prays" backup.');
     const manifest = JSON.parse(strFromU8(files[BACKUP_JSON]));
@@ -566,44 +576,49 @@ export async function restoreMyPraysZip(zipBytes, onProgress = () => {}) {
             delete index.recordings[entry._id]; delete index.pendingWords[entry._id];
             return false;
         });
+        const restoreTargets = new Map();
+        if (Array.isArray(manifest.prays) && manifest.prays.length > 0) {
+            const currentPrays = (index.guestPrays || []).filter(entry => !isRevokedPrayer(index, entry));
+            const currentMap = new Map(), byShare = new Map();
+            const merge = (prayer, fromBackup) => {
+                const sourceId = String(prayer._id);
+                const key = prayerShareKey(prayer);
+                const id = byShare.get(key) || sourceId;
+                const existing = currentMap.get(id);
+                const merged = mergeRestoredPrayer(existing, prayer, fromBackup ? ownerId : undefined);
+                merged._id = id;
+                currentMap.set(id, merged);
+                if (key) byShare.set(key, id);
+                restoreTargets.set(sourceId, id);
+            };
+            currentPrays.forEach(prayer => merge(prayer, false));
+            manifest.prays.filter(p => p && p._id && p.words && !isRevokedPrayer(index, p)).forEach(p => merge({
+                _id: String(p._id), words: p.words, feeling: p.feeling, churchId: p.churchId,
+                prayType: p.prayType || 'general', date: p.date || null,
+                sharedWith: p.sharedWith || null, sharedFrom: p.sharedFrom || null,
+                // Restoring a backup never silently resends an old action.
+                _sync: p._sync ? { ...p._sync, state: 'failed', hidden: false, nextAttemptAt: 0 } : null,
+            }, true));
+            index.guestPrays = Array.from(currentMap.values()).sort(byNewest);
+        }
+
+        // Legacy local IDs can differ from received-<shareId>. Keep a single card
+        // and all its clips; replayed inbox deliveries use this same canonical ID.
+        for (const [source, target] of restoreTargets) {
+            if (source === target) continue;
+            const clips = index.recordings[target] || [];
+            const known = new Set(clips.map(rec => rec.id));
+            index.recordings[target] = [...clips, ...(index.recordings[source] || []).filter(rec => !known.has(rec.id))];
+            if (index.pendingWords[source] && !index.pendingWords[target]) index.pendingWords[target] = index.pendingWords[source];
+            delete index.recordings[source]; delete index.pendingWords[source];
+        }
         for (const { prayId, rec, pendingWords } of toAdd) {
             const prayer = manifestPrayers.get(prayId);
             if (index.revokedPrayerShares[normalizeShareId(prayId)] || (prayer && isRevokedPrayer(index, prayer))) { revokedAudio.push(rec); continue; }
-            index.recordings[prayId] = [...(index.recordings[prayId] || []), rec];
-            if (pendingWords) index.pendingWords[prayId] = pendingWords;
-        }
-
-        if (Array.isArray(manifest.prays) && manifest.prays.length > 0) {
-            const currentPrays = (index.guestPrays || []).filter(entry => !isRevokedPrayer(index, entry));
-            const currentMap = new Map(currentPrays.map((p) => [String(p._id), p]));
-
-            manifest.prays
-                .filter((p) => p && p.words && !isRevokedPrayer(index, p))
-                .forEach((p) => {
-                    const id = String(p._id || `local-${Date.now()}`);
-                    const existing = currentMap.get(id);
-                    if (!existing) {
-                        currentMap.set(id, {
-                            _id: id,
-                            words: p.words,
-                            prayType: p.prayType || 'general',
-                            date: p.date || new Date().toISOString(),
-                            feeling: p.feeling,
-                            sharedWith: p.sharedWith || null,
-                            sharedFrom: p.sharedFrom || null,
-                            // Restoring a backup never silently resends an old action.
-                            _sync: p._sync ? { ...p._sync, state: 'failed', hidden: false, nextAttemptAt: 0 } : null,
-                        });
-                    } else {
-                        currentMap.set(id, {
-                            ...existing,
-                            sharedWith: existing.sharedWith || p.sharedWith || null,
-                            sharedFrom: existing.sharedFrom || p.sharedFrom || null,
-                        });
-                    }
-                });
-
-            index.guestPrays = Array.from(currentMap.values()).sort(byNewest);
+            const target = restoreTargets.get(prayId) || prayId;
+            const clips = index.recordings[target] || [];
+            if (!clips.some(clip => clip.id === rec.id)) index.recordings[target] = [...clips, rec];
+            if (pendingWords) index.pendingWords[target] = pendingWords;
         }
     });
 
