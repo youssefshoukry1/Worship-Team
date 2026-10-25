@@ -18,6 +18,10 @@
     <array>
       <dict>
         <key>CFBundleURLSchemes</key>
+        <array><string>wasla</string></array>
+      </dict>
+      <dict>
+        <key>CFBundleURLSchemes</key>
         <array>
           <string>com.googleusercontent.apps.984547740511-e7gs2slrmfgjq5c3frrakkvprchvh5vc</string>
         </array>

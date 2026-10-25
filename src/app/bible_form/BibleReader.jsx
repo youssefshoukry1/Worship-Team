@@ -1360,6 +1360,7 @@ export function BibleForm({ controller, isPage = false }) {
                                 </button>
                               </div>
                             )}
+                            {aiAnalysis.isLimit && isLogin && <div className="mt-2 flex justify-center"><button type="button" onClick={() => router.push('/plans')} className="inline-flex min-h-11 items-center justify-center rounded-full bg-sky-500 px-5 py-2 text-xs font-bold text-white hover:bg-sky-400">{language === 'ar' ? 'عرض الخطط' : 'View plans'}</button></div>}
                           </>
                         ) : (
                           <AiResponseText key={aiAnalysis.text} text={aiAnalysis.text} />

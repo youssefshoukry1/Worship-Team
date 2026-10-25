@@ -8,7 +8,7 @@ export default function PrivacyPolicy() {
     <main className="min-h-screen bg-[#001a2b] text-gray-200 px-4 py-12 md:px-12 lg:px-24">
       <div className="max-w-4xl mx-auto bg-[#07253d] border border-blue-900/40 rounded-2xl p-6 md:p-10 shadow-xl">
         <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Privacy Policy</h1>
-        <p className="text-sm text-blue-300 mb-8">Last Updated: March 2026</p>
+        <p className="text-sm text-blue-300 mb-8">Last Updated: October 25, 2026</p>
 
         <section className="space-y-6 text-sm md:text-base leading-relaxed">
           <div>
@@ -20,10 +20,11 @@ export default function PrivacyPolicy() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-2">2. Information We Collect</h2>
-            <p className="text-gray-300 mb-2">We only handle basic data necessary for authentication and account management:</p>
+            <p className="text-gray-300 mb-2">We handle information needed for account features and subscriptions:</p>
             <ul className="list-disc pl-6 space-y-1 text-gray-300">
               <li><strong>Account Information:</strong> Name, email address, and profile picture provided during registration or Google Sign-In.</li>
               <li><strong>Technical Data:</strong> Basic device and app performance data strictly for troubleshooting.</li>
+              <li><strong>Subscriptions:</strong> Plan, payment provider, transaction identifiers, amount, currency, payment status and access dates. Purchase tokens needed for verification are encrypted at rest.</li>
             </ul>
           </div>
 
@@ -49,7 +50,7 @@ export default function PrivacyPolicy() {
                 , including the Limited Use requirements.
               </li>
               <li>
-                <strong>No Third-Party Sharing:</strong> We never sell, rent, share, or use your data for advertising or AI training.
+                <strong>No Sale or Advertising:</strong> Wasla does not sell or rent your Google account data, or use it for advertising or to train AI models. Service providers receive information needed to perform the features you request, as described in this policy.
               </li>
             </ul>
           </div>
@@ -74,6 +75,11 @@ export default function PrivacyPolicy() {
                 Google Security Settings
               </a>.
             </p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-white mb-2">Payments and Subscriptions</h2>
+            <p className="text-gray-300">Website payments are processed by Paymob. Billing details you enter, such as your name, email, phone number and address, are sent to Paymob to process your payment. Native Android and iOS purchases are processed by Google Play and Apple respectively. Wasla verifies purchases and provider notifications to activate access, restore purchases, process subscription changes and prevent reuse on another account. Wasla does not store full card numbers, card security codes or wallet PINs. Payment providers process payment information under their own privacy policies. Payment records may need to be retained to resolve refunds, disputes or accounting obligations.</p>
           </div>
 
           <div>

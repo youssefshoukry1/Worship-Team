@@ -7,6 +7,7 @@ const config = {
     androidScheme: 'https'
   },
   plugins: {
+    NativePurchases: { autoFinishTransactions: false },
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"]
     },

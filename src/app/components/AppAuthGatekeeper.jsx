@@ -10,7 +10,7 @@ import Navbar from "../Navbar/Navbar";
 import PageTransition from "../page-transition/page-transition";
 import BottomNav from "./BottomNav";
 
-const PUBLIC_ROUTES = ["/privacy-policy"];
+const PUBLIC_ROUTES = ["/privacy-policy", "/subscription-terms"];
 const AuthForm = dynamic(() => import('./AuthForm'), { ssr: false, loading: () => <AppStartupShell /> });
 const ClaimUsernameModal = dynamic(() => import('./ClaimUsernameModal'), { ssr: false, loading: () => <AppStartupShell /> });
 
@@ -85,7 +85,7 @@ export default function AppAuthGatekeeper({ children }) {
   }
 
   // Allow public routes without authentication
-  if (PUBLIC_ROUTES.includes(pathname)) {
+  if (PUBLIC_ROUTES.includes(pathname.replace(/\/$/, ''))) {
     return <PageTransition>{children}</PageTransition>;
   }
 

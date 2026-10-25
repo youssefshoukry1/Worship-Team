@@ -1170,6 +1170,13 @@ export default function NormalUserProfile() {
 
                                     <button
                                         type="button"
+                                        onClick={() => router.push('/plans')}
+                                        className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left"
+                                    >
+                                        <div className="flex items-center gap-3.5"><Sparkles className="w-5 h-5 shrink-0 text-cyan-400" /><span className="text-sm sm:text-base font-semibold text-white">{language === 'ar' ? 'الخطط والاشتراك' : 'Plans & subscription'}</span></div><ChevronRight className="h-4 w-4 text-slate-500" />
+                                    </button>
+                                    <button
+                                        type="button"
                                         onClick={() => navigateToView('bible_settings')}
                                         className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left"
                                     >
