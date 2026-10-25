@@ -234,7 +234,7 @@ export default function Dashboard() {
     enabled: !!isLogin && !!churchId && hasAccess,
   });
 
-  if (isLoadingPending || isLoadingChurch) return <Loading />;
+  if (isLoadingPending || isLoadingChurch) return <Loading variant="dashboard" />;
 
   if (isLogin && !hasAccess) {
     return (

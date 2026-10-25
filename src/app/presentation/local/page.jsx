@@ -1,4 +1,5 @@
 'use client';
+import PageSkeleton from '../../components/PageSkeleton';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Suspense } from 'react';
@@ -214,9 +215,7 @@ export default function LocalDisplayPage() {
   return (
     <Suspense
       fallback={
-        <div className="fixed inset-0 bg-black flex items-center justify-center">
-          <div className="w-10 h-10 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-        </div>
+        <PageSkeleton variant="presentation" fullPage />
       }
     >
       <LocalDisplayContent />

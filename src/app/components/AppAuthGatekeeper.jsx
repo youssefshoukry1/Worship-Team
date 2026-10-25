@@ -6,6 +6,7 @@ import axios from "axios";
 import { UserContext } from "../context/User_Context";
 import dynamic from 'next/dynamic';
 import AppStartupShell from './AppStartupShell';
+import PageSkeleton, { pageSkeletonVariant } from './PageSkeleton';
 import Navbar from "../Navbar/Navbar";
 import PageTransition from "../page-transition/page-transition";
 import BottomNav from "./BottomNav";
@@ -81,7 +82,7 @@ export default function AppAuthGatekeeper({ children }) {
 
   // Static public layout is ready before hydration; private data remains gated.
   if (!isMounted) {
-    return <AppStartupShell prayerEntry={isPrayerEntry} />;
+    return <AppStartupShell prayerEntry={isPrayerEntry} variant={pageSkeletonVariant(pathname)} publicPage={PUBLIC_ROUTES.includes(pathname.replace(/\/$/, ''))} />;
   }
 
   // Allow public routes without authentication
@@ -104,20 +105,12 @@ export default function AppAuthGatekeeper({ children }) {
 
   // Brief loading spinner while redirecting away from sign-in routes
   if (pathname === "/login" || pathname === "/Register") {
-    return (
-      <div className="min-h-screen bg-[#020617] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <PageSkeleton variant="form" fullPage />;
   }
 
   // In the middle of syncing profile token
   if (isSyncingProfile) {
-    return (
-      <div className="min-h-screen bg-[#020617] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <PageSkeleton variant={pageSkeletonVariant(pathname)} fullPage />;
   }
 
   // Case 2: Logged in, but has not chosen an @username -> Global Gatekeeper Modal (unclosable, locks app)

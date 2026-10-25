@@ -1,4 +1,5 @@
 'use client'
+import PageSkeleton from '../components/PageSkeleton';
 import React, { useContext, useEffect, useMemo, useState } from 'react'
 import { openLocalDisplay, prepareLocalDisplay } from '../presentation/local/openLocalDisplay'
 import LocalFullscreenButton from '../presentation/local/LocalFullscreenButton'
@@ -535,9 +536,7 @@ function PendingHymnsPanel({ isLogin }) {
 
       {/* Content */}
       {isLoading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
-        </div>
+        <PageSkeleton variant="hymns" compact />
       ) : isError ? (
         <div className="py-12 text-center text-red-400 bg-red-500/5 border border-red-500/20 rounded-2xl">
           <AlertCircle className="w-8 h-8 mx-auto mb-2" />
@@ -1240,7 +1239,7 @@ export default function ChurchS_Dashboards() {
     )
   }
 
-  if (loadingChurches || loadingUsers) return <Loading />;
+  if (loadingChurches || loadingUsers) return <Loading variant="dashboard" />;
 
   // Actions
   const handleAddChurch = async () => {

@@ -1,4 +1,5 @@
 'use client';
+import PageSkeleton from '../../components/PageSkeleton';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef } from 'react';
 import { usePresentation } from '../../hooks/usePresentation';
@@ -103,9 +104,7 @@ function RemoteContent() {
 export default function RemotePage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-            </div>
+            <PageSkeleton variant="presentation" fullPage />
         }>
             <RemoteContent />
         </Suspense>

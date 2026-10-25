@@ -1,4 +1,5 @@
 'use client';
+import PageSkeleton from '../components/PageSkeleton';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, Loader2, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
@@ -62,7 +63,7 @@ export default function PlansPage() {
       </div>
       {error && <div role="alert" className="mb-5 rounded-xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-500">{error}<button type="button" className="ms-3 underline" onClick={() => perform('refresh', refresh)}>{text('Try again', 'حاول مجدداً')}</button></div>}
       {notice && <p role="status" className="mb-5 rounded-xl bg-emerald-500/10 p-4 text-sm text-emerald-500">{notice}</p>}
-      {!data ? !error && <div className={`flex items-center gap-3 py-10 ${muted}`}><Loader2 className="animate-spin" size={20} />{text('Loading your plans…', 'جارٍ تحميل الخطط…')}</div> : <>
+      {!data ? !error && <PageSkeleton variant="plans" compact /> : <>
         {data.catalog.testMode && Object.values(data.catalog.providers).some(Boolean) && <p className="mb-5 rounded-xl bg-amber-500/10 p-4 text-sm text-amber-600">{text('Test purchases only. Live subscriptions are not on sale yet.', 'المشتريات تجريبية فقط. الاشتراكات الفعلية ليست متاحة للبيع بعد.')}</p>}
         <div className={`mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-5 ${panel}`}>
           <div><p className={`text-xs ${muted}`}>{text('Your account', 'حسابك')}</p><p className="mt-1 text-lg font-semibold">{data.current.unlimited ? text('Unlimited AI access', 'استخدام غير محدود للذكاء الاصطناعي') : data.current.plan === 'free' ? text('Free', 'مجاني') : data.current.plan === 'pro' ? 'Pro' : 'Plus'}</p>

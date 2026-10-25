@@ -335,7 +335,7 @@ export default function Website_work_Profile() {
     }
   };
 
-  if (isLoading) return <Loading />;
+  if (isLoading) return <Loading variant="profile" />;
   if (!isLogin || (UserRole !== 'LYRICS_ADMIN' && UserRole !== 'PROGRAMER' && UserRole !== 'MUSIC_ADMIN')) return null;
 
   const roleData = adminTasksData?.role;

@@ -1034,6 +1034,9 @@ export default function PrayPage() {
                     ? [...liveInbox].sort((a, b) => Number(String(b.shareId) === target.shareId) - Number(String(a.shareId) === target.shareId))
                     : liveInbox;
                 const result = await mergeIncomingPrayers(prioritizedInbox);
+                // The task can belong to a page that has since unmounted.
+                // Notify the current page only after the imported text is durable.
+                if (result.prayers) window.dispatchEvent(new Event(PRAYER_SYNC_EVENT));
                 if (result.prayers && mountedRef.current) setGuestPrays(result.prayers);
                 let audioChanged = false;
                 // Save text first, then audio, then acknowledge durable delivery.

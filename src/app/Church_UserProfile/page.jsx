@@ -3,6 +3,7 @@
 import { useContext, useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Portal from '../Portal/Portal';
+import PageSkeleton from '../components/PageSkeleton';
 import { useRouter } from 'next/navigation';
 import {
     Activity,
@@ -721,12 +722,7 @@ export default function Church_UserProfile() {
         : [];
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-                <div className="w-16 h-16 border-4 border-sky-500/20 border-t-sky-400 rounded-full animate-spin mb-6 shadow-[0_0_30px_rgba(56,189,248,0.2)]"></div>
-                <p className="text-sky-300 font-medium tracking-wide">Loading your dashboard...</p>
-            </div>
-        );
+        return <PageSkeleton variant="profile" fullPage />;
     }
 
     if (error) {

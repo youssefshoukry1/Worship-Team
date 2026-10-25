@@ -6,11 +6,13 @@ import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import Portal from '../Portal/Portal';
+import PageSkeleton from '../components/PageSkeleton';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { showToast } from '../components/ToastContainer';
 import { useOfflineAvatar } from '../hooks/useOfflineAvatar';
 import { removeCachedAvatar } from '../utils/avatarStorage';
 import { cropProfilePhoto, resizeSquareCrop } from '../utils/profilePhoto';
+import TestimonyBoard from '../components/testimonies/TestimonyBoard';
 import cropStyles from './profileCropper.module.css';
 import {
     Activity,
@@ -1008,12 +1010,7 @@ export default function NormalUserProfile() {
 
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-[var(--app-bg)] flex flex-col items-center justify-center p-4 transition-colors duration-150">
-                <div className="w-16 h-16 border-4 border-sky-500/20 border-t-sky-400 rounded-full animate-spin mb-6 shadow-[0_0_30px_rgba(56,189,248,0.2)]"></div>
-                <p className="text-sky-300 font-medium tracking-wide">Loading your dashboard...</p>
-            </div>
-        );
+        return <PageSkeleton variant="profile" fullPage />;
     }
 
     if (error && !profile) {
@@ -1125,6 +1122,8 @@ export default function NormalUserProfile() {
                                 </div>
                             </div>
                         </div>
+
+                        <TestimonyBoard profileUserId={user_id} />
 
                         {/* --- SETTINGS GROUPS (CHATGPT STYLE) --- */}
                         <div className="space-y-6">

@@ -90,6 +90,37 @@ async function taps(page, hrefs) {
   }, hrefs);
 }
 
+test('page-shaped placeholders appear before scripts load and hand over without hydration errors', async () => {
+  for (const [href, variant] of [['/hymns/', 'hymns'], ['/bible_form/', 'bible'], ['/friends/', 'friends'], ['/normal_UserProfile/', 'profile']]) {
+    const { context, page } = await setup({ electron: true, api: bibleApi([]) });
+    let release; const pending = new Promise(resolve => { release = resolve; });
+    try {
+      const errors = []; page.on('pageerror', error => errors.push(error.message));
+      await page.route('**/_next/static/chunks/*.js', async route => {
+        await pending; await route.continue().catch(() => {});
+      });
+      await page.goto(base + href, { waitUntil: 'commit' });
+      const skeleton = page.locator(`[data-startup-content] [data-page-skeleton="${variant}"]`);
+      await skeleton.waitFor({ state: 'visible' });
+      assert.equal(await skeleton.getAttribute('aria-busy'), 'true');
+      assert.equal(await skeleton.locator('[inert]').count(), 1);
+      assert.equal(await skeleton.locator('img, input, textarea, button').count(), 0, 'Placeholders contain no logo or interactive/private content');
+      if (variant === 'friends') {
+        // Capture the pre-hydration shapes without waiting for deferred scripts
+        // (and document.fonts.ready) that this test deliberately holds back.
+        const session = await context.newCDPSession(page);
+        const { data } = await session.send('Page.captureScreenshot', { format: 'png' });
+        fs.writeFileSync(path.join(require('node:os').tmpdir(), 'wasla-friends-skeleton.png'), Buffer.from(data, 'base64'));
+        await session.detach();
+      }
+      release();
+      await page.locator('[data-startup-shell]').waitFor({ state: 'detached' });
+      await page.locator('nav[aria-label="Primary navigation"]').waitFor();
+      assert.deepEqual(errors, [], `${href} must hydrate normally`);
+    } finally { release(); await context.close(); }
+  }
+});
+
 test('latest tap wins, including returning to the current tab, without a document reload', async () => {
   const { context, page } = await setup();
   try {
@@ -484,7 +515,7 @@ test('hymn sync survives tab switches without duplicate downloads and queues a f
   } finally { release(); await context.close(); }
 });
 
-test('an in-flight prayer import survives leaving the tab and is reused on returning', async () => {
+test('an in-flight prayer import survives tab changes and a notification queues one fresh follow-up', async () => {
   let release; const stalled = new Promise(resolve => { release = resolve; });
   let inboxCalls = 0; const acknowledged = [];
   const { context, page } = await setup({ api: async route => {
@@ -504,14 +535,17 @@ test('an in-flight prayer import survives leaving the tab and is reused on retur
     await taps(page, ['/pray']); await page.waitForURL(base + '/pray/'); await waitUntil(() => inboxCalls === 1);
     await taps(page, ['/normal_UserProfile']); await page.waitForURL(base + '/normal_UserProfile/');
     await taps(page, ['/pray']); await page.waitForURL(base + '/pray/');
-    await page.evaluate(() => window.dispatchEvent(new CustomEvent('taspe7:open-prayer', {
+    await page.getByRole('button', { name: 'Save Note', exact: true }).waitFor();
+    const handled = await page.evaluate(() => !window.dispatchEvent(new CustomEvent('taspe7:open-prayer', {
       detail: { href: '/pray/?notificationType=PRAY_SHARED&shareId=across-tabs' }, cancelable: true,
     })));
+    assert.equal(handled, true, 'Deliver the notification after the returning page has mounted');
     release();
     await page.getByText('Prayer delivered across tab changes', { exact: true }).waitFor();
-    await waitUntil(() => acknowledged.includes('across-tabs'));
-    assert.equal(inboxCalls, 1);
-    assert.deepEqual(acknowledged, ['across-tabs']);
+    await waitUntil(() => inboxCalls === 2 && acknowledged.length === 2);
+    assert.equal(inboxCalls, 2, 'The active import is shared; the notification requests one fresh follow-up');
+    assert.deepEqual(acknowledged, ['across-tabs', 'across-tabs']);
+    assert.equal(await page.locator('[data-prayer-id="received-across-tabs"]').count(), 1);
   } finally { release(); await context.close(); }
 });
 

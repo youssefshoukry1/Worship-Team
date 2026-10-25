@@ -1,4 +1,5 @@
 'use client';
+import PageSkeleton from '../components/PageSkeleton';
 
 import { useState, useEffect, useLayoutEffect, useContext, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -24,6 +25,8 @@ import { cacheAvatarsInBackground } from '../utils/avatarStorage';
 import { clearFriendsInvalidation, getFriendsCacheKey, isFriendsCacheFresh, readFriendsCache, readFriendsInvalidation, writeFriendsCache } from '../utils/friendsCache';
 import { readFriendNotificationTarget } from '../utils/friendNotificationNavigation';
 import { invalidateTabRead, readTabJson, TAB_READ_FRESH_MS, tabReadKey } from '../utils/tabRequests';
+import TestimonyBoard from '../components/testimonies/TestimonyBoard';
+import { announceTestimonyChange, profileHref } from '../components/testimonies/testimonyApi';
 
 const API_URL = getApiBaseUrl();
 
@@ -372,6 +375,7 @@ export default function FriendsPage() {
         throw new Error(data.msg || 'Remove failed');
       }
       showToast({ message: `Removed @${username} from friends`, type: 'info' });
+      announceTestimonyChange();
     } catch (err) {
       setFriends(prevFriends);
       showToast({ message: err.message, type: 'error' });
@@ -401,6 +405,9 @@ export default function FriendsPage() {
         <div className="w-9" />
       </div>
 
+      <TestimonyBoard />
+
+      <div className="max-w-2xl mx-auto mt-4">
       {/* Search Bar */}
       <div className="relative mb-6">
         <div className="relative flex items-center">
@@ -548,10 +555,7 @@ export default function FriendsPage() {
 
       {/* Content Area */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-3">
-          <Loader2 className="w-7 h-7 text-[#00C2FF] animate-spin" />
-          <span className="text-xs">Loading connections...</span>
-        </div>
+        <PageSkeleton variant="friends" compact />
       ) : activeTab === 'requests' ? (
         <div className="space-y-6">
           {/* Incoming Requests */}
@@ -716,14 +720,14 @@ export default function FriendsPage() {
                           className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#00C2FF]/20 to-blue-600/30 border border-[#00C2FF]/30 flex items-center justify-center font-bold text-sm text-[#00C2FF] shrink-0 overflow-hidden"
                         />
                       </button>
-                      <div className="min-w-0">
-                        <div className="text-xs sm:text-sm font-semibold text-white truncate">
+                      <button type="button" onClick={() => router.push(profileHref(friend._id))} className="min-w-0 text-left rounded-lg focus-visible:outline-2 focus-visible:outline-sky-400" aria-label={`Open ${friend.Name || 'friend'} profile`}>
+                        <div className="text-xs sm:text-sm font-semibold text-white truncate hover:text-sky-300 transition-colors">
                           {friend.Name}
                         </div>
                         <div className="text-[11px] text-[#00C2FF] truncate">
                           @{friend.username || 'user'}
                         </div>
-                      </div>
+                      </button>
                     </div>
 
                     <button
@@ -741,6 +745,7 @@ export default function FriendsPage() {
           )}
         </div>
       )}
+      </div>
       <FriendPhotoViewer
         photo={selectedPhoto}
         onClose={closePhoto}

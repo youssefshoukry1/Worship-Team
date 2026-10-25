@@ -1,7 +1,8 @@
 'use client';
+import PageSkeleton from '../components/PageSkeleton';
 
 import Link from 'next/link';
-import { ArrowUpRight, Download, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowUpRight, Download, ShieldCheck, Sparkles } from 'lucide-react';
 import useProgramerAccess from './useProgramerAccess';
 
 export default function ProgramerDashboard() {
@@ -16,7 +17,7 @@ export default function ProgramerDashboard() {
             <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-300"><ShieldCheck size={15} />PROGRAMER</div>
             <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">App control center</h1>
             <p className="mt-3 text-sm text-slate-400">Choose what you want to control.</p>
-            {access.isPending && <p className="mt-10 flex items-center gap-2 text-slate-400"><Loader2 className="animate-spin" size={18} />Checking access...</p>}
+            {access.isPending && <PageSkeleton variant="dashboard" compact />}
             {access.error && <p role="alert" className="mt-8 rounded-xl border border-rose-400/20 bg-rose-400/10 p-4 text-sm text-rose-200">{access.error.message}</p>}
             {access.hasAccess && <div className="mt-10 grid gap-5 sm:grid-cols-2">
                 {[

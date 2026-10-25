@@ -1451,7 +1451,7 @@ export default function Category_Humns() {
   };
 
   if (isJoiningSession) {
-    return <Loading />;
+    return <Loading variant="hymns" />;
   }
 
   return (<section id="Category_Humns" className="min-h-screen bg-[var(--app-bg)] text-white px-4 sm:px-6 py-10 relative overflow-hidden transition-colors duration-150">
@@ -1638,7 +1638,7 @@ export default function Category_Humns() {
 
       {/* Content Table/List */}
       {isLoading ? (
-        <Loading />
+        <Loading variant="hymns" />
       ) : (
         <div className="relative">
           {/* Table Header */}

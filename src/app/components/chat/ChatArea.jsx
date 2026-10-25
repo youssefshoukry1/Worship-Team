@@ -1,4 +1,5 @@
 'use client';
+import PageSkeleton from '../PageSkeleton';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import AudioMessage from './AudioMessage';
 import ImageMessage from './ImageMessage';
@@ -418,14 +419,8 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                 data-lenis-prevent
                 className="flex-1 overflow-y-auto pt-4 pb-2 bg-[#080c14] custom-scrollbar flex flex-col z-10"
             >
-                {loading && (
-                    <div className="flex justify-center py-4">
-                        <div className="bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700/60">
-                            <span className="text-slate-300 text-xs flex items-center gap-2">
-                                <Clock size={12} className="animate-spin text-sky-400" /> Loading messages...
-                            </span>
-                        </div>
-                    </div>
+                {loading && messages.length === 0 && (
+                    <PageSkeleton variant="chat" compact />
                 )}
 
                 {messages.length === 0 && !loading && (

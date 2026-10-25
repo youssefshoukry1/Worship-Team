@@ -9,6 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 import { showToast } from '../components/ToastContainer';
 import { X, Check, Search, FileText, BookOpen, ChevronLeft, ChevronRight, Loader2, Copy, Lightbulb, FolderPlus, Monitor, PlusCircle, Link2, List, AlignJustify, Download, SlidersHorizontal, CircleHelp, Plus, Trash2 } from 'lucide-react';
 import WaslaWaveLogo from '../components/WaslaWaveLogo';
+import PageSkeleton from '../components/PageSkeleton';
 import { useRouter, usePathname } from 'next/navigation';
 import { HIGHLIGHT_COLORS, BIBLE_LAST_POS_KEY } from './bibleShared';
 
@@ -907,10 +908,7 @@ export function BibleForm({ controller, isPage = false }) {
                   </div>
                 </div>
                 {isSearchingBible ? (
-                  <div className="flex flex-col items-center justify-center py-20 opacity-40 animate-pulse">
-                    <div className="w-12 h-12 border-2 border-sky-500/30 border-t-sky-500 rounded-full animate-spin mb-4" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-white">Neural Search...</span>
-                  </div>
+                  <PageSkeleton variant="bible" compact />
                 ) : bibleSearchQuery.trim() ? (
                   <div className="space-y-6 pb-20">
                     {bibleSearchResults.length > 0 ? (
@@ -994,9 +992,7 @@ export function BibleForm({ controller, isPage = false }) {
                     <div className="space-y-6 pb-20">
                       {/* Verses Display */}
                       {isCheckingOffline && bibleModalVerses.length === 0 ? (
-                        <div className="flex items-center justify-center py-24">
-                          <Loader2 className="w-6 h-6 animate-spin text-sky-400" />
-                        </div>
+                        <PageSkeleton variant="bible" compact />
                       ) : !downloadedTranslations.has(bibleTranslation) && bibleModalVerses.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
                           <div className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(14,165,233,0.15)]">
@@ -1035,9 +1031,7 @@ export function BibleForm({ controller, isPage = false }) {
                           )}
                         </div>
                       ) : bibleModalVerses.length === 0 && bibleModalBrowseLoading ? (
-                        <div className="flex items-center justify-center py-24">
-                          <Loader2 className="w-6 h-6 animate-spin text-sky-400" />
-                        </div>
+                        <PageSkeleton variant="bible" compact />
                       ) : bibleViewMode === 'paragraph' ? (
                         <div
                           className="font-arabic text-right transition-all"

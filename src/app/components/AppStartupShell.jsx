@@ -1,4 +1,5 @@
 import { Heart, BookOpen, Music, Users, User, Mic, Share2, Check, Lock, MoreVertical } from 'lucide-react';
+import PageSkeleton from './PageSkeleton';
 
 function Label({ en, ar, de }) {
   return <><span data-startup-lang="en">{en}</span><span data-startup-lang="ar">{ar}</span><span data-startup-lang="de">{de}</span></>;
@@ -6,12 +7,13 @@ function Label({ en, ar, de }) {
 
 // Public, non-interactive HTML: no account data, drafts, or saved prayers. CSS
 // selects the returning-user layout before React or its route chunks execute.
-export default function AppStartupShell({ prayerEntry = false }) {
+export default function AppStartupShell({ prayerEntry = false, variant = 'form', publicPage = false }) {
   return (
     <div data-startup-shell data-prayer-entry={prayerEntry} aria-busy="true" aria-label="Opening Wasla" className="min-h-screen bg-[var(--app-bg)] text-white">
-      <div data-startup-loading role="status" aria-label="Loading" className="min-h-screen flex items-center justify-center">
-        <span aria-hidden="true" className="h-8 w-8 rounded-full border-2 border-sky-400 border-t-transparent animate-spin" />
+      <div data-startup-loading className="min-h-screen">
+        <PageSkeleton variant={publicPage ? variant : 'form'} fullPage />
       </div>
+      {!prayerEntry && <div data-startup-content><PageSkeleton variant={variant} fullPage chrome={!publicPage && variant !== 'form' && variant !== 'presentation'} /></div>}
       {prayerEntry && <div data-startup-prayer aria-hidden="true" inert>
         <div className="h-20 border-b border-white/5 bg-[#080e18] px-4 flex items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}

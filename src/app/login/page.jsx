@@ -4,6 +4,7 @@ import { useEffect, useContext } from "react";
 import { useRouter } from "next/navigation";
 import { UserContext } from "../context/User_Context";
 import AuthForm from "../components/AuthForm";
+import PageSkeleton from '../components/PageSkeleton';
 
 export default function Login() {
   const { isLogin } = useContext(UserContext);
@@ -16,11 +17,7 @@ export default function Login() {
   }, [isLogin, router]);
 
   if (isLogin) {
-    return (
-      <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4">
-        <div className="w-8 h-8 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <PageSkeleton variant="form" fullPage />;
   }
 
   return (

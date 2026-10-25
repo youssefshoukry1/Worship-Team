@@ -1,4 +1,5 @@
 'use client';
+import PageSkeleton from '../../components/PageSkeleton';
 
 import { useContext, useState } from 'react';
 import Link from 'next/link';
@@ -107,7 +108,7 @@ export default function OtaControlPage() {
             <div className="mb-7 flex items-center gap-2 border-b border-white/[0.08] pb-4 text-sm font-semibold text-sky-300"><SlidersHorizontal size={17} />OTA controll</div>
             {(query.error || save.error) && <div role="alert" className="mb-5 rounded-xl border border-rose-400/20 bg-rose-400/10 p-4 text-sm text-rose-200">{(save.error || query.error).message}</div>}
             {notice && <div role="status" className="mb-5 flex items-start gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-200"><Check size={18} className="shrink-0" />{notice}</div>}
-            {query.isPending ? <div className="flex items-center gap-3 py-16 text-slate-400"><Loader2 className="animate-spin" size={20} />Loading release controls…</div> : data && <>
+            {query.isPending ? <PageSkeleton variant="dashboard" compact /> : data && <>
                 <div className="mb-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <Metric Icon={Users} label="Released to users" value={data.publicRelease?.version} detail="Highest version approved for everyone" />
                     <Metric Icon={FlaskConical} label="Available to PROGRAMER" value={data.programerRelease?.version} detail="Includes public and private test releases" />
