@@ -159,18 +159,19 @@ export default function FriendsPage() {
   }, [loadData]);
 
   useEffect(() => {
-    // Rapid revisits reuse fresh data; notifications and the 15s poll still
-    // force a network refresh independently for each endpoint.
+    // Rapid revisits reuse fresh data; notifications and returning to the page
+    // fetch changes without periodically polling either endpoint.
     void loadData(Boolean(readFriendNotificationTarget(window.location.search)));
     const refresh = () => { void loadData(true); };
     const whenVisible = () => { if (document.visibilityState === 'visible') refresh(); };
-    window.addEventListener('taspe7:friends-push', refresh);
+    const restore = event => { if (event.persisted) whenVisible(); };
+    window.addEventListener('taspe7:friends-push', whenVisible);
+    window.addEventListener('pageshow', restore);
     document.addEventListener('visibilitychange', whenVisible);
-    const interval = setInterval(whenVisible, 15000);
     return () => {
-      window.removeEventListener('taspe7:friends-push', refresh);
+      window.removeEventListener('taspe7:friends-push', whenVisible);
+      window.removeEventListener('pageshow', restore);
       document.removeEventListener('visibilitychange', whenVisible);
-      clearInterval(interval);
     };
   }, [loadData]);
 
@@ -257,6 +258,7 @@ export default function FriendsPage() {
     actionVersionRef.current++;
     pendingActionsRef.current--;
     void loadData(true);
+    announceTestimonyChange();
   };
 
   const handleSendRequest = async (targetUser) => {
@@ -458,14 +460,14 @@ export default function FriendsPage() {
                         name={user.Name}
                         className="w-9 h-9 rounded-full bg-gradient-to-tr from-sky-500/30 to-blue-600/30 border border-sky-400/20 flex items-center justify-center font-bold text-xs text-sky-300 uppercase shrink-0 overflow-hidden"
                       />
-                      <div className="min-w-0">
+                      <button type="button" onClick={() => router.push(profileHref(user._id))} className="min-w-0 text-left rounded-lg focus-visible:outline-2 focus-visible:outline-sky-400" aria-label={`Open ${user.Name || 'user'} profile`}>
                         <div className="text-xs sm:text-sm font-semibold text-white truncate">
                           {user.Name}
                         </div>
                         <div className="text-[11px] text-[#00C2FF] truncate">
                           @{user.username || 'user'}
                         </div>
-                      </div>
+                      </button>
                     </div>
 
                     <div className="shrink-0">
@@ -590,14 +592,14 @@ export default function FriendsPage() {
                           name={sender.Name}
                           className="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-500/20 to-blue-600/30 border border-sky-400/20 flex items-center justify-center font-bold text-sm text-sky-300 shrink-0 overflow-hidden"
                         />
-                        <div className="min-w-0">
+                        <button type="button" onClick={() => router.push(profileHref(sender._id))} className="min-w-0 text-left rounded-lg focus-visible:outline-2 focus-visible:outline-sky-400" aria-label={`Open ${sender.Name || 'user'} profile`}>
                           <div className="text-xs sm:text-sm font-semibold text-white truncate">
                             {sender.Name}
                           </div>
                           <div className="text-[11px] text-[#00C2FF] truncate">
                             @{sender.username || 'user'}
                           </div>
-                        </div>
+                        </button>
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
@@ -654,14 +656,14 @@ export default function FriendsPage() {
                           name={target.Name}
                           className="w-10 h-10 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center font-bold text-sm text-slate-300 shrink-0 overflow-hidden"
                         />
-                        <div className="min-w-0">
+                        <button type="button" onClick={() => router.push(profileHref(target._id))} className="min-w-0 text-left rounded-lg focus-visible:outline-2 focus-visible:outline-sky-400" aria-label={`Open ${target.Name || 'user'} profile`}>
                           <div className="text-xs sm:text-sm font-semibold text-white truncate">
                             {target.Name}
                           </div>
                           <div className="text-[11px] text-slate-400 truncate">
                             @{target.username || 'user'}
                           </div>
-                        </div>
+                        </button>
                       </div>
 
                       <button

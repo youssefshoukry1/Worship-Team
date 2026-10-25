@@ -1,7 +1,8 @@
 'use client';
 
-import { useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,6 +14,11 @@ import { useOfflineAvatar } from '../hooks/useOfflineAvatar';
 import { removeCachedAvatar } from '../utils/avatarStorage';
 import { cropProfilePhoto, resizeSquareCrop } from '../utils/profilePhoto';
 import TestimonyBoard from '../components/testimonies/TestimonyBoard';
+import ProfileLayout from '../components/profile/ProfileLayout';
+import ProfileHeaderCard from '../components/profile/ProfileHeaderCard';
+import ProfileStats from '../components/profile/ProfileStats';
+import FriendshipControls from '../components/profile/FriendshipControls';
+import { testimonyRequest } from '../components/testimonies/testimonyApi';
 import cropStyles from './profileCropper.module.css';
 import {
     Activity,
@@ -291,26 +297,60 @@ const getHighlightHex = (colorId) => {
     return '#38bdf8';
 };
 
-export default function NormalUserProfile() {
+function ProfileRoute() {
+    const params = useSearchParams();
+    const { user_id } = useContext(UserContext);
+    const requestedId = params.get('user');
+    if (requestedId !== null && !/^[a-f\d]{24}$/i.test(requestedId)) {
+        return <ProfileLayout><div className="py-12 text-center text-slate-300"><h1 className="mb-3 text-xl font-semibold text-white">Profile unavailable</h1><Link href="/friends" className="text-sky-300">Back to friends</Link></div></ProfileLayout>;
+    }
+    if (!user_id) return <PageSkeleton variant="profile" fullPage />;
+    const targetId = requestedId?.toLowerCase();
+    const profileUserId = targetId || user_id;
+    return <UserProfile key={`${user_id}:${profileUserId}`} profileUserId={profileUserId} />;
+}
+
+export default function NormalUserProfilePage() {
+    return <Suspense fallback={<PageSkeleton variant="profile" fullPage />}><ProfileRoute /></Suspense>;
+}
+
+function UserProfile({ profileUserId }) {
     const { user_id, isLogin, setLogin, setUsername, profilePhoto, setProfilePhoto, profilePhotoPreview, clearProfilePhotoPreview, isUploadingProfilePhoto, uploadProfilePhoto, setUserRole, setUser_id, setChurchId, setHymnIds, setUserStatus } = useContext(UserContext);
+    const isOwner = String(profileUserId).toLowerCase() === String(user_id).toLowerCase();
     const router = useRouter();
     const { language, setLanguage } = useLanguage();
-    const { src: cachedProfileAvatarSrc, markFailed: markProfileAvatarFailed } = useOfflineAvatar(user_id, profilePhoto);
-    const profileAvatarSrc = profilePhotoPreview || cachedProfileAvatarSrc;
     const [profile, setProfile] = useState(null);
+    const [socialProfile, setSocialProfile] = useState(null);
+    const [refreshingSocial, setRefreshingSocial] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const { src: cachedProfileAvatarSrc, markFailed: markProfileAvatarFailed } = useOfflineAvatar(profileUserId, isOwner ? profilePhoto : profile?.user?.profilePhoto);
+    const profileAvatarSrc = (isOwner && profilePhotoPreview) || cachedProfileAvatarSrc;
+    const handleSocialProfile = useCallback((data, fetchError) => {
+        setSocialProfile(data);
+        if (!isOwner) {
+            setProfile(data?.user ? { user: data.user } : null);
+            setError(data?.user ? null : fetchError?.message || 'Profile unavailable. Please try again.');
+        }
+    }, [isOwner]);
+    const refreshFriendship = useCallback(() => window.dispatchEvent(new Event('taspe7:friends-push')), []);
+    const revokeFriendship = useCallback(() => {
+        setSocialProfile(previous => previous ? { ...previous, items: [], nextCursor: null, canViewTestimonies: false, relationship: 'none',
+            stats: { ...previous.stats, friends: Math.max(0, (previous.stats?.friends || 0) - 1), testimonies: null } } : previous);
+    }, []);
 
     useEffect(() => {
+        if (!isOwner) return;
         setProfile(previous => previous && previous.user?.profilePhoto !== profilePhoto
             ? { ...previous, user: { ...previous.user, profilePhoto } }
             : previous);
-    }, [profilePhoto]);
+    }, [profilePhoto, isOwner]);
     const { theme, toggleTheme, isDark } = useTheme?.() || {};
     const [currentView, setCurrentView] = useState('menu');
 
     // Clears user session and navigates to sign-in
     const handleLogout = () => {
+        if (!isOwner) return;
         localStorage.removeItem('user_Taspe7_Token');
         localStorage.removeItem('user_Taspe7_GlobalRole');
         localStorage.removeItem('user_Taspe7_SubRole');
@@ -418,6 +458,7 @@ export default function NormalUserProfile() {
 
     // Handles sub-page navigation with browser history
     const navigateToView = (view) => {
+        if (!isOwner) return;
         setCurrentView(view);
         if (typeof window !== 'undefined') {
             window.history.pushState({ profileView: view }, '', `#${view}`);
@@ -439,6 +480,7 @@ export default function NormalUserProfile() {
 
     // Synchronizes view state with browser back/forward buttons
     useEffect(() => {
+        if (!isOwner) return;
         const handlePopState = (e) => {
             if (e.state?.profileView) {
                 setCurrentView(e.state.profileView);
@@ -463,7 +505,7 @@ export default function NormalUserProfile() {
 
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
-    }, []);
+    }, [isOwner]);
     
     const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
     const isUploadingPhoto = isProcessingPhoto || isUploadingProfilePhoto;
@@ -495,8 +537,9 @@ export default function NormalUserProfile() {
 
     const [localPrayCount, setLocalPrayCount] = useState(0);
     useEffect(() => {
+        if (!isOwner) return;
         getGuestPrays().then((prays) => setLocalPrayCount(prays.length)).catch(() => {});
-    }, []);
+    }, [isOwner]);
 
     const onImageLoad = (e) => {
         const { width, height } = e.currentTarget;
@@ -556,6 +599,7 @@ export default function NormalUserProfile() {
 
     // Updates profile state and local cache
     const updateProfileState = (modifier) => {
+        if (!isOwner) return;
         setProfile(prev => {
             const updatedProfile = typeof modifier === 'function' ? modifier(prev) : modifier;
             if (updatedProfile) {
@@ -568,7 +612,7 @@ export default function NormalUserProfile() {
 
     // Debounced username availability check
     useEffect(() => {
-        if (!editModal || editModal.type !== 'username') return;
+        if (!isOwner || !editModal || editModal.type !== 'username') return;
 
         const currentVal = (editValue || '').trim().toLowerCase();
         const originalVal = (profile?.user?.username || '').trim().toLowerCase();
@@ -610,10 +654,10 @@ export default function NormalUserProfile() {
         }, 350);
 
         return () => { clearTimeout(timer); controller.abort(); };
-    }, [editValue, editModal, profile?.user?.username]);
+    }, [editValue, editModal, profile?.user?.username, isOwner]);
 
     const handleSaveEdit = async () => {
-        if (!editModal || isSavingEdit) return;
+        if (!isOwner || !editModal || isSavingEdit) return;
         const trimmed = editValue.trim();
 
         if (editModal.type === 'name') {
@@ -712,6 +756,7 @@ export default function NormalUserProfile() {
     }, [photoToCrop]);
 
     const handleFileSelect = (e) => {
+        if (!isOwner) return;
         const file = e.target.files?.[0];
         e.target.value = '';
         if (!file || isUploadingPhoto) return;
@@ -729,6 +774,7 @@ export default function NormalUserProfile() {
     };
 
     const confirmCropAndUpload = async () => {
+        if (!isOwner) return;
         if (!photoToCrop || !crop || !imgRef.current || isUploadingPhoto) return;
         setIsProcessingPhoto(true);
         try {
@@ -746,6 +792,7 @@ export default function NormalUserProfile() {
     };
 
     const handlePhotoRemove = async () => {
+        if (!isOwner) return;
         if (isUploadingPhoto) return;
         if (!window.confirm('Are you sure you want to remove your profile photo?')) return;
         setIsProcessingPhoto(true);
@@ -779,6 +826,19 @@ export default function NormalUserProfile() {
             setError('Please log in first');
             setLoading(false);
             return;
+        }
+
+        // The same profile page selects its data source by who is viewing it.
+        // Visitors never request or read the owner's private profile cache.
+        if (!isOwner) {
+            const controller = new AbortController();
+            testimonyRequest(isLogin, `/profile/${encodeURIComponent(profileUserId)}`, { signal: controller.signal })
+                .then(data => { if (!controller.signal.aborted) handleSocialProfile(data); })
+                .catch(fetchError => {
+                    if (!controller.signal.aborted) { setProfile(null); setError(fetchError.message || 'Could not load this profile.'); }
+                })
+                .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+            return () => controller.abort();
         }
 
         let ignore = false;
@@ -823,9 +883,10 @@ export default function NormalUserProfile() {
         };
         window.addEventListener('focus', refresh);
         return () => { ignore = true; window.removeEventListener('focus', refresh); };
-    }, [isLogin, user_id]);
+    }, [isLogin, user_id, isOwner, profileUserId, handleSocialProfile]);
 
     const handleDeleteBibleNote = async (noteId) => {
+        if (!isOwner) return;
         if (!window.confirm('Are you sure you want to delete this bible note?')) return;
         const idsToDelete = Array.isArray(noteId) ? noteId : [noteId];
         try {
@@ -863,6 +924,7 @@ export default function NormalUserProfile() {
     };
 
     const handleDeleteBibleHighlight = async (verseId) => {
+        if (!isOwner) return;
         if (!window.confirm('Are you sure you want to delete this highlight?')) return;
         const idsToDelete = Array.isArray(verseId) ? verseId : [verseId];
 
@@ -920,6 +982,7 @@ export default function NormalUserProfile() {
     };
 
     const handleSaveNote = async () => {
+        if (!isOwner) return;
         if (!noteText.trim() || !noteModalConfig) return;
         setIsSubmittingNote(true);
         const noteItem = noteModalConfig.data;
@@ -989,12 +1052,14 @@ export default function NormalUserProfile() {
     };
 
     const handleEditBibleNote = (noteItem) => {
+        if (!isOwner) return;
         setNoteText(noteItem.note);
         setNoteModalConfig({ data: noteItem, existingNote: noteItem.note });
     };
 
     // Lock scroll when modal is open
     useEffect(() => {
+        if (!isOwner) return;
         if (noteModalConfig) {
             document.body.style.overflow = 'hidden';
             document.documentElement.style.overflow = 'hidden';
@@ -1006,7 +1071,7 @@ export default function NormalUserProfile() {
             document.body.style.overflow = '';
             document.documentElement.style.overflow = '';
         };
-    }, [noteModalConfig]);
+    }, [noteModalConfig, isOwner]);
 
 
     if (loading) {
@@ -1029,24 +1094,29 @@ export default function NormalUserProfile() {
     }
 
     return (
-        <main className="min-h-screen bg-[var(--app-bg)] text-white pb-24 transition-colors duration-150">
-            <div className="max-w-5xl mx-auto px-3 sm:px-6 pt-6 sm:pt-10">
+        <ProfileLayout>
 
-                {currentView === 'menu' ? (
+                {!isOwner || currentView === 'menu' ? (
                     <>
                         {/* --- HEADER PROFILE CARD --- */}
-                        <div className="rounded-[2rem] border border-white/5 bg-white/[0.02] p-5 sm:p-8 backdrop-blur-2xl mb-6 sm:mb-8 relative overflow-hidden shadow-2xl shadow-black/50">
-                            <div className="absolute top-1/2 left-0 w-32 h-32 bg-sky-500/10 blur-[100px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2"></div>
-
-                            <div className="relative z-10 flex flex-row items-start justify-between gap-3 sm:gap-6">
-                                <div className="flex flex-row items-center gap-3 sm:gap-6 min-w-0">
+                        <ProfileHeaderCard
+                            user={profile?.user}
+                            onEditName={isOwner ? () => {
+                                setEditValue(profile?.user?.Name || '');
+                                setEditModal({ type: 'name' });
+                            } : undefined}
+                            onEditUsername={isOwner ? () => {
+                                setEditValue(profile?.user?.username || '');
+                                setEditModal({ type: 'username' });
+                            } : undefined}
+                            avatar={
                                     <div className="relative shrink-0">
                                         <div 
                                             className="w-20 h-20 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-sky-500/20 bg-black/40 flex items-center justify-center shadow-xl shadow-black/50 cursor-pointer"
                                             onClick={() => {
                                                 if (profileAvatarSrc) {
                                                     setIsViewingPhoto(true);
-                                                } else {
+                                                } else if (isOwner) {
                                                     fileInputRef.current?.click();
                                                 }
                                             }}
@@ -1060,7 +1130,7 @@ export default function NormalUserProfile() {
                                             )}
                                         </div>
                                         
-                                        <button 
+                                        {isOwner && <><button 
                                             onClick={() => fileInputRef.current?.click()}
                                             disabled={isUploadingPhoto}
                                             className="absolute bottom-0 right-0 translate-x-1 translate-y-1 w-7 h-7 sm:w-9 sm:h-9 bg-slate-900 rounded-full flex items-center justify-center border-2 border-sky-500/30 shadow-lg hover:bg-slate-800 transition-colors"
@@ -1075,58 +1145,25 @@ export default function NormalUserProfile() {
                                             className="hidden" 
                                             accept="image/jpeg, image/png, image/webp" 
                                             onChange={handleFileSelect} 
-                                        />
+                                        /></>}
                                     </div>
 
-                                    <div className="min-w-0">
-                                        <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-                                            <h1 className="text-xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-slate-400 leading-tight tracking-tight truncate">
-                                                {profile?.user?.Name || 'N/A'}
-                                            </h1>
-                                            <button 
-                                                type="button"
-                                                onClick={() => {
-                                                    setEditValue(profile?.user?.Name || '');
-                                                    setEditModal({ type: 'name' });
-                                                }}
-                                                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors shrink-0"
-                                                title="Edit Name"
-                                            >
-                                                <Edit3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                            </button>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400 font-medium">
-                                            <span className="truncate">
-                                                @{profile?.user?.username || profile?.user?.Name?.toLowerCase().replace(/\s+/g, '') || 'username'}
-                                            </span>
-                                            <button 
-                                                type="button"
-                                                onClick={() => {
-                                                    setEditValue(profile?.user?.username || '');
-                                                    setEditModal({ type: 'username' });
-                                                }}
-                                                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors shrink-0"
-                                                title="Edit Username"
-                                            >
-                                                <Edit3 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col sm:flex-row items-end gap-2 shrink-0">
+                            }
+                            badges={isOwner ? <>
                                     <Badge icon={User} label="Role" value={titleCase(profile?.user?.role)} classes="bg-sky-500/5 text-sky-200 border-sky-500/10" />
                                     {!navigator.onLine && (
                                         <Badge icon={Activity} label="Status" value="Offline Mode" classes="bg-orange-500/10 text-orange-400 border-orange-500/20" />
                                     )}
-                                </div>
-                            </div>
-                        </div>
+                            </> : undefined}
+                        >
+                            {socialProfile?.stats && <ProfileStats stats={socialProfile.stats} isOwner={isOwner} />}
+                            {!isOwner && socialProfile?.user && <FriendshipControls profile={socialProfile} token={isLogin} userId={user_id} refreshing={refreshingSocial} onRevoke={revokeFriendship} onRefresh={refreshFriendship} />}
+                        </ProfileHeaderCard>
 
-                        <TestimonyBoard profileUserId={user_id} />
+                        <TestimonyBoard profileUserId={profileUserId} onProfileLoad={handleSocialProfile} initialProfile={!isOwner ? socialProfile : undefined} profileAccess={socialProfile?.canViewTestimonies} onLoadingChange={setRefreshingSocial} />
 
                         {/* --- SETTINGS GROUPS (CHATGPT STYLE) --- */}
-                        <div className="space-y-6">
+                        {isOwner && <div className="space-y-6">
                             {/* Bible Group */}
                             <div>
                                 <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
@@ -1304,7 +1341,7 @@ export default function NormalUserProfile() {
                                     <span>{language === 'ar' ? 'تسجيل الخروج' : 'Log Out'}</span>
                                 </button>
                             </div>
-                        </div>
+                        </div>}
                     </>
                 ) : (
                     /* --- DEDICATED SUB-PAGES (CHATGPT STYLE) --- */
@@ -1756,11 +1793,9 @@ export default function NormalUserProfile() {
                         )}
                     </div>
                 )}
-            </div>
-
             {/* Note Write Modal */}
             <AnimatePresence>
-                {noteModalConfig && (
+                {isOwner && noteModalConfig && (
                     <Portal>
                         <motion.div
                             initial={{ opacity: 0 }}
@@ -1871,7 +1906,7 @@ export default function NormalUserProfile() {
                             >
                                 <X className="w-6 h-6" />
                             </button>
-                            <div className="flex items-center gap-4">
+                            {isOwner && <div className="flex items-center gap-4">
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -1895,7 +1930,7 @@ export default function NormalUserProfile() {
                                 >
                                     <Trash2 className="w-5 h-5" />
                                 </button>
-                            </div>
+                            </div>}
                         </div>
                         <div className="relative flex-1 min-h-0 m-4 overflow-hidden">
                             <img
@@ -1912,7 +1947,7 @@ export default function NormalUserProfile() {
 
             {/* --- IMAGE CROPPER MODAL --- */}
             <AnimatePresence>
-                {photoToCrop && (
+                {isOwner && photoToCrop && (
                     <Portal>
                         <motion.div
                             initial={{ opacity: 0, y: 50 }}
@@ -1975,7 +2010,7 @@ export default function NormalUserProfile() {
 
             {/* --- EDIT PROFILE POPUP MODAL --- */}
             <AnimatePresence>
-                {editModal && (
+                {isOwner && editModal && (
                     <Portal>
                         <motion.div
                             initial={{ opacity: 0 }}
@@ -2108,6 +2143,6 @@ export default function NormalUserProfile() {
                 .custom-scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
             `}} />
-        </main>
+        </ProfileLayout>
     );
 }

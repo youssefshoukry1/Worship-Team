@@ -9,28 +9,26 @@
 .board :is(button, a):focus-visible, .dialog :is(button, a, textarea):focus-visible { outline: 2px solid #00c2ff; outline-offset: 4px; }
 .boardHeader { display: flex; align-items: center; gap: 8px; padding: 0 1px; margin-bottom: 3px; }
 .boardHeader h2 { margin: 0; color: #94a3b8; font-size: 11px; font-weight: 600; line-height: 1.5; }
-.feedLabel { display: flex; align-items: center; gap: 3px; color: #64748b; font-size: 9px; }
 .quietLink { display: inline-flex; align-items: center; gap: 3px; margin-inline-start: auto; color: #7f94a8; font-size: 10px; text-decoration: none; }
 .quietLink:hover { color: #00c2ff; }
+.refreshNotes { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 28px; height: 28px; margin: -5px 0; padding: 0; border: 0; border-radius: 7px; color: #7f94a8; background: transparent; }
+.refreshNotes:hover { color: #00c2ff; background: #00c2ff0a; }
 .noteRail { display: flex; gap: 14px; align-items: flex-start; overflow-x: auto; padding: 12px 4px 5px; scrollbar-width: none; scroll-snap-type: x proximity; }
 .noteRail::-webkit-scrollbar { display: none; }
 .miniCard { width: 88px; flex: 0 0 88px; min-width: 0; scroll-snap-align: start; }
 .miniNote, .createNote { position: relative; display: flex; flex-direction: column; justify-content: space-between; width: 88px; height: 88px; padding: 14px 9px 8px; border: 1px solid #ffffff12; border-radius: 6px 6px 13px 6px; background: var(--note-bg); color: #cbd5e1; box-shadow: 1px 3px 8px #0002; transform: rotate(var(--tilt, -1deg)); transition: transform .16s, border-color .16s, background .16s; text-align: start; }
 .miniNote:hover, .createNote:hover { transform: rotate(0) translateY(-2px); border-color: #00c2ff55; background: #172536; }
 .miniNote h3 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; font-family: var(--font-geist-sans), var(--font-ibm-plex-sans-arabic), sans-serif; margin: 0; font-size: 10px; font-weight: 500; line-height: 1.45; color: #d5deea; }
-.miniTime { display: flex; align-items: center; gap: 3px; color: #71839a; font-size: 7px; white-space: nowrap; }
-.miniTime svg { flex-shrink: 0; }
 .miniAuthor, .createCaption { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 8px; padding: 2px 0; color: #8b9bb0; font-size: 9px; text-align: center; text-decoration: none; }
 .miniAuthor:hover { color: #00c2ff; }
 .createNote { justify-content: center; align-items: center; color: #00c2ff; border-style: dashed; border-color: #00c2ff35; background: #071c29; }
 .createNote > svg { margin-top: -7px; }
+.createNote:disabled { opacity: .4; cursor: not-allowed; transform: rotate(-1deg); }
 .noteLines { width: 28px; height: 8px; margin-top: 8px; border-top: 1px solid #00c2ff26; border-bottom: 1px solid #00c2ff18; }
-.pin { position: absolute; z-index: 1; top: -5px; left: 16px; width: 8px; height: 8px; border-radius: 50%; background: radial-gradient(circle at 30% 25%, #acdeef, #3998b9 45%, #1b526a); box-shadow: 1px 2px 3px #0006; transform: rotate(-24deg); pointer-events: none; }
-.pin::after { position: absolute; content: ''; z-index: -1; width: 2px; height: 9px; top: 5px; left: 4px; border-radius: 2px; background: linear-gradient(90deg, #50606c, #aebdca); transform: rotate(-12deg); transform-origin: top; box-shadow: 1px 1px 2px #0005; }
+.pin { position: absolute; z-index: 1; top: -7px; left: 2px; width: 14px; height: 14px; color: #8ba3b7; transform: rotate(-30deg); pointer-events: none; }
 .olive { --note-accent: #7bb9ce; }
 .dawn { --note-accent: #bd9a8b; }
 .still { --note-accent: #9daed0; }
-.miniNote .pin { background: radial-gradient(circle at 30% 25%, #c9e1eb, var(--note-accent) 45%, #344354); }
 .moreNotes { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; flex: 0 0 45px; height: 88px; border: 0; background: none; color: #64748b; font-size: 9px; }
 .moreNotes:hover { color: #00c2ff; }
 .emptyNotes { padding: 21px 0; margin: 0; font-size: 11px; color: #64748b; }
@@ -39,13 +37,32 @@
 .boardError { display: flex; align-items: center; gap: 8px; margin: 6px 0 0; color: #8c9aaa; font-size: 10px; }
 .retryButton { display: flex; align-items: center; justify-content: center; flex: 0 0 28px; height: 28px; border: 0; border-radius: 7px; color: #00c2ff; background: #00c2ff0a; }
 .successNotice { font-size: 10px; color: #7ebba6; margin: 7px 0 0; }
-.friendProfileHeader { margin: 0 0 27px; }
-.backLink { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; font-size: 13px; color: #94a3b8; text-decoration: none; }
-.friendIdentity { display: flex; align-items: center; gap: 16px; padding: 20px 0 6px; }
-.profileAvatar { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 64px; height: 64px; border-radius: 50%; overflow: hidden; background: #00c2ff12; color: #6ec7e4; font-size: 25px; font-weight: 600; border: 1px solid #00c2ff26; }
-.profileEyebrow { font-size: 8px; font-weight: 600; color: #64748b; letter-spacing: .12em; }
-.friendIdentity h1 { margin: 4px 0; color: #f1f5f9; font-size: 25px; font-weight: 650; line-height: 1.2; letter-spacing: -.025em; }
-.friendIdentity p { font-size: 12px; color: #7b91a8; margin: 0; }
+.profileStats { display: flex; gap: 0; max-width: 380px; margin: 0 0 20px; padding: 0; }
+.profileStats > div { min-width: 0; flex: 1; padding: 0 15px; border-inline-start: 1px solid #ffffff0a; }
+.profileStats > div:first-child { border: 0; padding-inline-start: 0; }
+.profileStats dd { margin: 0 0 4px; color: #e2e8f0; font-size: 20px; font-weight: 600; line-height: 1.3; }
+.profileStats dt { color: #71849b; font-size: 10px; line-height: 1.5; }
+.friendshipActions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.friendPrimary, .friendSecondary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; border: 1px solid #00c2ff30; border-radius: 10px; padding: 9px 14px; font-size: 11px; font-weight: 550; text-decoration: none; cursor: pointer; transition: background .15s, border-color .15s; }
+.friendPrimary { color: #04131e; background: #00c2ff; }
+.friendPrimary:hover:not(:disabled) { background: #54d5ff; }
+.friendSecondary { color: #92a9bf; border-color: #ffffff12; background: #ffffff04; }
+.friendSecondary:hover:not(:disabled) { background: #ffffff09; border-color: #ffffff20; }
+.friendPrimary:disabled, .friendSecondary:disabled { cursor: default; opacity: .5; }
+.friendshipActions :is(a, button):focus-visible { outline: 2px solid #00c2ff; outline-offset: 3px; }
+.friendsBadge, .pendingBadge { display: inline-flex; gap: 6px; align-items: center; padding: 9px 12px; border: 1px solid #35bba41a; border-radius: 10px; background: #35bba409; color: #7dbbaa; font-size: 11px; min-height: 38px; }
+.pendingBadge { background: #00c2ff06; color: #7596af; border-color: #00c2ff15; }
+.requestHint { width: 100%; color: #7d94aa; font-size: 11px; margin-bottom: 3px; }
+.relationshipNotice, .relationshipError { margin: 11px 0 0; color: #7ebba6; font-size: 10px; line-height: 1.7; }
+.relationshipError { color: #d3929c; }
+.lockedTestimonies { display: flex; align-items: center; gap: 12px; margin-top: 13px; padding: 19px 17px; border: 1px solid #ffffff08; border-radius: 12px; background: #ffffff02; color: #526a80; }
+.lockedTestimonies > svg { flex-shrink: 0; }
+.lockedTestimonies strong { display: block; color: #8195ab; font-size: 11px; font-weight: 500; }
+.lockedTestimonies p { margin: 4px 0 0; color: #5e738b; font-size: 10px; line-height: 1.7; }
+.removeFriendDialog { padding: 20px; }
+.removeFriendDialog > p { margin: 0 0 12px; font-size: 13px; line-height: 1.8; color: #a3b3c6; }
+.removeFriendDialog > p + p { font-size: 11px; color: #71859c; }
+.removeFriendDialog > div { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 .backdrop { position: fixed; z-index: 10010; inset: 0; display: flex; justify-content: center; align-items: center; padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom)); background: #02060dbd; backdrop-filter: blur(7px); overflow: hidden; overscroll-behavior: contain; animation: reveal .16s ease-out; }
 .dialog { display: flex; flex-direction: column; width: 100%; max-width: 450px; max-height: 100%; overflow: auto; overscroll-behavior: contain; border: 1px solid #ffffff13; border-radius: 16px; background: #121d2a; color: #e2e8f0; box-shadow: 0 25px 90px #0007; }
 .noteDialog { max-width: 420px; border-radius: 8px 8px 22px 8px; }
@@ -53,7 +70,7 @@
 .iconButton { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 0; border-radius: 8px; color: #8192a7; background: #ffffff04; }
 .iconButton:hover { background: #ffffff0b; color: #e2e8f0; }
 .writingNote { position: relative; padding: 24px 23px 0; }
-.writingNote > .pin { top: 10px; left: 25px; }
+.writingNote > .pin { top: 10px; left: 4px; }
 .noteByline { display: flex; align-items: center; gap: 7px; padding-bottom: 14px; color: #b2c0d0; font-size: 11px; }
 .authorInitial { display: inline-flex; align-items: center; justify-content: center; width: 25px; height: 25px; border-radius: 50%; flex-shrink: 0; background: #00c2ff10; color: #76bedb; font-size: 10px; font-weight: 600; }
 .noteAudience { display: flex; align-items: center; gap: 5px; margin-inline-start: auto; color: #61758e; font-size: 10px; }
@@ -62,9 +79,7 @@
 .dialog .noteWriting:focus-visible { outline: none; }
 .noteWriting:dir(rtl) { font-family: var(--font-ibm-plex-sans-arabic), sans-serif; font-size: 18px; }
 .existingTitle { color: #d8e3ed; font-size: 17px; font-weight: 600; margin: 6px 0 13px; }
-.noteTools { display: flex; align-items: center; justify-content: space-between; padding: 10px 0 12px; border-bottom: 1px solid #ffffff0a; }
-.attachButton { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; border: 0; padding: 5px 0; color: #7896ae; background: none; font-size: 10px; }
-.attachButton:hover { color: #00c2ff; }
+.noteTools { display: flex; align-items: center; justify-content: flex-end; padding: 10px 0 12px; border-bottom: 1px solid #ffffff0a; }
 .noteCount { font-size: 9px; color: #50627a; }
 .noteFooter { padding: 13px 23px 21px; }
 .noteFooter > p:first-child { margin: 0; color: #61748c; font-size: 10px; line-height: 1.7; }
@@ -73,13 +88,6 @@
 .draftStatus { display: flex; align-items: center; gap: 4px; color: #546e80; font-size: 9px; }
 .primaryButton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 37px; padding: 8px 15px; border: 1px solid #00c2ff40; border-radius: 9px; background: #00c2ff; color: #04131e; font-size: 12px; font-weight: 650; transition: background .15s; }
 .primaryButton:hover:not(:disabled) { background: #54d5ff; }
-.versePicker { max-height: 190px; overflow: auto; margin: 0 23px; padding: 8px 0; border-bottom: 1px solid #ffffff0a; }
-.versePickerTitle { display: flex; justify-content: space-between; align-items: center; color: #91a6bd; font-size: 10px; }
-.versePicker > p { color: #6e829c; font-size: 11px; line-height: 1.7; }
-.versePicker > button { display: block; width: 100%; border: 1px solid #ffffff08; background: #ffffff03; padding: 10px; margin-top: 6px; border-radius: 7px; text-align: start; }
-.versePicker > button:hover { background: #00c2ff08; border-color: #00c2ff25; }
-.versePicker > button strong { display: block; color: #92b3cc; font-size: 11px; font-weight: 500; }
-.versePicker > button span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; color: #7388a0; font-size: 10px; line-height: 1.6; margin-top: 3px; }
 .attachedVerse { display: flex; align-items: flex-start; gap: 9px; padding: 12px; margin-top: 13px; border-inline-start: 2px solid #00c2ff40; border-radius: 0 7px 7px 0; color: #749db5; background: #00c2ff05; }
 .attachedVerse > svg { flex-shrink: 0; margin-top: 3px; }
 .attachedVerse blockquote { min-width: 0; flex: 1; margin: 0; }
@@ -88,31 +96,34 @@
 .attachedVerse > button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-height: 28px; width: 28px; margin: -5px -6px 0 0; padding: 5px; border: 0; border-radius: 6px; color: #587a95; background: transparent; }
 .attachedVerse > button:hover { color: #b6d6eb; background: #00c2ff0a; }
 .error { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #fb718528; border-radius: 7px; color: #e4a1a6; background: #fb71850a; font-size: 11px; line-height: 1.6; }
-.readerContent { position: relative; padding: 27px 24px 23px; }
-.readerContent > .pin { top: 9px; left: 26px; }
-.readerByline { display: flex; align-items: center; gap: 8px; padding-bottom: 23px; }
-.readerByline strong { display: block; color: #b8c6d6; font-size: 11px; font-weight: 500; }
-.readerByline time { display: block; margin-top: 3px; color: #5e748b; font-size: 9px; }
-.readerContent h2 { color: #d8e4ee; font-size: 20px; font-weight: 550; line-height: 1.6; letter-spacing: -.025em; margin: 0 0 13px; overflow-wrap: anywhere; }
-.fullStory { white-space: pre-wrap; color: #acbed0; font-size: 16px; line-height: 2; overflow-wrap: anywhere; margin: 0 0 19px; }
-.fullStory:dir(rtl) { font-family: var(--font-ibm-plex-sans-arabic), sans-serif; font-size: 18px; }
-.readerPrivacy { display: flex; align-items: center; gap: 6px; color: #5c748b; font-size: 9px; border-top: 1px solid #ffffff09; margin-top: 22px; padding-top: 16px; }
-.ownerActions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 18px; }
+.dialog.expandedDialog { position: relative; width: min(360px, calc(100vw - 56px), calc(100dvh - 140px)); max-width: none; overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.cardClose { position: absolute; top: -43px; right: 0; width: 32px; height: 32px; background: #ffffff06; }
+.expandedNote { position: relative; display: flex; flex-direction: column; width: 100%; aspect-ratio: 1; min-height: 0; flex-shrink: 0; gap: 18px; padding: 30px 24px 18px; border: 1px solid #ffffff12; border-radius: 16px 16px 36px 16px; background: #131e2b; box-shadow: 3px 12px 36px #0004; transform: rotate(-.8deg); }
+.expandedNote .expandedPin { top: -12px; left: 4px; width: 23px; height: 23px; }
+.expandedText { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #ffffff16 transparent; }
+.expandedText h2 { color: #d5deea; font-size: 19px; font-weight: 550; line-height: 1.6; margin: 0 0 14px; overflow-wrap: anywhere; }
+.fullStory { white-space: pre-wrap; color: #d5deea; font-size: 18px; line-height: 1.75; overflow-wrap: anywhere; margin: 0; }
+.fullStory:dir(rtl) { font-family: var(--font-ibm-plex-sans-arabic), sans-serif; font-size: 20px; }
+.expandedFooter { display: flex; align-items: center; justify-content: flex-end; gap: 12px; min-height: 30px; flex-shrink: 0; direction: ltr; }
+.noteOwnerTools { display: inline-flex; gap: 4px; }
+.noteOwnerTools .iconButton { background: none; }
+.expandedAuthor { display: block; padding: 12px 0 3px; color: #8b9bb0; font-size: 11px; text-decoration: none; text-align: center; }
+.expandedAuthor:hover { color: #00c2ff; }
+.expandedNote .noteDeleteConfirmation { position: absolute; z-index: 2; bottom: 14px; left: 14px; right: 14px; background: #20212d; box-shadow: 0 5px 20px #0005; }
 .secondaryButton { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 37px; padding: 8px 12px; border: 1px solid #ffffff12; border-radius: 8px; color: #8ca9c0; background: #ffffff04; font-size: 11px; }
 .secondaryButton:hover:not(:disabled) { background: #ffffff08; }
-.deleteButton { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 37px; border: 0; padding: 8px 10px; background: none; color: #b77986; font-size: 11px; }
 .deleteConfirmation { margin-top: 18px; border: 1px solid #fb71851c; border-radius: 9px; padding: 15px; background: #fb718506; }
 .deleteConfirmation strong { color: #d094a3; font-size: 12px; }
 .deleteConfirmation p { font-size: 11px; color: #a67c89; margin: 7px 0 15px; }
 .deleteConfirmation > div { display: flex; gap: 8px; justify-content: flex-end; }
 .dangerButton { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 37px; border: 1px solid #fb718533; border-radius: 8px; background: #fb71851a; color: #f0a9b9; font-size: 11px; padding: 8px 12px; }
-.profileLink { display: inline-flex; align-items: center; gap: 8px; color: #729fbe; font-size: 11px; text-decoration: none; padding-top: 12px; min-height: 40px; }
 .spin { animation: spin 1s linear infinite; }
 @supports (background: color-mix(in srgb, black, white)) {
   .board { --note-bg: color-mix(in srgb, var(--app-bg, #060b13) 93%, #fff); }
   .miniNote:hover, .createNote:hover { background: color-mix(in srgb, var(--app-bg, #060b13) 89%, #fff); }
   .createNote { background: color-mix(in srgb, var(--app-bg, #060b13) 96%, #00c2ff); }
   .dialog, .dialogTop { background: color-mix(in srgb, var(--app-bg, #060b13) 94%, #fff); }
+  .expandedNote { background: color-mix(in srgb, var(--app-bg, #060b13) 93%, #fff); }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes breathe { 50% { opacity: .4; } }
@@ -123,8 +134,6 @@
   .noteWriting { height: clamp(210px, 32dvh, 285px); font-size: 17px; }
   .writingNote { padding: 23px 20px 0; }
   .noteFooter { padding: 12px 20px 19px; }
-  .versePicker { margin-inline: 20px; }
-  .readerContent { padding-inline: 21px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .board *, .dialog *, .backdrop { animation: none !important; transition: none !important; scroll-behavior: auto !important; }

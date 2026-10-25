@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import Portal from '../../Portal/Portal';
 import styles from './testimonies.module.css';
 
-export default function TestimonyDialog({ title, children, onClose, note = false }) {
+export default function TestimonyDialog({ title, children, onClose, note = false, card = false }) {
   const ref = useRef(null);
   const closeRef = useRef(onClose);
   useEffect(() => { closeRef.current = onClose; }, [onClose]);
@@ -34,8 +34,9 @@ export default function TestimonyDialog({ title, children, onClose, note = false
   }, []);
   return <Portal>
     <div className={styles.backdrop} onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
-      <section ref={ref} className={`${styles.dialog} ${note ? styles.noteDialog : ''}`} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} data-lenis-prevent>
-        <div className={styles.dialogTop}><span>{title}</span><button type="button" className={styles.iconButton} onClick={onClose} aria-label="Close"><X size={20} /></button></div>
+      <section ref={ref} className={`${styles.dialog} ${note ? styles.noteDialog : ''} ${card ? styles.expandedDialog : ''}`} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} data-lenis-prevent>
+        {card ? <button type="button" className={`${styles.iconButton} ${styles.cardClose}`} onClick={onClose} aria-label="Close"><X size={20} /></button>
+          : <div className={styles.dialogTop}><span>{title}</span><button type="button" className={styles.iconButton} onClick={onClose} aria-label="Close"><X size={20} /></button></div>}
         {children}
       </section>
     </div>

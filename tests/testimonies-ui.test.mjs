@@ -14,22 +14,22 @@ let desktopBrowser, mobileBrowser;
 before(async () => { await mkdir(output, { recursive: true }); desktopBrowser = await chromium.launch({ executablePath: chromium.executablePath() }); mobileBrowser = await webkit.launch(); });
 after(async () => { await desktopBrowser?.close(); await mobileBrowser?.close(); });
 
-async function setup(t, { mobile = false, failFirstPublish = false, empty = false, expiresSoon = false } = {}) {
+async function setup(t, { mobile = false, failFirstPublish = false, empty = false, expiresSoon = false, programer = false, cooldownSoon = false, relationship = 'friends', failFriendship = false, friendPhoto = false, omitProfileMetadata = false, profileRelationship = null } = {}) {
   const context = await (mobile ? mobileBrowser : desktopBrowser).newContext({ ...(mobile ? devices['iPhone 13'] : { viewport: { width: 1440, height: 1100 } }), serviceWorkers: 'block' });
   t.after(() => context.close());
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.addInitScript(({ A }) => {
+  await page.addInitScript(({ A, programer }) => {
     localStorage.setItem('wasla_splash_version', '1.0.6');
     localStorage.setItem('user_Taspe7_Token', 'testimony-test-token');
     localStorage.setItem('user_Taspe7_ID', A);
     localStorage.setItem('user_Taspe7_Username', 'alice');
-    localStorage.setItem('user_Taspe7_GlobalRole', 'USER');
+    localStorage.setItem('user_Taspe7_GlobalRole', programer ? 'PROGRAMER' : 'USER');
     localStorage.setItem('app-language', 'en');
     localStorage.setItem('taspe7_theme', 'dark');
     Object.defineProperty(navigator.serviceWorker, 'controller', { value: { scriptURL: '/sw.js?v=navigation-v2' } });
-  }, { A });
+  }, { A, programer });
   const now = Date.now();
   const post = (id, title, body, style, author, age = 10000) => ({ _id: id, title, body, style, author,
     createdAt: new Date(now - age).toISOString(), updatedAt: new Date(now - age).toISOString(), feedExpiresAt: new Date(now - age + 86400000).toISOString() });
@@ -38,45 +38,81 @@ async function setup(t, { mobile = false, failFirstPublish = false, empty = fals
     { ...post('222222222222222222222222', 'A prayer, quietly answered', 'An unexpected conversation brought the encouragement I had been praying for. Sometimes grace arrives through the people beside us.', 'dawn', owner), verse: { reference: 'Matthew 6:34', text: 'Therefore do not worry about tomorrow, for tomorrow will worry about itself.' } },
     post('333333333333333333333333', 'Finding stillness again', 'I put my phone away and spent a little time reading. It was a simple reminder that God is near, even when life feels noisy.', 'still', friend),
     post('444444444444444444444444', 'A story from last week', 'An older testimony remains on my profile for friends to read long after its day on the board.', 'olive', friend, 7 * 86400000),
-  ], sent: [], publishAttempts: 0, denyProfile: false };
-  if (expiresSoon) await page.clock.install({ time: new Date(now) });
-  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET, POST, PATCH, DELETE, OPTIONS' };
+  ], sent: [], socialReads: [], publishAttempts: 0, denyProfile: false, relationship, failFriendship, friendshipRequests: [], privateProfileReads: 0, alreadyFriendsOnAdd: false, failRelationshipRead: false };
+  state.nextPublishAt = cooldownSoon ? now + 20000 : 0;
+  const publishing = () => {
+    if (programer) return { canPublish: true, unlimited: true, nextPublishAt: null };
+    const next = Math.max(state.nextPublishAt, ...state.posts.filter(item => item.author._id === A).map(item => new Date(item.feedExpiresAt).getTime()));
+    return { canPublish: next <= Date.now(), unlimited: false, nextPublishAt: next > Date.now() ? new Date(next).toISOString() : null };
+  };
+  if (expiresSoon || cooldownSoon) await page.clock.install({ time: new Date(now) });
+  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'Authorization, Content-Type', 'access-control-allow-methods': 'GET, POST, PATCH, DELETE, OPTIONS' };
+  const viewedFriend = { ...friend, profilePhoto: friendPhoto ? 'https://avatars.example.test/friend.png' : null };
+  await page.route('https://avatars.example.test/**', route => route.fulfill({ body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64'), contentType: 'image/png', headers: cors }));
   await page.route('**/version.json?*', route => route.fulfill({ json: { version: '1.0.6' } }));
   await page.route(/\/api\//, async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname, method = request.method();
     const reply = (json, status = 200) => route.fulfill({ json, status, headers: cors });
     if (method === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
-    if (path.endsWith('/testimonies') && method === 'GET') return reply({ items: state.posts.filter(item => new Date(item.feedExpiresAt).getTime() > Date.now()), nextCursor: null });
+    if (method === 'GET' && /\/(testimonies(?:\/profile\/[a-f\d]+)?|friends|friend-requests)$/.test(path)) state.socialReads.push(path);
+    if (path.endsWith('/testimonies') && method === 'GET') return reply({ items: state.posts.filter(item => new Date(item.feedExpiresAt).getTime() > Date.now()), nextCursor: null, publishing: publishing() });
     if (path.includes('/testimonies/profile/')) {
       if (state.denyProfile) return reply({ message: 'This profile is available only to current friends.' }, 403);
       const id = path.split('/').pop();
-      return reply({ user: id === A ? owner : friend, isOwner: id === A, items: state.posts.filter(item => item.author._id === id), nextCursor: null });
+      const isOwner = id === A, canViewTestimonies = isOwner || state.relationship === 'friends';
+      const items = state.posts.filter(item => item.author._id === id);
+      if (omitProfileMetadata) return reply({ user: isOwner ? owner : viewedFriend, isOwner, items: canViewTestimonies ? items : [], nextCursor: null, ...(isOwner ? { publishing: publishing() } : {}) });
+      return reply({ user: isOwner ? owner : viewedFriend, isOwner, relationship: isOwner ? 'self' : profileRelationship || state.relationship,
+        canViewTestimonies, stats: { friends: state.relationship === 'friends' ? 3 : 2, mutualFriends: 1, testimonies: canViewTestimonies ? items.length : null },
+        items: canViewTestimonies ? items : [], nextCursor: null, ...(isOwner ? { publishing: publishing() } : {}) });
     }
     if (path.endsWith('/testimonies') && method === 'POST') {
       state.publishAttempts++;
       const body = request.postDataJSON(); state.sent.push(body);
+      if (!publishing().canPublish) return reply({ message: 'You already have an active note. You can share again after it expires.', code: 'TESTIMONY_ACTIVE', publishing: publishing() }, 409);
       if (failFirstPublish && state.publishAttempts === 1) return reply({ message: 'Could not publish. Your draft is safe; please try again.' }, 500);
       const item = post('555555555555555555555555', body.title, body.body, body.style, owner, 0);
       if (body.verse) item.verse = body.verse;
       state.posts = [item, ...state.posts.filter(old => old._id !== item._id)];
-      return reply({ item }, 201);
+      state.nextPublishAt = Date.now() + 86400000;
+      return reply({ item, publishing: publishing() }, 201);
     }
     if (/\/testimonies\/[a-f\d]{24}$/.test(path)) {
       const id = path.split('/').pop();
-      if (method === 'DELETE') { state.posts = state.posts.filter(item => item._id !== id); return reply({ success: true }); }
+      if (method === 'DELETE') { state.nextPublishAt = Math.max(state.nextPublishAt, new Date(state.posts.find(item => item._id === id)?.feedExpiresAt || 0).getTime()); state.posts = state.posts.filter(item => item._id !== id); return reply({ success: true }); }
       if (method === 'PATCH') {
         const body = request.postDataJSON();
         state.posts = state.posts.map(item => item._id === id ? { ...item, ...body, verse: body.verse || undefined } : item);
         return reply({ item: state.posts.find(item => item._id === id) });
       }
     }
-    if (path.endsWith('/my-profile')) return reply({ user: { ...owner, bibleNotes: [], prayTime: [], bibleHighlights: [{ _id: 'highlight1', verseId: 'verse1', bookName: 'Matthew', chapter: 6, verseNumber: 34, text: 'Do not worry about tomorrow.', color: '#aacc88' }] } });
-    if (path.endsWith('/friends')) return reply({ friends: [friend] });
-    if (path.endsWith('/friend-requests')) return reply({ incoming: [], outgoing: [] });
+    if (path.endsWith('/my-profile')) {
+      state.privateProfileReads++;
+      return reply({ user: { ...owner, bibleNotes: [{ _id: 'private-note', verseId: 'verse2', bookName: 'John', chapter: 1, verseNumber: 1, text: 'A private saved verse.', note: 'A private reflection only Alice should see.' }], prayTime: [], bibleHighlights: [{ _id: 'highlight1', verseId: 'verse1', bookName: 'Matthew', chapter: 6, verseNumber: 34, text: 'Do not worry about tomorrow.', color: '#aacc88' }] } });
+    }
+    if ((path.includes('/friend-request/') || (path.endsWith(`/friends/${B}`) && method === 'DELETE')) && method !== 'GET') {
+      state.friendshipRequests.push({ path, method });
+      if (state.alreadyFriendsOnAdd && path.endsWith(`/friend-request/${B}`)) {
+        state.relationship = 'friends';
+        return reply({ msg: 'Already friends' }, 400);
+      }
+      if (state.failFriendship) { state.failFriendship = false; return reply({ msg: 'Could not update friendship. Please try again.' }, 500); }
+      if (method === 'DELETE' || path.includes('/cancel/')) state.relationship = 'none';
+      else if (path.includes('/accept/') || state.relationship === 'incoming') state.relationship = 'friends';
+      else state.relationship = 'outgoing';
+      return reply({ success: true, status: state.relationship === 'friends' ? 'accepted' : 'pending' });
+    }
+    if (path.endsWith('/friends')) return state.failRelationshipRead ? reply({ message: 'Could not check friendship.' }, 503) : reply({ friends: state.relationship === 'friends' ? [friend] : [] });
+    if (path.endsWith('/friend-requests')) return reply({ incoming: state.relationship === 'incoming' ? [{ from: friend }] : [], outgoing: state.relationship === 'outgoing' ? [{ to: friend }] : [] });
+    if (path.endsWith('/search-username')) return reply([friend]);
     if (path.endsWith('/my-teams')) return reply({ teams: [] });
     return reply({ friends: [], incoming: [], outgoing: [], users: [], data: [] });
   });
+  const initialFriends = Promise.all(['friends', 'friend-requests'].map(name =>
+    page.waitForResponse(response => new URL(response.url()).pathname.endsWith(`/users/${name}`) && response.request().method() === 'GET')
+      .then(response => response.finished())));
   await page.goto(`${base}/friends/`, { waitUntil: 'domcontentloaded' });
+  await initialFriends;
   await page.getByRole('button', { name: 'Share your testimony', exact: true }).waitFor();
   await page.getByRole('status', { name: 'Loading testimonies' }).waitFor({ state: 'hidden' });
   return { page, state, errors };
@@ -91,6 +127,10 @@ test('compact dark notes, full reader, name navigation, and permanent friend col
   const reader = page.getByRole('dialog');
   await reader.getByText('I’m learning to trust Him one small step at a time.', { exact: false }).waitFor();
   assert.equal(await reader.getByRole('button', { name: 'Edit testimony' }).count(), 0);
+  const expanded = await reader.getByTestId('expanded-testimony-note').boundingBox();
+  assert.ok(Math.abs(expanded.width - expanded.height) < 1);
+  assert.equal(await reader.getByText('A moment of faith', { exact: true }).count(), 0);
+  await page.screenshot({ path: resolve(output, 'reader-desktop.png'), animations: 'disabled' });
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'My Friends' }).click();
   await page.getByRole('button', { name: 'Open Youssef profile' }).click();
@@ -100,8 +140,8 @@ test('compact dark notes, full reader, name navigation, and permanent friend col
   assert.deepEqual(errors, []);
 });
 
-test('writing directly on a dark note restores drafts, attaches a saved verse, retries, edits, and deletes', async t => {
-  const { page, state, errors } = await setup(t, { failFirstPublish: true });
+test('writing directly on a dark note restores drafts, retries, edits, and deletes', async t => {
+  const { page, state, errors } = await setup(t, { failFirstPublish: true, programer: true });
   await page.getByRole('button', { name: 'Share your testimony', exact: true }).click();
   let dialog = page.getByRole('dialog');
   assert.equal(await dialog.getByRole('button', { name: 'Share', exact: true }).isDisabled(), true);
@@ -114,9 +154,6 @@ test('writing directly on a dark note restores drafts, attaches a saved verse, r
   await page.getByRole('button', { name: 'Share your testimony', exact: true }).click();
   dialog = page.getByRole('dialog');
   assert.equal(await dialog.getByRole('textbox', { name: 'Your testimony', exact: true }).inputValue(), story);
-  await dialog.getByRole('button', { name: 'Add verse', exact: true }).click();
-  await dialog.getByRole('button', { name: /^Matthew 6:34/ }).click();
-  await dialog.getByText('Matthew 6:34', { exact: true }).waitFor();
   await page.screenshot({ path: resolve(output, 'composer-desktop.png'), fullPage: true });
   await dialog.getByRole('button', { name: 'Share', exact: true }).click();
   await dialog.getByRole('alert').waitFor();
@@ -125,7 +162,7 @@ test('writing directly on a dark note restores drafts, attaches a saved verse, r
   await dialog.waitFor({ state: 'hidden' });
   assert.equal(state.publishAttempts, 2);
   assert.equal(state.sent[0].clientId, state.sent[1].clientId);
-  assert.deepEqual(state.sent[1].verse, { reference: 'Matthew 6:34', text: 'Do not worry about tomorrow.' });
+  assert.equal(state.sent[1].verse, null);
   assert.equal(state.sent[1].body, story);
   assert.equal(state.sent[1].title, story.slice(0, 80));
   assert.equal(await page.evaluate(A => localStorage.getItem(`taspe7_testimony_draft_v1:${A}:new`), A), null);
@@ -144,7 +181,7 @@ test('writing directly on a dark note restores drafts, attaches a saved verse, r
 });
 
 test('iPhone Safari note editor fits the screen, supports Arabic, and restores focus', async t => {
-  const { page, errors } = await setup(t, { mobile: true });
+  const { page, state, errors } = await setup(t, { mobile: true, programer: true });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
   await page.screenshot({ path: resolve(output, 'friends-mobile.png'), fullPage: true });
   await page.getByRole('button', { name: 'Share your testimony', exact: true }).click();
@@ -163,15 +200,28 @@ test('iPhone Safari note editor fits the screen, supports Arabic, and restores f
   await page.keyboard.press('Escape');
   await dialog.waitFor({ state: 'hidden' });
   assert.equal(await page.getByRole('button', { name: 'Share your testimony', exact: true }).evaluate(element => element === document.activeElement), true);
+  await page.getByRole('button', { name: 'Share your testimony', exact: true }).click();
+  await page.getByRole('button', { name: 'Share', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  await page.getByRole('button', { name: `Read testimony: ${state.sent[0].title}`, exact: true }).click();
+  const enlarged = page.getByTestId('expanded-testimony-note');
+  const enlargedBox = await enlarged.boundingBox();
+  assert.ok(Math.abs(enlargedBox.width - enlargedBox.height) < 1);
+  assert.ok(enlargedBox.width > 250 && enlargedBox.width < page.viewportSize().width);
+  assert.equal(await enlarged.getByRole('heading').count(), 0);
+  await page.screenshot({ path: resolve(output, 'reader-mobile.png'), animations: 'disabled' });
+  await page.keyboard.press('Escape');
   assert.deepEqual(errors, []);
 });
 
 test('client expiry removes a card while profile retains it; denied access clears shared content', async t => {
   const { page, state, errors } = await setup(t, { expiresSoon: true });
+  const reads = state.socialReads.length;
   await page.clock.fastForward(31000);
   await page.getByRole('heading', { name: 'Peace in the middle of it all', exact: true }).waitFor({ state: 'hidden' });
   assert.equal(await page.getByRole('heading', { name: 'Peace in the middle of it all', exact: true }).count(), 0);
-  await page.goto(`${base}/friend-profile/?user=${B}`);
+  assert.equal(state.socialReads.length, reads, 'expiring a note must not call the server');
+  await page.goto(`${base}/normal_UserProfile/?user=${B}`);
   await page.getByRole('heading', { name: 'Peace in the middle of it all', exact: true }).waitFor();
   state.denyProfile = true;
   await page.evaluate(() => window.dispatchEvent(new Event('taspe7:testimonies-changed')));
@@ -188,9 +238,305 @@ test('empty state is only a small pinned plus tile, positioned immediately above
   await page.screenshot({ path: resolve(output, 'friends-empty-mobile.png'), fullPage: true });
   await page.goto(`${base}/normal_UserProfile/`);
   await page.getByRole('heading', { name: 'Your testimony highlights', exact: true }).waitFor();
-  const profileTile = await page.getByRole('button', { name: 'Share your testimony', exact: true }).boundingBox();
-  const settings = await page.getByRole('button', { name: /Bible Highlights/ }).boundingBox();
-  assert.ok(settings.y > profileTile.y && settings.y - profileTile.y < 230);
+  const gap = await page.getByRole('button', { name: /Bible Highlights/ }).evaluate(settings => {
+    const tile = document.querySelector('[aria-label="Share your testimony"]');
+    return settings.getBoundingClientRect().top - tile.getBoundingClientRect().top;
+  });
+  assert.ok(gap > 0 && gap < 230);
   await page.screenshot({ path: resolve(output, 'profile-compact-mobile.png'), fullPage: true });
+  assert.deepEqual(errors, []);
+});
+
+test('friend profile confirms removal, locks testimonies, and supports sending and cancelling requests', async t => {
+  const { page, state, errors } = await setup(t);
+  await page.goto(`${base}/normal_UserProfile/?user=${B}`);
+  await page.getByRole('button', { name: 'Remove friend', exact: true }).waitFor();
+  assert.equal(await page.locator('dl > div').first().locator('dd').textContent(), '3');
+  assert.equal(await page.locator('dl > div').nth(1).locator('dd').textContent(), '1');
+  await page.getByRole('button', { name: 'Remove friend', exact: true }).click();
+  await page.getByRole('button', { name: 'Keep friend', exact: true }).click();
+  assert.equal(state.friendshipRequests.length, 0);
+  await page.getByRole('button', { name: 'Remove friend', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Remove friend', exact: true }).click();
+  await page.getByRole('button', { name: 'Add friend', exact: true }).waitFor();
+  await page.getByText('Become friends to read each other’s testimonies.', { exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: /^Read testimony:/ }).count(), 0);
+  assert.equal(await page.locator('dl > div').first().locator('dd').textContent(), '2');
+  await page.screenshot({ path: resolve(output, 'profile-add-friend-desktop.png'), animations: 'disabled' });
+  await page.getByRole('button', { name: 'Add friend', exact: true }).click();
+  await page.getByRole('button', { name: 'Cancel request', exact: true }).waitFor();
+  await page.screenshot({ path: resolve(output, 'profile-request-sent-desktop.png'), animations: 'disabled' });
+  await page.getByRole('button', { name: 'Cancel request', exact: true }).click();
+  await page.getByRole('button', { name: 'Add friend', exact: true }).waitFor();
+  assert.deepEqual(state.friendshipRequests.map(request => request.method), ['DELETE', 'POST', 'POST']);
+  assert.ok(await page.evaluate(A => Number(localStorage.getItem(`taspe7_friends_dirty_${A}`)) > 0, A));
+  await page.goto(`${base}/friends/`);
+  await page.getByRole('button', { name: 'My Friends' }).click();
+  await page.getByText('No friends yet', { exact: true }).waitFor();
+  assert.deepEqual(errors, []);
+});
+
+test('incoming requests can be declined or accepted on iPhone, revealing posts and updated counts', async t => {
+  const { page, state, errors } = await setup(t, { mobile: true, relationship: 'incoming' });
+  await page.goto(`${base}/normal_UserProfile/?user=${B}`);
+  await page.getByRole('button', { name: 'Accept request', exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: /^Read testimony:/ }).count(), 0);
+  await page.screenshot({ path: resolve(output, 'profile-incoming-mobile.png'), animations: 'disabled' });
+  await page.getByRole('button', { name: 'Decline', exact: true }).click();
+  await page.getByRole('button', { name: 'Add friend', exact: true }).waitFor();
+  state.relationship = 'incoming';
+  await page.evaluate(() => window.dispatchEvent(new Event('taspe7:friends-push')));
+  await page.getByRole('button', { name: 'Accept request', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove friend', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'A story from last week', exact: true }).waitFor();
+  assert.equal(await page.locator('dl > div').first().locator('dd').textContent(), '3');
+  assert.equal(await page.locator('dl > div').nth(2).locator('dd').textContent(), '3');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+  await page.screenshot({ path: resolve(output, 'friend-profile-mobile.png'), animations: 'disabled' });
+  await page.goto(`${base}/friends/`);
+  await page.getByRole('button', { name: 'My Friends' }).click();
+  await page.getByRole('button', { name: 'Open Youssef profile', exact: true }).waitFor();
+  assert.deepEqual(errors, []);
+});
+
+test('search opens nonfriend profiles, failed requests keep the right state, and own profiles have no friend actions', async t => {
+  const { page, state, errors } = await setup(t, { relationship: 'none', failFriendship: true });
+  await page.getByPlaceholder('Search by @username...').fill('youssef');
+  await page.getByRole('button', { name: 'Open Youssef profile', exact: true }).click();
+  await page.getByRole('button', { name: 'Add friend', exact: true }).click();
+  await page.getByRole('alert').getByText('Could not update friendship. Please try again.', { exact: true }).waitFor();
+  assert.equal(state.relationship, 'none');
+  assert.equal(await page.getByRole('button', { name: /^Read testimony:/ }).count(), 0);
+  await page.getByRole('button', { name: 'Add friend', exact: true }).click();
+  await page.getByRole('button', { name: 'Cancel request', exact: true }).waitFor();
+  await page.goto(`${base}/normal_UserProfile/?user=${A}`);
+  await page.getByRole('heading', { name: 'Alice', exact: true }).waitFor();
+  await page.getByTitle('Edit Name', { exact: true }).waitFor();
+  await page.getByRole('button', { name: /Bible Notes/ }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Add friend', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Remove friend', exact: true }).count(), 0);
+  assert.deepEqual(errors, []);
+});
+
+test('the main normal profile hides private data and owner controls, including in the photo viewer, when another user visits', async t => {
+  const { page, state, errors } = await setup(t, { mobile: true, friendPhoto: true });
+  await page.goto(`${base}/normal_UserProfile/`);
+  await page.getByRole('heading', { name: 'Alice', exact: true }).waitFor();
+  const ownerHeader = page.getByTestId('profile-header-card');
+  const ownerClass = await ownerHeader.getAttribute('class');
+  const ownerWidth = (await ownerHeader.boundingBox()).width;
+  assert.equal(await ownerHeader.getByTitle('Edit Name', { exact: true }).count(), 1);
+  await page.getByRole('button', { name: /Bible Notes/ }).click();
+  await page.getByText('A private reflection only Alice should see.', { exact: true }).waitFor();
+  const privateReads = state.privateProfileReads;
+  await page.goto(`${base}/normal_UserProfile/?user=${B}#notes`);
+  await page.getByRole('heading', { name: 'Youssef', exact: true }).waitFor();
+  const visitorHeader = page.getByTestId('profile-header-card');
+  assert.equal(await visitorHeader.getAttribute('class'), ownerClass);
+  assert.equal((await visitorHeader.boundingBox()).width, ownerWidth);
+  assert.equal(await visitorHeader.getByTitle('Edit Name', { exact: true }).count(), 0);
+  assert.equal(await page.getByTitle('Edit Username', { exact: true }).count(), 0);
+  assert.equal(await page.getByTitle('Change Photo', { exact: true }).count(), 0);
+  assert.equal(await page.locator('input[type=file]').count(), 0);
+  assert.equal(await page.getByRole('button', { name: /Bible Notes|Bible Highlights|General Preferences/ }).count(), 0);
+  assert.equal(await page.getByText('A private reflection only Alice should see.', { exact: true }).count(), 0);
+  assert.equal(state.privateProfileReads, privateReads);
+  await page.getByRole('button', { name: 'Remove friend', exact: true }).waitFor();
+  await page.screenshot({ path: resolve(output, 'unified-profile-visitor-mobile.png'), animations: 'disabled' });
+  await visitorHeader.getByRole('img', { name: 'Profile', exact: true }).click();
+  await page.waitForFunction(() => document.querySelectorAll('img[alt="Profile"]').length === 2);
+  assert.equal(await page.getByTitle('Change Photo', { exact: true }).count(), 0);
+  assert.equal(await page.getByTitle('Remove Photo', { exact: true }).count(), 0);
+  await page.mouse.click(5, 400);
+  await page.waitForFunction(() => document.querySelectorAll('img[alt="Profile"]').length === 1);
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Profile', exact: true }).click();
+  await page.waitForURL(/\/normal_UserProfile\/?$/);
+  await page.getByRole('heading', { name: 'Alice', exact: true }).waitFor();
+  await page.getByRole('button', { name: /Bible Notes/ }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Remove friend', exact: true }).count(), 0);
+  await page.screenshot({ path: resolve(output, 'unified-profile-owner-mobile.png'), fullPage: true, animations: 'disabled' });
+  assert.deepEqual(errors, []);
+});
+
+test('the separate friend-profile page is removed', async t => {
+  const { page, errors } = await setup(t);
+  const response = await page.goto(`${base}/friend-profile/?user=${B}`);
+  assert.equal(response.status(), 404);
+  assert.deepEqual(errors, []);
+});
+
+test('accepted friends never show Add friend when profile friendship metadata is missing', async t => {
+  const { page, state, errors } = await setup(t, { mobile: true, omitProfileMetadata: true });
+  await page.goto(`${base}/normal_UserProfile/?user=${B}`);
+  await page.getByRole('button', { name: 'Remove friend', exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Add friend', exact: true }).count(), 0);
+  assert.equal(state.friendshipRequests.length, 0);
+  await page.screenshot({ path: resolve(output, 'friendship-status-fixed-mobile.png'), animations: 'disabled' });
+  assert.deepEqual(errors, []);
+});
+
+test('fresh Friends data overrides stale profile metadata, including after refresh', async t => {
+  const { page, state, errors } = await setup(t, { profileRelationship: 'none' });
+  await page.goto(`${base}/normal_UserProfile/?user=${B}`);
+  await page.getByRole('button', { name: 'Remove friend', exact: true }).waitFor();
+  await page.evaluate(() => window.dispatchEvent(new Event('taspe7:friends-push')));
+  await page.getByRole('button', { name: 'Remove friend', exact: true }).click();
+  await page.getByRole('button', { name: 'Keep friend', exact: true }).click();
+  assert.equal(await page.getByRole('button', { name: 'Add friend', exact: true }).count(), 0);
+  assert.equal(state.friendshipRequests.length, 0);
+  assert.deepEqual(errors, []);
+});
+
+test('Already friends from the server corrects the button instead of leaving a red error and Add friend', async t => {
+  const { page, state, errors } = await setup(t, { relationship: 'none', profileRelationship: 'none' });
+  await page.goto(`${base}/normal_UserProfile/?user=${B}`);
+  await page.getByRole('button', { name: 'Add friend', exact: true }).waitFor();
+  state.alreadyFriendsOnAdd = true;
+  await page.getByRole('button', { name: 'Add friend', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove friend', exact: true }).waitFor();
+  await page.getByText('You are already friends.', { exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Add friend', exact: true }).count(), 0);
+  assert.deepEqual(await page.getByTestId('profile-header-card').getByRole('alert').allTextContents(), []);
+  assert.equal(state.friendshipRequests.length, 1);
+  assert.deepEqual(errors, []);
+});
+
+test('a failed friendship lookup offers retry without guessing Add friend', async t => {
+  const { page, state, errors } = await setup(t, { omitProfileMetadata: true });
+  state.failRelationshipRead = true;
+  await page.goto(`${base}/normal_UserProfile/?user=${B}`);
+  await page.getByRole('button', { name: 'Retry friendship check', exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Add friend', exact: true }).count(), 0);
+  state.failRelationshipRead = false;
+  await page.getByRole('button', { name: 'Retry friendship check', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove friend', exact: true }).waitFor();
+  assert.deepEqual(errors, []);
+});
+
+test('active notes disable sharing on Friends and the main profile; editing stays available', async t => {
+  const { page, errors } = await setup(t);
+  const add = page.getByRole('button', { name: 'Share your testimony', exact: true });
+  assert.equal(await add.isDisabled(), true);
+  await page.getByText('Note active', { exact: true }).waitFor();
+  assert.equal(await page.getByText(/24h left/).count(), 0);
+  await page.goto(`${base}/normal_UserProfile/`);
+  await page.getByText('Note active', { exact: true }).waitFor();
+  assert.equal(await add.isDisabled(), true);
+  await page.getByRole('button', { name: 'Read testimony: A prayer, quietly answered', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit testimony', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Your testimony', exact: true }).fill('I can still improve the note I already shared.');
+  assert.equal(await page.getByRole('button', { name: 'Save changes', exact: true }).isEnabled(), true);
+  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  assert.equal(await add.isDisabled(), true);
+  assert.deepEqual(errors, []);
+});
+
+test('publishing disables the next note and deleting does not bypass the wait', async t => {
+  const { page, errors } = await setup(t, { empty: true, mobile: true });
+  const add = page.getByRole('button', { name: 'Share your testimony', exact: true });
+  await add.click();
+  const story = 'Today a quiet prayer brought peace to my heart.';
+  await page.getByRole('textbox', { name: 'Your testimony', exact: true }).fill(story);
+  await page.getByRole('button', { name: 'Share', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  await page.getByText('Note active', { exact: true }).waitFor();
+  assert.equal(await add.isDisabled(), true);
+  await page.getByRole('button', { name: `Read testimony: ${story}`, exact: true }).click();
+  await page.getByRole('button', { name: 'Remove', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove testimony', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByText('Note active', { exact: true }).waitFor();
+  assert.equal(await add.isDisabled(), true);
+  assert.deepEqual(errors, []);
+});
+
+test('sharing enables automatically when the background cooldown expires', async t => {
+  const { page, state, errors } = await setup(t, { empty: true, cooldownSoon: true });
+  const add = page.getByRole('button', { name: 'Share your testimony', exact: true });
+  assert.equal(await add.isDisabled(), true);
+  const reads = state.socialReads.length;
+  await page.clock.fastForward(21000);
+  assert.equal(await add.isEnabled(), true);
+  assert.equal(state.socialReads.length, reads, 'unlocking sharing must not call the server');
+  await add.click();
+  await page.getByRole('textbox', { name: 'Your testimony', exact: true }).waitFor();
+  assert.deepEqual(errors, []);
+});
+
+test('PROGRAMER can publish successive notes without waiting', async t => {
+  const { page, state, errors } = await setup(t, { empty: true, programer: true });
+  for (const story of ['First testimony about faith and hope.', 'Another testimony from this same day.']) {
+    await page.getByRole('button', { name: 'Share your testimony', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Your testimony', exact: true }).fill(story);
+    await page.getByRole('button', { name: 'Share', exact: true }).click();
+    await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  }
+  assert.equal(state.publishAttempts, 2);
+  assert.notEqual(state.sent[0].clientId, state.sent[1].clientId);
+  assert.deepEqual(errors, []);
+});
+
+test('a note published on another device blocks a stale composer and preserves its draft', async t => {
+  const { page, state, errors } = await setup(t, { empty: true });
+  await page.getByRole('button', { name: 'Share your testimony', exact: true }).click();
+  const story = 'Keep this draft even when another device publishes first.';
+  await page.getByRole('textbox', { name: 'Your testimony', exact: true }).fill(story);
+  state.nextPublishAt = Date.now() + 86400000;
+  await page.getByRole('button', { name: 'Share', exact: true }).click();
+  await page.getByRole('dialog').getByRole('alert').waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Share', exact: true }).isDisabled(), true);
+  assert.equal(await page.getByRole('textbox', { name: 'Your testimony', exact: true }).inputValue(), story);
+  await page.keyboard.press('Escape');
+  assert.equal(JSON.parse(await page.evaluate(A => localStorage.getItem(`taspe7_testimony_draft_v1:${A}:new`), A)).body, story);
+  assert.deepEqual(errors, []);
+});
+
+test('idle Friends page makes no periodic social requests; manual refresh fetches changes', async t => {
+  const { page, state, errors } = await setup(t, { expiresSoon: true });
+  const reads = state.socialReads.length;
+  const feedReads = state.socialReads.filter(path => path.endsWith('/testimonies')).length;
+  await page.clock.fastForward(5 * 60000);
+  assert.equal(state.socialReads.length, reads);
+  const removed = state.posts.find(item => item._id === '333333333333333333333333');
+  state.posts = state.posts.filter(item => item !== removed);
+  await page.getByRole('button', { name: 'Refresh testimonies', exact: true }).click();
+  await page.getByRole('heading', { name: removed.title, exact: true }).waitFor({ state: 'hidden' });
+  assert.equal(state.socialReads.filter(path => path.endsWith('/testimonies')).length, feedReads + 1);
+  assert.deepEqual(errors, []);
+});
+
+test('idle visitor profile does not poll notes or friendship status', async t => {
+  const { page, state, errors } = await setup(t);
+  await page.goto(`${base}/normal_UserProfile/?user=${B}`);
+  await page.getByRole('button', { name: 'Remove friend', exact: true }).waitFor();
+  await page.clock.install();
+  const reads = state.socialReads.length;
+  await page.clock.fastForward(5 * 60000);
+  assert.equal(state.socialReads.length, reads);
+  assert.deepEqual(errors, []);
+});
+
+test('hidden pages skip refreshes and returning fetches the latest notes and friendships', async t => {
+  const { page, state, errors } = await setup(t);
+  const reads = state.socialReads.length;
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+    window.dispatchEvent(new Event('taspe7:friends-push'));
+    window.dispatchEvent(new Event('taspe7:testimonies-changed'));
+  });
+  assert.equal(state.socialReads.length, reads);
+  const removed = state.posts.find(item => item._id === '333333333333333333333333');
+  state.posts = state.posts.filter(item => item !== removed);
+  const finished = Promise.all(['friends', 'friend-requests', 'testimonies'].map(name => page.waitForResponse(response => new URL(response.url()).pathname.endsWith(`/users/${name}`) && response.request().method() === 'GET').then(response => response.finished())));
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await finished;
+  await page.getByRole('heading', { name: removed.title, exact: true }).waitFor({ state: 'hidden' });
+  assert.equal(state.socialReads.length, reads + 3);
   assert.deepEqual(errors, []);
 });

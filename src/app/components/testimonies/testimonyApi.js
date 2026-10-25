@@ -7,7 +7,7 @@ export async function testimonyRequest(token, path = '', options = {}) {
     headers: { Authorization: `Bearer ${token}`, ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers },
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.message || 'Something went wrong. Please try again.');
+  if (!response.ok) throw Object.assign(new Error(data.message || 'Something went wrong. Please try again.'), { code: data.code, publishing: data.publishing });
   return data;
 }
 
@@ -16,12 +16,6 @@ export function announceTestimonyChange() {
 }
 
 export function profileHref(userId) {
-  return `/friend-profile?user=${encodeURIComponent(userId)}`;
+  return `/normal_UserProfile?user=${encodeURIComponent(userId)}`;
 }
 
-export function remainingTime(expiresAt, now = Date.now()) {
-  const minutes = Math.ceil((new Date(expiresAt).getTime() - now) / 60000);
-  if (minutes <= 0) return 'Saved on profile';
-  if (minutes < 60) return `${minutes}m left`;
-  return `${Math.ceil(minutes / 60)}h left`;
-}

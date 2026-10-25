@@ -32,7 +32,9 @@ export default function useTabNavigation() {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
 
-    if (normalizeTabPath(pathname) === normalizeTabPath(href) && !latestRequest.current) return;
+    const destination = new URL(href, window.location.origin);
+    if (normalizeTabPath(pathname) === normalizeTabPath(destination.pathname)
+      && window.location.search === destination.search && !latestRequest.current) return;
 
     const request = { href };
     latestRequest.current = request;
