@@ -29,7 +29,9 @@ export default function NoteReactors({ item, token, onBack, onClose }) {
     load(); back.current?.focus({ preventScroll: true });
     const refresh = event => { if (event.detail?.testimonyId === item._id && document.visibilityState === 'visible') load(); };
     window.addEventListener('taspe7:testimony-push', refresh);
-    return () => { request.current?.abort(); window.removeEventListener('taspe7:testimony-push', refresh); };
+    const live = event => { if (event.detail?.id === item._id && event.detail.action === 'reaction') load(); };
+    window.addEventListener('taspe7:testimony-live', live);
+    return () => { request.current?.abort(); window.removeEventListener('taspe7:testimony-push', refresh); window.removeEventListener('taspe7:testimony-live', live); };
   }, [load, item._id]);
 
   return <section className={styles.reactors} aria-label="People who loved your note">

@@ -6,6 +6,7 @@ import { Heart, BookOpen, Music, Users, User } from 'lucide-react';
 import { ensureNavigationServiceWorker } from '../utils/appNavigation';
 import useTabNavigation, { normalizeTabPath } from '../hooks/useTabNavigation';
 import { useTheme } from '../context/ThemeContext';
+import { useTestimonyFeed } from './testimonies/TestimonyFeedProvider';
 
 const NAV_ITEMS = [
   { label: 'Pray', icon: Heart, href: '/pray' },
@@ -17,6 +18,7 @@ const NAV_ITEMS = [
 
 export default function BottomNav() {
   const { isDark } = useTheme();
+  const hasNewNotes = useTestimonyFeed()?.state.hasUnseen || false;
   const pathname = usePathname();
   const router = useRouter();
   const [isVisible, setIsVisible] = useState(true);
@@ -123,6 +125,7 @@ export default function BottomNav() {
               href={item.href}
               prefetch
               aria-current={isActive ? 'page' : undefined}
+              aria-describedby={item.label === 'Friends' && hasNewNotes ? 'friends-unseen-notes' : undefined}
               onClick={(event) => navigate(event, item.href)}
               className="group relative flex h-full w-full touch-manipulation flex-col items-center justify-center gap-0.5 outline-none transition-transform duration-150 ease-out active:scale-[0.94]"
             >
@@ -136,6 +139,7 @@ export default function BottomNav() {
                   className={`z-10 transition-[color,filter] duration-150 ${isActive ? 'text-[#00C2FF] drop-shadow-[0_0_6px_rgba(0,194,255,0.45)]' : 'text-slate-400'}`}
                   strokeWidth={isActive ? 2.5 : 2}
                 />
+                {item.label === 'Friends' && hasNewNotes && <span data-testid="friends-notes-badge" aria-hidden="true" className="absolute right-1 top-0.5 z-20 h-1.5 w-1.5 rounded-full bg-[#00C2FF] ring-2 ring-[#060b13]" />}
               </div>
               <span className={`pointer-events-none text-[10px] font-medium leading-none transition-[color,transform] duration-150 ease-out ${isActive ? '-translate-y-px text-[#00C2FF]' : 'translate-y-0 text-slate-400'}`}>
                 {item.label}
@@ -148,6 +152,7 @@ export default function BottomNav() {
           );
         })}
       </nav>
+      {hasNewNotes && <span id="friends-unseen-notes" className="sr-only">New notes from friends</span>}
     </div>
   );
 }

@@ -9,17 +9,26 @@ import TestimonyComposer from './TestimonyComposer';
 import TestimonyReader from './TestimonyReader';
 import { profileHref, testimonyRequest } from './testimonyApi';
 import styles from './testimonies.module.css';
+import { useTestimonyFeed } from './TestimonyFeedProvider';
 
 function Board({ token, userId, username, profileUserId, onProfileLoad, initialProfile, profileAccess, onLoadingChange }) {
   const isFeed = !profileUserId;
   const ownProfile = String(profileUserId) === String(userId);
-  const [data, setData] = useState(() => initialProfile || { items: [], user: null, nextCursor: null });
-  const [loading, setLoading] = useState(!initialProfile);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState('');
+  const shared = useTestimonyFeed();
+  const feedStore = shared?.store;
+  const isSharedFeed = isFeed && Boolean(feedStore);
+  const [localData, setData] = useState(() => initialProfile || { items: [], user: null, nextCursor: null });
+  const [localLoading, setLoading] = useState(!initialProfile);
+  const [localLoadingMore, setLoadingMore] = useState(false);
+  const [localError, setError] = useState('');
+  const data = isSharedFeed ? shared.state : localData;
+  const loading = isSharedFeed ? shared.state.loading : localLoading;
+  const loadingMore = isSharedFeed ? shared.state.loadingMore : localLoadingMore;
+  const error = isSharedFeed ? shared.state.error : localError;
   const [notice, setNotice] = useState('');
   const [modal, setModal] = useState(null);
-  const [now, setNow] = useState(Date.now);
+  const [localNow, setNow] = useState(Date.now);
+  const now = isSharedFeed ? shared.state.now : localNow;
   const pending = useRef(null);
   const version = useRef(0);
   const opener = useRef(null);
@@ -27,6 +36,7 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
   const notificationRequest = useRef(null);
   const path = isFeed ? '' : `/profile/${encodeURIComponent(profileUserId)}`;
   const load = useCallback(async (cursor = null) => {
+    if (isSharedFeed) return cursor ? feedStore.loadMore() : feedStore.sync();
     pending.current?.abort();
     const controller = new AbortController();
     pending.current = controller;
@@ -53,9 +63,10 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
     } finally {
       if (revision === version.current && !controller.signal.aborted) { setLoading(false); setLoadingMore(false); onLoadingChange?.(false); }
     }
-  }, [token, path, profileUserId, onProfileLoad, onLoadingChange]);
+  }, [token, path, profileUserId, onProfileLoad, onLoadingChange, isSharedFeed, feedStore]);
 
   useEffect(() => {
+    if (isSharedFeed) return;
     if (!seededProfile.current) load();
     const refresh = () => {
       if (document.visibilityState !== 'visible') return;
@@ -63,28 +74,37 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
       load();
     };
     const restore = event => { if (event.persisted) refresh(); };
+    const live = event => {
+      if (event.detail?.action === 'access') { setData(previous => ({ ...previous, items: [] })); setModal(null); }
+      else if (String(event.detail?.authorId) === String(profileUserId)) {
+        if (event.detail.action === 'deleted') setModal(previous => previous?.id === event.detail.id ? null : previous);
+        refresh();
+      }
+    };
     window.addEventListener('taspe7:testimonies-changed', refresh);
     window.addEventListener('taspe7:friends-push', refresh);
     window.addEventListener('pageshow', restore);
+    window.addEventListener('taspe7:testimony-live', live);
     document.addEventListener('visibilitychange', refresh);
     return () => {
       pending.current?.abort();
       window.removeEventListener('taspe7:testimonies-changed', refresh);
       window.removeEventListener('taspe7:friends-push', refresh);
       window.removeEventListener('pageshow', restore);
+      window.removeEventListener('taspe7:testimony-live', live);
       document.removeEventListener('visibilitychange', refresh);
     };
-  }, [load]);
+  }, [load, isSharedFeed, profileUserId]);
 
   useEffect(() => {
     const received = event => {
       if (String(event.detail?.authorId) !== String(userId) || document.visibilityState !== 'visible') return;
       if (event.detail.title) setNotice(event.detail.title);
-      load();
+      if (!isSharedFeed || !event.detail.testimonyId) load();
     };
     window.addEventListener('taspe7:testimony-push', received);
     return () => window.removeEventListener('taspe7:testimony-push', received);
-  }, [load, userId]);
+  }, [load, userId, isSharedFeed]);
 
   useEffect(() => {
     if (!ownProfile) return;
@@ -109,12 +129,13 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
   }, [ownProfile, token]);
 
   useEffect(() => {
+    if (isSharedFeed) return;
     // Wake once at the next expiry; expiry never needs a network request.
     const upcoming = [...(isFeed ? data.items.map(item => new Date(item.feedExpiresAt).getTime()) : []), new Date(data.publishing?.nextPublishAt).getTime()].filter(expiry => expiry > now);
     if (!upcoming.length) return;
     const timer = setTimeout(() => setNow(Date.now()), Math.max(0, Math.min(...upcoming) - Date.now()) + 10);
     return () => clearTimeout(timer);
-  }, [data.items, data.publishing, isFeed, now]);
+  }, [data.items, data.publishing, isFeed, now, isSharedFeed]);
 
   const publishing = data.publishing;
   const canPublish = !loading && !!publishing && (publishing.unlimited || publishing.canPublish || (publishing.nextPublishAt && new Date(publishing.nextPublishAt).getTime() <= now));
@@ -123,9 +144,10 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
   const reading = !restricted && modal?.type === 'read' ? data.items.find(item => item._id === modal.id) || modal.linkedItem : null;
   const author = data.user || { _id: userId, Name: username || 'You', username };
   const reactToNote = useCallback((id, reaction) => {
+    feedStore?.updateReaction(id, reaction);
     setData(previous => ({ ...previous, items: previous.items.map(item => item._id === id ? { ...item, ...reaction } : item) }));
     setModal(previous => previous?.linkedItem?._id === id ? { ...previous, linkedItem: { ...previous.linkedItem, ...reaction } } : previous);
-  }, []);
+  }, [feedStore]);
   const close = useCallback((saved = false) => {
     setModal(null);
     if (saved) setNotice('Shared with your friends.');
@@ -152,6 +174,7 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
         </div>}
         {loading && !data.items.length ? <div className={styles.loadingNotes} aria-label="Loading testimonies" role="status"><span /><span /></div>
           : visibleItems.map((item, index) => <TestimonyCard key={item._id} item={item} index={index} onRead={(item, trigger) => {
+            feedStore?.markSeen(item._id, item);
             opener.current = trigger;
             trigger.focus({ preventScroll: true });
             setModal({ type: 'read', id: item._id });

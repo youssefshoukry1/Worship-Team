@@ -14,7 +14,7 @@ let desktopBrowser, mobileBrowser;
 before(async () => { await mkdir(output, { recursive: true }); desktopBrowser = await chromium.launch({ executablePath: chromium.executablePath() }); mobileBrowser = await webkit.launch(); });
 after(async () => { await desktopBrowser?.close(); await mobileBrowser?.close(); });
 
-async function setup(t, { mobile = false, failFirstPublish = false, failFirstLove = false, empty = false, expiresSoon = false, programer = false, cooldownSoon = false, relationship = 'friends', failFriendship = false, friendPhoto = false, omitProfileMetadata = false, profileRelationship = null } = {}) {
+async function setup(t, { startPath = '/friends/', mobile = false, failFirstPublish = false, failFirstLove = false, empty = false, expiresSoon = false, programer = false, cooldownSoon = false, relationship = 'friends', failFriendship = false, friendPhoto = false, omitProfileMetadata = false, profileRelationship = null } = {}) {
   const context = await (mobile ? mobileBrowser : desktopBrowser).newContext({ ...(mobile ? devices['iPhone 13'] : { viewport: { width: 1440, height: 1100 } }), serviceWorkers: 'block' });
   t.after(() => context.close());
   const page = await context.newPage();
@@ -47,7 +47,20 @@ async function setup(t, { mobile = false, failFirstPublish = false, failFirstLov
     return { canPublish: next <= Date.now(), unlimited: false, nextPublishAt: next > Date.now() ? new Date(next).toISOString() : null };
   };
   if (expiresSoon || cooldownSoon) await page.clock.install({ time: new Date(now) });
-  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'Authorization, Content-Type', 'access-control-allow-methods': 'GET, POST, PATCH, DELETE, OPTIONS' };
+  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'Authorization, Content-Type', 'access-control-allow-methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS' };
+  state.sockets = new Set();
+  state.publishNote = event => { for (const socket of state.sockets) socket.send(`42/testimonies,${JSON.stringify(['note-changed', event])}`); };
+  await page.routeWebSocket(/\/socket\.io\//, socket => {
+    socket.onMessage(message => {
+      if (String(message).startsWith('40/testimonies,')) {
+        state.sockets.add(socket);
+        socket.send('40/testimonies,{"sid":"notes-test"}');
+        socket.send('42/testimonies,["notes-ready"]');
+      }
+    });
+    socket.onClose(() => state.sockets.delete(socket));
+    socket.send('0{"sid":"engine-test","upgrades":[],"pingInterval":6000000,"pingTimeout":6000000,"maxPayload":1000000}');
+  });
   const viewedFriend = { ...friend, profilePhoto: friendPhoto ? 'https://avatars.example.test/friend.png' : null };
   if (friendPhoto) state.posts = state.posts.map(item => item.author._id === B ? { ...item, author: viewedFriend } : item);
   const avatarImage = await readFile(resolve('public/wasla.jpg'));
@@ -58,7 +71,16 @@ async function setup(t, { mobile = false, failFirstPublish = false, failFirstLov
     const reply = (json, status = 200) => route.fulfill({ json, status, headers: cors });
     if (method === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
     if (method === 'GET' && /\/(testimonies(?:\/profile\/[a-f\d]+)?|friends|friend-requests)$/.test(path)) state.socialReads.push(path);
-    if (path.endsWith('/testimonies') && method === 'GET') return reply({ items: state.posts.filter(item => new Date(item.feedExpiresAt).getTime() > Date.now()), nextCursor: null, publishing: publishing() });
+    if (path.endsWith('/testimonies') && method === 'GET') {
+      const items = state.posts.filter(item => new Date(item.feedExpiresAt).getTime() > Date.now() && (item.author._id === A || state.relationship === 'friends'));
+      return reply({ items, activeNotes: items.map(item => ({ _id: item._id, authorId: item.author._id, feedExpiresAt: item.feedExpiresAt })), nextCursor: null, publishing: publishing() });
+    }
+    if (path.includes('/testimonies/note/')) {
+      const item = state.posts.find(item => item._id === path.split('/').pop());
+      if (!item) return reply({ message: 'This note is no longer available.' }, 404);
+      if (item.author._id !== A && state.relationship !== 'friends') return reply({ message: 'This note is available only to current friends.' }, 403);
+      return reply({ item, ...(item.author._id === A ? { publishing: publishing() } : {}) });
+    }
     if (path.includes('/testimonies/own/')) {
       const item = state.posts.find(item => item._id === path.split('/').pop() && item.author._id === A);
       return item ? reply({ item }) : reply({ message: 'This note is no longer available.' }, 404);
@@ -76,6 +98,7 @@ async function setup(t, { mobile = false, failFirstPublish = false, failFirstLov
     if (/\/testimonies\/[a-f\d]{24}\/love$/.test(path)) {
       const item = state.posts.find(item => item._id === path.split('/').at(-2));
       state.loveRequests.push({ path, method });
+      if (state.loveGate) await state.loveGate;
       if (failFirstLove && state.loveRequests.length === 1) return reply({ message: 'Could not save your reaction. Please try again.' }, 500);
       if (!item) return reply({ message: 'This note is no longer available.' }, 404);
       const loved = method === 'PUT';
@@ -136,13 +159,14 @@ async function setup(t, { mobile = false, failFirstPublish = false, failFirstLov
     if (path.endsWith('/my-teams')) return reply({ teams: [] });
     return reply({ friends: [], incoming: [], outgoing: [], users: [], data: [] });
   });
-  const initialFriends = Promise.all(['friends', 'friend-requests'].map(name =>
+  const initialFriends = startPath === '/friends/' ? Promise.all(['friends', 'friend-requests'].map(name =>
     page.waitForResponse(response => new URL(response.url()).pathname.endsWith(`/users/${name}`) && response.request().method() === 'GET')
-      .then(response => response.finished())));
+      .then(response => response.finished()))) : Promise.resolve();
+  const initialFeed = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/users/testimonies') && response.request().method() === 'GET').then(response => response.finished());
   // Finish the offline avatar download before navigating away from this document.
   const initialAvatar = friendPhoto && !empty ? page.waitForResponse(response => response.url() === viewedFriend.profilePhoto && response.request().resourceType() === 'fetch').then(response => response.finished()) : Promise.resolve();
-  await page.goto(`${base}/friends/`, { waitUntil: 'domcontentloaded' });
-  await Promise.all([initialFriends, initialAvatar]);
+  await page.goto(`${base}${startPath}`, { waitUntil: 'domcontentloaded' });
+  await Promise.all([initialFriends, initialAvatar, initialFeed]);
   await page.getByRole('button', { name: 'Share your testimony', exact: true }).waitFor();
   await page.getByRole('status', { name: 'Loading testimonies' }).waitFor({ state: 'hidden' });
   return { page, state, errors };
@@ -153,7 +177,9 @@ test('compact dark notes, full reader, name navigation, and permanent friend col
   assert.equal(await page.getByTestId('testimony-cards').getByRole('article').count(), 3);
   assert.ok((await page.getByRole('region', { name: 'Friends testimony highlights' }).boundingBox()).height < 160);
   await page.screenshot({ path: resolve(output, 'friends-desktop.png'), fullPage: true });
-  await page.getByRole('button', { name: /^Read testimony:/ }).first().click();
+  assert.equal(await page.getByTestId('testimony-cards').getByRole('link').count(), 0);
+  // The compact name/photo area opens the note, rather than navigating away.
+  await page.getByRole('button', { name: /^Read testimony:/ }).first().click({ position: { x: 40, y: 13 } });
   const reader = page.getByRole('dialog');
   await reader.getByText('I’m learning to trust Him one small step at a time.', { exact: false }).waitFor();
   assert.equal(await reader.getByRole('button', { name: 'Edit testimony' }).count(), 0);
@@ -161,9 +187,7 @@ test('compact dark notes, full reader, name navigation, and permanent friend col
   assert.ok(Math.abs(expanded.width - expanded.height) < 1);
   assert.equal(await reader.getByText('A moment of faith', { exact: true }).count(), 0);
   await page.screenshot({ path: resolve(output, 'reader-desktop.png'), animations: 'disabled' });
-  await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'My Friends' }).click();
-  await page.getByRole('button', { name: 'Open Youssef profile' }).click();
+  await reader.getByRole('link', { name: 'Visit Youssef profile', exact: true }).click();
   await page.getByRole('heading', { name: 'Youssef', exact: true }).waitFor();
   await page.getByRole('heading', { name: 'A story from last week', exact: true }).waitFor();
   await page.screenshot({ path: resolve(output, 'friend-profile-desktop.png'), fullPage: true });
@@ -586,10 +610,12 @@ test('only the opened note shows a heart, which reacts from its padded area and 
   assert.equal(await heart.innerText(), '', 'the reaction displays only the heart icon');
   const reads = state.socialReads.length;
   await page.screenshot({ path: resolve(output, 'love-fixed-desktop.png'), animations: 'disabled' });
+  const saved = page.waitForResponse(response => response.url().endsWith('/love') && response.request().method() === 'PUT').then(response => response.finished());
   await heart.click({ position: { x: 3, y: 3 } });
   await reader.getByRole('status', { name: '1 love', exact: true }).waitFor();
   assert.equal(await reader.isVisible(), true);
   assert.equal(state.socialReads.length, reads);
+  await saved;
   assert.equal(state.loveRequests.length, 1);
   assert.equal(state.loveNotifications.length, 1);
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -597,8 +623,10 @@ test('only the opened note shows a heart, which reacts from its padded area and 
   await note.click();
   heart = reader.getByRole('button', { name: 'Remove love', exact: true });
   assert.equal(await heart.getAttribute('aria-pressed'), 'true');
+  const removed = page.waitForResponse(response => response.url().endsWith('/love') && response.request().method() === 'DELETE').then(response => response.finished());
   await heart.click();
   await reader.getByRole('status', { name: '1 love', exact: true }).waitFor({ state: 'hidden' });
+  await removed;
   assert.equal(state.loveRequests.at(-1).method, 'DELETE');
   await reader.getByRole('button', { name: 'Love this note', exact: true }).click({ position: { x: 3, y: 3 } });
   await reader.getByRole('status', { name: '1 love', exact: true }).waitFor();
@@ -634,8 +662,10 @@ test('iPhone opened-note heart supports touch, keyboard activation, and retry af
   await card.getByRole('status', { name: '1 love', exact: true }).waitFor();
   const unlike = card.getByRole('button', { name: 'Remove love', exact: true });
   await unlike.focus();
+  const removed = page.waitForResponse(response => response.url().endsWith('/love') && response.request().method() === 'DELETE').then(response => response.finished());
   await page.keyboard.press('Space');
   await card.getByRole('status', { name: '1 love', exact: true }).waitFor({ state: 'hidden' });
+  await removed;
   assert.equal(state.loveRequests.length, 3);
   assert.deepEqual(errors, []);
 });
@@ -710,5 +740,78 @@ test('reaction list handles empty notes and retry; friends cannot open another a
   await reader.getByRole('button', { name: 'Love this note', exact: true }).waitFor();
   assert.equal(await reader.getByRole('button', { name: 'See who loved this note', exact: true }).count(), 0);
   assert.equal(state.reactorReads, reads);
+  assert.deepEqual(errors, []);
+});
+
+test('love appears immediately while saving is delayed and continues after closing and reopening the note', async t => {
+  const { page, state, errors } = await setup(t, { mobile: true });
+  let finishSave;
+  state.loveGate = new Promise(resolve => { finishSave = resolve; });
+  t.after(() => finishSave());
+  const note = page.getByRole('button', { name: 'Read testimony: Peace in the middle of it all', exact: true });
+  await note.tap();
+  const reader = page.getByRole('dialog', { name: 'Testimony', exact: true });
+  const saving = page.waitForRequest(request => request.url().endsWith('/love') && request.method() === 'PUT');
+  const saved = page.waitForResponse(response => response.url().endsWith('/love') && response.request().method() === 'PUT').then(response => response.finished());
+  await reader.getByRole('button', { name: 'Love this note', exact: true }).tap();
+  await saving;
+  const heart = reader.getByRole('button', { name: 'Remove love', exact: true });
+  assert.equal(await heart.isEnabled(), true);
+  assert.equal(await heart.getAttribute('aria-pressed'), 'true');
+  assert.equal(state.posts[0].loved, false, 'the server has not saved yet');
+  const refreshed = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/users/testimonies') && response.request().method() === 'GET').then(response => response.finished());
+  await page.evaluate(() => window.dispatchEvent(new Event('taspe7:friends-push')));
+  await refreshed;
+  assert.equal(await heart.getAttribute('aria-pressed'), 'true', 'refreshing must not erase a pending reaction');
+  await page.keyboard.press('Escape');
+  await note.tap();
+  assert.equal(await heart.getAttribute('aria-pressed'), 'true');
+  finishSave();
+  await saved;
+  assert.equal(state.posts[0].loved, true);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await note.tap();
+  await heart.waitFor();
+  assert.equal(await heart.getAttribute('aria-pressed'), 'true');
+  assert.deepEqual(errors, []);
+});
+
+test('live notes arrive off-page, show a nav dot, and are already loaded when Friends opens', async t => {
+  const { page, state, errors } = await setup(t, { empty: true, startPath: '/normal_UserProfile/' });
+  const item = { _id: '555555555555555555555555', author: friend, title: 'A new moment of faith', body: 'A note shared while I was on another page.', style: 'olive', loved: false, loveCount: 0,
+    createdAt: new Date().toISOString(), feedExpiresAt: new Date(Date.now() + 86400000).toISOString() };
+  state.posts.unshift(item);
+  const arrived = page.waitForResponse(response => response.url().includes(`/testimonies/note/${item._id}`)).then(response => response.finished());
+  state.publishNote({ id: item._id, authorId: B, action: 'created' });
+  await arrived;
+  await page.getByTestId('friends-notes-badge').waitFor();
+  await page.screenshot({ path: resolve(output, 'new-notes-nav-dot.png'), animations: 'disabled' });
+  const reads = state.socialReads.filter(path => path.endsWith('/testimonies')).length;
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Friends', exact: true }).click();
+  await page.getByRole('button', { name: `Read testimony: ${item.title}`, exact: true }).waitFor();
+  assert.equal(state.socialReads.filter(path => path.endsWith('/testimonies')).length, reads, 'opening Friends must reuse the prepared feed');
+  await page.getByRole('button', { name: `Read testimony: ${item.title}`, exact: true }).click();
+  await page.getByTestId('friends-notes-badge').waitFor({ state: 'hidden' });
+  await page.keyboard.press('Escape');
+  state.posts = [];
+  state.publishNote({ id: item._id, authorId: B, action: 'deleted' });
+  await page.getByRole('button', { name: `Read testimony: ${item.title}`, exact: true }).waitFor({ state: 'hidden' });
+  assert.deepEqual(errors, []);
+});
+
+test('reconnecting catches missed notes and friendship revocation clears a prepared feed', async t => {
+  const { page, state, errors } = await setup(t, { empty: true, startPath: '/normal_UserProfile/' });
+  const item = { _id: '666666666666666666666666', author: friend, title: 'Shared while disconnected', body: 'A new reflection that arrived during a lost connection.', style: 'olive', loved: false, loveCount: 0,
+    createdAt: new Date().toISOString(), feedExpiresAt: new Date(Date.now() + 86400000).toISOString() };
+  const sockets = [...state.sockets];
+  await Promise.all(sockets.map(socket => socket.close()));
+  state.posts.push(item);
+  await page.getByTestId('friends-notes-badge').waitFor();
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Friends', exact: true }).click();
+  await page.getByRole('button', { name: `Read testimony: ${item.title}`, exact: true }).waitFor();
+  state.relationship = 'none';
+  state.publishNote({ action: 'access' });
+  await page.getByRole('button', { name: `Read testimony: ${item.title}`, exact: true }).waitFor({ state: 'hidden' });
+  await page.getByTestId('friends-notes-badge').waitFor({ state: 'hidden' });
   assert.deepEqual(errors, []);
 });

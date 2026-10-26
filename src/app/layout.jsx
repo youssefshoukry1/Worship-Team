@@ -14,6 +14,7 @@ import AppAuthGatekeeper from "./components/AppAuthGatekeeper";
 import PrayerBackupLifecycle from "./components/PrayerBackupLifecycle";
 import PrayerSyncLifecycle from "./components/PrayerSyncLifecycle";
 import BillingLifecycle from './components/BillingLifecycle';
+import TestimonyFeedProvider from './components/testimonies/TestimonyFeedProvider';
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -73,13 +74,13 @@ export default function RootLayout({
                                     <PrayerBackupLifecycle />
                                     <PrayerSyncLifecycle />
                                     <BillingLifecycle />
-                                    <HymnsContextProvider>
+                                    <TestimonyFeedProvider><HymnsContextProvider>
                                         <AppAuthGatekeeper>
                                             <main>
                                                 {children}
                                             </main>
                                         </AppAuthGatekeeper>
-                                    </HymnsContextProvider>
+                                    </HymnsContextProvider></TestimonyFeedProvider>
                                 </UserContextProvider>
                             </LanguageProvider>
                         </ThemeProvider>
