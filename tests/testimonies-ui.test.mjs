@@ -776,7 +776,7 @@ test('love appears immediately while saving is delayed and continues after closi
   assert.deepEqual(errors, []);
 });
 
-test('live notes arrive off-page, show a nav dot, and are already loaded when Friends opens', async t => {
+test('live notes arrive off-page and the nav dot clears on visiting Friends until a new note arrives after leaving', async t => {
   const { page, state, errors } = await setup(t, { empty: true, startPath: '/normal_UserProfile/' });
   const item = { _id: '555555555555555555555555', author: friend, title: 'A new moment of faith', body: 'A note shared while I was on another page.', style: 'olive', loved: false, loveCount: 0,
     createdAt: new Date().toISOString(), feedExpiresAt: new Date(Date.now() + 86400000).toISOString() };
@@ -790,9 +790,27 @@ test('live notes arrive off-page, show a nav dot, and are already loaded when Fr
   await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Friends', exact: true }).click();
   await page.getByRole('button', { name: `Read testimony: ${item.title}`, exact: true }).waitFor();
   assert.equal(state.socialReads.filter(path => path.endsWith('/testimonies')).length, reads, 'opening Friends must reuse the prepared feed');
-  await page.getByRole('button', { name: `Read testimony: ${item.title}`, exact: true }).click();
   await page.getByTestId('friends-notes-badge').waitFor({ state: 'hidden' });
-  await page.keyboard.press('Escape');
+  const incoming = { ...item, _id: '777777777777777777777777', title: 'Shared while viewing Friends' };
+  state.posts.unshift(incoming);
+  const inFeed = page.waitForResponse(response => response.url().includes(`/testimonies/note/${incoming._id}`)).then(response => response.finished());
+  state.publishNote({ id: incoming._id, authorId: B, action: 'created' });
+  await inFeed;
+  await page.getByRole('button', { name: `Read testimony: ${incoming.title}`, exact: true }).waitFor();
+  assert.equal(await page.getByTestId('friends-notes-badge').count(), 0);
+  const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
+  await navigation.getByRole('link', { name: 'Profile', exact: true }).click();
+  await page.waitForURL('**/normal_UserProfile/');
+  assert.equal(await page.getByTestId('friends-notes-badge').count(), 0, 'leaving Friends must not restore the old dot');
+  const later = { ...item, _id: '888888888888888888888888', title: 'Shared after leaving Friends' };
+  state.posts.unshift(later);
+  const offPage = page.waitForResponse(response => response.url().includes(`/testimonies/note/${later._id}`)).then(response => response.finished());
+  state.publishNote({ id: later._id, authorId: B, action: 'created' });
+  await offPage;
+  await page.getByTestId('friends-notes-badge').waitFor();
+  await navigation.getByRole('link', { name: 'Friends', exact: true }).click();
+  await page.getByRole('button', { name: `Read testimony: ${later.title}`, exact: true }).waitFor();
+  await page.getByTestId('friends-notes-badge').waitFor({ state: 'hidden' });
   state.posts = [];
   state.publishNote({ id: item._id, authorId: B, action: 'deleted' });
   await page.getByRole('button', { name: `Read testimony: ${item.title}`, exact: true }).waitFor({ state: 'hidden' });

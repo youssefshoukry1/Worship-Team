@@ -6,15 +6,27 @@ export function createTestimonyFeedStore({ userId, request, storage, now = Date.
   if (typeof seen !== 'object' || Array.isArray(seen)) seen = {};
   let state = { items: [], activeNotes: [], publishing: null, nextCursor: null, loading: true, loadingMore: false, ready: false, error: '', hasUnseen: false, now: now() };
   const listeners = new Set(), requests = new Set(), revisions = new Map();
-  let timer, pendingSync, syncAgain = false, disposed = false, generation = 0, accessGeneration = 0;
+  let timer, pendingSync, syncAgain = false, disposed = false, feedVisible = false, generation = 0, accessGeneration = 0;
+  const persistSeen = () => {
+    try { storage?.setItem(key, JSON.stringify(seen)); } catch { /* Seen state still works in memory. */ }
+  };
   const emit = patch => {
     if (disposed) return;
     const time = now();
     state = { ...state, ...patch, now: time };
     state.items = state.items.filter(item => new Date(item.feedExpiresAt).getTime() > time);
     state.activeNotes = state.activeNotes.filter(item => new Date(item.feedExpiresAt).getTime() > time);
+    let seenChanged = false;
+    for (const [id, expiry] of Object.entries(seen)) if (expiry <= time) { delete seen[id]; seenChanged = true; }
+    if (feedVisible) {
+      for (const item of state.activeNotes) {
+        if (String(item.authorId) !== String(userId) && !seen[item._id]) {
+          seen[item._id] = new Date(item.feedExpiresAt).getTime(); seenChanged = true;
+        }
+      }
+    }
+    if (seenChanged) persistSeen();
     state.hasUnseen = state.activeNotes.some(item => String(item.authorId) !== String(userId) && !seen[item._id]);
-    for (const [id, expiry] of Object.entries(seen)) if (expiry <= time) delete seen[id];
     cancel(timer);
     const expiries = [...state.activeNotes.map(item => new Date(item.feedExpiresAt).getTime()), new Date(state.publishing?.nextPublishAt).getTime()].filter(expiry => expiry > time);
     if (expiries.length) timer = schedule(() => emit({}), Math.min(2147483647, expiries.reduce((soonest, value) => Math.min(soonest, value), Infinity) - time + 10));
@@ -48,6 +60,7 @@ export function createTestimonyFeedStore({ userId, request, storage, now = Date.
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     sync,
     tick: () => emit({}),
+    setFeedVisible(visible) { feedVisible = visible; emit({}); },
     async loadMore() {
       if (!state.nextCursor || state.loadingMore) return;
       const version = generation, cursor = state.nextCursor;
@@ -92,7 +105,7 @@ export function createTestimonyFeedStore({ userId, request, storage, now = Date.
       const item = state.activeNotes.find(note => note._id === id) || (openedNote ? metadata(openedNote) : null);
       if (!item) return;
       seen[id] = new Date(item.feedExpiresAt).getTime();
-      try { storage?.setItem(key, JSON.stringify(seen)); } catch { /* Seen state still works in memory. */ }
+      persistSeen();
       emit({});
     },
     updateReaction(id, reaction) { emit({ items: state.items.map(item => item._id === id ? { ...item, ...reaction } : item) }); },

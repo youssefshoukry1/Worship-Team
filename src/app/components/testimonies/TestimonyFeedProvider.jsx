@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react';
+import { usePathname } from 'next/navigation';
 import { UserContext } from '../../context/User_Context';
 import { getApiBaseUrl } from '../../utils/apiBase';
 import { testimonyRequest } from './testimonyApi';
@@ -10,6 +11,8 @@ const FeedContext = createContext(null);
 export const useTestimonyFeed = () => useContext(FeedContext);
 
 function Session({ token, userId, children }) {
+  const pathname = usePathname();
+  const isFriendsPage = pathname?.replace(/\/+$/, '') === '/friends';
   const [store] = useState(() => createTestimonyFeedStore({ userId, request: (path, options) => testimonyRequest(token, path, options), storage: typeof window !== 'undefined' ? window.localStorage : null }));
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   useEffect(() => {
@@ -58,6 +61,15 @@ function Session({ token, userId, children }) {
       window.removeEventListener('taspe7:testimony-push', reaction);
     };
   }, [store, token, userId]);
+  useEffect(() => {
+    const updateVisibility = () => store.setFeedVisible(isFriendsPage && document.visibilityState === 'visible');
+    updateVisibility();
+    document.addEventListener('visibilitychange', updateVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', updateVisibility);
+      store.setFeedVisible(false);
+    };
+  }, [store, isFriendsPage]);
   return <FeedContext.Provider value={{ store, state }}>{children}</FeedContext.Provider>;
 }
 
