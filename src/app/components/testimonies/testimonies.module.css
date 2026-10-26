@@ -53,7 +53,7 @@
 .reactionError { position: fixed; z-index: 10030; width: 190px; margin: 0; padding: 8px 10px; border-radius: 8px; background: #17212e; color: #e4a1a6; font-size: 10px; line-height: 1.5; }
 .createNote { justify-content: center; align-items: center; color: #00c2ff; border-style: dashed; border-color: #00c2ff35; background: #071c29; }
 .createNote > svg { margin-top: -7px; }
-.createNote:disabled { opacity: .4; cursor: not-allowed; transform: rotate(-1deg); }
+.createNote:is(:disabled, [aria-disabled="true"]) { opacity: .4; cursor: not-allowed; transform: rotate(-1deg); }
 .noteLines { width: 28px; height: 8px; margin-top: 8px; border-top: 1px solid #00c2ff26; border-bottom: 1px solid #00c2ff18; }
 .pin { position: absolute; z-index: 2; top: -7px; left: 2px; width: 14px; height: 14px; color: #8ba3b7; transform: rotate(-30deg); pointer-events: none; }
 .olive { --note-accent: #7bb9ce; }
@@ -126,15 +126,20 @@
 .attachedVerse > button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-height: 28px; width: 28px; margin: -5px -6px 0 0; padding: 5px; border: 0; border-radius: 6px; color: #587a95; background: transparent; }
 .attachedVerse > button:hover { color: #b6d6eb; background: #00c2ff0a; }
 .error { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #fb718528; border-radius: 7px; color: #e4a1a6; background: #fb71850a; font-size: 11px; line-height: 1.6; }
-.dialog.expandedDialog { position: relative; width: min(360px, calc(100vw - 56px), calc(100dvh - 140px)); max-width: none; overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.dialog.expandedDialog { position: relative; width: min(420px, calc(100vw - 48px)); max-width: none; margin-top: 32px; overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .cardClose { position: absolute; top: -43px; right: 0; width: 32px; height: 32px; background: #ffffff06; }
-.expandedNote { position: relative; display: flex; flex-direction: column; width: 100%; aspect-ratio: 1; min-height: 0; flex-shrink: 0; gap: 18px; padding: 44px 24px 18px; border: 1px solid #ffffff12; border-radius: 16px 16px 36px 16px; background: #131e2b; box-shadow: 3px 12px 36px #0004; transform: rotate(-.8deg); }
+.expandedNote { position: relative; display: flex; flex-direction: column; width: 100%; height: var(--note-height, min(420px, calc(100vw - 48px), calc(100dvh - 112px - env(safe-area-inset-top) - env(safe-area-inset-bottom)))); max-height: calc(100dvh - 112px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); min-height: 0; flex-shrink: 0; gap: 18px; padding: 44px 24px 18px; border: 1px solid #ffffff12; border-radius: 16px 16px 36px 16px; background: #131e2b; box-shadow: 3px 12px 36px #0004; transform: rotate(-.8deg); }
 .expandedNote .pinnedAvatar { flex-basis: 32px; width: 32px; height: 32px; font-size: 12px; }
 .expandedNote .expandedPin { top: -12px; left: 4px; width: 23px; height: 23px; }
-.expandedText { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #ffffff16 transparent; }
-.expandedText h2 { color: #d5deea; font-size: 19px; font-weight: 550; line-height: 1.6; margin: 0 0 14px; overflow-wrap: anywhere; }
-.fullStory { white-space: pre-wrap; color: #d5deea; font-size: 18px; line-height: 1.75; overflow-wrap: anywhere; margin: 0; }
-.fullStory:dir(rtl) { font-family: var(--font-ibm-plex-sans-arabic), sans-serif; font-size: 20px; }
+.expandedText { flex: 1; min-height: 0; min-width: 0; overflow: hidden; font-size: var(--note-font-size, 18px); }
+.expandedText h2 { color: #d5deea; font-size: 1.0556em; font-weight: 550; line-height: 1.6; margin: 0 0 .75em; overflow-wrap: anywhere; }
+.fullStory { white-space: pre-wrap; color: #d5deea; font-size: 1em; line-height: 1.75; overflow-wrap: anywhere; margin: 0; }
+.fullStory:dir(rtl) { font-family: var(--font-ibm-plex-sans-arabic), sans-serif; font-size: 1.1111em; }
+.expandedText .attachedVerse { gap: .5em; padding: .65em; margin-top: .7em; }
+.expandedText .attachedVerse > svg { width: 1em; height: 1em; margin-top: .15em; }
+.expandedText .attachedVerse p { font-size: .85em; }
+.expandedText .attachedVerse cite { font-size: .75em; margin-top: .4em; overflow-wrap: anywhere; }
+.expandedText .error { font-size: .75em; margin-top: .6em; padding: .6em; }
 .expandedFooter { display: flex; align-items: center; justify-content: flex-end; gap: 12px; min-height: 30px; flex-shrink: 0; direction: ltr; }
 .noteOwnerTools { display: inline-flex; gap: 4px; }
 .noteOwnerTools .iconButton { background: none; }

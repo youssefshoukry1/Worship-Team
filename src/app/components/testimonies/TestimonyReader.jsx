@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { BookOpen, Loader2, Pencil, Pin, Trash2 } from 'lucide-react';
 import TestimonyDialog from './TestimonyDialog';
@@ -9,6 +9,8 @@ import { announceTestimonyChange, profileHref, testimonyRequest } from './testim
 import styles from './testimonies.module.css';
 import NoteLove from './NoteLove';
 import NoteReactors from './NoteReactors';
+import useFittedNote from './useFittedNote';
+import { useNoteReactorsStore } from './TestimonyFeedProvider';
 
 export default function TestimonyReader({ item, userId, token, onReaction, onClose, onEdit }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -16,7 +18,17 @@ export default function TestimonyReader({ item, userId, token, onReaction, onClo
   const [error, setError] = useState('');
   const [showReactors, setShowReactors] = useState(false);
   const noteSurface = useRef(null);
+  const [noteText, setNoteText] = useState(null);
+  useFittedNote(noteSurface, noteText, JSON.stringify([item.title, item.body, item.verse, showReactors, error]));
   const mine = String(item.author?._id) === String(userId);
+  const reactors = useNoteReactorsStore();
+  const prefetched = useRef(false);
+  useEffect(() => {
+    if (mine && !prefetched.current) {
+      prefetched.current = true;
+      void reactors?.ensure(item);
+    }
+  }, [mine, reactors, item]);
   const remove = async () => {
     setBusy(true); setError('');
     try {
@@ -35,7 +47,7 @@ export default function TestimonyReader({ item, userId, token, onReaction, onClo
       {mine && showReactors ? <NoteReactors item={item} token={token} onClose={onClose} onBack={() => {
         setShowReactors(false);
         requestAnimationFrame(() => noteSurface.current?.querySelector('[aria-label="See who loved this note"]')?.focus({ preventScroll: true }));
-      }} /> : <div className={styles.expandedText} tabIndex={0} aria-label="Testimony text">
+      }} /> : <div ref={setNoteText} className={styles.expandedText} aria-label="Testimony text">
         {!item.body.startsWith(item.title) && <h2 dir="auto">{item.title}</h2>}
         <p className={styles.fullStory} dir="auto">{item.body}</p>
         {item.verse?.reference && <div className={styles.attachedVerse}><BookOpen size={15} /><blockquote dir="auto"><p>{item.verse.text}</p><cite>{item.verse.reference}</cite></blockquote></div>}

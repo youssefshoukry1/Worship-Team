@@ -84,6 +84,12 @@ export function createTestimonyFeedStore({ userId, request, storage, now = Date.
         return;
       }
       if (!/^[a-f\d]{24}$/i.test(event.id || '')) return;
+      if (event.action === 'reaction' && String(event.authorId) === String(userId) && Number.isFinite(event.loveVersion)) {
+        // The authenticated owner event already carries the count; no note read needed.
+        emit({ items: state.items.map(item => item._id === event.id && event.loveVersion > (item.loveVersion || 0)
+          ? { ...item, loveCount: event.loveCount, loveVersion: event.loveVersion } : item) });
+        return;
+      }
       const revision = (revisions.get(event.id) || 0) + 1;
       revisions.set(event.id, revision);
       if (pendingSync) syncAgain = true;

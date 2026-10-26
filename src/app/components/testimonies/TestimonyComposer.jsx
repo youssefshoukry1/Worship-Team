@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, BookOpen, Check, Loader2, Pin, Users, X } from 'lucide-react';
 import TestimonyDialog from './TestimonyDialog';
-import { announceTestimonyChange, testimonyRequest } from './testimonyApi';
+import { announceTestimonyChange, NOTE_ACTIVE_MESSAGE, testimonyRequest } from './testimonyApi';
+import { showToast } from '../ToastContainer';
 import styles from './testimonies.module.css';
+import { NOTE_CHARACTER_LIMIT, noteContentLength } from './noteContent';
 
 const newClientId = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -14,7 +16,7 @@ export default function TestimonyComposer({ token, userId, author, editing, onCl
     try {
       const saved = JSON.parse(localStorage.getItem(draftKey));
       if (saved && typeof saved.body === 'string') return {
-        title: typeof saved.title === 'string' ? saved.title.slice(0, 100) : '', body: saved.body.slice(0, 3000),
+        title: typeof saved.title === 'string' ? saved.title.slice(0, 100) : '', body: saved.body,
         style: ['olive', 'dawn', 'still'].includes(saved.style) ? saved.style : 'olive',
         reference: typeof saved.reference === 'string' ? saved.reference.slice(0, 100) : '',
         verseText: typeof saved.verseText === 'string' ? saved.verseText.slice(0, 1200) : '',
@@ -49,7 +51,14 @@ export default function TestimonyComposer({ token, userId, author, editing, onCl
     }
   }, [draftKey]);
 
-  const canPublish = !blocked && draft.body.trim().length >= 10;
+  // Preserve older drafts in full so the author can shorten them without data loss.
+  const preserveTitle = !editing || !editing.body.startsWith(editing.title);
+  const title = (preserveTitle ? draft.title.trim() : '') || draft.body.trim().split('\n')[0].slice(0, 80);
+  const verse = draft.reference && draft.verseText ? { reference: draft.reference, text: draft.verseText } : null;
+  const characterCount = noteContentLength({ title, body: draft.body, verse });
+  const bodyLimit = Math.max(0, NOTE_CHARACTER_LIMIT - (characterCount - draft.body.trim().length));
+  const overLimit = characterCount > NOTE_CHARACTER_LIMIT;
+  const canPublish = !blocked && !overLimit && draft.body.trim().length >= 10;
   const submit = async event => {
     event.preventDefault();
     if (!canPublish || submitting.current) return;
@@ -57,12 +66,10 @@ export default function TestimonyComposer({ token, userId, author, editing, onCl
     setBusy(true); setError('');
     try {
       // The note is the editor. An excerpt supplies the existing API's title field.
-      const preserveTitle = !editing || !editing.body.startsWith(editing.title);
-      const title = (preserveTitle ? draft.title.trim() : '') || draft.body.trim().split('\n')[0].slice(0, 80);
       await testimonyRequest(token, editing ? `/${editing._id}` : '', {
         method: editing ? 'PATCH' : 'POST',
         body: JSON.stringify({ title, body: draft.body, style: draft.style, clientId: draft.clientId,
-          verse: draft.reference && draft.verseText ? { reference: draft.reference, text: draft.verseText } : null }),
+          verse }),
       });
       published.current = true;
       try { localStorage.removeItem(draftKey); } catch { /* Publishing succeeded. */ }
@@ -70,7 +77,10 @@ export default function TestimonyComposer({ token, userId, author, editing, onCl
       onClose(true);
     } catch (error) {
       setError(error.message);
-      if (!editing && error.code === 'TESTIMONY_ACTIVE') { setBlocked(true); announceTestimonyChange(); }
+      if (!editing && error.code === 'TESTIMONY_ACTIVE') {
+        showToast({ message: NOTE_ACTIVE_MESSAGE, type: 'info' });
+        setBlocked(true); announceTestimonyChange();
+      }
     }
     finally { submitting.current = false; setBusy(false); }
   };
@@ -81,14 +91,15 @@ export default function TestimonyComposer({ token, userId, author, editing, onCl
         <Pin className={styles.pin} strokeWidth={1.8} aria-hidden="true" />
         <div className={styles.noteByline}><span className={styles.authorInitial}>{(author?.Name || 'Y')[0]}</span><span>{author?.Name || author?.username || 'You'}</span><span className={styles.noteAudience}><Users size={12} /> Friends</span></div>
         {editing && draft.title && !editing.body.startsWith(editing.title) && <h2 className={styles.existingTitle} dir="auto">{draft.title}</h2>}
-        <textarea ref={bodyRef} data-autofocus className={styles.noteWriting} aria-label="Your testimony" dir="auto" placeholder={'A moment of faith,\na prayer answered,\nsomething on your heart…'} value={draft.body} maxLength={3000} minLength={10} required disabled={busy} onChange={event => setDraft(previous => ({ ...previous, body: event.target.value }))} />
+        <textarea ref={bodyRef} data-autofocus className={styles.noteWriting} aria-label="Your testimony" aria-describedby="testimony-character-count" aria-invalid={overLimit || undefined} dir="auto" placeholder={'A moment of faith,\na prayer answered,\nsomething on your heart…'} value={draft.body} maxLength={bodyLimit} minLength={10} required disabled={busy} onChange={event => setDraft(previous => ({ ...previous, body: event.target.value }))} />
         {draft.reference && <div className={styles.attachedVerse}>
           <BookOpen size={15} /><blockquote dir="auto"><p>{draft.verseText}</p><cite>{draft.reference}</cite></blockquote>
           <button type="button" aria-label="Remove verse" disabled={busy} onClick={() => setDraft(previous => ({ ...previous, reference: '', verseText: '' }))}><X size={15} /></button>
         </div>}
         <div className={styles.noteTools}>
-          <span className={styles.noteCount}>{draft.body.length.toLocaleString()}/3,000</span>
+          <span id="testimony-character-count" className={styles.noteCount}>{characterCount.toLocaleString()}/{NOTE_CHARACTER_LIMIT.toLocaleString()} characters{verse ? ' · including attached verse' : ''}</span>
         </div>
+        {overLimit && <p className={styles.error} role="alert">Please shorten this note to {NOTE_CHARACTER_LIMIT.toLocaleString()} characters so it fits when opened. Your full draft is kept until you save.</p>}
       </div>
       <div className={styles.noteFooter}>
         <p>Shared with friends · Saved on your profile</p>

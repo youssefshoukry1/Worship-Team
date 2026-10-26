@@ -7,7 +7,8 @@ import { UserContext } from '../../context/User_Context';
 import TestimonyCard from './TestimonyCard';
 import TestimonyComposer from './TestimonyComposer';
 import TestimonyReader from './TestimonyReader';
-import { profileHref, testimonyRequest } from './testimonyApi';
+import { NOTE_ACTIVE_MESSAGE, profileHref, testimonyRequest } from './testimonyApi';
+import { showToast } from '../ToastContainer';
 import styles from './testimonies.module.css';
 import { useTestimonyFeed } from './TestimonyFeedProvider';
 
@@ -75,6 +76,13 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
     };
     const restore = event => { if (event.persisted) refresh(); };
     const live = event => {
+      if (event.detail?.action === 'reaction' && Number.isFinite(event.detail.loveVersion)) {
+        const { id, loveCount, loveVersion } = event.detail;
+        const update = item => item._id === id && loveVersion > (item.loveVersion || 0) ? { ...item, loveCount, loveVersion } : item;
+        setData(previous => ({ ...previous, items: previous.items.map(update) }));
+        setModal(previous => previous?.linkedItem ? { ...previous, linkedItem: update(previous.linkedItem) } : previous);
+        return;
+      }
       if (event.detail?.action === 'access') { setData(previous => ({ ...previous, items: [] })); setModal(null); }
       else if (String(event.detail?.authorId) === String(profileUserId)) {
         if (event.detail.action === 'deleted') setModal(previous => previous?.id === event.detail.id ? null : previous);
@@ -154,7 +162,10 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
     requestAnimationFrame(() => { if (opener.current?.isConnected) opener.current.focus({ preventScroll: true }); });
   }, []);
   const create = event => {
-    if (!canPublish) return;
+    if (!canPublish) {
+      if (publishing?.canPublish === false) showToast({ message: NOTE_ACTIVE_MESSAGE, type: 'info' });
+      return;
+    }
     opener.current = event.currentTarget;
     opener.current.focus({ preventScroll: true });
     setNotice(''); setModal({ type: 'compose' });
@@ -169,7 +180,7 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
       </header>
       {restricted ? <div className={styles.lockedTestimonies}><LockKeyhole size={18} /><div><strong>Shared with friends</strong><p>Become friends to read each other’s testimonies.</p></div></div> : <div className={styles.noteRail} data-testid="testimony-cards">
         {(isFeed || ownProfile) && <div className={styles.miniCard}>
-          <button type="button" className={styles.createNote} disabled={!canPublish} onClick={create} aria-label="Share your testimony" title={canPublish ? 'Share your testimony' : publishing?.canPublish === false ? 'You can share again after your current note expires.' : 'Checking availability…'}><Plus size={24} strokeWidth={1.4} /><span className={styles.noteLines} aria-hidden="true" /></button>
+          <button type="button" className={styles.createNote} disabled={loading || !publishing} aria-disabled={!canPublish} onClick={create} aria-label="Share your testimony" title={canPublish ? 'Share your testimony' : publishing?.canPublish === false ? NOTE_ACTIVE_MESSAGE : 'Checking availability…'}><Plus size={24} strokeWidth={1.4} /><span className={styles.noteLines} aria-hidden="true" /></button>
           <span className={styles.createCaption}>{publishing?.canPublish === false && !canPublish ? 'Note active' : 'Share a note'}</span>
         </div>}
         {loading && !data.items.length ? <div className={styles.loadingNotes} aria-label="Loading testimonies" role="status"><span /><span /></div>

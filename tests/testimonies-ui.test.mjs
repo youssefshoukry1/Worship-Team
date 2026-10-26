@@ -32,7 +32,7 @@ async function setup(t, { startPath = '/friends/', mobile = false, failFirstPubl
   }, { A, programer });
   const now = Date.now();
   const post = (id, title, body, style, author, age = 10000) => ({ _id: id, title, body, style, author,
-    loved: false, loveCount: 0,
+    loved: false, loveCount: 0, loveVersion: 0,
     createdAt: new Date(now - age).toISOString(), updatedAt: new Date(now - age).toISOString(), feedExpiresAt: new Date(now - age + 86400000).toISOString() });
   const state = { posts: empty ? [] : [
     post('111111111111111111111111', 'Peace in the middle of it all', 'This week was full of uncertainty. In a quiet moment of prayer, God reminded me that I don’t have to carry tomorrow today. I’m learning to trust Him one small step at a time.', 'olive', friend, expiresSoon ? 86400000 - 20000 : 10000),
@@ -93,7 +93,7 @@ async function setup(t, { startPath = '/friends/', mobile = false, failFirstPubl
       const cursor = url.searchParams.get('cursor');
       const start = cursor ? state.reactorUsers.findIndex(user => user._id === cursor) + 1 : 0;
       const users = state.reactorUsers.slice(start, start + 20);
-      return reply({ users, nextCursor: start + 20 < state.reactorUsers.length ? users.at(-1)._id : null });
+      return reply({ users, nextCursor: start + 20 < state.reactorUsers.length ? users.at(-1)._id : null, loveVersion: item.loveVersion || 0 });
     }
     if (/\/testimonies\/[a-f\d]{24}\/love$/.test(path)) {
       const item = state.posts.find(item => item._id === path.split('/').at(-2));
@@ -265,6 +265,78 @@ test('iPhone Safari note editor fits the screen, supports Arabic, and restores f
   assert.equal(await enlarged.getByRole('heading').count(), 0);
   await page.screenshot({ path: resolve(output, 'reader-mobile.png'), animations: 'disabled' });
   await page.keyboard.press('Escape');
+  assert.deepEqual(errors, []);
+});
+
+for (const mobile of [false, true]) test(`expanded notes fit all text without scrolling in ${mobile ? 'Safari mobile' : 'Chromium desktop'}`, async t => {
+  const { page, state, errors } = await setup(t, { mobile });
+  page.setDefaultTimeout(10000);
+  const assertFits = async label => {
+    try {
+      await page.waitForFunction(() => {
+        const text = document.querySelector('[aria-label="Testimony text"]');
+        return text && text.scrollHeight <= text.clientHeight && text.scrollWidth <= text.clientWidth;
+      });
+    } catch (error) {
+      const metrics = await page.getByLabel('Testimony text', { exact: true }).evaluate(text => ({
+        height: text.clientHeight, scrollHeight: text.scrollHeight, width: text.clientWidth, scrollWidth: text.scrollWidth,
+        font: getComputedStyle(text).fontSize, cardHeight: text.parentElement.offsetHeight,
+      }));
+      throw new Error(`${label}: ${JSON.stringify(metrics)}`, { cause: error });
+    }
+  };
+  const fixtures = [
+    { body: 'A quiet reminder. '.repeat(72).slice(0, 1200) },
+    { body: 'وَقَالَ فِي قَلْبِي إِنَّ الرَّبَّ قَرِيبٌ. '.repeat(40).slice(0, 1200) },
+    { body: 'A line of faith and hope.\n'.repeat(48).slice(0, 1200) },
+    { body: 'W'.repeat(1200) },
+    { body: 'An older saved story. '.repeat(150).slice(0, 3000), title: 'An older note', verse: { reference: 'Matthew 6:34', text: 'A saved verse. '.repeat(40) } },
+  ];
+  for (const [index, fixture] of fixtures.entries()) {
+    state.posts[0] = { ...state.posts[0], verse: undefined, ...fixture, title: fixture.title || fixture.body.slice(0, 80) };
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const open = page.getByRole('button', { name: `Read testimony: ${state.posts[0].title}`, exact: true });
+    await open.click();
+    const text = page.getByLabel('Testimony text', { exact: true });
+    await text.waitFor();
+    await page.evaluate(() => document.fonts.ready);
+    await assertFits(`Fixture ${index}`);
+    assert.equal(await text.locator('p').first().textContent(), fixture.body);
+    assert.equal(await text.evaluate(element => getComputedStyle(element).overflowY), 'hidden');
+    assert.ok(parseFloat(await text.locator('p').first().evaluate(element => getComputedStyle(element).fontSize)) < 18);
+    if (index === 1) await page.screenshot({ path: resolve(output, `reader-fitted-arabic-${mobile ? 'mobile' : 'desktop'}.png`), animations: 'disabled' });
+    const card = await page.getByTestId('expanded-testimony-note').boundingBox();
+    assert.ok(card.y > 0 && card.y + card.height < page.viewportSize().height);
+    if (index === 0) {
+      await page.setViewportSize({ width: 568, height: 320 });
+      await assertFits('Landscape');
+      const close = await page.getByRole('button', { name: 'Close', exact: true }).boundingBox();
+      assert.ok(close.y >= 0);
+      await page.setViewportSize(mobile ? { width: 390, height: 664 } : { width: 1440, height: 1100 });
+    }
+    await page.keyboard.press('Escape');
+  }
+  assert.deepEqual(errors, []);
+});
+
+test('note limit keeps long drafts intact and limits new writing to 1,200 characters', async t => {
+  const { page, state, errors } = await setup(t, { programer: true });
+  const oldDraft = 'A saved reflection. '.repeat(100);
+  await page.evaluate(({ A, oldDraft }) => localStorage.setItem(`taspe7_testimony_draft_v1:${A}:new`, JSON.stringify({ body: oldDraft })), { A, oldDraft });
+  await page.getByRole('button', { name: 'Share your testimony', exact: true }).click();
+  const writing = page.getByRole('textbox', { name: 'Your testimony', exact: true });
+  assert.equal(await writing.inputValue(), oldDraft);
+  await page.getByRole('alert').filter({ hasText: 'Please shorten this note' }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Share', exact: true }).isDisabled(), true);
+  await writing.fill('A'.repeat(1199));
+  await writing.press('End');
+  await writing.press('B');
+  await writing.press('C');
+  assert.equal((await writing.inputValue()).length, 1200);
+  await page.getByText('1,200/1,200 characters', { exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Share', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  assert.equal(state.sent[0].body.length, 1200);
   assert.deepEqual(errors, []);
 });
 
@@ -467,15 +539,24 @@ test('a failed friendship lookup offers retry without guessing Add friend', asyn
   assert.deepEqual(errors, []);
 });
 
-test('active notes disable sharing on Friends and the main profile; editing stays available', async t => {
-  const { page, errors } = await setup(t);
+test('active notes explain blocked sharing with a toast on Friends and the main profile; editing stays available', async t => {
+  const { page, state, errors } = await setup(t);
   const add = page.getByRole('button', { name: 'Share your testimony', exact: true });
   assert.equal(await add.isDisabled(), true);
   await page.getByText('Note active', { exact: true }).waitFor();
+  assert.equal(await add.evaluate(element => element.disabled), false);
+  await add.click({ force: true });
+  await page.getByText('Share again when your note disappears.', { exact: true }).waitFor();
+  assert.equal(await page.getByRole('dialog').count(), 0);
+  assert.equal(state.publishAttempts, 0);
   assert.equal(await page.getByText(/24h left/).count(), 0);
   await page.goto(`${base}/normal_UserProfile/`);
   await page.getByText('Note active', { exact: true }).waitFor();
   assert.equal(await add.isDisabled(), true);
+  await add.focus();
+  await add.press('Enter');
+  await page.getByText('Share again when your note disappears.', { exact: true }).waitFor();
+  assert.equal(await page.getByRole('dialog').count(), 0);
   await page.getByRole('button', { name: 'Read testimony: A prayer, quietly answered', exact: true }).click();
   await page.getByRole('button', { name: 'Edit testimony', exact: true }).click();
   await page.getByRole('textbox', { name: 'Your testimony', exact: true }).fill('I can still improve the note I already shared.');
@@ -496,6 +577,8 @@ test('publishing disables the next note and deleting does not bypass the wait', 
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   await page.getByText('Note active', { exact: true }).waitFor();
   assert.equal(await add.isDisabled(), true);
+  await add.click({ force: true });
+  await page.getByText('Share again when your note disappears.', { exact: true }).waitFor();
   await page.getByRole('button', { name: `Read testimony: ${story}`, exact: true }).click();
   await page.getByRole('button', { name: 'Remove', exact: true }).click();
   await page.getByRole('button', { name: 'Remove testimony', exact: true }).click();
@@ -540,6 +623,7 @@ test('a note published on another device blocks a stale composer and preserves i
   state.nextPublishAt = Date.now() + 86400000;
   await page.getByRole('button', { name: 'Share', exact: true }).click();
   await page.getByRole('dialog').getByRole('alert').waitFor();
+  await page.getByText('Share again when your note disappears.', { exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Share', exact: true }).isDisabled(), true);
   assert.equal(await page.getByRole('textbox', { name: 'Your testimony', exact: true }).inputValue(), story);
   await page.keyboard.press('Escape');
@@ -695,13 +779,14 @@ test('an author push refreshes counts and tapping it can open an archived note',
 test('authors see reactor names and photos on their opened profile note, with pagination and profile links', async t => {
   const { page, state, errors } = await setup(t, { mobile: true, friendPhoto: true });
   state.posts.find(item => item.author._id === A).loveCount = 21;
+  state.posts.find(item => item.author._id === A).loveVersion = 21;
   state.reactorUsers = [{ ...friend, profilePhoto: 'https://avatars.example.test/friend.png' }, ...Array.from({ length: 20 }, (_, i) => ({ _id: (i + 1).toString(16).padStart(24, '0'), Name: `Friend ${i + 1}`, username: `friend${i + 1}`, profilePhoto: null }))];
   await page.goto(`${base}/normal_UserProfile/`);
   await page.getByRole('button', { name: 'Read testimony: A prayer, quietly answered', exact: true }).click();
   const reader = page.getByRole('dialog', { name: 'Testimony', exact: true });
   const who = reader.getByRole('button', { name: 'See who loved this note', exact: true });
   assert.equal((await who.innerText()).trim(), '21');
-  assert.equal(state.reactorReads, 0, 'reactor identities load only on demand');
+  assert.ok(state.reactorReads <= 1, 'prefetch only the opened own note, once');
   await who.click();
   const list = reader.getByRole('region', { name: 'People who loved your note', exact: true });
   await list.getByRole('link', { name: 'Visit Youssef profile', exact: true }).waitFor();
@@ -710,12 +795,24 @@ test('authors see reactor names and photos on their opened profile note, with pa
   await list.getByRole('button', { name: 'Show more', exact: true }).click();
   await list.getByRole('link', { name: 'Visit Friend 20 profile', exact: true }).waitFor();
   assert.equal(await list.getByRole('link').count(), 21);
+  assert.equal(state.reactorReads, 2, 'one first page and one requested pagination page');
   assert.equal(await list.evaluate(element => element.scrollWidth <= element.clientWidth), true);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
   await page.screenshot({ path: resolve(output, 'note-reactors-mobile.png'), animations: 'disabled' });
   await list.getByRole('button', { name: 'Back to note', exact: true }).click();
   await reader.getByLabel('Testimony text', { exact: true }).waitFor();
   await who.click();
+  assert.equal(await list.getByRole('link').count(), 21, 'cached pages appear immediately on reopening');
+  assert.equal(await list.getByRole('status').count(), 0);
+  assert.equal(state.reactorReads, 2, 'reopening does not recheck the server');
+  await page.keyboard.press('Escape');
+  state.failReactors = true;
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'Read testimony: A prayer, quietly answered', exact: true }).click();
+  await who.click();
+  assert.equal(await list.getByRole('link').count(), 20, 'first page survives a reload');
+  assert.equal(await list.getByRole('status').count(), 0);
+  assert.equal(state.reactorReads, 2, 'fresh device cache also avoids requests after reload');
   await list.getByRole('link', { name: 'Visit Youssef profile', exact: true }).click();
   await page.getByRole('heading', { name: 'Youssef', exact: true }).waitFor();
   assert.equal(await page.getByRole('dialog', { name: 'Testimony', exact: true }).count(), 0);
@@ -724,13 +821,16 @@ test('authors see reactor names and photos on their opened profile note, with pa
 
 test('reaction list handles empty notes and retry; friends cannot open another author reaction list', async t => {
   const { page, state, errors } = await setup(t);
+  const own = state.posts.find(item => item.author._id === A);
+  own.loveCount = 1; own.loveVersion = 1;
+  state.failReactors = true;
   await page.goto(`${base}/normal_UserProfile/`);
   await page.getByRole('button', { name: 'Read testimony: A prayer, quietly answered', exact: true }).click();
   const reader = page.getByRole('dialog', { name: 'Testimony', exact: true });
-  state.failReactors = true;
   await reader.getByRole('button', { name: 'See who loved this note', exact: true }).click();
   await reader.getByRole('button', { name: 'Retry reactions', exact: true }).waitFor();
   state.failReactors = false;
+  own.loveCount = 0; own.loveVersion = 2;
   await reader.getByRole('button', { name: 'Retry reactions', exact: true }).click();
   await reader.getByText('No loves yet.', { exact: true }).waitFor();
   await page.keyboard.press('Escape');
@@ -740,6 +840,52 @@ test('reaction list handles empty notes and retry; friends cannot open another a
   await reader.getByRole('button', { name: 'Love this note', exact: true }).waitFor();
   assert.equal(await reader.getByRole('button', { name: 'See who loved this note', exact: true }).count(), 0);
   assert.equal(state.reactorReads, reads);
+  assert.deepEqual(errors, []);
+});
+
+test('reaction cache quietly refreshes on live changes, batches bursts and stays idle when closed', async t => {
+  const { page, state, errors } = await setup(t);
+  page.setDefaultTimeout(10000);
+  const own = state.posts.find(item => item.author._id === A);
+  own.loveCount = 1; own.loveVersion = 1; state.reactorUsers = [friend];
+  const warmed = page.waitForResponse(response => /\/loves$/.test(new URL(response.url()).pathname));
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await warmed;
+  await page.getByRole('button', { name: 'Read testimony: A prayer, quietly answered', exact: true }).click();
+  const reader = page.getByRole('dialog', { name: 'Testimony', exact: true });
+  const who = reader.getByRole('button', { name: 'See who loved this note', exact: true });
+  await who.click();
+  const list = reader.getByRole('region', { name: 'People who loved your note', exact: true });
+  await list.getByRole('link', { name: 'Visit Youssef profile', exact: true }).waitFor();
+  const reads = state.reactorReads;
+  const socialReads = state.socialReads.length;
+  const nextFriend = { _id: 'cccccccccccccccccccccccc', Name: 'Mina', username: 'mina', profilePhoto: null };
+  state.reactorUsers.push(nextFriend); own.loveCount = 2; own.loveVersion = 3;
+  let finishRefresh;
+  const refreshGate = new Promise(resolve => { finishRefresh = resolve; });
+  t.after(() => finishRefresh());
+  await page.route('**/testimonies/*/loves', async route => { await refreshGate; await route.fallback(); });
+  const fetched = page.waitForRequest(request => /\/loves$/.test(new URL(request.url()).pathname));
+  state.publishNote({ id: own._id, authorId: A, action: 'reaction', loveVersion: 2, loveCount: 1 });
+  state.publishNote({ id: own._id, authorId: A, action: 'reaction', loveVersion: 3, loveCount: 2 });
+  await fetched;
+  assert.equal(await list.getByRole('link', { name: 'Visit Youssef profile', exact: true }).isVisible(), true);
+  assert.equal(await list.getByRole('status').count(), 0, 'keep saved names visible without a loading screen');
+  finishRefresh();
+  await list.getByRole('link', { name: 'Visit Mina profile', exact: true }).waitFor();
+  assert.equal(state.reactorReads, reads + 1, 'burst uses one identities request');
+  assert.equal(state.socialReads.length, socialReads, 'count event needs no profile or feed sync');
+  await list.getByRole('button', { name: 'Back to note', exact: true }).click();
+  state.reactorUsers = [nextFriend]; own.loveCount = 1; own.loveVersion = 4;
+  state.publishNote({ id: own._id, authorId: A, action: 'reaction', loveVersion: 4, loveCount: 1 });
+  await page.waitForFunction(() => document.querySelector('[aria-label="See who loved this note"]')?.textContent === '1');
+  // Let any debounced work run: a closed list should make no identities request.
+  await page.waitForTimeout(350);
+  assert.equal(state.reactorReads, reads + 1);
+  await who.click();
+  await page.waitForFunction(() => document.querySelectorAll('[aria-label="People who loved your note"] a').length === 1);
+  await list.getByRole('link', { name: 'Visit Mina profile', exact: true }).waitFor();
+  assert.equal(state.reactorReads, reads + 2);
   assert.deepEqual(errors, []);
 });
 

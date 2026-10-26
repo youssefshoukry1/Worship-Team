@@ -122,3 +122,12 @@ test('pagination uses the shared store and concurrent sync requests are deduplic
   assert.equal(f.store.getSnapshot().nextCursor, null);
   assert.equal(f.requests.length, 2); f.store.dispose();
 });
+
+test('owner reaction events update counts without a server read and ignore older versions', async () => {
+  const f = fixture(); const sync = f.store.sync(); f.finish(0, [{ ...note(ID, A), loveVersion: 0, loveCount: 0 }]); await sync;
+  await f.store.changed({ id: ID, authorId: A, action: 'reaction', loveCount: 2, loveVersion: 2 });
+  await f.store.changed({ id: ID, authorId: A, action: 'reaction', loveCount: 1, loveVersion: 1 });
+  assert.equal(f.store.getSnapshot().items[0].loveCount, 2);
+  assert.equal(f.requests.length, 1, 'the existing event contains all needed count metadata');
+  f.store.dispose();
+});
