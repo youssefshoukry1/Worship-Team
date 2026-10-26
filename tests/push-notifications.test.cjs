@@ -38,7 +38,8 @@ function service(fetch) {
     .replaceAll('export function', 'function');
   const friendSource = fs.readFileSync(path.join(__dirname, '../src/app/utils/friendNotificationNavigation.js'), 'utf8')
     .replaceAll('export function', 'function');
-  vm.runInNewContext(navigationSource + '\n' + friendSource + '\n' + source + ';globalThis.api = { syncFcmTokenWithBackend, initPushNotifications };', context);
+  const testimonySource = fs.readFileSync(path.join(__dirname, '../src/app/utils/testimonyNotificationNavigation.js'), 'utf8').replaceAll('export function', 'function');
+  vm.runInNewContext(navigationSource + '\n' + friendSource + '\n' + testimonySource + '\n' + source + ';globalThis.api = { syncFcmTokenWithBackend, initPushNotifications };', context);
   return { ...context, listeners, calls, timers, events };
 }
 test('HTTP failures return false and schedule a retry rather than reporting success', async () => {
@@ -192,4 +193,23 @@ test('old APKs retain standard friend alerts while a rebuilt Android renderer ad
   await s.api.syncFcmTokenWithBackend(); assert.equal(body.androidFriendAvatar, false);
   s.nativeRegistration.getCapabilities = async () => ({ friendAvatar: true });
   await s.api.syncFcmTokenWithBackend(); assert.equal(body.androidFriendAvatar, true);
+});
+
+test('note avatar support is advertised independently, and data-only reactions retain their actor name and tap target', async () => {
+  let body;
+  const s = service(async (url, options) => { body = JSON.parse(options.body); return { ok: true }; });
+  s.Capacitor.isPluginAvailable = () => true;
+  s.nativeRegistration.getCapabilities = async () => ({ friendAvatar: true });
+  await s.api.syncFcmTokenWithBackend(); assert.equal(body.androidTestimonyAvatar, false);
+  s.nativeRegistration.getCapabilities = async () => ({ friendAvatar: true, testimonyAvatar: true });
+  await s.api.syncFcmTokenWithBackend(); assert.equal(body.androidTestimonyAvatar, true);
+  await s.api.initPushNotifications();
+  let received;
+  s.window.dispatchEvent = event => { received = event; return true; };
+  const data = { type: 'TESTIMONY_LOVED', testimonyId: 'aaaaaaaaaaaaaaaaaaaaaaaa', actorId: 'friend', title: 'Youssef' };
+  s.listeners.pushNotificationReceived({ data });
+  assert.equal(received.type, 'taspe7:testimony-push');
+  assert.equal(received.detail.title, 'Youssef loved your note');
+  s.listeners.pushNotificationActionPerformed({ actionId: 'tap', notification: { data } });
+  assert.equal(s.calls.at(-1), '/normal_UserProfile/?note=aaaaaaaaaaaaaaaaaaaaaaaa');
 });

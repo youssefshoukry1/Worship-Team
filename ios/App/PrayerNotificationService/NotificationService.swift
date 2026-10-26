@@ -29,7 +29,7 @@ final class NotificationService: UNNotificationServiceExtension, URLSessionDataD
         bestAttempt = content
         let info = content.userInfo
         guard let type = info["type"] as? String,
-              ["PRAY_SHARED", "PRAY_CONFIRMED", "FRIEND_REQUEST_RECEIVED", "FRIEND_REQUEST_ACCEPTED"].contains(type) else {
+              ["PRAY_SHARED", "PRAY_CONFIRMED", "FRIEND_REQUEST_RECEIVED", "FRIEND_REQUEST_ACCEPTED", "TESTIMONY_LOVED"].contains(type) else {
             finish(content); return
         }
         anonymous = type == "PRAY_SHARED" && (info["isAnonymous"] as? String == "true" || info["isAnonymous"] as? Bool == true)
@@ -38,9 +38,13 @@ final class NotificationService: UNNotificationServiceExtension, URLSessionDataD
         content.title = senderName
         content.userInfo["title"] = senderName
         let friendActivity = type == "FRIEND_REQUEST_RECEIVED" || type == "FRIEND_REQUEST_ACCEPTED"
-        content.userInfo["url"] = friendActivity ? "/friends" : "/pray"
+        let testimonyActivity = type == "TESTIMONY_LOVED"
+        let noteID = info["testimonyId"] as? String ?? ""
+        let validNote = noteID.range(of: "^[a-fA-F0-9]{24}$", options: .regularExpression) != nil
+        content.userInfo["url"] = friendActivity ? "/friends" : testimonyActivity ? (validNote ? "/normal_UserProfile/?note=\(noteID)" : "/normal_UserProfile/") : "/pray"
         if anonymous { content.userInfo["avatarUrl"] = "" }
-        let targetID = info[friendActivity ? "actorId" : "shareId"] as? String ?? request.identifier
+        let actorID = info["actorId"] as? String ?? request.identifier
+        let targetID = testimonyActivity ? "\(noteID)-\(actorID)" : (info[friendActivity ? "actorId" : "shareId"] as? String ?? request.identifier)
         conversationID = "activity-\(type)-\(targetID)"
         // Share the existing activity stack with prayers and replies, while
         // retaining each notification's type and target in userInfo.

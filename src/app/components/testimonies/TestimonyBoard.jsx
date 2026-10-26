@@ -24,6 +24,7 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
   const version = useRef(0);
   const opener = useRef(null);
   const seededProfile = useRef(initialProfile);
+  const notificationRequest = useRef(null);
   const path = isFeed ? '' : `/profile/${encodeURIComponent(profileUserId)}`;
   const load = useCallback(async (cursor = null) => {
     pending.current?.abort();
@@ -76,6 +77,38 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
   }, [load]);
 
   useEffect(() => {
+    const received = event => {
+      if (String(event.detail?.authorId) !== String(userId) || document.visibilityState !== 'visible') return;
+      if (event.detail.title) setNotice(event.detail.title);
+      load();
+    };
+    window.addEventListener('taspe7:testimony-push', received);
+    return () => window.removeEventListener('taspe7:testimony-push', received);
+  }, [load, userId]);
+
+  useEffect(() => {
+    if (!ownProfile) return;
+    const openNote = async id => {
+      if (!/^[a-f\d]{24}$/i.test(id || '')) return;
+      notificationRequest.current?.abort();
+      const controller = new AbortController();
+      notificationRequest.current = controller;
+      try {
+        const result = await testimonyRequest(token, `/own/${id}`, { signal: controller.signal });
+        if (!controller.signal.aborted) { opener.current = null; setModal({ type: 'read', id, linkedItem: result.item }); }
+      } catch (error) { if (!controller.signal.aborted) setNotice(error.message); }
+    };
+    openNote(new URLSearchParams(window.location.search).get('note'));
+    const fromPush = event => {
+      const id = new URL(event.detail?.href || '/', window.location.origin).searchParams.get('note');
+      if (!/^[a-f\d]{24}$/i.test(id || '')) return;
+      event.preventDefault(); openNote(id);
+    };
+    window.addEventListener('taspe7:open-testimony', fromPush);
+    return () => { notificationRequest.current?.abort(); window.removeEventListener('taspe7:open-testimony', fromPush); };
+  }, [ownProfile, token]);
+
+  useEffect(() => {
     // Wake once at the next expiry; expiry never needs a network request.
     const upcoming = [...(isFeed ? data.items.map(item => new Date(item.feedExpiresAt).getTime()) : []), new Date(data.publishing?.nextPublishAt).getTime()].filter(expiry => expiry > now);
     if (!upcoming.length) return;
@@ -87,8 +120,12 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
   const canPublish = !loading && !!publishing && (publishing.unlimited || publishing.canPublish || (publishing.nextPublishAt && new Date(publishing.nextPublishAt).getTime() <= now));
   const restricted = profileAccess === false || data.canViewTestimonies === false;
   const visibleItems = restricted ? [] : isFeed ? data.items.filter(item => new Date(item.feedExpiresAt).getTime() > now) : data.items;
-  const reading = !restricted && modal?.type === 'read' ? data.items.find(item => item._id === modal.id) : null;
+  const reading = !restricted && modal?.type === 'read' ? data.items.find(item => item._id === modal.id) || modal.linkedItem : null;
   const author = data.user || { _id: userId, Name: username || 'You', username };
+  const reactToNote = useCallback((id, reaction) => {
+    setData(previous => ({ ...previous, items: previous.items.map(item => item._id === id ? { ...item, ...reaction } : item) }));
+    setModal(previous => previous?.linkedItem?._id === id ? { ...previous, linkedItem: { ...previous.linkedItem, ...reaction } } : previous);
+  }, []);
   const close = useCallback((saved = false) => {
     setModal(null);
     if (saved) setNotice('Shared with your friends.');
@@ -126,7 +163,7 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
       {error && <div className={styles.boardError} role="alert"><span>{error}</span><button type="button" className={styles.retryButton} aria-label="Try again" onClick={() => load()}><RefreshCw size={13} /></button></div>}
     </section>
     {modal?.type === 'compose' && <TestimonyComposer key={modal.editing?._id || 'new'} token={token} userId={userId} author={author} editing={modal.editing} onClose={close} />}
-    {reading && <TestimonyReader key={reading._id} item={reading} userId={userId} token={token} onClose={close} onEdit={item => setModal({ type: 'compose', editing: item })} />}
+    {reading && <TestimonyReader key={reading._id} item={reading} userId={userId} token={token} onReaction={reactToNote} onClose={close} onEdit={item => setModal({ type: 'compose', editing: item })} />}
   </>;
 }
 

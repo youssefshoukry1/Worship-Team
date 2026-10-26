@@ -10,6 +10,6 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 @CapacitorPlugin(name = "PrayerNotifications")
 public class PrayerNotificationsPlugin extends Plugin {
     @PluginMethod public void getCapabilities(PluginCall call) {
-        call.resolve(new JSObject().put("friendAvatar", true));
+        call.resolve(new JSObject().put("friendAvatar", true).put("testimonyAvatar", true));
     }
 }

@@ -5,6 +5,7 @@ import { navigateDocumentFallback } from '../utils/appNavigation';
 import { prayerNotificationHref } from '../utils/prayerNotificationNavigation';
 import { friendNotificationHref } from '../utils/friendNotificationNavigation';
 import { markFriendsCacheDirty } from '../utils/friendsCache';
+import { testimonyNotificationHref } from '../utils/testimonyNotificationNavigation';
 
 let isInitialized = false;
 let isInitializing = false;
@@ -38,10 +39,12 @@ export async function syncFcmTokenWithBackend(fcmToken) {
         const androidAvatar = core.Capacitor.getPlatform() === 'android'
             && Boolean(core.Capacitor.isPluginAvailable?.('PrayerNotifications'));
         let androidFriendAvatar = false;
+        let androidTestimonyAvatar = false;
         if (androidAvatar) {
             try {
                 const capabilities = await core.registerPlugin('PrayerNotifications').getCapabilities();
                 androidFriendAvatar = capabilities.friendAvatar === true;
+                androidTestimonyAvatar = capabilities.testimonyAvatar === true;
             } catch { /* Older APKs receive standard FCM friend alerts. */ }
         }
         const response = await fetch(`${API_URL}/users/fcm-token`, {
@@ -50,7 +53,7 @@ export async function syncFcmTokenWithBackend(fcmToken) {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token}`
             },
-            body: JSON.stringify({ fcmToken: tokenToSync, androidAvatar, androidFriendAvatar })
+            body: JSON.stringify({ fcmToken: tokenToSync, androidAvatar, androidFriendAvatar, androidTestimonyAvatar })
         });
         if (!response.ok) throw new Error(`Token registration failed: HTTP ${response.status}`);
         clearTimeout(retryTimer);
@@ -89,6 +92,12 @@ export async function initPushNotifications() {
             notificationActionListener = await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
                 if (action.actionId === 'dismiss' || typeof window === 'undefined') return;
                 const data = action.notification?.data;
+                const testimonyHref = testimonyNotificationHref(data);
+                if (testimonyHref) {
+                    const open = new CustomEvent('taspe7:open-testimony', { detail: { href: testimonyHref }, cancelable: true });
+                    if (window.dispatchEvent(open)) navigateDocumentFallback(testimonyHref);
+                    return;
+                }
                 const friendHref = friendNotificationHref(data);
                 if (friendHref) {
                     markFriendsCacheDirty(localStorage.getItem('user_Taspe7_ID'));
@@ -117,7 +126,7 @@ export async function initPushNotifications() {
             await PushNotifications.createChannel({
                 id: 'prays_channel',
                 name: 'Wasla activity',
-                description: 'Prayers, replies and friend requests',
+                description: 'Prayers, replies, friend requests and note reactions',
                 importance: 5,
                 visibility: 1,
                 sound: 'default',
@@ -151,6 +160,10 @@ export async function initPushNotifications() {
 
         // Handle foreground notifications
         listenerHandles.push(await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+            if (testimonyNotificationHref(notification.data)) {
+                const title = notification.data.title ? `${notification.data.title} loved your note` : notification.title || 'A friend loved your note';
+                window.dispatchEvent(new CustomEvent('taspe7:testimony-push', { detail: { ...notification.data, title } }));
+            }
             if (friendNotificationHref(notification.data)) {
                 markFriendsCacheDirty(localStorage.getItem('user_Taspe7_ID'));
                 window.dispatchEvent(new Event('taspe7:friends-push'));

@@ -10,14 +10,21 @@ final class PrayerNotificationIdentity {
     }
 
     static boolean supports(String type) {
-        return isFriendActivity(type) || "PRAY_SHARED".equals(type) || "PRAY_CONFIRMED".equals(type);
+        return isFriendActivity(type) || "TESTIMONY_LOVED".equals(type) || "PRAY_SHARED".equals(type) || "PRAY_CONFIRMED".equals(type);
     }
 
     static String destination(Map<String, String> data) {
+        if ("TESTIMONY_LOVED".equals(data.get("type"))) {
+            String note = data.getOrDefault("testimonyId", "");
+            return note.matches("[a-fA-F0-9]{24}") ? "/normal_UserProfile/?note=" + note : "/normal_UserProfile/";
+        }
         return isFriendActivity(data.get("type")) ? "/friends" : "/pray";
     }
 
     static String notificationTag(Map<String, String> data, String fallback) {
+        if ("TESTIMONY_LOVED".equals(data.get("type"))) {
+            return "testimony:" + data.getOrDefault("testimonyId", fallback) + ":" + data.getOrDefault("actorId", fallback);
+        }
         boolean friend = isFriendActivity(data.get("type"));
         return (friend ? "friend:" : "prayer:") + data.get("type") + ":"
             + data.getOrDefault(friend ? "actorId" : "shareId", fallback);
