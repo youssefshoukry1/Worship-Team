@@ -32,14 +32,14 @@ async function setup(t, { startPath = '/friends/', mobile = false, failFirstPubl
   }, { A, programer });
   const now = Date.now();
   const post = (id, title, body, style, author, age = 10000) => ({ _id: id, title, body, style, author,
-    loved: false, loveCount: 0, loveVersion: 0,
+    loved: false, loveCount: 0, loveVersion: 0, contentVersion: 0,
     createdAt: new Date(now - age).toISOString(), updatedAt: new Date(now - age).toISOString(), feedExpiresAt: new Date(now - age + 86400000).toISOString() });
   const state = { posts: empty ? [] : [
     post('111111111111111111111111', 'Peace in the middle of it all', 'This week was full of uncertainty. In a quiet moment of prayer, God reminded me that I don’t have to carry tomorrow today. I’m learning to trust Him one small step at a time.', 'olive', friend, expiresSoon ? 86400000 - 20000 : 10000),
     { ...post('222222222222222222222222', 'A prayer, quietly answered', 'An unexpected conversation brought the encouragement I had been praying for. Sometimes grace arrives through the people beside us.', 'dawn', owner), verse: { reference: 'Matthew 6:34', text: 'Therefore do not worry about tomorrow, for tomorrow will worry about itself.' } },
     post('333333333333333333333333', 'Finding stillness again', 'I put my phone away and spent a little time reading. It was a simple reminder that God is near, even when life feels noisy.', 'still', friend),
     post('444444444444444444444444', 'A story from last week', 'An older testimony remains on my profile for friends to read long after its day on the board.', 'olive', friend, 7 * 86400000),
-  ], sent: [], socialReads: [], loveRequests: [], loveNotifications: [], reactorUsers: [], reactorReads: 0, failReactors: false, publishAttempts: 0, denyProfile: false, relationship, failFriendship, friendshipRequests: [], privateProfileReads: 0, alreadyFriendsOnAdd: false, failRelationshipRead: false };
+  ], notesVersions: { [A]: 0, [B]: 0 }, profileBodyReads: 0, profileChecks: 0, profileBatchReads: [], noteReads: [], sent: [], socialReads: [], loveRequests: [], loveNotifications: [], reactorUsers: [], reactorReads: 0, failReactors: false, publishAttempts: 0, denyProfile: false, relationship, failFriendship, friendshipRequests: [], privateProfileReads: 0, alreadyFriendsOnAdd: false, failRelationshipRead: false };
   state.nextPublishAt = cooldownSoon ? now + 20000 : 0;
   const publishing = () => {
     if (programer) return { canPublish: true, unlimited: true, nextPublishAt: null };
@@ -76,6 +76,7 @@ async function setup(t, { startPath = '/friends/', mobile = false, failFirstPubl
       return reply({ items, activeNotes: items.map(item => ({ _id: item._id, authorId: item.author._id, feedExpiresAt: item.feedExpiresAt })), nextCursor: null, publishing: publishing() });
     }
     if (path.includes('/testimonies/note/')) {
+      state.noteReads.push(path);
       const item = state.posts.find(item => item._id === path.split('/').pop());
       if (!item) return reply({ message: 'This note is no longer available.' }, 404);
       if (item.author._id !== A && state.relationship !== 'friends') return reply({ message: 'This note is available only to current friends.' }, 403);
@@ -109,13 +110,32 @@ async function setup(t, { startPath = '/friends/', mobile = false, failFirstPubl
     }
     if (path.includes('/testimonies/profile/')) {
       if (state.denyProfile) return reply({ message: 'This profile is available only to current friends.' }, 403);
-      const id = path.split('/').pop();
+      const batch = path.endsWith('/notes');
+      const id = batch ? path.split('/').at(-2) : path.split('/').pop();
       const isOwner = id === A, canViewTestimonies = isOwner || state.relationship === 'friends';
-      const items = state.posts.filter(item => item.author._id === id);
-      if (omitProfileMetadata) return reply({ user: isOwner ? owner : viewedFriend, isOwner, items: canViewTestimonies ? items : [], nextCursor: null, ...(isOwner ? { publishing: publishing() } : {}) });
+      const items = state.posts.filter(item => item.author._id === id).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt) || b._id.localeCompare(a._id));
+      const notesVersion = state.notesVersions[id] || 0;
+      if (batch) {
+        const ids = url.searchParams.get('ids').split(','); state.profileBatchReads.push(ids);
+        if (!canViewTestimonies) return reply({ message: 'Become friends to read these notes.' }, 403);
+        return reply({ notesVersion, items: items.filter(item => ids.includes(item._id)) });
+      }
+      const checking = url.searchParams.has('notesVersion');
+      const unchanged = checking && Number(url.searchParams.get('notesVersion')) === notesVersion;
+      if (checking) state.profileChecks++; else state.profileBodyReads++;
+      const manifest = canViewTestimonies ? items.map(({ _id, createdAt, updatedAt, contentVersion, loveCount, loveVersion }) => ({ _id, createdAt, updatedAt, contentVersion, loveCount, loveVersion })) : [];
+      const loaded = (url.searchParams.get('cachedIds') || '').split(',');
+      const cursor = url.searchParams.get('cursor');
+      const [time, cursorId] = cursor ? cursor.split('_') : [];
+      const pageItems = cursor ? items.filter(item => new Date(item.createdAt).getTime() < Number(time) || (new Date(item.createdAt).getTime() === Number(time) && item._id < cursorId)) : items;
+      const last = pageItems[11];
+      const pageData = { items: canViewTestimonies ? pageItems.slice(0, 12) : [], nextCursor: pageItems.length > 12 ? `${new Date(last.createdAt).getTime()}_${last._id}` : null };
+      const collection = checking ? { unchanged, ...(unchanged ? {} : isOwner ? { manifest } : pageData), reactions: items.filter(item => loaded.includes(item._id)).map(({ _id, loveCount, loveVersion, loved }) => ({ _id, loveCount, loveVersion, loved })) }
+        : { ...pageData, ...(isOwner ? { manifest } : {}) };
+      if (omitProfileMetadata) return reply({ user: isOwner ? owner : viewedFriend, isOwner, notesVersion, ...collection, ...(isOwner ? { publishing: publishing() } : {}) });
       return reply({ user: isOwner ? owner : viewedFriend, isOwner, relationship: isOwner ? 'self' : profileRelationship || state.relationship,
         canViewTestimonies, stats: { friends: state.relationship === 'friends' ? 3 : 2, mutualFriends: 1, testimonies: canViewTestimonies ? items.length : null },
-        items: canViewTestimonies ? items : [], nextCursor: null, ...(isOwner ? { publishing: publishing() } : {}) });
+        notesVersion, ...collection, ...(isOwner ? { publishing: publishing() } : {}) });
     }
     if (path.endsWith('/testimonies') && method === 'POST') {
       state.publishAttempts++;
@@ -124,17 +144,19 @@ async function setup(t, { startPath = '/friends/', mobile = false, failFirstPubl
       if (failFirstPublish && state.publishAttempts === 1) return reply({ message: 'Could not publish. Your draft is safe; please try again.' }, 500);
       const item = post('555555555555555555555555', body.title, body.body, body.style, owner, 0);
       if (body.verse) item.verse = body.verse;
+      item.contentVersion = ++state.notesVersions[A];
       state.posts = [item, ...state.posts.filter(old => old._id !== item._id)];
       state.nextPublishAt = Date.now() + 86400000;
-      return reply({ item, publishing: publishing() }, 201);
+      return reply({ item, publishing: publishing(), notesVersion: state.notesVersions[A] }, 201);
     }
     if (/\/testimonies\/[a-f\d]{24}$/.test(path)) {
       const id = path.split('/').pop();
-      if (method === 'DELETE') { state.nextPublishAt = Math.max(state.nextPublishAt, new Date(state.posts.find(item => item._id === id)?.feedExpiresAt || 0).getTime()); state.posts = state.posts.filter(item => item._id !== id); return reply({ success: true }); }
+      if (method === 'DELETE') { state.nextPublishAt = Math.max(state.nextPublishAt, new Date(state.posts.find(item => item._id === id)?.feedExpiresAt || 0).getTime()); state.posts = state.posts.filter(item => item._id !== id); return reply({ success: true, notesVersion: ++state.notesVersions[A] }); }
       if (method === 'PATCH') {
         const body = request.postDataJSON();
-        state.posts = state.posts.map(item => item._id === id ? { ...item, ...body, verse: body.verse || undefined } : item);
-        return reply({ item: state.posts.find(item => item._id === id) });
+        const notesVersion = ++state.notesVersions[A];
+        state.posts = state.posts.map(item => item._id === id ? { ...item, ...body, contentVersion: notesVersion, updatedAt: new Date().toISOString(), verse: body.verse || undefined } : item);
+        return reply({ item: state.posts.find(item => item._id === id), notesVersion });
       }
     }
     if (path.endsWith('/my-profile')) {
@@ -886,6 +908,149 @@ test('reaction cache quietly refreshes on live changes, batches bursts and stays
   await page.waitForFunction(() => document.querySelectorAll('[aria-label="People who loved your note"] a').length === 1);
   await list.getByRole('link', { name: 'Visit Mina profile', exact: true }).waitFor();
   assert.equal(state.reactorReads, reads + 2);
+  assert.deepEqual(errors, []);
+});
+
+async function waitForSavedProfile(page, id, title) {
+  await page.waitForFunction(async ({ key, title }) => {
+    const db = await new Promise((resolve, reject) => { const open = indexedDB.open('taspe7_app'); open.onsuccess = () => resolve(open.result); open.onerror = () => reject(open.error); });
+    try {
+      if (!db.objectStoreNames.contains('profile_testimony_cache')) return false;
+      const saved = await new Promise((resolve, reject) => { const read = db.transaction('profile_testimony_cache').objectStore('profile_testimony_cache').get(key); read.onsuccess = () => resolve(read.result); read.onerror = () => reject(read.error); });
+      return saved?.ready && (title ? saved.items.some(item => item.title === title) : !saved.items.length);
+    } finally { db.close(); }
+  }, { key: `${A}:${id}`, title }, { timeout: 10000 });
+}
+
+for (const mobile of [false, true]) test(`profile notes restore from localForage before sync and download only changed content (${mobile ? 'Safari' : 'Chromium'})`, async t => {
+  const { page, state, errors } = await setup(t, { mobile, startPath: '/normal_UserProfile/' });
+  page.setDefaultTimeout(10000);
+  const own = state.posts.find(item => item.author._id === A);
+  await page.getByRole('heading', { name: own.title, exact: true }).waitFor();
+  await waitForSavedProfile(page, A, own.title);
+  await page.waitForLoadState('networkidle');
+  assert.equal(state.profileBodyReads, 1);
+  const checks = state.profileChecks;
+  const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
+  await navigation.getByRole('link', { name: 'Friends', exact: true }).click();
+  await page.waitForURL('**/friends/');
+  await navigation.getByRole('link', { name: 'Profile', exact: true }).click();
+  await page.waitForURL('**/normal_UserProfile/');
+  await page.getByRole('heading', { name: own.title, exact: true }).waitFor();
+  assert.equal(state.profileBodyReads, 1);
+  assert.equal(state.profileChecks, checks, 'same-session visits use the shared cache without checking again');
+  await page.waitForLoadState('networkidle');
+  let release;
+  const gate = new Promise(resolve => { release = resolve; }); t.after(() => release());
+  await page.route('**/testimonies/profile/**', async route => {
+    if (new URL(route.request().url()).searchParams.has('notesVersion')) await gate;
+    await route.fallback();
+  });
+  const checking = page.waitForRequest(request => request.url().includes(`/profile/${A}?notesVersion=`));
+  await page.reload({ waitUntil: 'domcontentloaded' }); await checking;
+  await page.getByRole('heading', { name: own.title, exact: true }).waitFor();
+  assert.equal(await page.getByRole('status', { name: 'Loading testimonies' }).count(), 0, 'disk cache renders before the held API check finishes');
+  release();
+  const versionChecked = await page.waitForResponse(response => response.url().includes(`/profile/${A}?notesVersion=`));
+  await versionChecked.finished();
+  assert.equal(state.profileBodyReads, 1);
+  assert.equal(state.profileBatchReads.length, 0);
+  await page.waitForLoadState('networkidle');
+  // A missed event while the app was killed: only this edited note is downloaded.
+  own.title = 'An edited archived reflection'; own.body = 'An updated story that should replace the saved note.';
+  own.contentVersion = ++state.notesVersions[A]; own.updatedAt = new Date().toISOString();
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('heading', { name: own.title, exact: true }).waitFor();
+  assert.deepEqual(state.profileBatchReads, [[own._id]]);
+  assert.equal(state.profileBodyReads, 1);
+  await waitForSavedProfile(page, A, own.title);
+  await page.waitForLoadState('networkidle');
+  state.posts = state.posts.filter(item => item.author._id !== A); state.notesVersions[A]++;
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('heading', { name: own.title, exact: true }).waitFor({ state: 'hidden' });
+  await waitForSavedProfile(page, A);
+  await page.waitForLoadState('networkidle');
+  assert.equal(state.profileBatchReads.length, 1, 'deletions require no body download');
+  await page.evaluate(async () => {
+    const db = await new Promise(resolve => { const open = indexedDB.open('taspe7_app'); open.onsuccess = () => resolve(open.result); });
+    try { await new Promise((resolve, reject) => { const tx = db.transaction('profile_testimony_cache', 'readwrite'); tx.objectStore('profile_testimony_cache').clear(); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); }); }
+    finally { db.close(); }
+  });
+  const cold = page.waitForResponse(response => new URL(response.url()).pathname.endsWith(`/profile/${A}`) && !new URL(response.url()).searchParams.has('notesVersion'));
+  await page.reload({ waitUntil: 'domcontentloaded' }); await cold;
+  await waitForSavedProfile(page, A);
+  assert.equal(state.profileBodyReads, 2, 'clearing device storage downloads the collection again, even when it is empty');
+  assert.deepEqual(errors, []);
+});
+
+test('profile cached notes handle live edits and deletion without downloading the profile again', async t => {
+  const { page, state, errors } = await setup(t);
+  page.setDefaultTimeout(10000);
+  await page.goto(`${base}/normal_UserProfile/?user=${B}`);
+  const item = state.posts.find(item => item.author._id === B);
+  await page.getByRole('heading', { name: item.title, exact: true }).waitFor();
+  const reads = state.profileBodyReads, checks = state.profileChecks, noteReads = state.noteReads.length;
+  item.title = 'A live edit to a saved highlight'; item.body = 'The edited body arrives through the existing note request.';
+  item.contentVersion = ++state.notesVersions[B]; item.updatedAt = new Date().toISOString();
+  state.publishNote({ id: item._id, authorId: B, action: 'updated', notesVersion: state.notesVersions[B] });
+  await page.getByRole('heading', { name: item.title, exact: true }).waitFor();
+  assert.equal(state.noteReads.length, noteReads + 1, 'feed and profile share the same note read');
+  assert.equal(state.profileBodyReads, reads); assert.equal(state.profileChecks, checks);
+  state.posts = state.posts.filter(note => note._id !== item._id);
+  state.publishNote({ id: item._id, authorId: B, action: 'deleted', notesVersion: ++state.notesVersions[B] });
+  await page.getByRole('heading', { name: item.title, exact: true }).waitFor({ state: 'hidden' });
+  assert.equal(state.noteReads.length, noteReads + 1);
+  assert.equal(state.profileBodyReads, reads); assert.equal(state.profileChecks, checks);
+  assert.deepEqual(errors, []);
+});
+
+for (const mobile of [false, true]) test(`friend profile uses temporary 12-note cursor pages (${mobile ? 'Safari' : 'Chromium'})`, async t => {
+  const { page, state, errors } = await setup(t, { mobile });
+  page.setDefaultTimeout(10000);
+  const template = state.posts.find(item => item.author._id === B);
+  state.posts = [...state.posts.filter(item => item.author._id !== B), ...Array.from({ length: 25 }, (_, i) => ({ ...template,
+    _id: (0x900 + i).toString(16).padStart(24, '0'), title: `Friend archive ${i + 1}`, body: `An older saved testimony ${i + 1}.`,
+    createdAt: new Date(Date.now() - (i + 1) * 86400000).toISOString(), feedExpiresAt: new Date(Date.now() - i * 86400000).toISOString(),
+  }))];
+  const firstResponse = page.waitForResponse(response => new URL(response.url()).pathname.endsWith(`/profile/${B}`));
+  await page.goto(`${base}/normal_UserProfile/?user=${B}`);
+  const first = await (await firstResponse).json();
+  assert.equal(first.manifest, undefined);
+  const cards = page.getByTestId('testimony-cards').getByRole('article');
+  await page.getByRole('heading', { name: 'Friend archive 1', exact: true }).waitFor();
+  assert.equal(await cards.count(), 12);
+  assert.equal(state.profileBodyReads, 1);
+  assert.equal(state.profileBatchReads.length, 0);
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('heading', { name: 'Friend archive 24', exact: true }).waitFor();
+  assert.equal(await cards.count(), 24);
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('heading', { name: 'Friend archive 25', exact: true }).waitFor();
+  assert.equal(await cards.count(), 25);
+  assert.equal(await page.getByRole('button', { name: 'More', exact: true }).count(), 0);
+  assert.equal(state.profileBodyReads, 3);
+  assert.equal(state.profileBatchReads.length, 0, 'friends use cursor pages, not the owner’s index/batch flow');
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Profile', exact: true }).click();
+  await page.waitForURL('**/normal_UserProfile/');
+  await page.getByRole('heading', { name: 'Your testimony highlights', exact: true }).waitFor();
+  await waitForSavedProfile(page, A, 'A prayer, quietly answered');
+  const reads = state.profileBodyReads;
+  await page.goBack();
+  await page.waitForURL(`**/normal_UserProfile/?user=${B}`);
+  await page.getByRole('heading', { name: 'Friend archive 25', exact: true }).waitFor();
+  assert.equal(await cards.count(), 25);
+  assert.equal(state.profileBodyReads, reads, 'same-session back navigation reuses every loaded page');
+  const friendOnDisk = await page.evaluate(async ({ A, B }) => {
+    const db = await new Promise(resolve => { const open = indexedDB.open('taspe7_app'); open.onsuccess = () => resolve(open.result); });
+    try { return await new Promise(resolve => { const get = db.transaction('profile_testimony_cache').objectStore('profile_testimony_cache').get(`${A}:${B}`); get.onsuccess = () => resolve(Boolean(get.result)); }); }
+    finally { db.close(); }
+  }, { A, B });
+  assert.equal(friendOnDisk, false);
+  await page.waitForLoadState('networkidle');
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('heading', { name: 'Friend archive 1', exact: true }).waitFor();
+  assert.equal(await cards.count(), 12, 'restart begins with the first page, with no saved friend notes');
+  assert.equal(state.profileBodyReads, reads + 1);
   assert.deepEqual(errors, []);
 });
 

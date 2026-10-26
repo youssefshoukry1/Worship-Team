@@ -103,6 +103,7 @@ export function createTestimonyFeedStore({ userId, request, storage, now = Date.
         const items = state.items.filter(old => old._id !== item._id);
         items.push(item); items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         emit({ items, activeNotes: [...state.activeNotes.filter(old => old._id !== item._id), metadata(item)], ...(result.publishing ? { publishing: result.publishing } : {}), loading: false });
+        return result;
       } catch (error) {
         if (!disposed && revisions.get(event.id) === revision && error.name !== 'AbortError') { remove(event.id); if (version === generation) emit({ error: error.message }); }
       }

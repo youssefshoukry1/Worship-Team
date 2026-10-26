@@ -13,8 +13,8 @@ export async function testimonyRequest(token, path = '', options = {}) {
   return data;
 }
 
-export function announceTestimonyChange() {
-  window.dispatchEvent(new Event('taspe7:testimonies-changed'));
+export function announceTestimonyChange(detail) {
+  window.dispatchEvent(new CustomEvent('taspe7:testimonies-changed', { detail }));
 }
 
 export function profileHref(userId) {

@@ -32,8 +32,8 @@ export default function TestimonyReader({ item, userId, token, onReaction, onClo
   const remove = async () => {
     setBusy(true); setError('');
     try {
-      await testimonyRequest(token, `/${item._id}`, { method: 'DELETE' });
-      announceTestimonyChange(); onClose();
+      const result = await testimonyRequest(token, `/${item._id}`, { method: 'DELETE' });
+      announceTestimonyChange({ ...result, id: item._id, authorId: item.author._id, action: 'deleted' }); onClose();
     } catch (error) { setError(error.message); }
     finally { setBusy(false); }
   };

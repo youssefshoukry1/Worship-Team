@@ -14,11 +14,11 @@ import { useOfflineAvatar } from '../hooks/useOfflineAvatar';
 import { removeCachedAvatar } from '../utils/avatarStorage';
 import { cropProfilePhoto, resizeSquareCrop } from '../utils/profilePhoto';
 import TestimonyBoard from '../components/testimonies/TestimonyBoard';
+import { useProfileNotesStore } from '../components/testimonies/TestimonyFeedProvider';
 import ProfileLayout from '../components/profile/ProfileLayout';
 import ProfileHeaderCard from '../components/profile/ProfileHeaderCard';
 import ProfileStats from '../components/profile/ProfileStats';
 import FriendshipControls from '../components/profile/FriendshipControls';
-import { testimonyRequest } from '../components/testimonies/testimonyApi';
 import cropStyles from './profileCropper.module.css';
 import {
     Activity,
@@ -321,6 +321,7 @@ function UserProfile({ profileUserId }) {
     const { language, setLanguage } = useLanguage();
     const [profile, setProfile] = useState(null);
     const [socialProfile, setSocialProfile] = useState(null);
+    const profileNotes = useProfileNotesStore();
     const [refreshingSocial, setRefreshingSocial] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -831,14 +832,15 @@ function UserProfile({ profileUserId }) {
         // The same profile page selects its data source by who is viewing it.
         // Visitors never request or read the owner's private profile cache.
         if (!isOwner) {
-            const controller = new AbortController();
-            testimonyRequest(isLogin, `/profile/${encodeURIComponent(profileUserId)}`, { signal: controller.signal })
-                .then(data => { if (!controller.signal.aborted) handleSocialProfile(data); })
-                .catch(fetchError => {
-                    if (!controller.signal.aborted) { setProfile(null); setError(fetchError.message || 'Could not load this profile.'); }
-                })
-                .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-            return () => controller.abort();
+            const apply = () => {
+                const data = profileNotes.getSnapshot(profileUserId);
+                if (data.ready) { handleSocialProfile(data); setLoading(false); }
+                else if (!data.loading && data.error) { setError(data.error); setLoading(false); }
+            };
+            const unsubscribe = profileNotes.subscribe(profileUserId, apply);
+            apply();
+            void profileNotes.ensure(profileUserId);
+            return unsubscribe;
         }
 
         let ignore = false;
@@ -883,7 +885,7 @@ function UserProfile({ profileUserId }) {
         };
         window.addEventListener('focus', refresh);
         return () => { ignore = true; window.removeEventListener('focus', refresh); };
-    }, [isLogin, user_id, isOwner, profileUserId, handleSocialProfile]);
+    }, [isLogin, user_id, isOwner, profileUserId, handleSocialProfile, profileNotes]);
 
     const handleDeleteBibleNote = async (noteId) => {
         if (!isOwner) return;
@@ -1160,7 +1162,7 @@ function UserProfile({ profileUserId }) {
                             {!isOwner && socialProfile?.user && <FriendshipControls profile={socialProfile} token={isLogin} userId={user_id} refreshing={refreshingSocial} onRevoke={revokeFriendship} onRefresh={refreshFriendship} />}
                         </ProfileHeaderCard>
 
-                        <TestimonyBoard profileUserId={profileUserId} onProfileLoad={handleSocialProfile} initialProfile={!isOwner ? socialProfile : undefined} profileAccess={socialProfile?.canViewTestimonies} onLoadingChange={setRefreshingSocial} />
+                        <TestimonyBoard profileUserId={profileUserId} onProfileLoad={handleSocialProfile} profileAccess={socialProfile?.canViewTestimonies} onLoadingChange={setRefreshingSocial} />
 
                         {/* --- SETTINGS GROUPS (CHATGPT STYLE) --- */}
                         {isOwner && <div className="space-y-6">

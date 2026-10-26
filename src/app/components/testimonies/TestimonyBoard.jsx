@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, Loader2, LockKeyhole, Plus, RefreshCw } from 'lucide-react';
 import { UserContext } from '../../context/User_Context';
@@ -12,103 +12,44 @@ import { showToast } from '../ToastContainer';
 import styles from './testimonies.module.css';
 import { useTestimonyFeed } from './TestimonyFeedProvider';
 
-function Board({ token, userId, username, profileUserId, onProfileLoad, initialProfile, profileAccess, onLoadingChange }) {
+const EMPTY_PROFILE = { items: [], loading: false };
+
+function Board({ token, userId, username, profileUserId, onProfileLoad, profileAccess, onLoadingChange }) {
   const isFeed = !profileUserId;
   const ownProfile = String(profileUserId) === String(userId);
   const shared = useTestimonyFeed();
   const feedStore = shared?.store;
   const isSharedFeed = isFeed && Boolean(feedStore);
-  const [localData, setData] = useState(() => initialProfile || { items: [], user: null, nextCursor: null });
-  const [localLoading, setLoading] = useState(!initialProfile);
-  const [localLoadingMore, setLoadingMore] = useState(false);
-  const [localError, setError] = useState('');
-  const data = isSharedFeed ? shared.state : localData;
-  const loading = isSharedFeed ? shared.state.loading : localLoading;
-  const loadingMore = isSharedFeed ? shared.state.loadingMore : localLoadingMore;
-  const error = isSharedFeed ? shared.state.error : localError;
+  const profileStore = shared?.profiles;
+  const subscribeProfile = useCallback(listener => profileUserId ? profileStore.subscribe(profileUserId, listener) : () => {}, [profileStore, profileUserId]);
+  const profileSnapshot = useCallback(() => profileUserId ? profileStore.getSnapshot(profileUserId) : EMPTY_PROFILE, [profileStore, profileUserId]);
+  const profile = useSyncExternalStore(subscribeProfile, profileSnapshot, profileSnapshot);
+  const data = isSharedFeed ? shared.state : profile;
+  const { loading, loadingMore, error } = data;
   const [notice, setNotice] = useState('');
   const [modal, setModal] = useState(null);
   const [localNow, setNow] = useState(Date.now);
   const now = isSharedFeed ? shared.state.now : localNow;
-  const pending = useRef(null);
-  const version = useRef(0);
   const opener = useRef(null);
-  const seededProfile = useRef(initialProfile);
   const notificationRequest = useRef(null);
-  const path = isFeed ? '' : `/profile/${encodeURIComponent(profileUserId)}`;
-  const load = useCallback(async (cursor = null) => {
+  const load = useCallback((cursor = null) => {
     if (isSharedFeed) return cursor ? feedStore.loadMore() : feedStore.sync();
-    pending.current?.abort();
-    const controller = new AbortController();
-    pending.current = controller;
-    const revision = ++version.current;
-    onLoadingChange?.(true);
-    if (cursor) setLoadingMore(true);
-    else setLoading(true);
-    setError('');
-    try {
-      const result = await testimonyRequest(token, `${path}${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, { signal: controller.signal });
-      if (revision !== version.current || controller.signal.aborted) return;
-      if (profileUserId) onProfileLoad?.(result);
-      setData(previous => ({ ...result, items: result.canViewTestimonies === false ? [] : cursor
-        ? [...previous.items, ...(result.items || []).filter(item => !previous.items.some(old => old._id === item._id))]
-        : result.items || [] }));
-      setNow(Date.now());
-    } catch (error) {
-      if (revision !== version.current || controller.signal.aborted) return;
-      setError(error.message);
-      // Shared content is never persisted offline; a failed access check clears the visible collection.
-      setData({ items: [], user: null, nextCursor: null });
-      setModal(null);
-      onProfileLoad?.(null, error);
-    } finally {
-      if (revision === version.current && !controller.signal.aborted) { setLoading(false); setLoadingMore(false); onLoadingChange?.(false); }
-    }
-  }, [token, path, profileUserId, onProfileLoad, onLoadingChange, isSharedFeed, feedStore]);
-
+    return cursor ? profileStore.loadMore(profileUserId) : profileStore.ensure(profileUserId, { force: true });
+  }, [isSharedFeed, feedStore, profileStore, profileUserId]);
   useEffect(() => {
-    if (isSharedFeed) return;
-    if (!seededProfile.current) load();
-    const refresh = () => {
-      if (document.visibilityState !== 'visible') return;
-      setNow(Date.now());
-      load();
-    };
-    const restore = event => { if (event.persisted) refresh(); };
-    const live = event => {
-      if (event.detail?.action === 'reaction' && Number.isFinite(event.detail.loveVersion)) {
-        const { id, loveCount, loveVersion } = event.detail;
-        const update = item => item._id === id && loveVersion > (item.loveVersion || 0) ? { ...item, loveCount, loveVersion } : item;
-        setData(previous => ({ ...previous, items: previous.items.map(update) }));
-        setModal(previous => previous?.linkedItem ? { ...previous, linkedItem: update(previous.linkedItem) } : previous);
-        return;
-      }
-      if (event.detail?.action === 'access') { setData(previous => ({ ...previous, items: [] })); setModal(null); }
-      else if (String(event.detail?.authorId) === String(profileUserId)) {
-        if (event.detail.action === 'deleted') setModal(previous => previous?.id === event.detail.id ? null : previous);
-        refresh();
-      }
-    };
-    window.addEventListener('taspe7:testimonies-changed', refresh);
-    window.addEventListener('taspe7:friends-push', refresh);
-    window.addEventListener('pageshow', restore);
-    window.addEventListener('taspe7:testimony-live', live);
-    document.addEventListener('visibilitychange', refresh);
-    return () => {
-      pending.current?.abort();
-      window.removeEventListener('taspe7:testimonies-changed', refresh);
-      window.removeEventListener('taspe7:friends-push', refresh);
-      window.removeEventListener('pageshow', restore);
-      window.removeEventListener('taspe7:testimony-live', live);
-      document.removeEventListener('visibilitychange', refresh);
-    };
-  }, [load, isSharedFeed, profileUserId]);
+    if (profileUserId) void profileStore.ensure(profileUserId);
+  }, [profileStore, profileUserId]);
+  useEffect(() => {
+    if (!profileUserId) return;
+    onLoadingChange?.(profile.checking);
+    if (profile.ready) onProfileLoad?.(profile);
+  }, [profile, profileUserId, onProfileLoad, onLoadingChange]);
 
   useEffect(() => {
     const received = event => {
       if (String(event.detail?.authorId) !== String(userId) || document.visibilityState !== 'visible') return;
       if (event.detail.title) setNotice(event.detail.title);
-      if (!isSharedFeed || !event.detail.testimonyId) load();
+      if (isSharedFeed && !event.detail.testimonyId) load();
     };
     window.addEventListener('taspe7:testimony-push', received);
     return () => window.removeEventListener('taspe7:testimony-push', received);
@@ -122,6 +63,9 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
       const controller = new AbortController();
       notificationRequest.current = controller;
       try {
+        const cached = await profileStore.readCachedNote(profileUserId, id);
+        if (controller.signal.aborted) return;
+        if (cached) { opener.current = null; setModal({ type: 'read', id }); return; }
         const result = await testimonyRequest(token, `/own/${id}`, { signal: controller.signal });
         if (!controller.signal.aborted) { opener.current = null; setModal({ type: 'read', id, linkedItem: result.item }); }
       } catch (error) { if (!controller.signal.aborted) setNotice(error.message); }
@@ -134,7 +78,7 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
     };
     window.addEventListener('taspe7:open-testimony', fromPush);
     return () => { notificationRequest.current?.abort(); window.removeEventListener('taspe7:open-testimony', fromPush); };
-  }, [ownProfile, token]);
+  }, [ownProfile, token, profileStore, profileUserId]);
 
   useEffect(() => {
     if (isSharedFeed) return;
@@ -153,9 +97,9 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
   const author = data.user || { _id: userId, Name: username || 'You', username };
   const reactToNote = useCallback((id, reaction) => {
     feedStore?.updateReaction(id, reaction);
-    setData(previous => ({ ...previous, items: previous.items.map(item => item._id === id ? { ...item, ...reaction } : item) }));
+    profileStore?.updateReaction(id, reaction);
     setModal(previous => previous?.linkedItem?._id === id ? { ...previous, linkedItem: { ...previous.linkedItem, ...reaction } } : previous);
-  }, [feedStore]);
+  }, [feedStore, profileStore]);
   const close = useCallback((saved = false) => {
     setModal(null);
     if (saved) setNotice('Shared with your friends.');
@@ -201,8 +145,8 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, initialP
   </>;
 }
 
-export default function TestimonyBoard({ profileUserId, onProfileLoad, initialProfile, profileAccess, onLoadingChange }) {
+export default function TestimonyBoard({ profileUserId, onProfileLoad, profileAccess, onLoadingChange }) {
   const { isLogin, user_id, username } = useContext(UserContext);
   if (!isLogin || !user_id) return null;
-  return <Board key={`${user_id}:${isLogin}:${profileUserId || 'feed'}`} token={isLogin} userId={user_id} username={username} profileUserId={profileUserId} onProfileLoad={onProfileLoad} initialProfile={initialProfile} profileAccess={profileAccess} onLoadingChange={onLoadingChange} />;
+  return <Board key={`${user_id}:${isLogin}:${profileUserId || 'feed'}`} token={isLogin} userId={user_id} username={username} profileUserId={profileUserId} onProfileLoad={onProfileLoad} profileAccess={profileAccess} onLoadingChange={onLoadingChange} />;
 }

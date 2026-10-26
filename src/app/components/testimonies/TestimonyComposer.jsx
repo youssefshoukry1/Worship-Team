@@ -66,14 +66,14 @@ export default function TestimonyComposer({ token, userId, author, editing, onCl
     setBusy(true); setError('');
     try {
       // The note is the editor. An excerpt supplies the existing API's title field.
-      await testimonyRequest(token, editing ? `/${editing._id}` : '', {
+      const result = await testimonyRequest(token, editing ? `/${editing._id}` : '', {
         method: editing ? 'PATCH' : 'POST',
         body: JSON.stringify({ title, body: draft.body, style: draft.style, clientId: draft.clientId,
           verse }),
       });
       published.current = true;
       try { localStorage.removeItem(draftKey); } catch { /* Publishing succeeded. */ }
-      announceTestimonyChange();
+      announceTestimonyChange({ ...result, id: result.item._id, authorId: userId, action: editing ? 'updated' : 'created' });
       onClose(true);
     } catch (error) {
       setError(error.message);
