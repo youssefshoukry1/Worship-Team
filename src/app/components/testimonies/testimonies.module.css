@@ -35,6 +35,22 @@
 .loved { color: #f285a5 !important; }
 .expandedNote .loveControl { bottom: 12px; left: 12px; width: 32px; height: 32px; }
 .expandedNote .loveButton svg { width: 18px; height: 18px; }
+.expandedNote .ownerLoveControl { width: auto; min-width: 44px; }
+.ownerLoveControl .loveButton { gap: 6px; padding: 0 8px; }
+.ownerLoveCount { font-size: 10px; line-height: 1; }
+.reactors { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 12px; }
+.reactorsHeader { flex-shrink: 0; }
+.backToNote { display: inline-flex; align-items: center; gap: 5px; padding: 5px 0; border: 0; background: transparent; color: #8b9bb0; font-size: 10px; }
+.reactorsHeader h2 { margin: 7px 0 0; color: #d5deea; font-size: 16px; font-weight: 550; }
+.reactorsList { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #ffffff16 transparent; }
+.reactorRow { display: flex; align-items: center; gap: 9px; padding: 10px 0; text-decoration: none; border-bottom: 1px solid #ffffff07; }
+.reactorAvatar { display: flex; align-items: center; justify-content: center; flex: 0 0 30px; width: 30px; height: 30px; overflow: hidden; border-radius: 50%; background: #102b39; color: #9cc9db; font-size: 11px; }
+.reactorIdentity { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.reactorIdentity strong { color: #cbd5e1; font-size: 12px; font-weight: 500; overflow-wrap: anywhere; }
+.reactorIdentity > span { color: #71849b; font-size: 9px; overflow-wrap: anywhere; }
+.reactorHeart { color: #d3a1b4; flex-shrink: 0; }
+.reactorHint { display: flex; align-items: center; gap: 7px; margin: 10px 0; color: #8295ab; font-size: 11px; line-height: 1.6; }
+.moreReactors { display: block; margin: 10px auto 0; padding: 7px 10px; border: 0; border-radius: 7px; background: #ffffff05; color: #8ca9c0; font-size: 10px; }
 .reactionError { position: fixed; z-index: 10030; width: 190px; margin: 0; padding: 8px 10px; border-radius: 8px; background: #17212e; color: #e4a1a6; font-size: 10px; line-height: 1.5; }
 .createNote { justify-content: center; align-items: center; color: #00c2ff; border-style: dashed; border-color: #00c2ff35; background: #071c29; }
 .createNote > svg { margin-top: -7px; }

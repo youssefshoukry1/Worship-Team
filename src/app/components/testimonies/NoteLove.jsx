@@ -6,7 +6,7 @@ import Portal from '../../Portal/Portal';
 import { testimonyRequest } from './testimonyApi';
 import styles from './testimonies.module.css';
 
-export default function NoteLove({ item, userId, token, onReaction }) {
+export default function NoteLove({ item, userId, token, onReaction, onShowReactors, showingReactors = false }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const request = useRef(null);
@@ -34,9 +34,11 @@ export default function NoteLove({ item, userId, token, onReaction }) {
   };
 
   return <>
-    <div className={styles.loveControl} onClick={event => event.stopPropagation()}>
+    <div className={`${styles.loveControl} ${onShowReactors ? styles.ownerLoveControl : ''}`} onClick={event => event.stopPropagation()}>
       {enabled ? <button type="button" className={`${styles.loveButton} ${item.loved ? styles.loved : ''}`} disabled={busy} aria-label={item.loved ? 'Remove love' : 'Love this note'} aria-pressed={Boolean(item.loved)} title={item.loved ? 'Remove love' : 'Love this note'} onClick={react}>
         <Heart size={13} strokeWidth={1.7} fill={item.loved ? 'currentColor' : 'none'} aria-hidden="true" />
+      </button> : onShowReactors ? <button type="button" className={`${styles.loveButton} ${count ? styles.loved : ''}`} aria-label="See who loved this note" aria-expanded={showingReactors} title="See who loved this note" onClick={onShowReactors}>
+        <Heart size={13} strokeWidth={1.7} fill={count ? 'currentColor' : 'none'} aria-hidden="true" /><span className={styles.ownerLoveCount}>{count}</span>
       </button> : <span className={`${styles.loveButton} ${count ? styles.loved : ''}`} title={countLabel}>
         <Heart size={13} strokeWidth={1.7} fill={count ? 'currentColor' : 'none'} aria-hidden="true" />
       </span>}

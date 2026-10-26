@@ -39,7 +39,7 @@ async function setup(t, { mobile = false, failFirstPublish = false, failFirstLov
     { ...post('222222222222222222222222', 'A prayer, quietly answered', 'An unexpected conversation brought the encouragement I had been praying for. Sometimes grace arrives through the people beside us.', 'dawn', owner), verse: { reference: 'Matthew 6:34', text: 'Therefore do not worry about tomorrow, for tomorrow will worry about itself.' } },
     post('333333333333333333333333', 'Finding stillness again', 'I put my phone away and spent a little time reading. It was a simple reminder that God is near, even when life feels noisy.', 'still', friend),
     post('444444444444444444444444', 'A story from last week', 'An older testimony remains on my profile for friends to read long after its day on the board.', 'olive', friend, 7 * 86400000),
-  ], sent: [], socialReads: [], loveRequests: [], loveNotifications: [], publishAttempts: 0, denyProfile: false, relationship, failFriendship, friendshipRequests: [], privateProfileReads: 0, alreadyFriendsOnAdd: false, failRelationshipRead: false };
+  ], sent: [], socialReads: [], loveRequests: [], loveNotifications: [], reactorUsers: [], reactorReads: 0, failReactors: false, publishAttempts: 0, denyProfile: false, relationship, failFriendship, friendshipRequests: [], privateProfileReads: 0, alreadyFriendsOnAdd: false, failRelationshipRead: false };
   state.nextPublishAt = cooldownSoon ? now + 20000 : 0;
   const publishing = () => {
     if (programer) return { canPublish: true, unlimited: true, nextPublishAt: null };
@@ -62,6 +62,16 @@ async function setup(t, { mobile = false, failFirstPublish = false, failFirstLov
     if (path.includes('/testimonies/own/')) {
       const item = state.posts.find(item => item._id === path.split('/').pop() && item.author._id === A);
       return item ? reply({ item }) : reply({ message: 'This note is no longer available.' }, 404);
+    }
+    if (/\/testimonies\/[a-f\d]{24}\/loves$/.test(path)) {
+      state.reactorReads++;
+      const item = state.posts.find(item => item._id === path.split('/').at(-2) && item.author._id === A);
+      if (!item) return reply({ message: 'This note is no longer available.' }, 404);
+      if (state.failReactors) return reply({ message: 'Could not load reactions. Please try again.' }, 500);
+      const cursor = url.searchParams.get('cursor');
+      const start = cursor ? state.reactorUsers.findIndex(user => user._id === cursor) + 1 : 0;
+      const users = state.reactorUsers.slice(start, start + 20);
+      return reply({ users, nextCursor: start + 20 < state.reactorUsers.length ? users.at(-1)._id : null });
     }
     if (/\/testimonies\/[a-f\d]{24}\/love$/.test(path)) {
       const item = state.posts.find(item => item._id === path.split('/').at(-2));
@@ -649,5 +659,56 @@ test('an author push refreshes counts and tapping it can open an archived note',
     window.dispatchEvent(event);
   }, own._id);
   await dialog.waitFor();
+  assert.deepEqual(errors, []);
+});
+
+test('authors see reactor names and photos on their opened profile note, with pagination and profile links', async t => {
+  const { page, state, errors } = await setup(t, { mobile: true, friendPhoto: true });
+  state.posts.find(item => item.author._id === A).loveCount = 21;
+  state.reactorUsers = [{ ...friend, profilePhoto: 'https://avatars.example.test/friend.png' }, ...Array.from({ length: 20 }, (_, i) => ({ _id: (i + 1).toString(16).padStart(24, '0'), Name: `Friend ${i + 1}`, username: `friend${i + 1}`, profilePhoto: null }))];
+  await page.goto(`${base}/normal_UserProfile/`);
+  await page.getByRole('button', { name: 'Read testimony: A prayer, quietly answered', exact: true }).click();
+  const reader = page.getByRole('dialog', { name: 'Testimony', exact: true });
+  const who = reader.getByRole('button', { name: 'See who loved this note', exact: true });
+  assert.equal((await who.innerText()).trim(), '21');
+  assert.equal(state.reactorReads, 0, 'reactor identities load only on demand');
+  await who.click();
+  const list = reader.getByRole('region', { name: 'People who loved your note', exact: true });
+  await list.getByRole('link', { name: 'Visit Youssef profile', exact: true }).waitFor();
+  await list.getByRole('img', { name: 'Youssef', exact: true }).waitFor();
+  assert.equal(await list.getByRole('link').count(), 20);
+  await list.getByRole('button', { name: 'Show more', exact: true }).click();
+  await list.getByRole('link', { name: 'Visit Friend 20 profile', exact: true }).waitFor();
+  assert.equal(await list.getByRole('link').count(), 21);
+  assert.equal(await list.evaluate(element => element.scrollWidth <= element.clientWidth), true);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+  await page.screenshot({ path: resolve(output, 'note-reactors-mobile.png'), animations: 'disabled' });
+  await list.getByRole('button', { name: 'Back to note', exact: true }).click();
+  await reader.getByLabel('Testimony text', { exact: true }).waitFor();
+  await who.click();
+  await list.getByRole('link', { name: 'Visit Youssef profile', exact: true }).click();
+  await page.getByRole('heading', { name: 'Youssef', exact: true }).waitFor();
+  assert.equal(await page.getByRole('dialog', { name: 'Testimony', exact: true }).count(), 0);
+  assert.deepEqual(errors, []);
+});
+
+test('reaction list handles empty notes and retry; friends cannot open another author reaction list', async t => {
+  const { page, state, errors } = await setup(t);
+  await page.goto(`${base}/normal_UserProfile/`);
+  await page.getByRole('button', { name: 'Read testimony: A prayer, quietly answered', exact: true }).click();
+  const reader = page.getByRole('dialog', { name: 'Testimony', exact: true });
+  state.failReactors = true;
+  await reader.getByRole('button', { name: 'See who loved this note', exact: true }).click();
+  await reader.getByRole('button', { name: 'Retry reactions', exact: true }).waitFor();
+  state.failReactors = false;
+  await reader.getByRole('button', { name: 'Retry reactions', exact: true }).click();
+  await reader.getByText('No loves yet.', { exact: true }).waitFor();
+  await page.keyboard.press('Escape');
+  const reads = state.reactorReads;
+  await page.goto(`${base}/normal_UserProfile/?user=${B}`);
+  await page.getByRole('button', { name: 'Read testimony: Peace in the middle of it all', exact: true }).click();
+  await reader.getByRole('button', { name: 'Love this note', exact: true }).waitFor();
+  assert.equal(await reader.getByRole('button', { name: 'See who loved this note', exact: true }).count(), 0);
+  assert.equal(state.reactorReads, reads);
   assert.deepEqual(errors, []);
 });

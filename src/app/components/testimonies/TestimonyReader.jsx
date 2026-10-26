@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { BookOpen, Loader2, Pencil, Pin, Trash2 } from 'lucide-react';
 import TestimonyDialog from './TestimonyDialog';
@@ -8,11 +8,14 @@ import OfflineAvatar from '../OfflineAvatar';
 import { announceTestimonyChange, profileHref, testimonyRequest } from './testimonyApi';
 import styles from './testimonies.module.css';
 import NoteLove from './NoteLove';
+import NoteReactors from './NoteReactors';
 
 export default function TestimonyReader({ item, userId, token, onReaction, onClose, onEdit }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [showReactors, setShowReactors] = useState(false);
+  const noteSurface = useRef(null);
   const mine = String(item.author?._id) === String(userId);
   const remove = async () => {
     setBusy(true); setError('');
@@ -23,21 +26,24 @@ export default function TestimonyReader({ item, userId, token, onReaction, onClo
     finally { setBusy(false); }
   };
   return <TestimonyDialog title="Testimony" card onClose={() => { if (!busy) onClose(); }}>
-    <article data-note-surface className={`${styles.expandedNote} ${styles[item.style] || styles.olive}`} data-testid="expanded-testimony-note">
+    <article ref={noteSurface} data-note-surface className={`${styles.expandedNote} ${styles[item.style] || styles.olive}`} data-testid="expanded-testimony-note">
       <Link className={styles.expandedAuthor} href={profileHref(item.author._id)} aria-label={`Visit ${item.author.Name || item.author.username || 'your'} profile`} onClick={() => onClose()}>
         <OfflineAvatar userKey={item.author._id} remoteUrl={item.author.profilePhoto} name={item.author.Name || item.author.username || 'Friend'} className={styles.pinnedAvatar} />
         <span className={styles.noteAuthorName} dir="auto">{item.author.Name || item.author.username || 'You'}</span>
       </Link>
       <Pin className={`${styles.pin} ${styles.expandedPin}`} strokeWidth={1.8} aria-hidden="true" />
-      <div className={styles.expandedText} tabIndex={0} aria-label="Testimony text">
+      {mine && showReactors ? <NoteReactors item={item} token={token} onClose={onClose} onBack={() => {
+        setShowReactors(false);
+        requestAnimationFrame(() => noteSurface.current?.querySelector('[aria-label="See who loved this note"]')?.focus({ preventScroll: true }));
+      }} /> : <div className={styles.expandedText} tabIndex={0} aria-label="Testimony text">
         {!item.body.startsWith(item.title) && <h2 dir="auto">{item.title}</h2>}
         <p className={styles.fullStory} dir="auto">{item.body}</p>
         {item.verse?.reference && <div className={styles.attachedVerse}><BookOpen size={15} /><blockquote dir="auto"><p>{item.verse.text}</p><cite>{item.verse.reference}</cite></blockquote></div>}
         {error && <p className={styles.error} role="alert">{error}</p>}
-      </div>
+      </div>}
       <footer className={styles.expandedFooter}>
-        <NoteLove item={item} userId={userId} token={token} onReaction={onReaction} />
-        {mine && <div className={styles.noteOwnerTools}>
+        <NoteLove item={item} userId={userId} token={token} onReaction={onReaction} showingReactors={showReactors} onShowReactors={mine ? () => setShowReactors(value => !value) : undefined} />
+        {mine && !showReactors && <div className={styles.noteOwnerTools}>
           <button type="button" className={styles.iconButton} aria-label="Edit testimony" title="Edit testimony" disabled={busy} onClick={() => onEdit(item)}><Pencil size={15} /></button>
           <button type="button" className={styles.iconButton} aria-label="Remove" title="Remove testimony" disabled={busy} onClick={() => setConfirmDelete(true)}><Trash2 size={15} /></button>
         </div>}
