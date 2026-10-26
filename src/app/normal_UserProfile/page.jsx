@@ -336,9 +336,11 @@ function UserProfile({ profileUserId }) {
     }, [isOwner]);
     const refreshFriendship = useCallback(() => window.dispatchEvent(new Event('taspe7:friends-push')), []);
     const revokeFriendship = useCallback(() => {
+        const previousProfile = socialProfile;
         setSocialProfile(previous => previous ? { ...previous, items: [], nextCursor: null, canViewTestimonies: false, relationship: 'none',
             stats: { ...previous.stats, friends: Math.max(0, (previous.stats?.friends || 0) - 1), testimonies: null } } : previous);
-    }, []);
+        return () => setSocialProfile(previousProfile);
+    }, [socialProfile]);
 
     useEffect(() => {
         if (!isOwner) return;
@@ -1157,8 +1159,8 @@ function UserProfile({ profileUserId }) {
                                         <Badge icon={Activity} label="Status" value="Offline Mode" classes="bg-orange-500/10 text-orange-400 border-orange-500/20" />
                                     )}
                             </> : undefined}
+                            stats={socialProfile?.stats && <ProfileStats stats={socialProfile.stats} isOwner={isOwner} />}
                         >
-                            {socialProfile?.stats && <ProfileStats stats={socialProfile.stats} isOwner={isOwner} />}
                             {!isOwner && socialProfile?.user && <FriendshipControls profile={socialProfile} token={isLogin} userId={user_id} refreshing={refreshingSocial} onRevoke={revokeFriendship} onRefresh={refreshFriendship} />}
                         </ProfileHeaderCard>
 
