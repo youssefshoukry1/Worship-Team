@@ -101,7 +101,7 @@ function NavbarContent() {
         // Ping Render backend to wake it up (Free Tier Cold Start)
         const wakeUpServer = async () => {
             try {
-                await axios.get("http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api/ping");
+                await axios.get("https://waslaapi.duckdns.org/api/ping");
                 console.log("🚀 Server woke up!");
             } catch (err) {
                 console.error("Wake up ping failed:", err);

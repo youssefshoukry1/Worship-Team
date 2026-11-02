@@ -359,7 +359,7 @@ export default function Category_Humns() {
 
     setIsSubmitting(true);
     try {
-      const url = "http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api/hymns/create";
+      const url = "https://waslaapi.duckdns.org/api/hymns/create";
 
       const response = await axios.post(url, { ...formData, lyrics: prepareLyricsForSave(formData.lyrics) }, {
         headers: { Authorization: `Bearer ${isLogin}` }
@@ -417,7 +417,7 @@ export default function Category_Humns() {
 
     setIsSubmitting(true);
     try {
-      const url = `http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api/hymns/${id}`;
+      const url = `https://waslaapi.duckdns.org/api/hymns/${id}`;
 
       const response = await axios.patch(url, { ...formData, lyrics: prepareLyricsForSave(formData.lyrics) }, {
         headers: { Authorization: `Bearer ${isLogin}` }
@@ -461,7 +461,7 @@ export default function Category_Humns() {
     if (!confirm(t("confirmDeleteHymn"))) return;
 
     try {
-      const url = `http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api/hymns/${id}`;
+      const url = `https://waslaapi.duckdns.org/api/hymns/${id}`;
 
       const response = await axios.delete(url, {
         headers: { Authorization: `Bearer ${isLogin}` }
@@ -517,7 +517,7 @@ export default function Category_Humns() {
     queryKey: ["hymns", "web", activeTab, debouncedSearch],
     enabled: !isApp,
     queryFn: async ({ pageParam = 0, signal }) => {
-      const API_BASE = 'http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api/hymns';
+      const API_BASE = 'https://waslaapi.duckdns.org/api/hymns';
       let url = '';
       let qStr = `?limit=20&skip=${pageParam}`;
 
@@ -551,7 +551,7 @@ export default function Category_Humns() {
     enabled: isSearchingOnline,
     staleTime: 1000 * 60 * 5,
     queryFn: async ({ signal }) => {
-      const API_BASE = 'http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api/hymns';
+      const API_BASE = 'https://waslaapi.duckdns.org/api/hymns';
       const response = await axios.get(`${API_BASE}/search?limit=50&q=${encodeURIComponent(debouncedSearch)}`, { signal });
       return Array.isArray(response.data) ? response.data : [];
     },

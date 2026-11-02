@@ -18,7 +18,7 @@ import Portal from '../Portal/Portal'
 import { showToast } from '../components/ToastContainer'
 import { buildHymnPresentationSlides } from '../utils/hymnSlides'
 
-const API_URL = "http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api";
+const API_URL = "https://waslaapi.duckdns.org/api";
 
 // ─── Action type badge config ─────────────────────────────────────────────────
 const ACTION_CONFIG = {

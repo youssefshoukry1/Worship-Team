@@ -35,7 +35,7 @@ export default function AppAuthGatekeeper({ children }) {
     return Boolean(token && !name);
   });
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api";
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://waslaapi.duckdns.org/api";
 
   // Redirect authenticated user if they land on sign-in routes
   useEffect(() => {

@@ -156,7 +156,7 @@ async function hydrateDefaultBible() {
     } else {
       // Web: fetch from the server download endpoint in the background
       console.log("[BibleSync] Web: downloading AVD from server API for offline use...");
-      const apiBase = `${window.location.origin.includes('localhost') ? 'http://localhost:5000' : 'http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io'}/api/bible`;
+      const apiBase = `${window.location.origin.includes('localhost') ? 'http://localhost:5000' : 'https://waslaapi.duckdns.org'}/api/bible`;
       try {
         const { data } = await axios.get(`${apiBase}/download?translation=AVD`);
         if (Array.isArray(data) && data.length > 0) {

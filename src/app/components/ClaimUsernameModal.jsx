@@ -78,7 +78,7 @@ export default function ClaimUsernameModal({
   const imgRef = useRef(null);
   const availabilityRequest = useRef(0);
   const submittingRef = useRef(false);
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api";
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://waslaapi.duckdns.org/api";
 
   // Clean up object URLs on unmount
   useEffect(() => {

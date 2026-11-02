@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE = 'http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api';
+const DEFAULT_API_BASE = 'https://waslaapi.duckdns.org/api';
 
 function ensureApiSuffix(url) {
   const trimmed = String(url || '').trim().replace(/\/+$/, '');

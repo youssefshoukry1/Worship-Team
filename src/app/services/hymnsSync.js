@@ -5,7 +5,7 @@ import { downloadedHymnsQueryOptions, normalizeDownloadedHymns } from '../utils/
 import { forEachChunked } from '../utils/cooperativeWork';
 
 const running = new WeakMap();
-const API = 'http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api/hymns';
+const API = 'https://waslaapi.duckdns.org/api/hymns';
 const VERSION_KEY = 'taspe7_hymns_sync_version';
 const FORCE_KEY = 'taspe7_force_sync';
 
