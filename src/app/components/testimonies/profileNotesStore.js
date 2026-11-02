@@ -181,6 +181,7 @@ export function createProfileNotesStore({ userId, request, storage }) {
     const epoch = entry.epoch;
     try {
       let item, publishing = event.publishing;
+      if (event.action === 'deleted' && isOwn(entry) && resolved) publishing ||= (await resolved)?.publishing;
       const needsBody = event.action !== 'deleted' && (isOwn(entry) || event.action === 'created' || entry.state.items.some(item => item._id === event.id));
       if (needsBody) {
         const result = resolved ? await resolved : await request(`/note/${event.id}`);

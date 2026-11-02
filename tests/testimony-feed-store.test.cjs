@@ -131,3 +131,37 @@ test('owner reaction events update counts without a server read and ignore older
   assert.equal(f.requests.length, 1, 'the existing event contains all needed count metadata');
   f.store.dispose();
 });
+
+test('an orphaned publishing cooldown cannot block a feed without an active owner note', async () => {
+  const f = fixture(); const sync = f.store.sync();
+  f.finish(0, [note()], { publishing: { canPublish: false, unlimited: false, nextPublishAt: new Date(20000).toISOString() } });
+  await sync;
+  assert.equal(f.store.getSnapshot().publishing.canPublish, true);
+  assert.equal(f.store.getSnapshot().publishing.nextPublishAt, null);
+  f.store.dispose();
+});
+
+test('only active owner notes block publishing; deletion and expiry unlock without a server read', async () => {
+  const f = fixture(), ownId = '222222222222222222222222';
+  const sync = f.store.sync(); f.finish(0, [note(ID, A), note(ownId, A), note()], { publishing: { canPublish: false, unlimited: false } }); await sync;
+  const removed = await f.store.changed({ id: ID, authorId: A, action: 'deleted' });
+  assert.equal(removed.publishing.canPublish, false, 'another active owner note still blocks sharing');
+  const unlocked = await f.store.changed({ id: ownId, authorId: A, action: 'deleted' });
+  assert.equal(unlocked.publishing.canPublish, true);
+  const created = f.store.changed({ id: ID, authorId: A, action: 'created' });
+  f.requests[1].resolve({ item: note(ID, A), publishing: { canPublish: false, unlimited: false } }); await created;
+  assert.equal(f.store.getSnapshot().publishing.canPublish, false);
+  f.time(10000); f.store.tick();
+  assert.equal(f.store.getSnapshot().publishing.canPublish, true, 'unlock at the exact expiry boundary');
+  assert.equal(f.requests.length, 2);
+  f.store.dispose();
+});
+
+test('an active owner note beyond the first feed page still blocks sharing', async () => {
+  const f = fixture(); const sync = f.store.sync();
+  f.finish(0, [note()], { activeNotes: [note(), note('222222222222222222222222', A)].map(item => ({ _id: item._id, authorId: item.author._id, feedExpiresAt: item.feedExpiresAt })),
+    publishing: { canPublish: false, unlimited: false } });
+  await sync;
+  assert.equal(f.store.getSnapshot().publishing.canPublish, false);
+  f.store.dispose();
+});

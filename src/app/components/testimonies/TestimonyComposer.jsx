@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, BookOpen, Check, Loader2, Pin, Users, X } from 'lucide-react';
+import { ArrowUpRight, BookOpen, Check, Loader2, Pin, X } from 'lucide-react';
 import TestimonyDialog from './TestimonyDialog';
+import OfflineAvatar from '../OfflineAvatar';
 import { announceTestimonyChange, NOTE_ACTIVE_MESSAGE, testimonyRequest } from './testimonyApi';
 import { showToast } from '../ToastContainer';
 import styles from './testimonies.module.css';
@@ -58,7 +59,7 @@ export default function TestimonyComposer({ token, userId, author, editing, onCl
   const characterCount = noteContentLength({ title, body: draft.body, verse });
   const bodyLimit = Math.max(0, NOTE_CHARACTER_LIMIT - (characterCount - draft.body.trim().length));
   const overLimit = characterCount > NOTE_CHARACTER_LIMIT;
-  const canPublish = !blocked && !overLimit && draft.body.trim().length >= 10;
+  const canPublish = !blocked && !overLimit && draft.body.trim().length >= 1;
   const submit = async event => {
     event.preventDefault();
     if (!canPublish || submitting.current) return;
@@ -85,27 +86,30 @@ export default function TestimonyComposer({ token, userId, author, editing, onCl
     finally { submitting.current = false; setBusy(false); }
   };
 
-  return <TestimonyDialog title={editing ? 'Edit testimony' : 'Share your testimony'} onClose={() => { if (!submitting.current) onClose(); }} note>
-    <form onSubmit={submit} className={styles.noteComposer}>
-      <div className={`${styles.writingNote} ${styles[draft.style]}`}>
-        <Pin className={styles.pin} strokeWidth={1.8} aria-hidden="true" />
-        <div className={styles.noteByline}><span className={styles.authorInitial}>{(author?.Name || 'Y')[0]}</span><span>{author?.Name || author?.username || 'You'}</span><span className={styles.noteAudience}><Users size={12} /> Friends</span></div>
+  return <TestimonyDialog title={editing ? 'Edit testimony' : 'Share your testimony'} onClose={() => { if (!submitting.current) onClose(); }} card className={styles.composerDialog}>
+    <form onSubmit={submit} className={`${styles.expandedNote} ${styles.composingNote} ${styles[draft.style]}`} data-testid="testimony-composer-note">
+      <div className={styles.expandedAuthor}>
+        <OfflineAvatar userKey={userId} remoteUrl={author?.profilePhoto} name={author?.Name || author?.username || 'You'} className={styles.pinnedAvatar} />
+        <span className={styles.noteAuthorName} dir="auto">{author?.Name || author?.username || 'You'}</span>
+      </div>
+      <Pin className={`${styles.pin} ${styles.expandedPin}`} strokeWidth={1.8} aria-hidden="true" />
+      <div className={styles.composerContent}>
         {editing && draft.title && !editing.body.startsWith(editing.title) && <h2 className={styles.existingTitle} dir="auto">{draft.title}</h2>}
-        <textarea ref={bodyRef} data-autofocus className={styles.noteWriting} aria-label="Your testimony" aria-describedby="testimony-character-count" aria-invalid={overLimit || undefined} dir="auto" placeholder={'A moment of faith,\na prayer answered,\nsomething on your heart…'} value={draft.body} maxLength={bodyLimit} minLength={10} required disabled={busy} onChange={event => setDraft(previous => ({ ...previous, body: event.target.value }))} />
+        <textarea ref={bodyRef} data-autofocus className={styles.noteWriting} aria-label="Your testimony" aria-describedby="testimony-character-count" aria-invalid={overLimit || undefined} dir="auto" value={draft.body} maxLength={bodyLimit} minLength={1} required disabled={busy} onChange={event => setDraft(previous => ({ ...previous, body: event.target.value }))} />
         {draft.reference && <div className={styles.attachedVerse}>
           <BookOpen size={15} /><blockquote dir="auto"><p>{draft.verseText}</p><cite>{draft.reference}</cite></blockquote>
           <button type="button" aria-label="Remove verse" disabled={busy} onClick={() => setDraft(previous => ({ ...previous, reference: '', verseText: '' }))}><X size={15} /></button>
         </div>}
-        <div className={styles.noteTools}>
-          <span id="testimony-character-count" className={styles.noteCount}>{characterCount.toLocaleString()}/{NOTE_CHARACTER_LIMIT.toLocaleString()} characters{verse ? ' · including attached verse' : ''}</span>
-        </div>
         {overLimit && <p className={styles.error} role="alert">Please shorten this note to {NOTE_CHARACTER_LIMIT.toLocaleString()} characters so it fits when opened. Your full draft is kept until you save.</p>}
-      </div>
-      <div className={styles.noteFooter}>
-        <p>Shared with friends · Saved on your profile</p>
         {error && <p className={styles.error} role="alert">{error}</p>}
-        <div className={styles.notePublishActions}><span className={styles.draftStatus} role="status"><Check size={12} />{draftStatus}</span><button type="submit" className={styles.primaryButton} disabled={!canPublish || busy}>{busy ? <><Loader2 size={15} className={styles.spin} /> Saving…</> : <>{editing ? 'Save changes' : 'Share'}<ArrowUpRight size={15} /></>}</button></div>
       </div>
+      <footer className={styles.composerFooter}>
+        <div className={styles.composerStatus}>
+          <span id="testimony-character-count" className={styles.noteCount}>{characterCount.toLocaleString()}/{NOTE_CHARACTER_LIMIT.toLocaleString()} characters{verse ? ' · including verse' : ''}</span>
+          <span className={styles.draftStatus} role="status"><Check size={12} />{draftStatus}</span>
+        </div>
+        <button type="submit" className={styles.primaryButton} title="Shared with friends and saved on your profile" disabled={!canPublish || busy}>{busy ? <><Loader2 size={15} className={styles.spin} /> Saving…</> : <>{editing ? 'Save changes' : 'Share'}<ArrowUpRight size={15} /></>}</button>
+      </footer>
     </form>
   </TestimonyDialog>;
 }

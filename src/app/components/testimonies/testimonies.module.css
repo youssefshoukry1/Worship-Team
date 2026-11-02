@@ -22,7 +22,7 @@
 .noteReadButton { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; width: 100%; height: 100%; padding: 28px 9px 8px; border: 0; border-radius: inherit; background: transparent; color: inherit; text-align: inherit; }
 .pinnedAvatar { display: flex; align-items: center; justify-content: center; flex: 0 0 20px; width: 20px; height: 20px; overflow: hidden; border: 1px solid #8ba3b740; border-radius: 50%; background: #102b39; color: #9cc9db; font-size: 8px; font-weight: 600; line-height: 1; pointer-events: none; }
 .pinnedAvatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.miniNote h3 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; font-family: var(--font-geist-sans), var(--font-ibm-plex-sans-arabic), sans-serif; margin: 0; font-size: 10px; font-weight: 500; line-height: 1.45; color: #d5deea; }
+.miniNote h3 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; font-family: var(--font-ui-latin), var(--font-tajawal), sans-serif; margin: 0; font-size: 10px; font-weight: 500; line-height: 1.45; color: #d5deea; }
 .miniAuthor { position: absolute; z-index: 1; top: 3px; left: 7px; right: 6px; display: flex; align-items: center; gap: 4px; min-width: 0; height: 20px; color: #8b9bb0; font-size: 8px; line-height: 1.2; text-align: start; pointer-events: none; }
 .noteAuthorName { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-width: 0; overflow: hidden; overflow-wrap: anywhere; }
 .createCaption { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 8px; padding: 2px 0; color: #8b9bb0; font-size: 9px; text-align: center; text-decoration: none; }
@@ -98,22 +98,12 @@
 .dialogTop { position: sticky; z-index: 4; top: 0; display: flex; justify-content: space-between; align-items: center; min-height: 50px; padding: 10px 17px; border-bottom: 1px solid #ffffff0a; background: rgb(var(--app-panel-rgb) / .97); color: #a9b7c8; font-size: 12px; font-weight: 500; }
 .iconButton { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 0; border-radius: 8px; color: #8192a7; background: #ffffff04; }
 .iconButton:hover { background: #ffffff0b; color: #e2e8f0; }
-.writingNote { position: relative; padding: 24px 23px 0; }
-.writingNote > .pin { top: 10px; left: 4px; }
-.noteByline { display: flex; align-items: center; gap: 7px; padding-bottom: 14px; color: #b2c0d0; font-size: 11px; }
-.authorInitial { display: inline-flex; align-items: center; justify-content: center; width: 25px; height: 25px; border-radius: 50%; flex-shrink: 0; background: #00c2ff10; color: #76bedb; font-size: 10px; font-weight: 600; }
-.noteAudience { display: flex; align-items: center; gap: 5px; margin-inline-start: auto; color: #61758e; font-size: 10px; }
-.noteWriting { display: block; width: 100%; height: clamp(230px, 34dvh, 320px); min-height: 180px; margin: 0; padding: 4px 0 18px; resize: none; border: 0; border-radius: 0; background-color: transparent; background-image: linear-gradient(transparent calc(100% - 1px), #ffffff04 0); background-size: 100% 2.05em; color: #d7e1ec; font-family: var(--font-geist-sans), var(--font-ibm-plex-sans-arabic), sans-serif; font-size: 17px; font-weight: 400; line-height: 2.05; letter-spacing: -.02em; scrollbar-width: thin; scrollbar-color: #ffffff15 transparent; box-shadow: none; }
+.noteWriting { display: block; flex: 1; width: 100%; min-height: 100px; margin: 0; padding: 0; resize: none; border: 0; border-radius: 0; background: transparent; color: #d5deea; font-family: var(--font-ui-latin), var(--font-tajawal), sans-serif; font-size: 18px; font-weight: 400; line-height: 1.75; scrollbar-width: thin; scrollbar-color: #ffffff15 transparent; box-shadow: none; }
 .noteWriting::placeholder { color: #52657b; opacity: 1; }
 .dialog .noteWriting:focus-visible { outline: none; }
-.noteWriting:dir(rtl) { font-family: var(--font-ibm-plex-sans-arabic), sans-serif; font-size: 18px; }
+.noteWriting:dir(rtl) { font-family: var(--font-tajawal), sans-serif; font-size: 18px; }
 .existingTitle { color: #d8e3ed; font-size: 17px; font-weight: 600; margin: 6px 0 13px; }
-.noteTools { display: flex; align-items: center; justify-content: flex-end; padding: 10px 0 12px; border-bottom: 1px solid #ffffff0a; }
-.noteCount { font-size: 9px; color: #50627a; }
-.noteFooter { padding: 13px 23px 21px; }
-.noteFooter > p:first-child { margin: 0; color: #61748c; font-size: 10px; line-height: 1.7; }
-.noteFooter > p:first-child > span { display: block; }
-.notePublishActions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 15px; }
+.noteCount { font-size: 9px; color: #71849a; }
 .draftStatus { display: flex; align-items: center; gap: 4px; color: #546e80; font-size: 9px; }
 .primaryButton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 37px; padding: 8px 15px; border: 1px solid #00c2ff40; border-radius: 9px; background: #00c2ff; color: #04131e; font-size: 12px; font-weight: 650; transition: background .15s; }
 .primaryButton:hover:not(:disabled) { background: #54d5ff; }
@@ -133,7 +123,7 @@
 .expandedText { flex: 1; min-height: 0; min-width: 0; overflow: hidden; font-size: var(--note-font-size, 18px); }
 .expandedText h2 { color: #d5deea; font-size: 1.0556em; font-weight: 550; line-height: 1.6; margin: 0 0 .75em; overflow-wrap: anywhere; }
 .fullStory { white-space: pre-wrap; color: #d5deea; font-size: 1em; line-height: 1.75; overflow-wrap: anywhere; margin: 0; }
-.fullStory:dir(rtl) { font-family: var(--font-ibm-plex-sans-arabic), sans-serif; font-size: 1.1111em; }
+.fullStory:dir(rtl) { font-family: var(--font-tajawal), sans-serif; font-size: 1.1111em; }
 .expandedText .attachedVerse { gap: .5em; padding: .65em; margin-top: .7em; }
 .expandedText .attachedVerse > svg { width: 1em; height: 1em; margin-top: .15em; }
 .expandedText .attachedVerse p { font-size: .85em; }
@@ -144,6 +134,14 @@
 .noteOwnerTools .iconButton { background: none; }
 .expandedAuthor { position: absolute; z-index: 1; top: 3px; left: 12px; right: 12px; display: flex; align-items: center; gap: 8px; min-width: 0; height: 32px; color: #8b9bb0; font-size: 10px; line-height: 1.3; text-decoration: none; text-align: start; }
 .expandedAuthor:hover { color: #00c2ff; }
+.dialog.composerDialog { width: min(428px, calc(100vw - 40px)); padding-inline: 4px; }
+.composerDialog .cardClose { right: 4px; }
+.composingNote .expandedAuthor { color: #8b9bb0; }
+.composerContent { display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #ffffff15 transparent; }
+.composerFooter { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-shrink: 0; direction: ltr; }
+.composerStatus { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.composerFooter .primaryButton { flex-shrink: 0; }
+.composerStatus .draftStatus { color: #718b9c; }
 .expandedNote .noteDeleteConfirmation { position: absolute; z-index: 2; bottom: 14px; left: 14px; right: 14px; background: #20212d; box-shadow: 0 5px 20px #0005; }
 .secondaryButton { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 37px; padding: 8px 12px; border: 1px solid #ffffff12; border-radius: 8px; color: #8ca9c0; background: #ffffff04; font-size: 11px; }
 .secondaryButton:hover:not(:disabled) { background: #ffffff08; }
@@ -166,9 +164,7 @@
 @media (max-width: 600px) {
   .noteRail { gap: 12px; }
   .backdrop { padding: max(16px, env(safe-area-inset-top)) 18px max(16px, env(safe-area-inset-bottom)); }
-  .noteWriting { height: clamp(210px, 32dvh, 285px); font-size: 17px; }
-  .writingNote { padding: 23px 20px 0; }
-  .noteFooter { padding: 12px 20px 19px; }
+  .noteWriting { font-size: 17px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .board *, .dialog *, .backdrop { animation: none !important; transition: none !important; scroll-behavior: auto !important; }

@@ -16,6 +16,13 @@ export function createTestimonyFeedStore({ userId, request, storage, now = Date.
     state = { ...state, ...patch, now: time };
     state.items = state.items.filter(item => new Date(item.feedExpiresAt).getTime() > time);
     state.activeNotes = state.activeNotes.filter(item => new Date(item.feedExpiresAt).getTime() > time);
+    // The complete active-note index owns eligibility, including notes beyond page one.
+    // Never retain a cooldown after the owner's final active note is gone.
+    if (state.ready && !state.error && state.publishing && !state.publishing.unlimited) {
+      const next = Math.max(0, ...state.activeNotes.filter(item => String(item.authorId) === String(userId))
+        .map(item => new Date(item.feedExpiresAt).getTime()));
+      state.publishing = { ...state.publishing, canPublish: next <= time, nextPublishAt: next > time ? new Date(next).toISOString() : null };
+    }
     let seenChanged = false;
     for (const [id, expiry] of Object.entries(seen)) if (expiry <= time) { delete seen[id]; seenChanged = true; }
     if (feedVisible) {
@@ -93,7 +100,7 @@ export function createTestimonyFeedStore({ userId, request, storage, now = Date.
       const revision = (revisions.get(event.id) || 0) + 1;
       revisions.set(event.id, revision);
       if (pendingSync) syncAgain = true;
-      if (event.action === 'deleted') { ++generation; remove(event.id); return; }
+      if (event.action === 'deleted') { ++generation; remove(event.id); return { publishing: state.publishing }; }
       const access = accessGeneration;
       const version = ++generation;
       try {

@@ -144,7 +144,7 @@ export default function ForgotPassword() {
                     background: linear-gradient(135deg, #020617 0%, #0f172a 50%, #172554 100%);
                     position: relative;
                     overflow: hidden;
-                    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+                    font-family: var(--font-sans);
                 }
 
                 /* animated orbs */

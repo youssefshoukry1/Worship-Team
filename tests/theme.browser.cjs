@@ -97,7 +97,7 @@ for (const engineName of ['chromium', 'webkit']) {
       assert.equal(await toggle.getAttribute('aria-checked'), 'true');
       assert.equal(await page.evaluate(() => localStorage.getItem('taspe7_theme')), 'dark');
       assert.equal(await page.locator('meta[name="theme-color"]').getAttribute('content'), '#090c0f');
-      let prayerSurface;
+      let prayerSurface, prayerPage;
       const surfaceStyle = el => {
         const style = getComputedStyle(el);
         return { background: style.backgroundColor, image: style.backgroundImage, blur: style.backdropFilter || style.webkitBackdropFilter, shadow: style.boxShadow };
@@ -110,10 +110,18 @@ for (const engineName of ['chromium', 'webkit']) {
         assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
         const background = await page.locator('.app-page').first().evaluate(el => getComputedStyle(el).backgroundColor);
         assert.equal(background, 'rgb(9, 12, 15)', `${route} shares the black theme`);
-        if (route === '/') prayerSurface = await page.locator('.app-card').first().evaluate(surfaceStyle);
+        if (route === '/') {
+          prayerSurface = await page.locator('.app-card').first().evaluate(surfaceStyle);
+          prayerPage = await page.locator('.app-page').first().evaluate(surfaceStyle);
+        }
         if (route === '/bible_form/') {
           const glass = await page.locator('.app-reading-surface').evaluate(surfaceStyle);
-          assert.deepEqual(glass, prayerSurface, 'Bible must use exactly the same background depth and glass treatment as Pray');
+          assert.equal(glass.background, 'rgba(0, 0, 0, 0)', 'Dark Bible must not add a lighter card tint over the Pray page background');
+          assert.equal(glass.image, 'none');
+          assert.equal(glass.blur, prayerSurface.blur, 'Keep the shared backdrop blur');
+          const biblePage = await page.locator('[data-feature="bible-reader"].app-page').evaluate(surfaceStyle);
+          assert.equal(biblePage.background, prayerPage.background, 'Dark Bible and Pray share the same base color');
+          assert.equal(biblePage.image, prayerPage.image, 'Dark Bible and Pray share the same ambient background');
           await page.locator('.bible-verse').first().waitFor();
           assert.equal(await page.locator('.bible-verse p').first().evaluate(el => getComputedStyle(el).filter), 'none', 'Blur the backdrop while keeping verse text sharp');
         }
@@ -145,8 +153,19 @@ for (const engineName of ['chromium', 'webkit']) {
         assert.equal(await page.locator('.app-page').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(6, 11, 19)',`${route} retains the navy Light palette`);
         const nav=page.locator('.app-bottom-nav').first();
         if(await nav.count()) assert.equal(await nav.evaluate(el=>getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter),'blur(12px)',`${route} shares the Light glass treatment`);
-        if(route==='/') prayerSurface=await page.locator('.app-card').first().evaluate(surfaceStyle);
-        if(route==='/bible_form/') assert.deepEqual(await page.locator('.app-reading-surface').evaluate(surfaceStyle),prayerSurface,'Light mode uses exactly the same glass surface on Bible and Pray');
+        if(route==='/') {
+          prayerSurface=await page.locator('.app-card').first().evaluate(surfaceStyle);
+          prayerPage=await page.locator('.app-page').first().evaluate(surfaceStyle);
+        }
+        if(route==='/bible_form/') {
+          const glass=await page.locator('.app-reading-surface').evaluate(surfaceStyle);
+          assert.equal(glass.background,'rgba(0, 0, 0, 0)','Main Bible must not add a lighter card tint over the Pray page background');
+          assert.equal(glass.image,'none');
+          assert.equal(glass.blur,prayerSurface.blur,'Keep the shared backdrop blur');
+          const biblePage=await page.locator('[data-feature="bible-reader"].app-page').evaluate(surfaceStyle);
+          assert.equal(biblePage.background,prayerPage.background,'Main Bible and Pray share the same base color');
+          assert.equal(biblePage.image,prayerPage.image,'Main Bible and Pray share the same ambient background');
+        }
         if(engineName==='chromium' && (route==='/' || route==='/bible_form/')) {
           await page.evaluate(()=>document.fonts.ready);
           await page.screenshot({path:path.join(screenshotDir,`light-desktop-${route==='/'?'home':'bible'}.png`)});

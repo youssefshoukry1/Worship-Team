@@ -41,9 +41,10 @@ async function setup(t, { startPath = '/friends/', mobile = false, failFirstPubl
     post('444444444444444444444444', 'A story from last week', 'An older testimony remains on my profile for friends to read long after its day on the board.', 'olive', friend, 7 * 86400000),
   ], notesVersions: { [A]: 0, [B]: 0 }, profileBodyReads: 0, profileChecks: 0, profileBatchReads: [], noteReads: [], sent: [], socialReads: [], loveRequests: [], loveNotifications: [], reactorUsers: [], reactorReads: 0, failReactors: false, publishAttempts: 0, denyProfile: false, relationship, failFriendship, friendshipRequests: [], privateProfileReads: 0, alreadyFriendsOnAdd: false, failRelationshipRead: false };
   state.nextPublishAt = cooldownSoon ? now + 20000 : 0;
+  if (cooldownSoon) state.posts.push(post('666666666666666666666666', 'An expiring note', 'This active note expires soon.', 'olive', owner, 86400000 - 20000));
   const publishing = () => {
     if (programer) return { canPublish: true, unlimited: true, nextPublishAt: null };
-    const next = Math.max(state.nextPublishAt, ...state.posts.filter(item => item.author._id === A).map(item => new Date(item.feedExpiresAt).getTime()));
+    const next = Math.max(0, ...state.posts.filter(item => item.author._id === A).map(item => new Date(item.feedExpiresAt).getTime()));
     return { canPublish: next <= Date.now(), unlimited: false, nextPublishAt: next > Date.now() ? new Date(next).toISOString() : null };
   };
   if (expiresSoon || cooldownSoon) await page.clock.install({ time: new Date(now) });
@@ -151,7 +152,7 @@ async function setup(t, { startPath = '/friends/', mobile = false, failFirstPubl
     }
     if (/\/testimonies\/[a-f\d]{24}$/.test(path)) {
       const id = path.split('/').pop();
-      if (method === 'DELETE') { state.nextPublishAt = Math.max(state.nextPublishAt, new Date(state.posts.find(item => item._id === id)?.feedExpiresAt || 0).getTime()); state.posts = state.posts.filter(item => item._id !== id); return reply({ success: true, notesVersion: ++state.notesVersions[A] }); }
+      if (method === 'DELETE') { state.posts = state.posts.filter(item => item._id !== id); return reply({ success: true, publishing: publishing(), notesVersion: ++state.notesVersions[A] }); }
       if (method === 'PATCH') {
         const body = request.postDataJSON();
         const notesVersion = ++state.notesVersions[A];
@@ -223,6 +224,19 @@ test('writing directly on a dark note restores drafts, retries, edits, and delet
   assert.equal(await dialog.getByRole('button', { name: 'Share', exact: true }).isDisabled(), true);
   assert.equal(await dialog.locator('input').count(), 0);
   assert.equal(await dialog.getByRole('textbox').count(), 1);
+  const note = dialog.getByTestId('testimony-composer-note');
+  const noteStyle = await note.evaluate(element => {
+    const style = getComputedStyle(element);
+    return { radius: style.borderRadius, transform: style.transform, width: element.offsetWidth, height: element.offsetHeight };
+  });
+  assert.equal(noteStyle.radius, '16px 16px 36px');
+  assert.notEqual(noteStyle.transform, 'none');
+  assert.equal(noteStyle.width, noteStyle.height, 'Compose directly on the same square pinned note as the reader');
+  assert.equal(await note.locator('svg.lucide-pin').count(), 1);
+  assert.equal(await note.locator('svg.lucide-heart, svg.lucide-pencil, svg.lucide-trash-2').count(), 0);
+  assert.equal(await dialog.getByRole('textbox').evaluate(element => getComputedStyle(element).backgroundImage), 'none');
+  const closeBox = await dialog.getByRole('button', { name: 'Close', exact: true }).boundingBox();
+  assert.ok(closeBox.y + closeBox.height < (await note.boundingBox()).y, 'Close sits above the note');
   const story = 'A friend called at just the right moment. Through that conversation, God reminded me that I was not alone.';
   await dialog.getByRole('textbox', { name: 'Your testimony', exact: true }).fill(story);
   await page.keyboard.press('Escape');
@@ -230,7 +244,7 @@ test('writing directly on a dark note restores drafts, retries, edits, and delet
   await page.getByRole('button', { name: 'Share your testimony', exact: true }).click();
   dialog = page.getByRole('dialog');
   assert.equal(await dialog.getByRole('textbox', { name: 'Your testimony', exact: true }).inputValue(), story);
-  await page.screenshot({ path: resolve(output, 'composer-desktop.png'), fullPage: true });
+  await page.screenshot({ path: resolve(output, 'composer-desktop.png'), fullPage: true, animations: 'disabled' });
   await dialog.getByRole('button', { name: 'Share', exact: true }).click();
   await dialog.getByRole('alert').waitFor();
   assert.match(await dialog.getByRole('alert').innerText(), /Your draft is safe/);
@@ -267,7 +281,7 @@ test('iPhone Safari note editor fits the screen, supports Arabic, and restores f
   assert.ok(parseFloat(await writing.evaluate(element => getComputedStyle(element).fontSize)) >= 16);
   assert.equal(await writing.evaluate(element => getComputedStyle(element).borderTopWidth), '0px');
   assert.equal(await writing.evaluate(element => getComputedStyle(element).direction), 'rtl');
-  assert.notEqual(await dialog.evaluate(element => getComputedStyle(element).backgroundColor), 'rgba(0, 0, 0, 0)');
+  assert.notEqual(await dialog.getByTestId('testimony-composer-note').evaluate(element => getComputedStyle(element).backgroundColor), 'rgba(0, 0, 0, 0)');
   await page.screenshot({ path: resolve(output, 'composer-mobile-write.png'), fullPage: true, animations: 'disabled' });
   assert.equal(await dialog.getByRole('button', { name: 'Preview', exact: true }).count(), 0);
   const box = await dialog.boundingBox();
@@ -338,6 +352,26 @@ for (const mobile of [false, true]) test(`expanded notes fit all text without sc
     }
     await page.keyboard.press('Escape');
   }
+  assert.deepEqual(errors, []);
+});
+
+for (const mobile of [false, true]) test(`blank composer publishes a single character on ${mobile ? 'Safari mobile' : 'Chromium desktop'}`, async t => {
+  const { page, state, errors } = await setup(t, { empty: true, mobile });
+  await page.getByRole('button', { name: 'Share your testimony', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  const writing = dialog.getByRole('textbox', { name: 'Your testimony', exact: true });
+  const share = dialog.getByRole('button', { name: 'Share', exact: true });
+  assert.equal(await writing.getAttribute('placeholder'), null);
+  assert.equal(await share.isDisabled(), true);
+  await writing.fill('   ');
+  assert.equal(await share.isDisabled(), true);
+  const character = mobile ? 'ب' : 'A';
+  await writing.fill(character);
+  assert.equal(await share.isEnabled(), true);
+  await share.click();
+  await dialog.waitFor({ state: 'hidden' });
+  assert.equal(state.sent[0].body, character);
+  assert.equal(state.sent[0].title, character);
   assert.deepEqual(errors, []);
 });
 
@@ -589,7 +623,7 @@ test('active notes explain blocked sharing with a toast on Friends and the main 
   assert.deepEqual(errors, []);
 });
 
-test('publishing disables the next note and deleting does not bypass the wait', async t => {
+test('publishing blocks another active note and deletion immediately allows a replacement, including after reload', async t => {
   const { page, errors } = await setup(t, { empty: true, mobile: true });
   const add = page.getByRole('button', { name: 'Share your testimony', exact: true });
   await add.click();
@@ -605,13 +639,32 @@ test('publishing disables the next note and deleting does not bypass the wait', 
   await page.getByRole('button', { name: 'Remove', exact: true }).click();
   await page.getByRole('button', { name: 'Remove testimony', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  await page.waitForFunction(() => document.querySelector('[aria-label="Share your testimony"]')?.getAttribute('aria-disabled') === 'false');
+  assert.equal(await add.isEnabled(), true);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.getByText('Note active', { exact: true }).waitFor();
-  assert.equal(await add.isDisabled(), true);
+  await page.waitForFunction(() => document.querySelector('[aria-label="Share your testimony"]')?.getAttribute('aria-disabled') === 'false');
+  await add.click();
+  await page.getByRole('textbox', { name: 'Your testimony', exact: true }).fill('A new note after removing the previous one.');
+  await page.getByRole('button', { name: 'Share', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  await page.getByRole('button', { name: 'Read testimony: A new note after removing the previous one.', exact: true }).waitFor();
   assert.deepEqual(errors, []);
 });
 
-test('sharing enables automatically when the background cooldown expires', async t => {
+for (const startPath of ['/friends/', '/normal_UserProfile/']) test(`deleting a note on another device unlocks sharing immediately on ${startPath}`, async t => {
+  const { page, state, errors } = await setup(t, { startPath });
+  const add = page.getByRole('button', { name: 'Share your testimony', exact: true });
+  await page.getByText('Note active', { exact: true }).waitFor();
+  const own = state.posts.find(item => item.author._id === A);
+  state.posts = state.posts.filter(item => item._id !== own._id);
+  state.publishNote({ id: own._id, authorId: A, action: 'deleted', notesVersion: ++state.notesVersions[A] });
+  await page.waitForFunction(() => document.querySelector('[aria-label="Share your testimony"]')?.getAttribute('aria-disabled') === 'false');
+  await add.click();
+  await page.getByRole('textbox', { name: 'Your testimony', exact: true }).waitFor();
+  assert.deepEqual(errors, []);
+});
+
+test('sharing enables automatically when the active note expires', async t => {
   const { page, state, errors } = await setup(t, { empty: true, cooldownSoon: true });
   const add = page.getByRole('button', { name: 'Share your testimony', exact: true });
   assert.equal(await add.isDisabled(), true);
@@ -643,6 +696,8 @@ test('a note published on another device blocks a stale composer and preserves i
   const story = 'Keep this draft even when another device publishes first.';
   await page.getByRole('textbox', { name: 'Your testimony', exact: true }).fill(story);
   state.nextPublishAt = Date.now() + 86400000;
+  state.posts.push({ _id: '777777777777777777777777', title: 'Published from another device', body: 'An active note from another device.', author: owner,
+    style: 'olive', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), feedExpiresAt: new Date(state.nextPublishAt).toISOString() });
   await page.getByRole('button', { name: 'Share', exact: true }).click();
   await page.getByRole('dialog').getByRole('alert').waitFor();
   await page.getByText('Share again when your note disappears.', { exact: true }).waitFor();

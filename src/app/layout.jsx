@@ -1,4 +1,5 @@
-import { Geist, Geist_Mono, Noto_Naskh_Arabic, IBM_Plex_Sans_Arabic } from "next/font/google";
+import { Geist, Geist_Mono, Noto_Naskh_Arabic } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import UserContextProvider from "./context/User_Context";
 import HymnsContextProvider from "./context/Hymns_Context";
@@ -34,11 +35,18 @@ const notoNaskhArabic = Noto_Naskh_Arabic({
     weight: ["400", "500", "600", "700"],
 });
 
-const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
-    variable: "--font-ibm-plex-sans-arabic",
-    subsets: ["arabic"],
-    weight: ["400", "500", "600", "700"],
+const tajawal = localFont({
+    src: [
+        { path: "./fonts/tajawal/Tajawal-Regular.woff2", weight: "400", style: "normal" },
+        { path: "./fonts/tajawal/Tajawal-Medium.woff2", weight: "500", style: "normal" },
+        { path: "./fonts/tajawal/Tajawal-Bold.woff2", weight: "700", style: "normal" },
+    ],
+    variable: "--font-tajawal",
+    display: "swap",
 });
+
+// Use Geist's primary face before Tajawal, excluding its Arabic-capable Arial fallback.
+const uiFontStyle = { "--font-ui-latin": geistSans.style.fontFamily.split(",")[0] };
 
 export const metadata = {
     title: "Wasla",
@@ -53,7 +61,7 @@ export default function RootLayout({
     children,
 }) {
     return (
-        <html lang="en" suppressHydrationWarning>
+        <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${notoNaskhArabic.variable} ${tajawal.variable}`} style={uiFontStyle} suppressHydrationWarning>
             <head>
                 <meta name="theme-color" content="#060b13" />
                 <script
@@ -63,7 +71,7 @@ export default function RootLayout({
                 />
             </head>
             <body
-                className={`${geistSans.variable} ${geistMono.variable} ${notoNaskhArabic.variable} ${ibmPlexSansArabic.variable} antialiased text-white min-h-screen`}
+                className="antialiased text-white min-h-screen"
             >
                 <WaslaSplashIntro />
                 <ServiceWorkerRegistry />

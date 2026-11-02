@@ -1387,9 +1387,6 @@ export function BibleForm({ controller, isPage = false }) {
             )}
 
 
-            {/* Smart Progress Indicator */}
-            <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-sky-500/50 to-transparent" />
-
             {/* Compact Floating Settings Panel (Left side floating - verses stay visible for live preview) */}
             <AnimatePresence>
               {isSettingsOpen && (
