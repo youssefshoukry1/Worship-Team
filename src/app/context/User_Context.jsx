@@ -124,6 +124,24 @@ export default function UserContextProvider({ children }) {
 
   const [vocalsMode, setVocalsMode] = useState(true);
 
+  const logout = () => {
+    for (const key of ['Token', 'GlobalRole', 'SubRole', 'Role', 'ID', 'ChurchId', 'HymnIds', 'Status', 'Username', 'Teams', 'ProfilePhoto', 'Email']) {
+      localStorage.removeItem(`user_Taspe7_${key}`);
+    }
+    setLogin(null);
+    setUserRole(null);
+    setSubRole(null);
+    setUser_id(null);
+    setChurchId(null);
+    setHymnIds([]);
+    setUserStatus(null);
+    setUsername(null);
+    setTeams([]);
+    setProfilePhoto(null);
+    clearProfilePhotoPreview();
+    setUploadingPhotoFor(null);
+  };
+
   const refreshTeams = async () => {
     const token = localStorage.getItem("user_Taspe7_Token");
     if (!token) return;
@@ -131,7 +149,7 @@ export default function UserContextProvider({ children }) {
       const res = await axios.get(`${API_URL}/users/my-teams`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.data) {
+      if (res.data && localStorage.getItem('user_Taspe7_Token') === token) {
         setTeams(res.data);
         localStorage.setItem("user_Taspe7_Teams", JSON.stringify(res.data));
       }
@@ -198,6 +216,7 @@ export default function UserContextProvider({ children }) {
     return (
       <UserContext.Provider value={{
         isLogin, setLogin,
+        logout,
         UserRole, setUserRole,
         subRole, setSubRole,
         user_id, setUser_id,

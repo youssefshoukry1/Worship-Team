@@ -23,7 +23,7 @@ export default function HymnEditor({ view }) {
         className="fixed inset-0 z-9999 flex justify-center items-center p-4 backdrop-blur-md bg-black/70"
       >
         <div
-          className="w-full max-w-md max-h-[90vh] bg-[#0c0c20] border border-white/10 rounded-2xl shadow-2xl overflow-y-auto relative"
+          className="w-full max-w-md max-h-[90vh] bg-app-panel border border-white/10 rounded-2xl shadow-2xl overflow-y-auto relative"
           data-lenis-prevent-wheel
         >
           {/* Header */}
@@ -80,7 +80,7 @@ export default function HymnEditor({ view }) {
               </div>
     
               {Array.isArray(formData.lyrics) && formData.lyrics.map((stanza, idx) => (
-                <div key={idx} className={`p-4 rounded-xl border relative flex flex-col gap-3 transition-colors ${stanza.type === 'chorus' ? 'bg-sky-500/10 border-sky-500/30 shadow-[inset_0_0_20px_rgba(56,189,248,0.05)]' : 'bg-[#151525] border-white/10'}`}>
+                <div key={idx} className={`p-4 rounded-xl border relative flex flex-col gap-3 transition-colors ${stanza.type === 'chorus' ? 'bg-sky-500/10 border-sky-500/30 shadow-[inset_0_0_20px_rgba(56,189,248,0.05)]' : 'bg-app-panel border-white/10'}`}>
     
                   <div className="flex justify-between items-center gap-2 pb-2 border-b border-white/5">
                     <input

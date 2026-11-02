@@ -9,13 +9,13 @@ function Label({ en, ar, de }) {
 // selects the returning-user layout before React or its route chunks execute.
 export default function AppStartupShell({ prayerEntry = false, variant = 'form', publicPage = false }) {
   return (
-    <div data-startup-shell data-prayer-entry={prayerEntry} aria-busy="true" aria-label="Opening Wasla" className="min-h-screen bg-[var(--app-bg)] text-white">
+    <div data-startup-shell data-prayer-entry={prayerEntry} aria-busy="true" aria-label="Opening Wasla" className="app-page min-h-screen text-white">
       <div data-startup-loading className="min-h-screen">
         <PageSkeleton variant={publicPage ? variant : 'form'} fullPage />
       </div>
       {!prayerEntry && <div data-startup-content><PageSkeleton variant={variant} fullPage chrome={!publicPage && variant !== 'form' && variant !== 'presentation'} /></div>}
       {prayerEntry && <div data-startup-prayer aria-hidden="true" inert>
-        <div className="h-20 border-b border-white/5 bg-[#080e18] px-4 flex items-center">
+        <div className="h-20 border-b border-white/5 app-header px-4 flex items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/wasla.svg" alt="" width="80" height="80" />
         </div>
@@ -39,7 +39,7 @@ export default function AppStartupShell({ prayerEntry = false, variant = 'form',
             <div className="h-3 w-1/2 rounded bg-white/5" />
           </div>
         </div>
-        <div className="fixed bottom-0 inset-x-0 h-[58px] flex items-center justify-around border-t border-white/5 bg-[#060b13] text-slate-400">
+        <div className="fixed bottom-0 inset-x-0 h-[58px] flex items-center justify-around border-t border-white/5 app-bottom-nav text-slate-400">
           {[['Pray', Heart], ['Bible', BookOpen], ['Hymns', Music], ['Friends', Users], ['Profile', User]].map(([label, Icon], index) => <div key={label} className={`flex flex-col items-center gap-1 text-[10px] ${index === 0 ? 'text-[#00C2FF]' : ''}`}><Icon size={21} /><span>{label}</span></div>)}
         </div>
       </div>}

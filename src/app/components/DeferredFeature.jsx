@@ -7,7 +7,7 @@ function FeatureStatus({ label, error, retry, close, inline }) {
   // Only an explicit reload can recover those; closing still preserves the page.
   const chunkFailed = error?.name === 'ChunkLoadError';
   return (
-    <div className={inline ? 'flex items-center justify-center gap-3 p-6' : 'fixed inset-0 z-[10001] flex items-center justify-center bg-slate-950/90 p-6'}>
+    <div className={inline ? 'flex items-center justify-center gap-3 p-6' : 'fixed inset-0 z-[10001] flex items-center justify-center bg-app-page/90 p-6'}>
       <div className="flex flex-col items-center gap-4 text-center text-slate-200" role={error ? 'alert' : 'status'}>
         {!error && <span className="h-6 w-6 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" aria-hidden="true" />}
         <p>{error ? `Unable to open ${label}.` : `Loading ${label}…`}</p>

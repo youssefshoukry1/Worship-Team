@@ -156,7 +156,7 @@ export default function BackupModal({ isOpen, onClose, token, userId, activeTeam
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
             <div className="bg-[#1e293b] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-white/10 animate-in zoom-in-95 duration-200">
-                <div className="flex items-center justify-between p-4 border-b border-white/5 bg-[#0f172a]">
+                <div className="flex items-center justify-between p-4 border-b border-white/5 bg-app-panel">
                     <div className="flex items-center gap-2">
                         <Cloud className="text-sky-400" size={20} />
                         <h3 className="text-white font-medium">Backup & Restore</h3>

@@ -238,7 +238,7 @@ export default function Dashboard() {
 
   if (isLogin && !hasAccess) {
     return (
-      <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center text-white p-6">
+      <div className="app-page min-h-screen flex flex-col items-center justify-center text-white p-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -265,7 +265,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#020617] flex flex-col">
+    <div className="app-page min-h-screen flex flex-col">
       <div className="flex items-center gap-2 px-3 py-3 bg-[#0d1322] border-b border-slate-800/80 shrink-0 sticky top-0 z-50">
         <button
           onClick={() => router.push('/Teams')}

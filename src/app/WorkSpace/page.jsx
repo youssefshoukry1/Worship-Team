@@ -233,7 +233,7 @@ const SetlistCustomizerCard = ({ hymn, idx, updateWorkspaceHymn }) => {
                     <div className="space-y-4">
                         {Array.isArray(localLyrics) ? (
                             localLyrics.map((stanza, sIdx) => (
-                                <div key={sIdx} className={`p-4 rounded-xl border relative flex flex-col gap-3 transition-colors ${stanza.type === 'chorus' ? 'bg-sky-500/10 border-sky-500/30 shadow-[inset_0_0_20px_rgba(56,189,248,0.05)]' : 'bg-[#151525] border-white/10'}`}>
+                                <div key={sIdx} className={`p-4 rounded-xl border relative flex flex-col gap-3 transition-colors ${stanza.type === 'chorus' ? 'bg-sky-500/10 border-sky-500/30 shadow-[inset_0_0_20px_rgba(56,189,248,0.05)]' : 'bg-app-panel border-white/10'}`}>
                                     <div className="flex justify-between items-center gap-2 pb-2 border-b border-white/5">
                                         <input
                                             type="text"
@@ -1744,10 +1744,10 @@ export default function WorkSpace() {
     }
 
     return (
-        <section id='WorkSpace-section' className="min-h-screen bg-[var(--app-bg)] text-white px-4 sm:px-6 py-16 relative overflow-hidden transition-colors duration-150">
+        <section id='WorkSpace-section' className="app-page min-h-screen text-white px-4 sm:px-6 py-16 relative overflow-hidden transition-colors duration-150">
             {/* Background Gradients - Matching Category Page */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_70%)] dark:opacity-25 pointer-events-none" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.08),transparent_70%)] dark:opacity-25 pointer-events-none" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_70%)] app-ambient-glow pointer-events-none" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.08),transparent_70%)] app-ambient-glow pointer-events-none" />
 
             <div className="relative z-10 max-w-7xl mx-auto">
                 {/* Header */}
@@ -1864,8 +1864,8 @@ export default function WorkSpace() {
                                     onClick={() => setShowSessionPanel(p => !p)}
                                     className={`relative z-10 flex items-center gap-2 px-5 py-2.5 rounded-2xl transition-all font-bold text-sm w-full h-full justify-center
                                         ${isConnected
-                                            ? 'bg-[#0c142c] text-green-400 hover:bg-[#121d3f]'
-                                            : 'bg-[#0a1020] text-gray-400 hover:bg-[#0f172f] hover:text-white'
+                                            ? 'bg-app-panel text-green-400 hover:bg-app-raised'
+                                            : 'bg-app-panel text-gray-400 hover:bg-app-raised hover:text-white'
                                         }`}
                                 >
                                     <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse text-green-400' : ''}`} />
@@ -2463,9 +2463,9 @@ export default function WorkSpace() {
                 {/* --- Data Show (Presentation) Presenter View - Independent --- */}
                 {showDataShow && selectedLyricsHymn && (
                     <Portal>
-                        <div id="showDataContainer" className="fixed inset-0 z-10000 bg-[#020617] flex flex-col">
+                        <div id="showDataContainer" className="fixed inset-0 z-10000 bg-app-page flex flex-col">
                             {/* ── Shared Header ── */}
-                            <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-[#0f172a] border-b border-white/10 shrink-0 z-20">
+                            <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-app-panel border-b border-white/10 shrink-0 z-20">
                                 <div className="flex flex-col min-w-0">
                                     <h2 className="text-base sm:text-xl font-bold text-white tracking-tight truncate">{selectedLyricsHymn.title}</h2>
                                     <p className="text-[10px] sm:text-xs text-sky-400 font-medium">
@@ -2675,7 +2675,7 @@ export default function WorkSpace() {
                                 </div>
 
                                 {/* Desktop Live Session Footer */}
-                                <div className="shrink-0 bg-[#0f172a] border-t border-white/10 px-6 py-3 z-20 flex items-center gap-3">
+                                <div className="shrink-0 bg-app-panel border-t border-white/10 px-6 py-3 z-20 flex items-center gap-3">
                                     <LocalFullscreenButton displayRef={localDisplayRef} className="shrink-0" />
                                     <div className="flex-1 min-w-0">
                                     {!dataShowId ? (
@@ -2750,7 +2750,7 @@ export default function WorkSpace() {
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="w-full max-w-4xl max-h-[90vh] bg-[#0E2238] border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+                                className="w-full max-w-4xl max-h-[90vh] bg-app-panel border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
                             >
                                 <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
                                     <div>
@@ -2805,7 +2805,7 @@ export default function WorkSpace() {
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="w-full max-w-lg bg-[#0E2238] border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+                                className="w-full max-w-lg bg-app-panel border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
                             >
                                 <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
                                     <h2 className="text-xl font-bold text-sky-400">Select Event to Save Setlist</h2>
@@ -2867,7 +2867,7 @@ export default function WorkSpace() {
                                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                                className="w-full max-w-2xl bg-[#0E2238] border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden max-h-[90vh]"
+                                className="w-full max-w-2xl bg-app-panel border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden max-h-[90vh]"
                             >
                                 <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5 backdrop-blur-md z-10 shrink-0">
                                     <h2 className="text-xl font-bold text-sky-400">
@@ -2916,7 +2916,7 @@ export default function WorkSpace() {
                                                             animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
                                                             exit={{ opacity: 0, height: 0, marginTop: 0, overflow: 'hidden' }}
                                                             transition={{ duration: 0.2 }}
-                                                            className="p-1 rounded-xl border relative flex flex-col gap-0 transition-colors bg-[#151525] border-white/10 group focus-within:border-sky-500/30 focus-within:shadow-[0_0_15px_rgba(56,189,248,0.1)]"
+                                                            className="p-1 rounded-xl border relative flex flex-col gap-0 transition-colors bg-app-panel border-white/10 group focus-within:border-sky-500/30 focus-within:shadow-[0_0_15px_rgba(56,189,248,0.1)]"
                                                         >
                                                             <div className="flex justify-between items-center gap-2 px-3 py-2 border-b border-white/5 bg-white/[0.02] rounded-t-xl">
                                                                 <input
@@ -3078,7 +3078,7 @@ function BibleWorkspaceItem({ bible, index, removeFromWorkspace, variants, openL
         <motion.div
             variants={variants}
             className="group relative grid grid-cols-12 gap-2 sm:gap-4 p-3 sm:p-5 items-center 
-                               bg-[#13132b]/60 hover:bg-[#1a1a38] 
+                               bg-app-panel/60 hover:bg-app-raised
                                border border-white/5 hover:border-sky-500/30 
                                rounded-2xl transition-all duration-300 backdrop-blur-sm
                                hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
@@ -3167,7 +3167,7 @@ function WorkspaceItem({ hymn, index, categories, removeFromWorkspace, variants,
         <motion.div
             variants={variants}
             className="group relative grid grid-cols-12 gap-2 sm:gap-4 p-3 sm:p-5 items-center 
-                               bg-[#13132b]/60 hover:bg-[#1a1a38] 
+                               bg-app-panel/60 hover:bg-app-raised
                                border border-white/5 hover:border-sky-500/30 
                                rounded-2xl transition-all duration-300 backdrop-blur-sm
                                hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"

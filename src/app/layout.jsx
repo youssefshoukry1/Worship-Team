@@ -14,6 +14,8 @@ import AppAuthGatekeeper from "./components/AppAuthGatekeeper";
 import PrayerBackupLifecycle from "./components/PrayerBackupLifecycle";
 import PrayerSyncLifecycle from "./components/PrayerSyncLifecycle";
 import BillingLifecycle from './components/BillingLifecycle';
+import AndroidBackNavigation from './components/AndroidBackNavigation';
+import IOSBackNavigation from './components/IOSBackNavigation';
 import TestimonyFeedProvider from './components/testimonies/TestimonyFeedProvider';
 
 const geistSans = Geist({
@@ -53,9 +55,10 @@ export default function RootLayout({
     return (
         <html lang="en" suppressHydrationWarning>
             <head>
+                <meta name="theme-color" content="#060b13" />
                 <script
                     dangerouslySetInnerHTML={{
-                        __html: `(function(){try{var r=document.documentElement,t=localStorage.getItem("taspe7_theme"),l=localStorage.getItem("app-language");if(t==="dark"){r.classList.add("dark");r.setAttribute("data-theme","dark");}r.setAttribute("data-startup-language",["en","ar","de"].includes(l)?l:"ar");r.setAttribute("data-startup-session",localStorage.getItem("user_Taspe7_Token")&&localStorage.getItem("user_Taspe7_Username")?"returning":"guest");}catch(_){}})();`
+                        __html: `(function(){try{var r=document.documentElement,t=localStorage.getItem("taspe7_theme"),l=localStorage.getItem("app-language"),d=t==="dark";r.classList.toggle("dark",d);r.setAttribute("data-theme",d?"dark":"light");document.querySelector('meta[name="theme-color"]').setAttribute("content",d?"#090c0f":"#060b13");r.setAttribute("data-startup-language",["en","ar","de"].includes(l)?l:"ar");r.setAttribute("data-startup-session",localStorage.getItem("user_Taspe7_Token")&&localStorage.getItem("user_Taspe7_Username")?"returning":"guest");}catch(_){}})();`
                     }}
                 />
             </head>
@@ -70,6 +73,8 @@ export default function RootLayout({
                         <ThemeProvider>
                             <LanguageProvider>
                                 <UserContextProvider>
+                                    <AndroidBackNavigation />
+                                    <IOSBackNavigation />
                                     <CapgoUpdater />
                                     <PrayerBackupLifecycle />
                                     <PrayerSyncLifecycle />

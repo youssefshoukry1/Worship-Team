@@ -28,7 +28,7 @@ export default function BottomNav() {
     }, [router]);
 
     return (
-        <div className="md:hidden w-full h-16 bg-[#0d1322] border-t border-slate-800/80 flex items-center justify-around shrink-0 pb-safe z-50">
+        <div className="md:hidden w-full h-16 bg-app-panel border-t border-slate-800/80 flex items-center justify-around shrink-0 pb-safe z-50">
             <Link
                 href="/chat_team"
                 prefetch

@@ -4,7 +4,7 @@ import Link from "next/link";
 
 export default function ResetPassword() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#030712]">
+    <div className="app-page min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-2xl p-8 shadow-2xl relative z-10 text-slate-100 text-center">
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-sky-500/10 text-sky-400 font-bold text-xl mb-4 border border-sky-500/20">
           ✨

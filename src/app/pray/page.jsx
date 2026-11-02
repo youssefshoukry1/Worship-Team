@@ -23,6 +23,7 @@ import { prayerCircleText, formatActivityTime } from './prayerCircleText';
 import usePrayerCircleOrder from './usePrayerCircleOrder';
 import { newPrayerAction, preparePrayerAction, retryPrayerAction, localPrayerOverlay, PRAYER_SYNC_EVENT } from '../services/prayerSync';
 import usePrayerDeleteWindow, { prayerDeleteAvailable } from './usePrayerDeleteWindow';
+import { HOME_REFRESH_EVENT } from '../utils/androidBack';
 
 const API_URL = getApiBaseUrl();
 
@@ -523,7 +524,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
 
 const ListPanel = memo(function ListPanel({ title, icon: Icon, items, emptyText, renderItem, forceRenderId }) {
     return (
-        <div className="flex flex-col rounded-3xl border border-white/5 bg-white/[0.03] backdrop-blur-2xl shadow-xl shadow-black/20">
+        <div className="flex flex-col app-card rounded-3xl border shadow-xl shadow-black/20">
             <div className="flex items-center gap-3 border-b border-white/5 p-4 sm:p-5 bg-black/20">
                 <h2 className="text-sm sm:text-base font-bold text-white tracking-wide">{title}</h2>
             </div>
@@ -742,7 +743,12 @@ export default function PrayPage() {
             } catch { }
         };
         window.addEventListener('focus', handleFocus);
-        return () => { ignore = true; window.removeEventListener('focus', handleFocus); };
+        window.addEventListener(HOME_REFRESH_EVENT, handleFocus);
+        return () => {
+            ignore = true;
+            window.removeEventListener('focus', handleFocus);
+            window.removeEventListener(HOME_REFRESH_EVENT, handleFocus);
+        };
     }, [token, userId]);
 
     const { t, language } = useLanguage();
@@ -1107,11 +1113,13 @@ export default function PrayPage() {
         };
         const interval = setInterval(refresh, 15000);
         window.addEventListener('taspe7:prayer-push', refresh);
+        window.addEventListener(HOME_REFRESH_EVENT, refresh);
         window.addEventListener('online', refresh);
         document.addEventListener('visibilitychange', refreshWhenVisible);
         return () => {
             clearInterval(interval);
             window.removeEventListener('taspe7:prayer-push', refresh);
+            window.removeEventListener(HOME_REFRESH_EVENT, refresh);
             window.removeEventListener('online', refresh);
             document.removeEventListener('visibilitychange', refreshWhenVisible);
         };
@@ -1220,10 +1228,10 @@ export default function PrayPage() {
     ), [deletablePrayerIds, expandedFriendPrayers, unreadPrayerIds, recordingsIndex, responseInputs, resolveFriendProfile, myProfilePhoto, myUsername, getPrayTypeLabel, t, language, cardActions]);
 
     return (
-        <section className="min-h-screen bg-[var(--app-bg)] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(14,165,233,0.07),rgba(0,0,0,0))] pb-[100px] pt-8 px-4 text-white transition-colors duration-150">
+        <section className="app-page min-h-screen pb-[100px] pt-8 px-4 text-white transition-colors duration-150">
             <div className="max-w-5xl mx-auto">
                 <div className="grid grid-cols-1 gap-5 sm:gap-6">
-                    <div className="rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-2xl shadow-xl shadow-black/20 p-4 sm:p-6">
+                    <div className="app-card rounded-3xl border shadow-xl shadow-black/20 p-4 sm:p-6">
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                                 <Heart className="w-5 h-5 text-sky-300" />
@@ -1265,7 +1273,7 @@ export default function PrayPage() {
                                 )}
                             </button>
                         </div>
-                        <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3 sm:p-4 transition-all flex flex-col gap-3.5 mb-4">
+                        <div className="app-input w-full border rounded-2xl p-3 sm:p-4 transition-all flex flex-col gap-3.5 mb-4">
                             {selectedShareUser && (
                                 <div className="flex flex-col gap-2.5 pb-2.5 border-b border-white/10 text-xs">
                                     <div className="flex items-center justify-between">
@@ -1491,7 +1499,7 @@ export default function PrayPage() {
                         onClick={() => setIsShareOpen(false)}
                     >
                         <div
-                            className="w-full max-w-md bg-[#061226] border border-white/10 rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
+                            className="app-popover w-full max-w-md border rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <div className="flex items-center justify-between pb-2 border-b border-white/10">

@@ -98,7 +98,7 @@ export default function OtaControlPage() {
     const totalDevices = versions.reduce((sum, row) => sum + row.users + row.programers, 0);
     const latestUserVersion = versions.find(row => row.users > 0 && compareVersions(row.version, row.version) === 0)?.version;
 
-    return <div className="min-h-screen bg-[#090f1a] px-4 pb-28 pt-8 text-slate-200 sm:px-7 sm:pt-12" dir="ltr">
+    return <div className="app-page min-h-screen px-4 pb-28 pt-8 text-slate-200 sm:px-7 sm:pt-12" dir="ltr">
         <div className="mx-auto max-w-6xl">
             <Link href="/ProgramerDashboard" className="mb-5 inline-block text-sm text-sky-300 hover:text-sky-200">← App control center</Link>
             <header className="mb-8 flex flex-wrap items-start justify-between gap-4">

@@ -17,6 +17,7 @@ function applyThemeToDom(mode) {
         root.setAttribute("data-theme", "light");
         document.body?.classList.remove("dark");
     }
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", mode === "dark" ? "#090c0f" : "#060b13");
 }
 
 export function ThemeProvider({ children }) {

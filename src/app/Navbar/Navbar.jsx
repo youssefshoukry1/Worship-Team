@@ -22,14 +22,10 @@ export default function Navbar() {
 function NavbarContent() {
     const { t, language, setLanguage } = useLanguage();
     const {
-        isLogin, setLogin,
-        UserRole, setUserRole,
-        UserStatus, setUserStatus,
-        user_id, setUser_id,
-        churchId, setChurchId,
-        HymnIds, setHymnIds,
+        isLogin, logout,
+        UserRole,
+        user_id,
         vocalsMode, setVocalsMode,
-        setUsername
     } = useContext(UserContext);
     const profileLabel = language === 'ar' ? 'مساحتي' : language === 'de' ? 'Mein Profil' : 'My Profile';
     const workspaceLabel = language === 'ar' ? 'مساحة العمل' : language === 'de' ? 'Arbeitsbereich' : 'Workspace';
@@ -76,25 +72,8 @@ function NavbarContent() {
     }, [pathname]);
 
     const handleLogout = () => {
-        localStorage.removeItem("user_Taspe7_Token");
-        localStorage.removeItem("user_Taspe7_GlobalRole");
-        localStorage.removeItem("user_Taspe7_SubRole");
-        localStorage.removeItem("user_Taspe7_Role");
-        localStorage.removeItem("user_Taspe7_ID");
-        localStorage.removeItem("user_Taspe7_ChurchId");
-        localStorage.removeItem("user_Taspe7_HymnIds");
-        localStorage.removeItem("user_Taspe7_Status");
-        localStorage.removeItem("user_Taspe7_Username");
-
-        setLogin(null);
-        setUserRole(null);
-        setUser_id(null);
-        setChurchId(null);
-        setHymnIds([]);
-        setUserStatus(null);
-        if (setUsername) setUsername(null);
-
-        router.push("/");
+        logout();
+        router.replace('/login');
     };
 
     useEffect(() => {
@@ -127,7 +106,7 @@ function NavbarContent() {
     };
 
     return (
-        <nav className="sticky top-0 z-50 h-20 px-2 flex items-center justify-between bg-[#0b0f19]/60 backdrop-blur-md border-b border-white/10 relative">
+        <nav className="sticky top-0 z-50 h-20 px-2 flex items-center justify-between app-header border-b relative">
             {/* Logo with In-Navbar Center-to-Left Intro */}
             <div className="relative flex items-center">
                 {introStage !== "done" && (
@@ -258,7 +237,7 @@ function NavbarContent() {
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 10 }}
-                                className="absolute right-0 mt-2 w-48 bg-[#0f172a] border border-white/10 rounded-lg shadow-xl overflow-hidden py-1"
+                                className="absolute right-0 mt-2 w-48 app-popover border rounded-lg overflow-hidden py-1"
                             >
                                 <button
                                     onClick={() => {
@@ -337,7 +316,7 @@ function NavbarContent() {
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 10 }}
-                                className="absolute right-0 mt-2 w-32 bg-[#0f172a] border border-white/10 rounded-lg shadow-xl overflow-hidden py-1"
+                                className="absolute right-0 mt-2 w-32 app-popover border rounded-lg overflow-hidden py-1"
                             >
                                 {["en", "ar"].map((lang) => (
                                     <button

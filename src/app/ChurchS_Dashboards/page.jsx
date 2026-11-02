@@ -1231,7 +1231,7 @@ export default function ChurchS_Dashboards() {
 
   if (!hasAccess) {
     return (
-      <div className="min-h-screen bg-[#020617] flex items-center justify-center text-white">
+      <div className="app-page min-h-screen flex items-center justify-center text-white">
         <h1 className="text-2xl font-bold text-red-500 text-center px-4">
           Access Denied: Only Admins, Managers, and Programmers can access this dashboard.
         </h1>
@@ -1312,7 +1312,7 @@ export default function ChurchS_Dashboards() {
   }
 
   return (
-    <section className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden">
+    <section className="app-page min-h-screen text-white px-4 sm:px-6 py-16 relative overflow-hidden">
       {/* Background Gradients */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_70%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.15),transparent_70%)]" />

@@ -12,7 +12,7 @@ export default function ProgramerDashboard() {
         return <div className="mx-auto max-w-lg px-5 py-24 text-center"><ShieldCheck className="mx-auto mb-4 text-slate-400" size={36} /><h1 className="text-2xl font-bold">Private dashboard</h1><p className="mt-3 text-slate-400">Only PROGRAMER accounts can access these controls.</p><Link href="/normal_UserProfile" className="mt-6 inline-block text-sky-300">Back to profile</Link></div>;
     }
 
-    return <div className="min-h-screen bg-[#090f1a] px-4 pb-28 pt-12 text-slate-200 sm:px-7" dir="ltr">
+    return <div className="app-page min-h-screen px-4 pb-28 pt-12 text-slate-200 sm:px-7" dir="ltr">
         <div className="mx-auto max-w-5xl">
             <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-300"><ShieldCheck size={15} />PROGRAMER</div>
             <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">App control center</h1>

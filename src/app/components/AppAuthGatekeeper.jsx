@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useContext, useRef, useState, useEffect, useSyncExternalStore } from "react";
+import React, { useContext, useRef, useState, useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import axios from "axios";
 import { UserContext } from "../context/User_Context";
@@ -10,9 +10,10 @@ import PageSkeleton, { pageSkeletonVariant } from './PageSkeleton';
 import Navbar from "../Navbar/Navbar";
 import PageTransition from "../page-transition/page-transition";
 import BottomNav from "./BottomNav";
+// Logout must render sign-in immediately, even before another chunk can load.
+import AuthForm from './AuthForm';
 
 const PUBLIC_ROUTES = ["/privacy-policy", "/subscription-terms"];
-const AuthForm = dynamic(() => import('./AuthForm'), { ssr: false, loading: () => <AppStartupShell /> });
 const ClaimUsernameModal = dynamic(() => import('./ClaimUsernameModal'), { ssr: false, loading: () => <AppStartupShell /> });
 
 // React 19 recommended hydration check
@@ -22,7 +23,7 @@ const getServerSnapshot = () => false;
 
 export default function AppAuthGatekeeper({ children }) {
   const isMounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const { isLogin, username, setUsername, profilePhoto, setProfilePhoto } = useContext(UserContext);
+  const { isLogin, logout, username, setUsername, profilePhoto, setProfilePhoto } = useContext(UserContext);
   const pathname = usePathname();
   const isPrayerEntry = ['/', '/index.html', '/pray', '/pray/', '/pray/index.html'].includes(pathname);
   const router = useRouter();
@@ -36,6 +37,12 @@ export default function AppAuthGatekeeper({ children }) {
   });
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://waslaapi.duckdns.org/api";
+
+  // Logout can happen at the bottom of a long profile page. Reset before paint
+  // so sign-in never inherits that scroll position or jumps into view later.
+  useLayoutEffect(() => {
+    if (isMounted && !isLogin) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [isMounted, isLogin]);
 
   // Redirect authenticated user if they land on sign-in routes
   useEffect(() => {
@@ -93,9 +100,9 @@ export default function AppAuthGatekeeper({ children }) {
   // Case 1: User has no account or logged out -> Show ONLY sign-in page (No Navbar, No hymns)
   if (!isLogin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#020617] via-[#0f172a] to-[#172554] p-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.1),transparent_50%)] pointer-events-none" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(37,99,235,0.1),transparent_50%)] pointer-events-none" />
+      <div className="app-page min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="app-ambient-glow absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.1),transparent_50%)] pointer-events-none" />
+        <div className="app-ambient-glow absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(37,99,235,0.1),transparent_50%)] pointer-events-none" />
         <div className="relative z-10 w-full flex justify-center py-8">
           <AuthForm />
         </div>
@@ -116,7 +123,7 @@ export default function AppAuthGatekeeper({ children }) {
   // Case 2: Logged in, but has not chosen an @username -> Global Gatekeeper Modal (unclosable, locks app)
   if (!username) {
     return (
-      <div className="fixed inset-0 z-[99999] bg-[#020617] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[99999] bg-app-page flex items-center justify-center p-4">
         <ClaimUsernameModal
           token={isLogin}
           initialPhoto={profilePhoto}
@@ -129,12 +136,7 @@ export default function AppAuthGatekeeper({ children }) {
             }
             setUsername(handle);
           }}
-          onCancel={() => {
-            localStorage.clear();
-            setLogin(null);
-            setUsername(null);
-            setProfilePhoto(null);
-          }}
+          onCancel={logout}
         />
       </div>
     );

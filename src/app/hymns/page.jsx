@@ -863,10 +863,10 @@ export default function Category_Humns() {
     return <Loading variant="hymns" />;
   }
 
-  return (<section id="Category_Humns" className="min-h-screen bg-[var(--app-bg)] text-white px-4 sm:px-6 py-10 relative overflow-hidden transition-colors duration-150">
+  return (<section id="Category_Humns" className="app-page min-h-screen text-white px-4 sm:px-6 py-10 relative overflow-hidden transition-colors duration-150">
     {/* Background Gradients */}
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_70%)] dark:opacity-25 pointer-events-none" />
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.08),transparent_70%)] dark:opacity-25 pointer-events-none" />
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_70%)] app-ambient-glow pointer-events-none" />
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.08),transparent_70%)] app-ambient-glow pointer-events-none" />
 
     <div className="relative z-10 max-w-7xl mx-auto">
 
@@ -951,8 +951,8 @@ export default function Category_Humns() {
                 onClick={() => setShowSessionPanel(p => !p)}
                 className={`relative z-10 flex items-center gap-2 px-5 py-2.5 rounded-full transition-all font-semibold text-sm w-full h-full justify-center
                     ${isConnected
-                    ? 'bg-[#0c142c] text-green-400 hover:bg-[#121d3f]'
-                    : 'bg-[#0a1020] text-gray-400 hover:bg-[#0f172f] hover:text-white'
+                    ? 'bg-app-panel text-green-400 hover:bg-app-raised'
+                    : 'bg-app-panel text-gray-400 hover:bg-app-raised hover:text-white'
                   }`}
               >
                 <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse text-green-400' : ''}`} />
@@ -965,7 +965,7 @@ export default function Category_Humns() {
         </div>
 
         {showSessionPanel && (
-          <div className="w-full sm:max-w-[420px] p-4 bg-[#0c1627] border border-white/10 rounded-2xl shadow-xl backdrop-blur-sm">
+          <div className="w-full sm:max-w-[420px] p-4 bg-app-panel border border-white/10 rounded-2xl shadow-xl backdrop-blur-sm">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Presentation Room</p>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
@@ -1148,7 +1148,7 @@ export default function Category_Humns() {
                   <button
                     type="button"
                     onClick={() => setShowPrayModal(false)}
-                    className="absolute right-3 top-3 z-20 rounded-lg border border-white/10 bg-slate-950/80 p-2 text-slate-400 transition-all hover:bg-white/10 hover:text-white"
+                    className="absolute right-3 top-3 z-20 rounded-lg border border-white/10 bg-app-page/80 p-2 text-slate-400 transition-all hover:bg-white/10 hover:text-white"
                     aria-label="Close prayer form"
                   >
                     <X className="h-5 w-5" />
@@ -1269,7 +1269,7 @@ const HymnItem = React.memo(function HymnItem({ humn, index, categories, addToWo
   return (
     <div
       className="group relative grid grid-cols-12 gap-2 sm:gap-4 p-2.5 sm:p-4 items-center 
-                 bg-[#13132b]/60 hover:bg-[#1a1a38] 
+                 bg-app-panel/60 hover:bg-app-raised
                  border border-white/5 hover:border-sky-500/30 
                  rounded-2xl transition-all duration-300 backdrop-blur-sm
                  hover:shadow-[0_0_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5"
@@ -1314,7 +1314,7 @@ const HymnItem = React.memo(function HymnItem({ humn, index, categories, addToWo
             return (
               <CatIcon
                 key={idx}
-                className="w-4 h-4 text-gray-400 group-hover:text-sky-300 transition-colors shrink-0 bg-[#0c0c20] rounded-full ring-2 ring-[#13132b]"
+                className="w-4 h-4 text-gray-400 group-hover:text-sky-300 transition-colors shrink-0 bg-app-panel rounded-full ring-2 ring-[#13132b]"
                 title={matchedCat.label}
               />
             );

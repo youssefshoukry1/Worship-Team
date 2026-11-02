@@ -1,7 +1,7 @@
 .board {
   margin: 0 0 23px;
   color: #e2e8f0;
-  --note-bg: #131e2b;
+  --note-bg: var(--app-note-bg);
 }
 .board *, .dialog * { box-sizing: border-box; }
 .board button, .dialog button { cursor: pointer; }
@@ -17,7 +17,7 @@
 .noteRail::-webkit-scrollbar { display: none; }
 .miniCard { width: 88px; flex: 0 0 88px; min-width: 0; scroll-snap-align: start; }
 .miniNote, .createNote { position: relative; display: flex; flex-direction: column; justify-content: space-between; width: 88px; height: 88px; padding: 14px 9px 8px; border: 1px solid #ffffff12; border-radius: 6px 6px 13px 6px; background: var(--note-bg); color: #cbd5e1; box-shadow: 1px 3px 8px #0002; transform: rotate(var(--tilt, -1deg)); transition: transform .16s, border-color .16s, background .16s; text-align: start; }
-.miniNote:hover, .createNote:hover { transform: rotate(0) translateY(-2px); background: #172536; }
+.miniNote:hover, .createNote:hover { transform: rotate(0) translateY(-2px); background: rgb(var(--app-raised-rgb)); }
 .miniNote { padding-top: 28px; }
 .noteReadButton { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; width: 100%; height: 100%; padding: 28px 9px 8px; border: 0; border-radius: inherit; background: transparent; color: inherit; text-align: inherit; }
 .pinnedAvatar { display: flex; align-items: center; justify-content: center; flex: 0 0 20px; width: 20px; height: 20px; overflow: hidden; border: 1px solid #8ba3b740; border-radius: 50%; background: #102b39; color: #9cc9db; font-size: 8px; font-weight: 600; line-height: 1; pointer-events: none; }
@@ -50,7 +50,7 @@
 .reactorHeart { color: #d3a1b4; flex-shrink: 0; }
 .reactorHint { display: flex; align-items: center; gap: 7px; margin: 10px 0; color: #8295ab; font-size: 11px; line-height: 1.6; }
 .moreReactors { display: block; margin: 10px auto 0; padding: 7px 10px; border: 0; border-radius: 7px; background: #ffffff05; color: #8ca9c0; font-size: 10px; }
-.reactionError { position: fixed; z-index: 10030; width: 190px; margin: 0; padding: 8px 10px; border-radius: 8px; background: #17212e; color: #e4a1a6; font-size: 10px; line-height: 1.5; }
+.reactionError { position: fixed; z-index: 10030; width: 190px; margin: 0; padding: 8px 10px; border-radius: 8px; background: rgb(var(--app-raised-rgb)); color: #e4a1a6; font-size: 10px; line-height: 1.5; }
 .createNote { justify-content: center; align-items: center; color: #00c2ff; border-style: dashed; border-color: #00c2ff35; background: #071c29; }
 .createNote > svg { margin-top: -7px; }
 .createNote:is(:disabled, [aria-disabled="true"]) { opacity: .4; cursor: not-allowed; transform: rotate(-1deg); }
@@ -92,10 +92,10 @@
 .removeFriendDialog > p { margin: 0 0 12px; font-size: 13px; line-height: 1.8; color: #a3b3c6; }
 .removeFriendDialog > p + p { font-size: 11px; color: #71859c; }
 .removeFriendDialog > div { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
-.backdrop { position: fixed; z-index: 10010; inset: 0; display: flex; justify-content: center; align-items: center; padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom)); background: #02060dbd; backdrop-filter: blur(7px); overflow: hidden; overscroll-behavior: contain; animation: reveal .16s ease-out; }
-.dialog { display: flex; flex-direction: column; width: 100%; max-width: 450px; max-height: 100%; overflow: auto; overscroll-behavior: contain; border: 1px solid #ffffff13; border-radius: 16px; background: #121d2a; color: #e2e8f0; box-shadow: 0 25px 90px #0007; }
+.backdrop { position: fixed; z-index: 10010; inset: 0; display: flex; justify-content: center; align-items: center; padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom)); background: var(--app-overlay-bg); backdrop-filter: blur(7px); overflow: hidden; overscroll-behavior: contain; animation: reveal .16s ease-out; }
+.dialog { -webkit-backdrop-filter: blur(var(--app-glass-blur)); backdrop-filter: blur(var(--app-glass-blur)); display: flex; flex-direction: column; width: 100%; max-width: 450px; max-height: 100%; overflow: auto; overscroll-behavior: contain; border: 1px solid #ffffff13; border-radius: 16px; background: rgb(var(--app-panel-rgb) / .97); color: #e2e8f0; box-shadow: 0 25px 90px #0007; }
 .noteDialog { max-width: 420px; border-radius: 8px 8px 22px 8px; }
-.dialogTop { position: sticky; z-index: 4; top: 0; display: flex; justify-content: space-between; align-items: center; min-height: 50px; padding: 10px 17px; border-bottom: 1px solid #ffffff0a; background: #121d2a; color: #a9b7c8; font-size: 12px; font-weight: 500; }
+.dialogTop { position: sticky; z-index: 4; top: 0; display: flex; justify-content: space-between; align-items: center; min-height: 50px; padding: 10px 17px; border-bottom: 1px solid #ffffff0a; background: rgb(var(--app-panel-rgb) / .97); color: #a9b7c8; font-size: 12px; font-weight: 500; }
 .iconButton { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 0; border-radius: 8px; color: #8192a7; background: #ffffff04; }
 .iconButton:hover { background: #ffffff0b; color: #e2e8f0; }
 .writingNote { position: relative; padding: 24px 23px 0; }

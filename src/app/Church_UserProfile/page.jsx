@@ -727,7 +727,7 @@ export default function Church_UserProfile() {
 
     if (error) {
         return (
-            <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+            <div className="app-page min-h-screen flex items-center justify-center p-4">
                 <div className="bg-red-500/10 border border-red-500/20 rounded-3xl p-8 max-w-md w-full text-center backdrop-blur-xl">
                     <Activity className="w-12 h-12 text-red-400 mx-auto mb-4 opacity-80" />
                     <h2 className="text-xl font-bold text-red-200 mb-2">Oops! Something went wrong.</h2>
@@ -823,7 +823,7 @@ export default function Church_UserProfile() {
 
     return (
 
-        <main className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] text-white pb-24">
+        <main className="app-page min-h-screen text-white pb-24">
             <div className="max-w-5xl mx-auto px-3 sm:px-6 pt-8 sm:pt-12">
                 
                 {/* --- HEADER PROFILE CARD --- */}

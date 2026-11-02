@@ -386,7 +386,7 @@ export default function Website_work_Profile() {
     }
   };
   return (
-    <section className="min-h-screen bg-[#050510] text-white pt-24 pb-20 px-4 md:px-8">
+    <section className="app-page min-h-screen text-white pt-24 pb-20 px-4 md:px-8">
       <div className="max-w-7xl mx-auto flex flex-col gap-8">
 
         <div className="flex flex-col gap-4">
@@ -438,7 +438,7 @@ export default function Website_work_Profile() {
           {showSummaryDetails && (
             <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-[#0f172a] border border-white/10 rounded-3xl p-5 sm:p-6 shadow-[0_18px_40px_rgba(8,30,63,0.18)] transition hover:-translate-y-0.5">
+                <div className="bg-app-panel border border-white/10 rounded-3xl p-5 sm:p-6 shadow-[0_18px_40px_rgba(8,30,63,0.18)] transition hover:-translate-y-0.5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-xs text-sky-200 uppercase tracking-[0.18em] font-semibold">Tasks to edit</p>
@@ -451,7 +451,7 @@ export default function Website_work_Profile() {
                   </div>
                 </div>
 
-                <div className="bg-[#081127] border border-white/10 rounded-3xl p-5 sm:p-6 shadow-[0_18px_40px_rgba(0,0,0,0.24)]">
+                <div className="bg-app-panel border border-white/10 rounded-3xl p-5 sm:p-6 shadow-[0_18px_40px_rgba(0,0,0,0.24)]">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-xs text-sky-200 uppercase tracking-[0.18em] font-semibold">{approvedLabel}</p>
@@ -466,7 +466,7 @@ export default function Website_work_Profile() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="bg-[#0d1322] border border-white/10 rounded-3xl p-5 shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
+                <div className="bg-app-panel border border-white/10 rounded-3xl p-5 shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-300">Approved</p>
                     <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-semibold text-emerald-200">{recentApproved.length}</span>
@@ -484,7 +484,7 @@ export default function Website_work_Profile() {
                   </div>
                 </div>
 
-                <div className="bg-[#0d1322] border border-white/10 rounded-3xl p-5 shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
+                <div className="bg-app-panel border border-white/10 rounded-3xl p-5 shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-300">Rejected</p>
                     <span className="rounded-full bg-rose-500/15 px-2.5 py-1 text-[10px] font-semibold text-rose-200">{recentRejected.length}</span>
@@ -515,14 +515,14 @@ export default function Website_work_Profile() {
                 <button
                   onClick={() => setAdminPage((prev) => Math.max(1, prev - 1))}
                   disabled={adminPage === 1}
-                  className="rounded-xl border border-white/10 bg-slate-900/70 px-4 py-2 text-white disabled:opacity-50 hover:bg-slate-900/90 transition"
+                  className="rounded-xl border border-white/10 bg-app-panel/70 px-4 py-2 text-white disabled:opacity-50 hover:bg-app-raised/90 transition"
                 >
                   Previous
                 </button>
                 <button
                   onClick={() => setAdminPage((prev) => Math.min(totalPages, prev + 1))}
                   disabled={adminPage === totalPages}
-                  className="rounded-xl border border-white/10 bg-slate-900/70 px-4 py-2 text-white disabled:opacity-50 hover:bg-slate-900/90 transition"
+                  className="rounded-xl border border-white/10 bg-app-panel/70 px-4 py-2 text-white disabled:opacity-50 hover:bg-app-raised/90 transition"
                 >
                   Next
                 </button>
@@ -561,7 +561,7 @@ export default function Website_work_Profile() {
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    className="w-full max-w-md max-h-[90vh] bg-[#0c0c20] border border-white/10 rounded-2xl shadow-2xl overflow-y-auto relative"
+                    className="w-full max-w-md max-h-[90vh] bg-app-panel border border-white/10 rounded-2xl shadow-2xl overflow-y-auto relative"
                     data-lenis-prevent-wheel
                   >
                     <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
@@ -694,7 +694,7 @@ export default function Website_work_Profile() {
                             </div>
 
                             {Array.isArray(formData.lyrics) && formData.lyrics.map((stanza, idx) => (
-                              <div key={idx} className={`p-4 rounded-xl border relative flex flex-col gap-3 transition-colors ${stanza.type === 'chorus' ? 'bg-sky-500/10 border-sky-500/30 shadow-[inset_0_0_20px_rgba(56,189,248,0.05)]' : 'bg-[#151525] border-white/10'}`}>
+                              <div key={idx} className={`p-4 rounded-xl border relative flex flex-col gap-3 transition-colors ${stanza.type === 'chorus' ? 'bg-sky-500/10 border-sky-500/30 shadow-[inset_0_0_20px_rgba(56,189,248,0.05)]' : 'bg-app-panel border-white/10'}`}>
                                 <div className="flex justify-between items-center gap-2 pb-2 border-b border-white/5">
                                   <input
                                     type="text"
@@ -1081,9 +1081,9 @@ export default function Website_work_Profile() {
           {/* --- Data Show (Presentation) Presenter View - Independent --- */}
           {showDataShow && selectedLyricsHymn && (
             <Portal>
-              <div id="showDataContainer" className="fixed inset-0 z-[10000] bg-[#020617] flex flex-col">
+              <div id="showDataContainer" className="fixed inset-0 z-[10000] bg-app-page flex flex-col">
                 {/* ── Shared Header ── */}
-                <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-[#0f172a] border-b border-white/10 shrink-0 z-20">
+                <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-app-panel border-b border-white/10 shrink-0 z-20">
                   <div className="flex flex-col min-w-0">
                     <h2 className="text-base sm:text-xl font-bold text-white tracking-tight truncate">{selectedLyricsHymn.title}</h2>
                     <p className="text-[10px] sm:text-xs text-sky-400 font-medium">
@@ -1282,7 +1282,7 @@ export default function Website_work_Profile() {
                   </div>
 
                   {/* Desktop Controls Footer */}
-                  <div className="shrink-0 bg-[#0f172a] border-t border-white/10 px-6 py-3 z-20 flex items-center gap-3" dir="rtl">
+                  <div className="shrink-0 bg-app-panel border-t border-white/10 px-6 py-3 z-20 flex items-center gap-3" dir="rtl">
                     <LocalFullscreenButton displayRef={localDisplayRef} />
                   </div>
                 </div>
@@ -1303,7 +1303,7 @@ function AdminTaskSection({ admin, tasks, openEditModal, openLyrics, userRole, t
   const currentTasks = tasks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
-    <div className="bg-[#0c0c20] border border-white/10 rounded-2xl p-6">
+    <div className="bg-app-panel border border-white/10 rounded-2xl p-6">
       {admin && (
         <h2 className="text-xl font-bold text-white mb-4 border-b border-white/10 pb-4">
           Admin: <span className="text-sky-400">{admin.Name}</span>

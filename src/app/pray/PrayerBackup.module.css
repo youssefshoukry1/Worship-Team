@@ -1,3 +1,22 @@
+.trigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--app-muted);
+    box-shadow: none;
+    cursor: pointer;
+    transition: color .15s, background .15s;
+}
+.trigger:hover { color: var(--app-text); background: rgb(255 255 255 / 0.05); }
+.trigger:focus { outline: none; }
+.trigger:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
+
 .panel {
     position: fixed;
     inset: auto;
@@ -7,28 +26,45 @@
     padding: 12px;
     overflow-y: auto;
     overscroll-behavior: contain;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--app-card-border);
     border-radius: 16px;
-    background: #fff;
-    color: #334155;
-    color-scheme: light;
-    box-shadow: 0 12px 36px rgb(0 0 0 / 24%);
-}
-
-:global(html.dark) .panel {
-    border-color: rgb(255 255 255 / 10%);
-    background: #0f172a;
-    color: #e2e8f0;
+    background: rgb(var(--app-panel-rgb) / .97);
+    color: var(--app-text);
     color-scheme: dark;
-    box-shadow: 0 12px 36px rgb(0 0 0 / 65%);
+    -webkit-backdrop-filter: blur(var(--app-glass-blur));
+    backdrop-filter: blur(var(--app-glass-blur));
+    box-shadow: var(--app-panel-shadow);
 }
 
 .panel::backdrop { background: rgb(2 8 18 / 35%); }
 .panel button { cursor: pointer; }
 .panel button:disabled { cursor: not-allowed; }
-.panel button:focus-visible, .panel select:focus-visible, .panel input:focus-visible {
+.panel button:focus-visible {
     outline: 2px solid #0ea5e9;
     outline-offset: 2px;
 }
-.panel input[type="checkbox"] { accent-color: #0284c7; }
 .panel svg { flex-shrink: 0; }
+
+.schedulePicker { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.scheduleLegend { margin-bottom: 8px; padding: 0; color: var(--app-text); font-size: 12px; font-weight: 500; }
+.scheduleGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.scheduleChoice { position: relative; display: block; min-width: 0; }
+.scheduleInput, .wifiInput { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.scheduleContent { display: grid; grid-template-columns: 16px minmax(0, 1fr) 12px; align-items: center; gap: 7px; min-height: 54px; height: 100%; padding: 10px; border: 1px solid var(--app-card-border); border-radius: 12px; background: rgb(255 255 255 / 0.025); color: var(--app-muted); font-size: 11px; line-height: 1.4; transition: background .15s, border-color .15s, color .15s; }
+.scheduleCheck { width: 12px; height: 12px; opacity: 0; }
+.scheduleInput:checked + .scheduleContent { border-color: rgb(56 189 248 / 0.45); background: rgb(56 189 248 / 0.1); color: var(--app-text); }
+.scheduleInput[value="0"]:checked + .scheduleContent { border-color: rgb(255 255 255 / 0.2); background: rgb(255 255 255 / 0.06); }
+.scheduleInput:checked + .scheduleContent .scheduleCheck { opacity: 1; color: #7dd3fc; }
+.scheduleInput:not(:disabled):hover + .scheduleContent { border-color: rgb(56 189 248 / 0.5); background: rgb(56 189 248 / 0.08); }
+.scheduleInput:disabled, .wifiInput:disabled { cursor: not-allowed; }
+.scheduleInput:disabled + .scheduleContent { color: var(--app-muted); }
+.scheduleInput:focus-visible + .scheduleContent, .wifiInput:focus-visible + .wifiTrack { outline: 2px solid #38bdf8; outline-offset: 2px; }
+.wifiRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; color: var(--app-text); cursor: pointer; }
+.wifiLabel { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; }
+.wifiLabel svg { color: var(--app-muted); }
+.wifiSwitch { position: relative; display: inline-block; flex: 0 0 34px; width: 34px; height: 20px; }
+.wifiTrack { position: absolute; inset: 0; border: 1px solid rgb(255 255 255 / 0.15); border-radius: 999px; background: rgb(255 255 255 / 0.08); transition: background .15s, border-color .15s; }
+.wifiTrack::after { content: ""; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #e2e8f0; transition: transform .15s; }
+.wifiInput:checked + .wifiTrack { border-color: rgb(56 189 248 / 0.45); background: rgb(14 165 233 / 0.65); }
+.wifiInput:checked + .wifiTrack::after { transform: translateX(14px); }
+.wifiInput:disabled + .wifiTrack { opacity: 0.5; }

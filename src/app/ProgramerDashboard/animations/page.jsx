@@ -34,7 +34,7 @@ export default function AnimationControlsPage() {
     const request = query.data?.navbarIntro;
     const active = navbarRequestIsFresh(request);
 
-    return <div className="min-h-screen bg-[#090f1a] px-4 pb-28 pt-8 text-slate-200 sm:px-7 sm:pt-12" dir="ltr"><div className="mx-auto max-w-4xl">
+    return <div className="app-page min-h-screen px-4 pb-28 pt-8 text-slate-200 sm:px-7 sm:pt-12" dir="ltr"><div className="mx-auto max-w-4xl">
         <Link href="/ProgramerDashboard" className="mb-6 inline-block text-sm text-sky-300 hover:text-sky-200">← App control center</Link>
         <header className="mb-8 flex flex-wrap items-start justify-between gap-4"><div><div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-violet-300"><Sparkles size={15} />UI controls</div><h1 className="text-3xl font-bold text-white sm:text-4xl">UI animations</h1><p className="mt-3 text-sm text-slate-400">Choose when the app plays an intro.</p></div><button className={button} onClick={() => { access.refetch(); if (access.hasAccess) query.refetch(); }} disabled={query.isFetching || save.isPending}><RefreshCw size={16} className={query.isFetching ? 'animate-spin' : ''} />Refresh</button></header>
         {(access.error || query.error || save.error) && <p role="alert" className="mb-5 rounded-xl border border-rose-400/20 bg-rose-400/10 p-4 text-sm text-rose-200">{(save.error || access.error || query.error).message}</p>}

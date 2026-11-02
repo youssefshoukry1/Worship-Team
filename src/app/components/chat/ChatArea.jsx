@@ -389,7 +389,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                     </div>
 
                     <div className="flex items-center gap-1 sm:gap-2">
-                        <div className="hidden sm:flex items-center gap-1 bg-slate-800 rounded-full px-2 py-1 mr-2 border border-slate-700">
+                        <div className="hidden sm:flex items-center gap-1 bg-app-raised rounded-full px-2 py-1 mr-2 border border-slate-700">
                             {REACTION_EMOJIS.slice(0, 5).map(emoji => (
                                 <button key={emoji} onClick={() => handleBulkReaction(emoji)} className="hover:scale-125 transition-transform p-1 text-lg">
                                     {emoji}
@@ -425,7 +425,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
 
                 {messages.length === 0 && !loading && (
                     <div className="flex flex-col items-center justify-center flex-1 my-auto py-10">
-                        <p className="text-slate-400 text-xs bg-slate-900/80 border border-slate-800 px-4 py-2 rounded-full shadow-sm">
+                        <p className="text-slate-400 text-xs bg-app-panel/80 border border-slate-800 px-4 py-2 rounded-full shadow-sm">
                             No messages yet. Send a message to start the conversation!
                         </p>
                     </div>
@@ -498,7 +498,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                             }}
                                             className={`mb-2 rounded-lg px-2.5 py-1.5 border-l-[3px] cursor-pointer select-none transition-colors hover:bg-white/10 ${isMe
                                                     ? 'bg-black/20 border-l-sky-300'
-                                                    : 'bg-slate-800/80 border-l-sky-500'
+                                                    : 'bg-app-raised/80 border-l-sky-500'
                                                 }`}
                                         >
                                             <p className={`text-[11px] font-bold mb-0.5 truncate ${isMe ? 'text-sky-200' : 'text-sky-400'}`}>
@@ -570,7 +570,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                                     {totalVotes > 0 && topVoteCount > 0 && (
                                                         <div className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] ${isMe
                                                                 ? 'border-white/20 bg-black/20 text-white'
-                                                                : 'border-slate-700/80 bg-slate-800/80 text-slate-200'
+                                                                : 'border-slate-700/80 bg-app-raised/80 text-slate-200'
                                                             }`}>
                                                             <span className="flex min-w-0 items-center gap-1.5">
                                                                 <BarChart2 size={13} className="shrink-0 text-amber-400" />
@@ -598,7 +598,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                                                     }}
                                                                     className={`relative w-full overflow-hidden rounded-xl border px-3 py-2 text-left text-[13px] transition-colors disabled:cursor-wait disabled:opacity-70 ${selected
                                                                             ? (isMe ? 'border-white/40 bg-black/40 text-white font-semibold' : 'border-sky-500/70 bg-sky-600/30 text-sky-200 font-semibold')
-                                                                            : (isMe ? 'border-white/10 bg-black/20 text-slate-100 hover:bg-black/30' : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-800')
+                                                                            : (isMe ? 'border-white/10 bg-black/20 text-slate-100 hover:bg-black/30' : 'border-slate-700 bg-app-raised/80 text-slate-200 hover:bg-app-raised')
                                                                         }`}
                                                                 >
                                                                     <span className="absolute inset-y-0 left-0 bg-white/15 transition-all" style={{ width: `${percentage}%` }} />
@@ -620,7 +620,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                             </p>
                                             <div className="flex flex-col gap-2 mt-2">
                                                 {msg.items.map((item, idx) => (
-                                                    <div key={idx} className="flex flex-col gap-1.5 p-2 rounded-xl bg-slate-800/50 border border-slate-700/50">
+                                                    <div key={idx} className="flex flex-col gap-1.5 p-2 rounded-xl bg-app-raised/50 border border-slate-700/50">
                                                         <div className="flex items-center gap-2">
                                                             {item.type === 'bible' ? <BookOpen size={16} className="text-purple-400 shrink-0" /> : <Music size={16} className="text-orange-400 shrink-0" />}
                                                             <span className="text-[12px] font-semibold text-white truncate flex-1">
@@ -710,7 +710,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                 <button
                     onClick={() => scrollToBottom(false)}
                     aria-label={`Scroll to latest messages${unreadCount ? ` (${unreadCount} unread)` : ''}`}
-                    className="absolute bottom-5 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-700/70 bg-[#1e293b] text-sky-400 shadow-xl transition-all hover:bg-slate-800 active:scale-95 animate-in slide-in-from-bottom-2"
+                    className="absolute bottom-5 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-700/70 bg-[#1e293b] text-sky-400 shadow-xl transition-all hover:bg-app-raised active:scale-95 animate-in slide-in-from-bottom-2"
                 >
                     <ChevronDown size={20} />
                     {unreadCount > 0 && (
@@ -726,7 +726,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
             {reactionDetails && (
                 <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 sm:p-4 backdrop-blur-sm" onClick={() => setReactionDetails(null)}>
                     <div className="w-full max-w-sm rounded-t-xl sm:rounded-xl bg-[#1e293b] p-0 shadow-2xl border border-slate-700 animate-in slide-in-from-bottom-2 sm:slide-in-from-bottom-0 sm:zoom-in-95 overflow-hidden" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between border-b border-slate-700/50 p-4 bg-slate-800/50">
+                        <div className="flex items-center justify-between border-b border-slate-700/50 p-4 bg-app-raised/50">
                             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                                 Reactions ({reactionDetails.allReactions.length})
                             </h3>
@@ -736,7 +736,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                         </div>
                         <div className="max-h-60 overflow-y-auto p-2 custom-scrollbar">
                             {reactionDetails.allReactions.map((reaction, i) => (
-                                <div key={i} className="flex items-center justify-between rounded-lg p-3 hover:bg-slate-800/50 transition-colors">
+                                <div key={i} className="flex items-center justify-between rounded-lg p-3 hover:bg-app-raised/50 transition-colors">
                                     <div className="flex items-center gap-3">
                                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-700 border border-slate-600 text-lg font-bold text-white shadow-sm">
                                             {getReactionUserName(reaction)[0].toUpperCase()}
@@ -763,7 +763,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                         className="w-full max-w-sm overflow-hidden rounded-t-2xl border border-slate-700 bg-[#1e293b] shadow-2xl sm:rounded-2xl"
                         onClick={event => event.stopPropagation()}
                     >
-                        <div className="flex items-center justify-between border-b border-slate-700/70 bg-slate-800/50 p-4">
+                        <div className="flex items-center justify-between border-b border-slate-700/70 bg-app-raised/50 p-4">
                             <div>
                                 <h3 className="text-sm font-semibold text-white">Message info</h3>
                                 <p className="mt-0.5 text-[11px] text-slate-400">{formatTime(deliveryInfoMessage.createdAt)}</p>
@@ -826,15 +826,15 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                     <div className="w-full max-w-sm bg-[#1e293b] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
                         <div className="p-2 flex flex-col gap-1">
                             {canDeleteForAll && (
-                                <button onClick={() => handleBulkDelete(true)} className="w-full text-center py-3.5 text-red-400 font-medium hover:bg-slate-800 rounded-xl transition-colors">
+                                <button onClick={() => handleBulkDelete(true)} className="w-full text-center py-3.5 text-red-400 font-medium hover:bg-app-raised rounded-xl transition-colors">
                                     Delete for everyone
                                 </button>
                             )}
-                            <button onClick={() => handleBulkDelete(false)} className="w-full text-center py-3.5 text-slate-200 font-medium hover:bg-slate-800 rounded-xl transition-colors">
+                            <button onClick={() => handleBulkDelete(false)} className="w-full text-center py-3.5 text-slate-200 font-medium hover:bg-app-raised rounded-xl transition-colors">
                                 Delete for me
                             </button>
                             <div className="h-px bg-slate-700/50 my-1"></div>
-                            <button onClick={() => setShowDeleteModal(false)} className="w-full text-center py-3.5 text-slate-400 font-medium hover:bg-slate-800 rounded-xl transition-colors">
+                            <button onClick={() => setShowDeleteModal(false)} className="w-full text-center py-3.5 text-slate-400 font-medium hover:bg-app-raised rounded-xl transition-colors">
                                 Cancel
                             </button>
                         </div>
@@ -850,11 +850,11 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                             <Edit2 size={16} />
                             <span className="text-xs font-semibold uppercase tracking-wider">Edit Message</span>
                         </div>
-                        <button onClick={() => { setEditingMessage(null); setEditText(''); }} className="text-slate-400 hover:text-white p-1 rounded-full hover:bg-slate-800 transition-colors">
+                        <button onClick={() => { setEditingMessage(null); setEditText(''); }} className="text-slate-400 hover:text-white p-1 rounded-full hover:bg-app-raised transition-colors">
                             <X size={16} />
                         </button>
                     </div>
-                    <div className="flex items-end gap-2 bg-[#0d1322] rounded-xl p-2 border border-slate-700/60">
+                    <div className="flex items-end gap-2 bg-app-panel rounded-xl p-2 border border-slate-700/60">
                         <textarea
                             value={editText}
                             onChange={(e) => setEditText(e.target.value)}
@@ -958,7 +958,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                     >
                                         <button
                                             onClick={() => { toggleMessageSelection(mobileActiveMessage); setMobileActiveMessage(null); }}
-                                            className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800 transition-colors border-b border-slate-800 text-sky-400 font-semibold"
+                                            className="flex items-center justify-between w-full px-4 py-3 hover:bg-app-raised transition-colors border-b border-slate-800 text-sky-400 font-semibold"
                                         >
                                             <span className="text-[14px]">Select</span>
                                             <Check size={16} className="text-sky-400" />
@@ -967,7 +967,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         {String(mobileActiveMessage.senderId) === String(currentUserId) && (
                                             <button
                                                 onClick={() => { setDeliveryInfoMessage(mobileActiveMessage); setMobileActiveMessage(null); }}
-                                                className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800 transition-colors border-b border-slate-800 text-slate-200"
+                                                className="flex items-center justify-between w-full px-4 py-3 hover:bg-app-raised transition-colors border-b border-slate-800 text-slate-200"
                                             >
                                                 <span className="text-[14px]">Info</span>
                                                 <Info size={16} />
@@ -977,7 +977,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                         {(!mobileActiveMessage.type || mobileActiveMessage.type === 'text') && (
                                             <button
                                                 onClick={() => { navigator.clipboard.writeText(mobileActiveMessage.text); setMobileActiveMessage(null); }}
-                                                className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800 transition-colors border-b border-slate-800 text-slate-200"
+                                                className="flex items-center justify-between w-full px-4 py-3 hover:bg-app-raised transition-colors border-b border-slate-800 text-slate-200"
                                             >
                                                 <span className="text-[14px]">Copy</span>
                                                 <Copy size={16} />
@@ -991,7 +991,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                                     setEditText(mobileActiveMessage.text);
                                                     setMobileActiveMessage(null);
                                                 }}
-                                                className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800 transition-colors border-b border-slate-800 text-sky-400"
+                                                className="flex items-center justify-between w-full px-4 py-3 hover:bg-app-raised transition-colors border-b border-slate-800 text-sky-400"
                                             >
                                                 <span className="text-[14px]">Edit</span>
                                                 <Edit2 size={16} />
@@ -1005,7 +1005,7 @@ export default function ChatArea({ messages, currentUserId, loading, socket, act
                                                 setMobileActiveMessage(null);
                                                 setShowDeleteModal(true);
                                             }}
-                                            className="flex items-center justify-between w-full px-4 py-3 hover:bg-slate-800 transition-colors text-rose-400"
+                                            className="flex items-center justify-between w-full px-4 py-3 hover:bg-app-raised transition-colors text-rose-400"
                                         >
                                             <span className="text-[14px]">Delete</span>
                                             <Trash2 size={16} />

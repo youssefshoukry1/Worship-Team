@@ -330,16 +330,16 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
 
     return (
         <div className="absolute bottom-14 left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 w-[calc(100vw-2rem)] sm:w-[350px] max-w-[350px] h-[60vh] max-h-[420px] min-h-[300px] bg-[#131b2e] border border-slate-700/70 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden">
-            <div className="flex border-b border-slate-800 bg-[#0d1322] p-1.5 shrink-0 gap-1">
+            <div className="flex border-b border-slate-800 bg-app-panel p-1.5 shrink-0 gap-1">
                 <button 
                     onClick={() => setTab('search')} 
-                    className={`flex-1 py-1.5 rounded-xl text-xs font-semibold flex justify-center items-center gap-1.5 transition-colors ${tab === 'search' ? 'bg-sky-600/30 text-sky-400 border border-sky-500/40' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                    className={`flex-1 py-1.5 rounded-xl text-xs font-semibold flex justify-center items-center gap-1.5 transition-colors ${tab === 'search' ? 'bg-sky-600/30 text-sky-400 border border-sky-500/40' : 'text-slate-400 hover:text-white hover:bg-app-raised'}`}
                 >
                     <Search size={15} /> Search
                 </button>
                 <button 
                     onClick={() => setTab('workspace')} 
-                    className={`flex-1 py-1.5 rounded-xl text-xs font-semibold flex justify-center items-center gap-1.5 transition-colors ${tab === 'workspace' ? 'bg-sky-600/30 text-sky-400 border border-sky-500/40' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                    className={`flex-1 py-1.5 rounded-xl text-xs font-semibold flex justify-center items-center gap-1.5 transition-colors ${tab === 'workspace' ? 'bg-sky-600/30 text-sky-400 border border-sky-500/40' : 'text-slate-400 hover:text-white hover:bg-app-raised'}`}
                 >
                     <Folder size={15} /> Workspace
                 </button>
@@ -362,7 +362,7 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                                     key={idx}
                                     onShortPress={() => handleItemInteraction(item, false)}
                                     onLongPress={() => handleItemInteraction(item, true)}
-                                    className={`w-full text-right p-3 rounded-xl transition-colors flex items-center justify-between border ${isSelected(item) ? 'bg-sky-500/20 border-sky-500/50' : 'bg-slate-800/40 hover:bg-slate-700/60 border-slate-700/40'}`}
+                                    className={`w-full text-right p-3 rounded-xl transition-colors flex items-center justify-between border ${isSelected(item) ? 'bg-sky-500/20 border-sky-500/50' : 'bg-app-raised/40 hover:bg-slate-700/60 border-slate-700/40'}`}
                                 >
                                     <div className="flex items-center gap-3">
                                         {isSelected(item) && <CheckCircle2 className="text-sky-400 shrink-0" size={16} />}
@@ -388,7 +388,7 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                                 value={searchQuery}
                                 onChange={(e) => handleHymnsSearch(e.target.value)}
                                 placeholder="Search hymns..."
-                                className="w-full bg-[#0d1322] text-white text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-700/60 focus:outline-none focus:border-sky-500/70"
+                                className="w-full bg-app-panel text-white text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-700/60 focus:outline-none focus:border-sky-500/70"
                                 dir="rtl"
                             />
                         </div>
@@ -398,7 +398,7 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                                     key={hymn._id}
                                     onShortPress={() => handleItemInteraction(hymn, false)}
                                     onLongPress={() => handleItemInteraction(hymn, true)}
-                                    className={`w-full text-right p-2.5 rounded-xl transition-colors border flex items-center justify-between gap-2 ${isSelected(hymn) ? 'bg-sky-500/20 border-sky-500/50' : 'bg-slate-800/40 hover:bg-slate-700/60 border-slate-700/40'}`}
+                                    className={`w-full text-right p-2.5 rounded-xl transition-colors border flex items-center justify-between gap-2 ${isSelected(hymn) ? 'bg-sky-500/20 border-sky-500/50' : 'bg-app-raised/40 hover:bg-slate-700/60 border-slate-700/40'}`}
                                 >
                                     {isSelected(hymn) && <CheckCircle2 className="text-sky-400 shrink-0" size={16} />}
                                     <div className="flex-1 min-w-0">
@@ -422,7 +422,7 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                                         value={bibleSearchQuery}
                                         onChange={(e) => handleBibleSearch(e.target.value)}
                                         placeholder="Search Bible..."
-                                        className="w-full bg-[#0d1322] text-white text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-700/60 focus:outline-none focus:border-sky-500/70"
+                                        className="w-full bg-app-panel text-white text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-700/60 focus:outline-none focus:border-sky-500/70"
                                         dir="rtl"
                                     />
                                 </div>
@@ -437,7 +437,7 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                                                 key={idx}
                                                 onShortPress={() => handleSelectBibleHit(hit, false)}
                                                 onLongPress={() => handleSelectBibleHit(hit, true)}
-                                                className={`w-full text-right p-2.5 rounded-xl transition-colors border flex items-center gap-2 justify-between ${selected ? 'bg-sky-500/20 border-sky-500/50' : 'bg-slate-800/40 hover:bg-slate-700/60 border-slate-700/40'}`}
+                                                className={`w-full text-right p-2.5 rounded-xl transition-colors border flex items-center gap-2 justify-between ${selected ? 'bg-sky-500/20 border-sky-500/50' : 'bg-app-raised/40 hover:bg-slate-700/60 border-slate-700/40'}`}
                                             >
                                                 {selected && <CheckCircle2 className="text-sky-400 shrink-0" size={16} />}
                                                 <div className="flex-1 min-w-0">
@@ -454,7 +454,7 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                                             <button
                                                 key={book._id || book.bookName}
                                                 onClick={() => fetchChapters(book)}
-                                                className="p-2 text-xs font-bold text-slate-300 bg-slate-800/40 hover:bg-sky-500/20 border border-slate-700/40 hover:border-sky-500/30 rounded-xl transition-colors"
+                                                className="p-2 text-xs font-bold text-slate-300 bg-app-raised/40 hover:bg-sky-500/20 border border-slate-700/40 hover:border-sky-500/30 rounded-xl transition-colors"
                                             >
                                                 {book.bookName}
                                             </button>
@@ -475,7 +475,7 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                                         <button
                                             key={ch}
                                             onClick={() => fetchVerses(ch)}
-                                            className="p-2 text-sm font-bold text-slate-300 bg-slate-800/40 hover:bg-sky-500/20 border border-slate-700/40 rounded-xl transition-colors"
+                                            className="p-2 text-sm font-bold text-slate-300 bg-app-raised/40 hover:bg-sky-500/20 border border-slate-700/40 rounded-xl transition-colors"
                                         >
                                             {ch}
                                         </button>
@@ -513,7 +513,7 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                                                 key={idx} 
                                                 onShortPress={() => handleItemInteraction(item, false)}
                                                 onLongPress={() => handleItemInteraction(item, true)}
-                                                className={`w-full text-right p-2 rounded-xl transition-colors border flex items-center justify-between gap-2 block ${selected ? 'bg-sky-500/20 border-sky-500/50' : 'bg-slate-800/20 hover:bg-slate-800/60 border-slate-700/30'}`}
+                                                className={`w-full text-right p-2 rounded-xl transition-colors border flex items-center justify-between gap-2 block ${selected ? 'bg-sky-500/20 border-sky-500/50' : 'bg-app-raised/20 hover:bg-app-raised/60 border-slate-700/30'}`}
                                             >
                                                 {selected && <CheckCircle2 className="text-sky-400 shrink-0" size={14} />}
                                                 <div className="flex-1 text-right min-w-0">
@@ -537,7 +537,7 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                     <div className="flex gap-2">
                         <button 
                             onClick={() => { setIsMultiSelectMode(false); setLocalSelection([]); }}
-                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold transition-colors"
+                            className="px-3 py-1.5 bg-app-raised hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold transition-colors"
                         >
                             Cancel
                         </button>

@@ -14,27 +14,104 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-:root {
-  --app-bg: #001a2b;
-  --app-card-bg: rgba(255, 255, 255, 0.03);
-  --app-card-border: rgba(255, 255, 255, 0.08);
+@theme inline {
+  --color-app-page: var(--app-bg);
+  --color-app-panel: rgb(var(--app-panel-rgb));
+  --color-app-raised: rgb(var(--app-raised-rgb));
+  --color-app-border: var(--app-card-border);
 }
 
-html.dark,
-body.dark,
-[data-theme="dark"] {
-  --app-bg: #060b13; /* Exact composite degree from Bible reader code */
-  --app-card-bg: rgba(255, 255, 255, 0.02);
-  --app-card-border: rgba(255, 255, 255, 0.06);
+:root {
+  /* Light retains the app's previous dark navy appearance. */
+  color-scheme: dark;
+  --app-bg: #060b13;
+  --app-glass-blur: 12px;
+  --app-panel-rgb: 20 24 36;
+  --app-raised-rgb: 16 23 34;
+  --app-nav-rgb: 6 11 19;
+  --app-card-bg: rgb(255 255 255 / 0.02);
+  --app-card-border: rgb(255 255 255 / 0.08);
+  --app-selected-bg: rgb(255 255 255 / 0.05);
+  --app-selection-edge: transparent;
+  --app-note-bg: #131e2b;
+  --app-text: #f1f5f9;
+  --app-muted: #94a3b8;
+  --app-overlay-bg: rgb(2 5 10 / 0.78);
+  --app-ambient-opacity: 0.25;
+  --app-ambient: radial-gradient(ellipse 90% 65% at 50% 0%, rgb(27 49 72 / 0.12), transparent 75%);
+  --app-panel-shadow: 0 12px 36px rgb(0 0 0 / 0.25);
+}
+
+html.dark {
+  --app-bg: #090c0f;
+  --app-panel-rgb: 16 20 23;
+  --app-raised-rgb: 22 27 30;
+  --app-nav-rgb: 10 13 15;
+  --app-card-bg: rgb(255 255 255 / 0.025);
+  --app-card-border: rgb(255 255 255 / 0.07);
+  --app-note-bg: #182329;
+  --app-text: #edf0f2;
+  --app-muted: #9ca7ad;
+  --app-overlay-bg: rgb(0 0 0 / 0.78);
+  --app-ambient-opacity: 0.1;
+  --app-ambient: radial-gradient(ellipse 90% 70% at 50% 0%, rgb(35 52 60 / 0.16), transparent 75%);
+  --app-panel-shadow: 0 16px 44px rgb(0 0 0 / 0.32);
 }
 
 body {
   margin: 0;
   padding: 0;
   background-color: var(--app-bg);
+  background-image: var(--app-ambient);
+  background-attachment: fixed;
+  color: var(--app-text);
   font-family: var(--font-geist-sans), var(--font-ibm-plex-sans-arabic), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   scroll-behavior: smooth;
   transition: background-color 0.15s ease-out;
+}
+
+.app-page {
+  background-color: var(--app-bg);
+  background-image: var(--app-ambient);
+  color: var(--app-text);
+}
+
+.app-card,
+.app-popover,
+.app-header,
+.app-bottom-nav,
+.app-reading-surface {
+  border-color: var(--app-card-border);
+  -webkit-backdrop-filter: blur(var(--app-glass-blur));
+  backdrop-filter: blur(var(--app-glass-blur));
+}
+
+.app-card,
+.app-reading-surface {
+  background-color: var(--app-card-bg);
+  box-shadow: var(--app-panel-shadow);
+}
+
+.app-popover {
+  background-color: rgb(var(--app-panel-rgb) / 0.96);
+  box-shadow: var(--app-panel-shadow);
+}
+
+.app-header,
+.app-bottom-nav {
+  background-color: rgb(var(--app-nav-rgb) / 0.9);
+}
+
+.app-bottom-nav { box-shadow: 0 -10px 30px rgb(0 0 0 / 0.25); }
+.app-reading-surface {
+  background-image: none;
+}
+.app-overlay { background-color: var(--app-overlay-bg); }
+.app-input { background-color: rgb(0 0 0 / 0.18); border-color: var(--app-card-border); color: var(--app-text); }
+.app-ambient-glow { opacity: var(--app-ambient-opacity); }
+.bible-verse[data-selected="true"]:not([data-highlighted="true"]) {
+  background-color: var(--app-selected-bg);
+  box-shadow: inset -3px 0 var(--app-selection-edge);
 }
 
 /* The exported HTML can show the public Prayer layout while JavaScript loads.

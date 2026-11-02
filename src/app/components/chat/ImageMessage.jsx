@@ -39,7 +39,7 @@ export default function ImageMessage({ msg }) {
 
     if (error) {
         return (
-            <div className="flex flex-col items-center justify-center text-center gap-1.5 p-3 mt-1 rounded-xl border border-slate-700/50 bg-slate-800/40 max-w-[160px] sm:max-w-[200px]">
+            <div className="flex flex-col items-center justify-center text-center gap-1.5 p-3 mt-1 rounded-xl border border-slate-700/50 bg-app-raised/40 max-w-[160px] sm:max-w-[200px]">
                 <CloudOff className="text-slate-500" size={24} />
                 <p className="text-[10px] leading-tight text-slate-400">
                     File expired or deleted.
@@ -52,7 +52,7 @@ export default function ImageMessage({ msg }) {
         <>
             <div 
                 onClick={() => localUrl && setIsFullscreen(true)}
-                className="relative group overflow-hidden rounded-xl mt-1 min-w-[100px] min-h-[100px] max-w-[180px] sm:max-w-[220px] bg-slate-800/50 flex items-center justify-center cursor-pointer select-none"
+                className="relative group overflow-hidden rounded-xl mt-1 min-w-[100px] min-h-[100px] max-w-[180px] sm:max-w-[220px] bg-app-raised/50 flex items-center justify-center cursor-pointer select-none"
             >
                 {loading && (
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -68,7 +68,7 @@ export default function ImageMessage({ msg }) {
                             className="w-full max-h-[220px] object-cover rounded-xl transition-transform duration-300 group-hover:scale-105" 
                             loading="lazy" 
                         />
-                        <div className="absolute inset-0 bg-slate-950/30 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center rounded-xl">
+                        <div className="absolute inset-0 bg-app-page/30 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center rounded-xl">
                             <span className="text-xs font-medium text-white/90 bg-black/50 px-2.5 py-1 rounded-full backdrop-blur-sm">
                                 Click to view
                             </span>

@@ -315,7 +315,7 @@ export default function NormalUserProfilePage() {
 }
 
 function UserProfile({ profileUserId }) {
-    const { user_id, isLogin, setLogin, setUsername, profilePhoto, setProfilePhoto, profilePhotoPreview, clearProfilePhotoPreview, isUploadingProfilePhoto, uploadProfilePhoto, setUserRole, setUser_id, setChurchId, setHymnIds, setUserStatus } = useContext(UserContext);
+    const { user_id, isLogin, logout, setLogin, setUsername, profilePhoto, setProfilePhoto, profilePhotoPreview, clearProfilePhotoPreview, isUploadingProfilePhoto, uploadProfilePhoto } = useContext(UserContext);
     const isOwner = String(profileUserId).toLowerCase() === String(user_id).toLowerCase();
     const router = useRouter();
     const { language, setLanguage } = useLanguage();
@@ -354,28 +354,8 @@ function UserProfile({ profileUserId }) {
     // Clears user session and navigates to sign-in
     const handleLogout = () => {
         if (!isOwner) return;
-        localStorage.removeItem('user_Taspe7_Token');
-        localStorage.removeItem('user_Taspe7_GlobalRole');
-        localStorage.removeItem('user_Taspe7_SubRole');
-        localStorage.removeItem('user_Taspe7_Role');
-        localStorage.removeItem('user_Taspe7_ID');
-        localStorage.removeItem('user_Taspe7_ChurchId');
-        localStorage.removeItem('user_Taspe7_HymnIds');
-        localStorage.removeItem('user_Taspe7_Status');
-        localStorage.removeItem('user_Taspe7_Username');
-        localStorage.removeItem('user_Taspe7_Teams');
-        localStorage.removeItem('user_Taspe7_ProfilePhoto');
-
-        setLogin(null);
-        if (setUserRole) setUserRole(null);
-        if (setUser_id) setUser_id(null);
-        if (setChurchId) setChurchId(null);
-        if (setHymnIds) setHymnIds([]);
-        if (setUserStatus) setUserStatus(null);
-        if (setUsername) setUsername(null);
-        if (setProfilePhoto) setProfilePhoto(null);
-
-        router.push('/login');
+        logout();
+        router.replace('/login');
     };
 
     // Bible settings synced with Bible reader
@@ -1084,7 +1064,7 @@ function UserProfile({ profileUserId }) {
 
     if (error && !profile) {
         return (
-            <div className="min-h-screen bg-[var(--app-bg)] flex items-center justify-center p-4 transition-colors duration-150">
+            <div className="app-page min-h-screen flex items-center justify-center p-4 transition-colors duration-150">
                 <div className="bg-red-500/10 border border-red-500/20 rounded-3xl p-8 max-w-md w-full text-center backdrop-blur-xl">
                     <Activity className="w-12 h-12 text-red-400 mx-auto mb-4 opacity-80" />
                     <h2 className="text-xl font-bold text-red-200 mb-2">Oops! Something went wrong.</h2>
@@ -1137,7 +1117,7 @@ function UserProfile({ profileUserId }) {
                                         {isOwner && <><button 
                                             onClick={() => fileInputRef.current?.click()}
                                             disabled={isUploadingPhoto}
-                                            className="absolute bottom-0 right-0 translate-x-1 translate-y-1 w-7 h-7 sm:w-9 sm:h-9 bg-slate-900 rounded-full flex items-center justify-center border-2 border-sky-500/30 shadow-lg hover:bg-slate-800 transition-colors"
+                                            className="absolute bottom-0 right-0 translate-x-1 translate-y-1 w-7 h-7 sm:w-9 sm:h-9 bg-app-panel rounded-full flex items-center justify-center border-2 border-sky-500/30 shadow-lg hover:bg-app-raised transition-colors"
                                             title="Change Photo"
                                         >
                                             {isUploadingPhoto ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400 animate-spin" /> : <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400" />}
@@ -1173,7 +1153,7 @@ function UserProfile({ profileUserId }) {
                                 <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
                                     Bible
                                 </h3>
-                                <div className="rounded-2xl bg-zinc-900/60 sm:bg-white/[0.03] border border-white/5 divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
+                                <div className="app-card rounded-2xl border divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
                                     <button
                                         type="button"
                                         onClick={() => navigateToView('highlights')}
@@ -1239,13 +1219,13 @@ function UserProfile({ profileUserId }) {
                                 <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
                                     Appearance
                                 </h3>
-                                <div className="rounded-2xl bg-zinc-900/60 sm:bg-white/[0.03] border border-white/5 divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
+                                <div className="app-card rounded-2xl border divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
                                     <div className="flex items-center justify-between p-4">
                                         <div className="flex items-center gap-3.5">
                                             {isDark ? <Moon className="w-5 h-5 text-slate-300 shrink-0" /> : <Sun className="w-5 h-5 text-slate-300 shrink-0" />}
                                             <div>
                                                 <p className="text-sm sm:text-base font-semibold text-white">Theme</p>
-                                                <p className="text-xs text-slate-400">{isDark ? 'Dark Mode' : 'Light Mode'}</p>
+                                                <p className="text-xs text-slate-400">{isDark ? 'Dark Mode' : 'main'}</p>
                                             </div>
                                         </div>
                                         <button
@@ -1253,6 +1233,8 @@ function UserProfile({ profileUserId }) {
                                             onClick={toggleTheme}
                                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isDark ? 'bg-sky-500' : 'bg-slate-700'}`}
                                             aria-label="Toggle Theme"
+                                            role="switch"
+                                            aria-checked={isDark}
                                         >
                                             <span
                                                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isDark ? 'translate-x-6' : 'translate-x-1'}`}
@@ -1276,7 +1258,7 @@ function UserProfile({ profileUserId }) {
                                 <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
                                     General Settings
                                 </h3>
-                                <div className="rounded-2xl bg-zinc-900/60 sm:bg-white/[0.03] border border-white/5 divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
+                                <div className="app-card rounded-2xl border divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
                                     <div className="flex items-center justify-between p-4">
                                         <div className="flex items-center gap-3.5">
                                             <Settings className="w-5 h-5 text-slate-300 shrink-0" />
@@ -1295,7 +1277,7 @@ function UserProfile({ profileUserId }) {
                                 <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
                                     {language === 'ar' ? 'الترجمة واللغة' : 'Translations & Language'}
                                 </h3>
-                                <div className="rounded-2xl bg-zinc-900/60 sm:bg-white/[0.03] border border-white/5 p-4 shadow-xl shadow-black/20 flex items-center justify-between gap-3">
+                                <div className="app-card rounded-2xl border p-4 shadow-xl shadow-black/20 flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-3.5 min-w-0">
                                         <Globe className="w-5 h-5 text-slate-300 shrink-0" />
                                         <div>
@@ -1415,7 +1397,7 @@ function UserProfile({ profileUserId }) {
                                         {groupedBibleHighlights.map((highlight) => {
                                             const hex = getHighlightHex(highlight.color);
                                             return (
-                                                <div key={highlight._id} className="rounded-2xl border border-white/5 bg-zinc-900/60 sm:bg-white/[0.03] p-4 sm:p-5 hover:bg-white/5 transition-all duration-300 relative overflow-hidden group shadow-xl shadow-black/20">
+                                                <div key={highlight._id} className="app-card rounded-2xl border p-4 sm:p-5 hover:bg-white/5 transition-all duration-300 relative overflow-hidden group shadow-xl shadow-black/20">
                                                     <div className="absolute top-0 bottom-0 right-0 w-1.5 opacity-80" style={{ backgroundColor: hex }}></div>
                                                     <div className="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-4 relative z-10 pr-2">
                                                         <div className="flex-1 min-w-0">
@@ -1531,7 +1513,7 @@ function UserProfile({ profileUserId }) {
                                 ) : (
                                     <div className="space-y-3">
                                         {groupedBibleNotes.map((note) => (
-                                            <div key={note._id} className="rounded-2xl border border-white/5 bg-zinc-900/60 sm:bg-white/[0.03] p-4 sm:p-5 hover:bg-white/5 transition-all duration-300 relative overflow-hidden group shadow-xl shadow-black/20">
+                                            <div key={note._id} className="app-card rounded-2xl border p-4 sm:p-5 hover:bg-white/5 transition-all duration-300 relative overflow-hidden group shadow-xl shadow-black/20">
                                                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 mb-2.5 flex-wrap">
@@ -1624,7 +1606,7 @@ function UserProfile({ profileUserId }) {
                                     <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
                                         Translation
                                     </h3>
-                                    <div className="rounded-2xl bg-zinc-900/60 sm:bg-white/[0.03] border border-white/5 divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
+                                    <div className="app-card rounded-2xl border divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
                                         {BIBLE_TRANSLATIONS.map((tr) => {
                                             const isSelected = bibleTranslation === tr.id;
                                             return (
@@ -1636,7 +1618,7 @@ function UserProfile({ profileUserId }) {
                                                 >
                                                     <div className="flex items-center gap-3">
                                                         <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-sky-400 bg-sky-400' : 'border-white/30'}`}>
-                                                            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-slate-900" />}
+                                                            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-app-panel" />}
                                                         </div>
                                                         <div>
                                                             <p className="text-sm sm:text-base font-semibold text-white">{tr.name}</p>
@@ -1655,7 +1637,7 @@ function UserProfile({ profileUserId }) {
                                     <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
                                         Verse Controls
                                     </h3>
-                                    <div className="rounded-2xl bg-zinc-900/60 sm:bg-white/[0.03] border border-white/5 divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
+                                    <div className="app-card rounded-2xl border divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
                                         {/* View Mode */}
                                         <div className="flex items-center justify-between p-4">
                                             <div className="flex items-center gap-3.5">
@@ -2032,7 +2014,7 @@ function UserProfile({ profileUserId }) {
                                 animate={{ y: 0, opacity: 1, scale: 1 }}
                                 exit={{ y: 20, opacity: 0, scale: 0.95 }}
                                 transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-                                className="relative w-full max-w-sm bg-[#080f1c] rounded-2xl overflow-hidden flex flex-col p-5"
+                                className="relative w-full max-w-sm bg-app-panel rounded-2xl overflow-hidden flex flex-col p-5"
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <div className="flex items-center justify-between mb-4">

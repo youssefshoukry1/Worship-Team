@@ -40,7 +40,7 @@ export default function Trainings() {
   // Access Control: Only 'approved' users can access the Training page
   if (isLogin && UserStatus !== "approved") {
     return (
-      <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center text-white p-6">
+      <div className="app-page min-h-screen flex flex-col items-center justify-center text-white p-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -553,7 +553,7 @@ export default function Trainings() {
       <div className="hidden md:block">
         <MainSidebar />
       </div>
-      <section className="flex-1 min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#172554] text-white px-4 sm:px-6 py-16 relative overflow-hidden overflow-y-auto">
+      <section className="app-page flex-1 min-h-screen text-white px-4 sm:px-6 py-16 relative overflow-hidden overflow-y-auto">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_70%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.15),transparent_70%)]" />
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, CloudUpload, CloudDownload, HardDrive, Loader2, Mic, Pause, Play, Trash2, ArrowRightLeft, Plus, X, MoreVertical } from 'lucide-react';
+import { Check, CloudUpload, CloudDownload, HardDrive, Loader2, Mic, Pause, Play, Trash2, ArrowRightLeft, Plus, X, MoreVertical, CalendarDays, Power, Wifi } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { buildMyPraysZip, deleteRecording, getRecordingUrl, restoreMyPraysZip } from '../utils/prayRecordings';
@@ -431,6 +431,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
     const [schedule, setSchedule] = useState({ intervalDays: 0, wifiOnly: true });
     const [nextBackup, setNextBackup] = useState(0);
     const [savingSchedule, setSavingSchedule] = useState(false);
+    const scheduleFocusRef = useRef(null);
     const nativeBackup = hasNativeBackup();
     const labels = language === 'ar' ? {
         automatic: 'النسخ الاحتياطي التلقائي', off: 'إيقاف', days: n => `كل ${n} أيام`, wifi: 'Wi-Fi فقط',
@@ -453,11 +454,12 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
         const rect = triggerRef.current?.getBoundingClientRect();
         if (!rect) return;
         const width = Math.min(320, window.innerWidth - 32);
-        const height = Math.min(520, window.innerHeight * 0.7);
-        setPanelPosition({
+        const height = dialogRef.current?.getBoundingClientRect().height || Math.min(520, window.innerHeight * 0.7);
+        const next = {
             left: Math.max(16, Math.min(rect.right - width, window.innerWidth - width - 16)),
             top: Math.max(16, Math.min(rect.bottom + 8, window.innerHeight - height - 16)),
-        });
+        };
+        setPanelPosition(current => current.left === next.left && current.top === next.top ? current : next);
     }, []);
     const panelRef = useRef(null);
 
@@ -468,8 +470,12 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
         const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         dialog?.showModal();
+        positionPanel();
+        const observer = new ResizeObserver(positionPanel);
+        if (dialog) observer.observe(dialog);
         window.addEventListener('resize', positionPanel);
         return () => {
+            observer.disconnect();
             dialog?.close();
             document.body.style.overflow = previousOverflow;
             window.removeEventListener('resize', positionPanel);
@@ -489,6 +495,13 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
     }, [lastBackupKey, userId]);
 
     useEffect(() => { cacheBackupOwner(userId).catch(() => {}); }, [userId]);
+
+    useEffect(() => {
+        if (!savingSchedule && scheduleFocusRef.current && dialogRef.current?.open) {
+            scheduleFocusRef.current.focus({ preventScroll: true });
+            scheduleFocusRef.current = null;
+        }
+    }, [savingSchedule]);
 
     useEffect(() => {
         if (!nativeBackup || !token || !userId) return;
@@ -684,6 +697,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
         setIsOpen(false);
         setOpenPanel(null);
     };
+    const scheduleDisabled = !nativeBackup || savingSchedule || Boolean(busy);
 
     return (
         <>
@@ -693,7 +707,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                 onClick={() => { positionPanel(); setIsOpen(true); }}
                 aria-haspopup="dialog"
                 aria-expanded={isOpen}
-                className="p-1.5 sm:p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all border border-slate-200 dark:border-white/10 active:scale-95 flex items-center justify-center shadow-sm"
+                className={backupStyles.trigger}
                 title="Settings"
                 aria-label="Settings"
             >
@@ -710,9 +724,9 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                         if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closePanel();
                     }}>
                     {/* Header */}
-                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200 dark:border-white/10">
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
                         <div className="flex items-center gap-1.5 min-w-0">
-                            <span id={dialogId} className="text-xs font-bold text-slate-900 dark:text-white truncate">{t('myPraysBackupTitle')}</span>
+                            <span id={dialogId} className="text-xs font-bold text-slate-100 truncate">{t('myPraysBackupTitle')}</span>
                             {activeEmail && (
                                 <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" title={activeEmail} />
                             )}
@@ -722,50 +736,66 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                             onClick={closePanel}
                             disabled={busy === 'restore'}
                             aria-label={t('close')}
-                            className="p-1 text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+                            className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
                         >
                             <X className="w-3.5 h-3.5" />
                         </button>
                     </div>
 
                     {!token ? (
-                        <div className="p-3 text-center text-xs text-slate-500 dark:text-slate-400 space-y-1">
-                            <HardDrive className="h-5 w-5 mx-auto text-sky-700 dark:text-sky-400" />
-                            <p className="font-semibold text-slate-900 dark:text-white">{t('savedOnDeviceTitle')}</p>
-                            <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">{t('savedOnDeviceDesc')}</p>
+                        <div className="p-3 text-center text-xs text-slate-400 space-y-1">
+                            <HardDrive className="h-5 w-5 mx-auto text-sky-400" />
+                            <p className="font-semibold text-slate-100">{t('savedOnDeviceTitle')}</p>
+                            <p className="text-[10px] text-slate-400 leading-tight">{t('savedOnDeviceDesc')}</p>
                         </div>
                     ) : (
                         <div className="space-y-1">
-                            <div className="px-1 pb-2 mb-1 border-b border-slate-200 dark:border-white/10 space-y-2">
-                                <label className="block text-xs text-slate-700 dark:text-slate-200">
-                                    {labels.automatic}
-                                    <select aria-label={labels.automatic} value={schedule.intervalDays} disabled={!nativeBackup || savingSchedule || Boolean(busy)}
-                                        onChange={e => changeSchedule({ intervalDays: Number(e.target.value) })}
-                                        className="mt-1.5 w-full rounded-lg border border-slate-300 dark:border-white/15 bg-slate-100 dark:bg-slate-800 px-2 py-2 text-xs text-slate-900 dark:text-white disabled:opacity-50">
-                                        <option value={0}>{labels.off}</option>
-                                        {[7, 14, 30].map(days => <option key={days} value={days}>{labels.days(days)}</option>)}
-                                    </select>
+                            <div className="px-1 pb-2 mb-1 border-b border-white/10 space-y-2">
+                                <fieldset className={backupStyles.schedulePicker} aria-busy={savingSchedule} disabled={scheduleDisabled} dir={language === 'ar' ? 'rtl' : undefined}>
+                                    <legend className={backupStyles.scheduleLegend}>{labels.automatic}</legend>
+                                    <div className={backupStyles.scheduleGrid}>
+                                        {[0, 7, 14, 30].map(days => (
+                                            <label key={days} className={backupStyles.scheduleChoice}>
+                                                <input
+                                                    className={backupStyles.scheduleInput}
+                                                    type="radio"
+                                                    name={`${dialogId}-schedule`}
+                                                    value={days}
+                                                    checked={schedule.intervalDays === days}
+                                                    onChange={event => { scheduleFocusRef.current = event.currentTarget; changeSchedule({ intervalDays: days }); }}
+                                                />
+                                                <span className={backupStyles.scheduleContent}>
+                                                    {days === 0 ? <Power className="w-4 h-4" /> : <CalendarDays className="w-4 h-4" />}
+                                                    <span>{days === 0 ? labels.off : labels.days(days)}</span>
+                                                    <Check className={backupStyles.scheduleCheck} />
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </fieldset>
+                                <label className={backupStyles.wifiRow}>
+                                    <span className={backupStyles.wifiLabel}><Wifi className="w-4 h-4" />{labels.wifi}</span>
+                                    <span className={backupStyles.wifiSwitch}>
+                                        <input className={backupStyles.wifiInput} type="checkbox" role="switch" checked={schedule.wifiOnly} disabled={scheduleDisabled} onChange={event => { scheduleFocusRef.current = event.currentTarget; changeSchedule({ wifiOnly: event.target.checked }); }} />
+                                        <span className={backupStyles.wifiTrack} />
+                                    </span>
                                 </label>
-                                <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-                                    <input type="checkbox" checked={schedule.wifiOnly} disabled={!nativeBackup || savingSchedule || Boolean(busy)} onChange={e => changeSchedule({ wifiOnly: e.target.checked })} />
-                                    {labels.wifi}
-                                </label>
-                                <p hidden={nativeBackup} className="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">{labels.native}</p>
-                                {lastBackup && <p className="text-[10px] text-slate-500 dark:text-slate-400">{labels.last}: {new Date(lastBackup).toLocaleString(language)}</p>}
-                                {schedule.intervalDays > 0 && nextBackup > 0 && <p className="text-[10px] text-slate-500 dark:text-slate-400">{labels.next}: {new Date(nextBackup).toLocaleDateString(language)}</p>}
+                                <p hidden={nativeBackup} className="text-[10px] leading-relaxed text-slate-400">{labels.native}</p>
+                                {lastBackup && <p className="text-[10px] text-slate-400">{labels.last}: {new Date(lastBackup).toLocaleString(language)}</p>}
+                                {schedule.intervalDays > 0 && nextBackup > 0 && <p className="text-[10px] text-slate-400">{labels.next}: {new Date(nextBackup).toLocaleDateString(language)}</p>}
                             </div>
                             {/* Backup Button */}
                             <button
                                 type="button"
                                 onClick={() => handleBackup()}
                                 disabled={Boolean(busy)}
-                                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all disabled:opacity-50 group"
+                                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50 group"
                             >
                                 <div className="flex items-center gap-2.5">
                                     {busy === 'backup' ? (
-                                        <Loader2 className="w-4 h-4 animate-spin text-sky-700 dark:text-sky-400" />
+                                        <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
                                     ) : (
-                                        <CloudUpload className="w-4 h-4 text-sky-700 dark:text-sky-400 group-hover:scale-110 transition-transform" />
+                                        <CloudUpload className="w-4 h-4 text-sky-400 group-hover:scale-110 transition-transform" />
                                     )}
                                     <span>{t('backup')}</span>
                                 </div>
@@ -776,13 +806,13 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                                 type="button"
                                 onClick={handleRestoreClick}
                                 disabled={Boolean(busy)}
-                                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all disabled:opacity-50 group"
+                                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50 group"
                             >
                                 <div className="flex items-center gap-2.5">
                                     {busy === 'restore' ? (
-                                        <Loader2 className="w-4 h-4 animate-spin text-emerald-700 dark:text-emerald-400" />
+                                        <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
                                     ) : (
-                                        <CloudDownload className="w-4 h-4 text-emerald-700 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+                                        <CloudDownload className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
                                     )}
                                     <span>{t('restore')}</span>
                                 </div>
@@ -790,14 +820,14 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
 
                             {/* Active Drive Account Row */}
                             {activeEmail && (
-                                <div className="pt-2 mt-1 border-t border-slate-200 dark:border-white/5 flex flex-wrap gap-2 items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 px-1">
+                                <div className="pt-2 mt-1 border-t border-white/5 flex flex-wrap gap-2 items-center justify-between text-[10px] text-slate-400 px-1">
                                     <span className="truncate max-w-[130px]" title={activeEmail}>{activeEmail}</span>
                                     <button
                                         type="button"
                                         onClick={() => setOpenPanel(prev => prev === 'accounts' ? null : 'accounts')}
                                         aria-label={`${t('changeDriveEmail')}: ${activeEmail}`}
                                         aria-expanded={openPanel === 'accounts'}
-                                        className="text-sky-700 dark:text-sky-400 hover:underline flex items-center gap-1"
+                                        className="text-sky-400 hover:underline flex items-center gap-1"
                                     >
                                         <ArrowRightLeft className="w-3 h-3" />
                                         <span>{t('changeDriveEmail')}</span>
@@ -817,13 +847,13 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
 
                             {/* Status & Progress Indicator */}
                             {(busy || status) && (
-                                <div role="status" className="mt-2 pt-2 border-t border-slate-200 dark:border-white/10 px-1">
+                                <div role="status" className="mt-2 pt-2 border-t border-white/10 px-1">
                                     <div className="flex justify-between text-[10px] mb-1">
-                                        <span className={`truncate ${isError ? 'text-red-700 dark:text-red-400' : 'text-sky-700 dark:text-sky-400'}`}>{status}</span>
-                                        {busy && <span className="text-slate-500 dark:text-slate-400 ml-1">{progress}%</span>}
+                                        <span className={`truncate ${isError ? 'text-red-400' : 'text-sky-400'}`}>{status}</span>
+                                        {busy && <span className="text-slate-400 ml-1">{progress}%</span>}
                                     </div>
                                     {busy && (
-                                        <div className="w-full h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
+                                        <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                                             <div className="h-full bg-sky-500 transition-all duration-300" style={{ width: `${progress}%` }} />
                                         </div>
                                     )}
@@ -832,8 +862,8 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
 
                             {/* Multi-Account Selector Modal / Subpanel */}
                             {openPanel && (
-                                <div ref={panelRef} className="mt-2 pt-2 border-t border-slate-200 dark:border-white/10 space-y-1.5">
-                                    <div className="text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                                <div ref={panelRef} className="mt-2 pt-2 border-t border-white/10 space-y-1.5">
+                                    <div className="text-[10px] font-bold text-slate-300">
                                         {openPanel === 'restore' ? t('selectAccountToRestore') : t('connectedGoogleAccounts')}
                                     </div>
                                     <div className="max-h-36 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
@@ -851,24 +881,24 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                                                     className={`flex items-center justify-between p-1.5 rounded-lg border text-[10px] transition-colors ${
                                                         isActivating
                                                             ? 'border-sky-500/50 bg-sky-500/10 cursor-wait'
-                                                            : 'border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.02] hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer'
+                                                            : 'border-white/5 bg-white/[0.02] hover:bg-white/5 cursor-pointer'
                                                     }`}
                                                 >
-                                                    <span className="text-slate-900 dark:text-white truncate max-w-[120px]">{acc.email}</span>
+                                                    <span className="text-slate-100 truncate max-w-[120px]">{acc.email}</span>
                                                     {isActivating ? (
-                                                        <span className="flex items-center gap-1 text-sky-700 dark:text-sky-400 font-bold">
+                                                        <span className="flex items-center gap-1 text-sky-400 font-bold">
                                                             <Loader2 className="w-3 h-3 animate-spin" />
                                                             <span>{t('activating')}</span>
                                                         </span>
                                                     ) : openPanel === 'restore' ? (
-                                                        <span className="text-sky-700 dark:text-sky-400 font-bold">{t('restore')}</span>
+                                                        <span className="text-sky-400 font-bold">{t('restore')}</span>
                                                     ) : isDef ? (
-                                                        <span className="text-emerald-700 dark:text-emerald-400 font-bold">{t('activeStatus')}</span>
+                                                        <span className="text-emerald-400 font-bold">{t('activeStatus')}</span>
                                                     ) : null}
                                                     {openPanel !== 'restore' && <button type="button" disabled={Boolean(busy)}
                                                         aria-label={`Disconnect ${acc.email}`} title={`Disconnect ${acc.email}`}
                                                         onClick={event => { event.stopPropagation(); handleDisconnect(acc.email); }}
-                                                        className="p-1 rounded text-slate-500 dark:text-slate-400 hover:text-red-400 disabled:opacity-40">
+                                                        className="p-1 rounded text-slate-400 hover:text-red-400 disabled:opacity-40">
                                                         <Trash2 className="w-3 h-3" />
                                                     </button>}
                                                 </div>
@@ -878,7 +908,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                                     <button
                                         type="button"
                                         onClick={handleLink}
-                                        className="text-[10px] text-sky-700 dark:text-sky-400 hover:underline flex items-center gap-1 pt-1"
+                                        className="text-[10px] text-sky-400 hover:underline flex items-center gap-1 pt-1"
                                     >
                                         <Plus className="w-3 h-3" />
                                         <span>{t('connectAnotherAccount')}</span>

@@ -288,7 +288,7 @@ export default function AuthForm() {
         />
       )}
 
-      <div className="w-full max-w-md bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl shadow-2xl p-6 sm:p-8 text-white">
+      <div className="app-popover w-full max-w-md border rounded-2xl shadow-2xl p-6 sm:p-8 text-white">
         {/* Header */}
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold tracking-tight text-white">
@@ -354,7 +354,7 @@ export default function AuthForm() {
             </div>
             <div className="relative w-full my-5 flex items-center justify-center">
               <div className="w-full border-t border-slate-800" />
-              <span className="absolute bg-slate-900 px-3 text-[11px] uppercase tracking-wider text-slate-500">
+              <span className="absolute bg-app-panel px-3 text-[11px] uppercase tracking-wider text-slate-500">
                 or continue with email
               </span>
             </div>
@@ -373,9 +373,8 @@ export default function AuthForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                autoFocus
                 placeholder="name@example.com"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-sky-500 transition-colors text-sm"
+                className="w-full px-3.5 py-2.5 rounded-xl app-input border text-white placeholder-slate-600 focus:outline-none focus:border-sky-500 transition-colors text-sm"
               />
             </div>
 
@@ -423,7 +422,7 @@ export default function AuthForm() {
                 required
                 autoFocus
                 placeholder="123456"
-                className="w-full text-center tracking-[0.4em] font-mono text-xl py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-sky-500 transition-colors"
+                className="w-full text-center tracking-[0.4em] font-mono text-xl py-2.5 rounded-xl app-input border text-white placeholder-slate-600 focus:outline-none focus:border-sky-500 transition-colors"
               />
             </div>
 
@@ -432,7 +431,7 @@ export default function AuthForm() {
               disabled={isLoading || otpCode.length < 6}
               className={`w-full py-3 rounded-xl font-semibold text-sm transition-all shadow-md flex items-center justify-center gap-2 ${
                 otpCode.length < 6 && !isLoading
-                  ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                  ? "bg-app-raised text-slate-500 cursor-not-allowed"
                   : "bg-sky-500 hover:bg-sky-400 text-white cursor-pointer active:scale-98 disabled:opacity-85 disabled:cursor-wait"
               }`}
             >

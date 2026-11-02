@@ -8,14 +8,14 @@ export default function ChatSidebar({ teams, activeTeamId, onSelectTeam, onOpenB
     const approvedTeams = teams.filter(t => t.status === 'approved');
 
     return (
-        <div className="w-full md:w-[350px] lg:w-[380px] flex-1 min-h-0 bg-[#0d1322] flex flex-col shrink-0 z-10">
+        <div className="w-full md:w-[350px] lg:w-[380px] flex-1 min-h-0 bg-app-panel flex flex-col shrink-0 z-10">
             {/* Header */}
-            <div className="px-4 py-3 bg-[#0d1322] flex items-center justify-between shrink-0 border-b border-slate-800/60 relative">
+            <div className="px-4 py-3 bg-app-panel flex items-center justify-between shrink-0 border-b border-slate-800/60 relative">
                 <h1 className="text-lg font-bold text-slate-100 tracking-tight">Chats</h1>
                 <div className="relative">
                     <button
                         onClick={() => setShowMenu(!showMenu)}
-                        className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors"
+                        className="p-1.5 hover:bg-app-raised text-slate-400 hover:text-white rounded-lg transition-colors"
                         title="More options"
                     >
                         <MoreVertical size={19} />
@@ -27,7 +27,7 @@ export default function ChatSidebar({ teams, activeTeamId, onSelectTeam, onOpenB
                                     setShowMenu(false);
                                     if (onOpenBackup) onOpenBackup();
                                 }}
-                                className="w-full text-left px-4 py-3 text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:text-sky-400 transition-colors"
+                                className="w-full text-left px-4 py-3 text-xs font-semibold text-slate-200 hover:bg-app-raised hover:text-sky-400 transition-colors"
                             >
                                 Backup & Restore
                             </button>
@@ -37,7 +37,7 @@ export default function ChatSidebar({ teams, activeTeamId, onSelectTeam, onOpenB
             </div>
 
             {/* Search Bar */}
-            <div className="p-3 bg-[#0d1322] shrink-0 border-b border-slate-800/60">
+            <div className="p-3 bg-app-panel shrink-0 border-b border-slate-800/60">
                 <div className="bg-[#131b2e] rounded-xl flex items-center px-3 py-2 gap-2.5 border border-slate-700/50 focus-within:border-sky-500/70 transition-all">
                     <Search size={15} className="text-slate-400 shrink-0" />
                     <input
@@ -61,7 +61,7 @@ export default function ChatSidebar({ teams, activeTeamId, onSelectTeam, onOpenB
                             <button
                                 key={team.churchId}
                                 onClick={() => onSelectTeam(team.churchId)}
-                                className={`w-full flex items-center gap-3 px-4 py-3 transition-colors border-b border-slate-800/40 hover:bg-slate-800/50 ${isActive ? "bg-[#192338] border-l-2 border-l-sky-500" : ""
+                                className={`w-full flex items-center gap-3 px-4 py-3 transition-colors border-b border-slate-800/40 hover:bg-app-raised/50 ${isActive ? "bg-[#192338] border-l-2 border-l-sky-500" : ""
                                     }`}
                             >
                                 {/* Profile Picture */}

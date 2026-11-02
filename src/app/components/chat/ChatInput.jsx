@@ -441,7 +441,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
 
 
     return (
-        <div className="bg-[#0d1322] p-2.5 md:p-3 border-t border-slate-800/80 shrink-0 relative">
+        <div className="bg-app-panel p-2.5 md:p-3 border-t border-slate-800/80 shrink-0 relative">
             <audio ref={audioPreviewRef} className="hidden" />
 
             {replyingTo && (
@@ -462,7 +462,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                     <button
                         type="button"
                         onClick={onCancelReply}
-                        className="rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+                        className="rounded-full p-1 text-slate-400 transition-colors hover:bg-app-raised hover:text-white"
                         aria-label="Cancel reply"
                     >
                         <X size={16} />
@@ -476,7 +476,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                     <Music size={16} className="shrink-0 text-orange-400" />
                     <div className="min-w-0 flex-1 flex gap-2 flex-wrap max-h-24 overflow-y-auto custom-scrollbar py-1">
                         {selectedHymnsBible.map((item, idx) => (
-                            <div key={idx} className="flex items-center gap-1 bg-slate-800 rounded-md px-2 py-1">
+                            <div key={idx} className="flex items-center gap-1 bg-app-raised rounded-md px-2 py-1">
                                 <span className="text-[11px] font-semibold text-white">{item.title || item.bookName} {item.chapter || ''}</span>
                                 <X size={12} className="cursor-pointer hover:text-rose-400" onClick={() => setSelectedHymnsBible(prev => prev.filter((_, i) => i !== idx))} />
                             </div>
@@ -485,7 +485,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                     <button
                         type="button"
                         onClick={() => setSelectedHymnsBible([])}
-                        className="rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+                        className="rounded-full p-1 text-slate-400 transition-colors hover:bg-app-raised hover:text-white"
                     >
                         <X size={16} />
                     </button>
@@ -497,7 +497,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                 {isLocked ? (
                     /* Locked Voice UI */
                     <div className="flex-1 bg-[#131b2e] rounded-2xl flex items-center justify-between px-3 sm:px-4 py-2 border border-slate-700/60 shadow-lg">
-                        <button type="button" onClick={cancelRecording} className="text-slate-400 hover:text-rose-400 p-2 transition-colors rounded-full hover:bg-slate-800" title="Delete recording">
+                        <button type="button" onClick={cancelRecording} className="text-slate-400 hover:text-rose-400 p-2 transition-colors rounded-full hover:bg-app-raised" title="Delete recording">
                             <Trash2 size={18} />
                         </button>
                         
@@ -517,7 +517,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                     <Play size={16} fill="currentColor" className="ml-0.5" />
                                 </button>
                             )}
-                            <button type="button" onClick={togglePauseResume} className="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-sky-400 transition-colors">
+                            <button type="button" onClick={togglePauseResume} className="w-9 h-9 rounded-full bg-app-raised hover:bg-slate-700 flex items-center justify-center text-sky-400 transition-colors">
                                 {isPaused ? <Mic size={16} /> : <Pause size={16} fill="currentColor" />}
                             </button>
                             <button type="button" onClick={stopAndSendRecording} className="w-9 h-9 bg-sky-600 text-white rounded-full flex items-center justify-center hover:bg-sky-500 shadow-md shadow-sky-600/30 transition-transform active:scale-95">
@@ -536,7 +536,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                     setShowEmojiPicker(false);
                                     setShowHymnsBiblePicker(null);
                                 }}
-                                className={`p-2.5 rounded-xl transition-colors ${showAttachMenu ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30' : 'text-slate-400 hover:text-sky-400 hover:bg-slate-800'}`}
+                                className={`p-2.5 rounded-xl transition-colors ${showAttachMenu ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30' : 'text-slate-400 hover:text-sky-400 hover:bg-app-raised'}`}
                                 disabled={isUploading || isPressing}
                             >
                                 <Plus size={20} />
@@ -544,31 +544,31 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
 
                             {showAttachMenu && (
                                 <div className="absolute bottom-14 left-0 bg-[#131b2e] border border-slate-700/70 rounded-2xl p-2.5 shadow-2xl flex gap-3 z-50">
-                                    <div onClick={() => { setShowHymnsBiblePicker('hymns'); setShowAttachMenu(false); }} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-slate-800 transition-colors">
+                                    <div onClick={() => { setShowHymnsBiblePicker('hymns'); setShowAttachMenu(false); }} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-app-raised transition-colors">
                                         <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-colors">
                                             <Music size={20} />
                                         </div>
                                         <span className="text-[11px] font-semibold text-slate-300 group-hover:text-white">Hymns</span>
                                     </div>
-                                    <div onClick={() => { setShowHymnsBiblePicker('bible'); setShowAttachMenu(false); }} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-slate-800 transition-colors">
+                                    <div onClick={() => { setShowHymnsBiblePicker('bible'); setShowAttachMenu(false); }} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-app-raised transition-colors">
                                         <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center group-hover:bg-purple-600 group-hover:text-white transition-colors">
                                             <BookOpen size={20} />
                                         </div>
                                         <span className="text-[11px] font-semibold text-slate-300 group-hover:text-white">Bible</span>
                                     </div>
-                                    <div onClick={() => { setShowPollModal(true); setShowAttachMenu(false); }} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-slate-800 transition-colors">
+                                    <div onClick={() => { setShowPollModal(true); setShowAttachMenu(false); }} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-app-raised transition-colors">
                                         <div className="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center group-hover:bg-sky-600 group-hover:text-white transition-colors">
                                             <BarChart2 size={20} />
                                         </div>
                                         <span className="text-[11px] font-semibold text-slate-300 group-hover:text-white">Poll</span>
                                     </div>
-                                    <div onClick={triggerImageUpload} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-slate-800 transition-colors">
+                                    <div onClick={triggerImageUpload} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-app-raised transition-colors">
                                         <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
                                             <ImageIcon size={20} />
                                         </div>
                                         <span className="text-[11px] font-semibold text-slate-300 group-hover:text-white">Image</span>
                                     </div>
-                                    <div onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-slate-800 transition-colors">
+                                    <div onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center gap-1.5 cursor-pointer group p-2 rounded-xl hover:bg-app-raised transition-colors">
                                         <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
                                             <FileText size={20} />
                                         </div>
@@ -600,16 +600,16 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                 <div className="absolute bottom-14 left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 w-[calc(100vw-2rem)] sm:w-[350px] max-w-[350px] h-[60vh] max-h-[420px] min-h-[300px] bg-[#131b2e] border border-slate-700/70 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden">
                                     
                                     {/* Tabs */}
-                                    <div className="flex border-b border-slate-800 bg-[#0d1322] p-1.5 shrink-0 gap-1">
+                                    <div className="flex border-b border-slate-800 bg-app-panel p-1.5 shrink-0 gap-1">
                                         <button 
                                             onClick={() => setPickerTab('emoji')} 
-                                            className={`flex-1 py-1.5 rounded-xl text-xs font-semibold flex justify-center items-center gap-1.5 transition-colors ${pickerTab === 'emoji' ? 'bg-sky-600/30 text-sky-400 border border-sky-500/40' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                                            className={`flex-1 py-1.5 rounded-xl text-xs font-semibold flex justify-center items-center gap-1.5 transition-colors ${pickerTab === 'emoji' ? 'bg-sky-600/30 text-sky-400 border border-sky-500/40' : 'text-slate-400 hover:text-white hover:bg-app-raised'}`}
                                         >
                                             <Smile size={15} /> Emojis
                                         </button>
                                         <button 
                                             onClick={() => setPickerTab('sticker')} 
-                                            className={`flex-1 py-1.5 rounded-xl text-xs font-semibold flex justify-center items-center gap-1.5 transition-colors ${pickerTab === 'sticker' ? 'bg-sky-600/30 text-sky-400 border border-sky-500/40' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                                            className={`flex-1 py-1.5 rounded-xl text-xs font-semibold flex justify-center items-center gap-1.5 transition-colors ${pickerTab === 'sticker' ? 'bg-sky-600/30 text-sky-400 border border-sky-500/40' : 'text-slate-400 hover:text-white hover:bg-app-raised'}`}
                                         >
                                             <Sticker size={15} /> Stickers
                                         </button>
@@ -663,7 +663,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                                         value={stickerSearch}
                                                         onChange={(e) => setStickerSearch(e.target.value)}
                                                         placeholder="Search stickers..."
-                                                        className="w-full bg-[#0d1322] text-white text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-700/60 focus:outline-none focus:border-sky-500/70"
+                                                        className="w-full bg-app-panel text-white text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-700/60 focus:outline-none focus:border-sky-500/70"
                                                     />
                                                 </div>
                                                 <button 
@@ -688,7 +688,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                                     <button
                                                         key={sticker.id}
                                                         onClick={() => handleSendSticker(sticker.url)}
-                                                        className="aspect-square p-2 bg-slate-800/40 hover:bg-slate-800 border border-slate-700/40 hover:border-sky-500/50 rounded-xl flex items-center justify-center transition-colors group"
+                                                        className="aspect-square p-2 bg-app-raised/40 hover:bg-app-raised border border-slate-700/40 hover:border-sky-500/50 rounded-xl flex items-center justify-center transition-colors group"
                                                     >
                                                         <img 
                                                             src={sticker.url} 
@@ -722,7 +722,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                             setShowAttachMenu(false);
                                             setShowHymnsBiblePicker(null);
                                         }}
-                                        className={`p-1.5 shrink-0 transition-colors rounded-lg mr-1 ${showEmojiPicker ? 'text-sky-400 bg-sky-500/10' : 'text-slate-400 hover:text-sky-400 hover:bg-slate-800'}`}
+                                        className={`p-1.5 shrink-0 transition-colors rounded-lg mr-1 ${showEmojiPicker ? 'text-sky-400 bg-sky-500/10' : 'text-slate-400 hover:text-sky-400 hover:bg-app-raised'}`}
                                     >
                                         <Smile size={20} />
                                     </button>
@@ -804,7 +804,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                     className={`p-2.5 rounded-xl transition-colors shrink-0 select-none ${
                                         isPressing 
                                             ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/30 z-20' 
-                                            : 'text-slate-400 hover:text-sky-400 hover:bg-slate-800'
+                                            : 'text-slate-400 hover:text-sky-400 hover:bg-app-raised'
                                     }`}
                                     disabled={disabled || isUploading}
                                     style={{ touchAction: 'none' }} 
@@ -821,9 +821,9 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
             {showPollModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4">
                     <div className="bg-[#131b2e] rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-700/70">
-                        <div className="flex items-center justify-between p-3.5 border-b border-slate-800 bg-[#0d1322]">
+                        <div className="flex items-center justify-between p-3.5 border-b border-slate-800 bg-app-panel">
                             <h3 className="text-slate-100 font-bold text-sm">Create Poll</h3>
-                            <button onClick={() => setShowPollModal(false)} className="text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-slate-800">
+                            <button onClick={() => setShowPollModal(false)} className="text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-app-raised">
                                 <X size={17} />
                             </button>
                         </div>
@@ -837,7 +837,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                     onChange={(e) => setPollQuestion(e.target.value)}
                                     placeholder="Ask a question..."
                                     dir="auto"
-                                    className="w-full bg-[#0d1322] text-white border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-sky-500/70 transition-colors"
+                                    className="w-full bg-app-panel text-white border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-sky-500/70 transition-colors"
                                     autoFocus
                                 />
                             </div>
@@ -856,7 +856,7 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                                         }}
                                         placeholder={`Option ${i + 1}`}
                                         dir="auto"
-                                        className="w-full bg-[#0d1322] text-white border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-sky-500/70 transition-colors"
+                                        className="w-full bg-app-panel text-white border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-sky-500/70 transition-colors"
                                     />
                                 ))}
                                 {pollOptions.length < 6 && (
@@ -893,10 +893,10 @@ export default function ChatInput({ onSendMessage, disabled, token, replyingTo, 
                             </div>
                         </div>
 
-                        <div className="p-3 border-t border-slate-800 bg-[#0d1322] flex justify-end gap-2">
+                        <div className="p-3 border-t border-slate-800 bg-app-panel flex justify-end gap-2">
                             <button 
                                 onClick={() => setShowPollModal(false)}
-                                className="px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 rounded-xl transition-colors"
+                                className="px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-app-raised rounded-xl transition-colors"
                             >
                                 Cancel
                             </button>

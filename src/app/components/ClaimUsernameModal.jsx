@@ -388,7 +388,7 @@ export default function ClaimUsernameModal({
     <>
       <Portal>
       <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-        <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl text-white my-auto">
+        <div className="w-full max-w-md bg-app-panel border border-slate-800 rounded-2xl p-6 shadow-2xl text-white my-auto">
           {/* Profile Picture Controls at the TOP */}
           <div className="flex flex-col items-center justify-center pt-1 pb-4">
             <div className="relative shrink-0">
@@ -420,7 +420,7 @@ export default function ClaimUsernameModal({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploadingPhoto || isSubmitting}
-                className="absolute bottom-0 right-0 translate-x-1 translate-y-1 w-8 h-8 sm:w-9 sm:h-9 bg-slate-900 rounded-full flex items-center justify-center border-2 border-sky-500/30 shadow-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                className="absolute bottom-0 right-0 translate-x-1 translate-y-1 w-8 h-8 sm:w-9 sm:h-9 bg-app-panel rounded-full flex items-center justify-center border-2 border-sky-500/30 shadow-lg hover:bg-app-raised transition-colors cursor-pointer"
                 title={photoPreview ? "Change Photo" : "Upload Photo"}
               >
                 {isUploadingPhoto ? (
@@ -479,7 +479,7 @@ export default function ClaimUsernameModal({
                   disabled={isSubmitting}
                   enterKeyHint="done"
                   placeholder="username"
-                  className="w-full pl-8 pr-10 py-3 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-sky-500 transition-colors text-sm font-mono"
+                  className="w-full pl-8 pr-10 py-3 rounded-xl bg-app-page border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-sky-500 transition-colors text-sm font-mono"
                 />
                 {status === "checking" && (
                   <div className="absolute right-3 w-4 h-4 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
@@ -520,7 +520,7 @@ export default function ClaimUsernameModal({
                       className={`text-xs px-2.5 py-1 rounded-lg border font-mono transition-colors ${
                         username === handle
                           ? "bg-sky-500/20 border-sky-500 text-sky-300 font-semibold"
-                          : "bg-slate-800/80 border-slate-700 hover:border-slate-600 text-slate-300"
+                          : "bg-app-raised/80 border-slate-700 hover:border-slate-600 text-slate-300"
                       }`}
                     >
                       @{handle}
@@ -537,7 +537,7 @@ export default function ClaimUsernameModal({
               className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all shadow-md flex items-center justify-center gap-2 ${
                 status === "available" && !isSubmitting
                   ? "bg-sky-500 hover:bg-sky-400 text-white cursor-pointer active:scale-98"
-                  : "bg-slate-800 text-slate-500 cursor-not-allowed"
+                  : "bg-app-raised text-slate-500 cursor-not-allowed"
               }`}
             >
               {isSubmitting ? (

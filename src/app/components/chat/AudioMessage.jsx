@@ -55,7 +55,7 @@ export default function AudioMessage({ mediaUrl, messageId }) {
     // تصغير رسالة الخطأ
     if (error) {
         return (
-            <div className="flex items-center gap-2 p-1.5 px-2.5 rounded-lg bg-slate-800/40 border border-slate-700/50 text-slate-400 mt-1 max-w-[180px]">
+            <div className="flex items-center gap-2 p-1.5 px-2.5 rounded-lg bg-app-raised/40 border border-slate-700/50 text-slate-400 mt-1 max-w-[180px]">
                 <CloudOff size={16} className="shrink-0" />
                 <span className="text-[10px] leading-tight">Audio expired.</span>
             </div>

@@ -388,7 +388,7 @@ export default function FriendsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--app-bg)] text-slate-100 pb-28 pt-4 px-4 sm:px-6 max-w-2xl mx-auto transition-colors duration-150">
+    <div className="app-page min-h-screen text-slate-100 pb-28 pt-4 px-4 sm:px-6 max-w-2xl mx-auto transition-colors duration-150">
       {/* Top Header */}
       <div className="flex items-center justify-between mb-6">
         <button
@@ -435,7 +435,7 @@ export default function FriendsPage() {
 
         {/* Live Search Results Dropdown / Panel */}
         {searchQuery.trim().length >= 2 && (
-          <div className="mt-2 p-2 rounded-2xl bg-[#061226]/95 border border-white/10 backdrop-blur-xl shadow-2xl shadow-black/50 space-y-1.5">
+          <div className="mt-2 p-2 rounded-2xl bg-app-panel/95 border border-white/10 backdrop-blur-xl shadow-2xl shadow-black/50 space-y-1.5">
             <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Search Results
             </div>
@@ -654,7 +654,7 @@ export default function FriendsPage() {
                           userKey={target._id || target.username}
                           remoteUrl={target.profilePhoto}
                           name={target.Name}
-                          className="w-10 h-10 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center font-bold text-sm text-slate-300 shrink-0 overflow-hidden"
+                          className="w-10 h-10 rounded-full bg-app-raised border border-white/10 flex items-center justify-center font-bold text-sm text-slate-300 shrink-0 overflow-hidden"
                         />
                         <button type="button" onClick={() => router.push(profileHref(target._id))} className="min-w-0 text-left rounded-lg focus-visible:outline-2 focus-visible:outline-sky-400" aria-label={`Open ${target.Name || 'user'} profile`}>
                           <div className="text-xs sm:text-sm font-semibold text-white truncate">

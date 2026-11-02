@@ -4,13 +4,11 @@ import { useCallback, useContext, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, Loader2, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
-import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { billingPlatform, billingRequest, nativePurchases, rememberBillingAccount, restoreStorePurchases, storeProducts, subscribeNative } from '../services/billingService';
 
 export default function PlansPage() {
   const { isLogin, user_id } = useContext(UserContext);
-  const { isDark } = useTheme();
   const { language } = useLanguage();
   const ar = language === 'ar';
   const text = (en, arabic) => ar ? arabic : en;
@@ -51,10 +49,10 @@ export default function PlansPage() {
       await refresh();
     });
   }
-  const panel = isDark ? 'bg-[#101722] border-white/10 text-slate-100' : 'bg-white border-slate-200 text-slate-900';
-  const muted = isDark ? 'text-slate-400' : 'text-slate-600';
-  const input = `w-full rounded-xl border px-3 py-3 outline-none focus:ring-2 focus:ring-cyan-400 ${isDark ? 'bg-black/20 border-white/15 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`;
-  return <div className={`min-h-screen px-4 pb-28 pt-24 ${isDark ? 'bg-[#080d16] text-white' : 'bg-slate-50 text-slate-900'}`} dir={ar ? 'rtl' : 'ltr'}>
+  const panel = 'bg-app-panel border-white/10 text-slate-100';
+  const muted = 'text-slate-400';
+  const input = `w-full rounded-xl border px-3 py-3 outline-none focus:ring-2 focus:ring-cyan-400 bg-black/20 border-white/15 text-white`;
+  return <div className="app-page min-h-screen px-4 pb-28 pt-24 text-white" dir={ar ? 'rtl' : 'ltr'}>
     <div className="mx-auto max-w-4xl">
       <Link href="/normal_UserProfile" className={`mb-7 inline-flex items-center gap-2 text-sm ${muted}`}><ArrowLeft size={16} />{text('Back to profile', 'العودة للحساب')}</Link>
       <div className="mb-8"><span className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-cyan-500"><Sparkles size={18} />Wasla</span>
@@ -118,7 +116,7 @@ export default function PlansPage() {
           {[['firstName', text('First name', 'الاسم الأول'), 'given-name'], ['lastName', text('Last name', 'اسم العائلة'), 'family-name'], ['phone', text('Phone number', 'رقم الهاتف'), 'tel'], ['city', text('City', 'المدينة'), 'address-level2'], ['state', text('Governorate', 'المحافظة'), 'address-level1'], ['street', text('Address', 'العنوان'), 'street-address']].map(([name, label, autoComplete]) => <label key={name} className="block text-sm">{label}<input className={`mt-2 ${input}`} autoComplete={autoComplete} required maxLength={150} type={name === 'phone' ? 'tel' : 'text'} value={billing[name]} onChange={event => setBilling({ ...billing, [name]: event.target.value })} /></label>)}
           <label className="flex items-start gap-3 text-sm leading-6 sm:col-span-2"><input type="checkbox" required checked={accepted} onChange={event => setAccepted(event.target.checked)} className="mt-1 size-4" /><span>{text('I agree to the subscription terms and understand this purchase provides 30 days of access without automatic renewal.', 'أوافق على شروط الاشتراك، وأفهم أن هذه العملية تمنحني ٣٠ يوماً دون تجديد تلقائي.')}</span></label>
           <button disabled={!!busy || !accepted} className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 font-semibold text-slate-950 disabled:opacity-50" type="submit">{busy === 'checkout' && <Loader2 size={17} className="animate-spin" />}{text('Continue to payment', 'المتابعة إلى الدفع')}</button>
-          <button className={`min-h-12 rounded-xl border ${isDark ? 'border-white/10' : 'border-slate-200'}`} type="button" onClick={() => setSelected(null)}>{text('Cancel', 'إلغاء')}</button>
+          <button className={`min-h-12 rounded-xl border border-white/10`} type="button" onClick={() => setSelected(null)}>{text('Cancel', 'إلغاء')}</button>
         </form>
       </section>}
     </div>

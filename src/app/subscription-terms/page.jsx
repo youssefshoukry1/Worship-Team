@@ -1,11 +1,9 @@
 'use client';
 import Link from 'next/link';
 import { useLanguage } from '../context/LanguageContext';
-import { useTheme } from '../context/ThemeContext';
 
 export default function SubscriptionTerms() {
   const { language } = useLanguage();
-  const { isDark } = useTheme();
   const ar = language === 'ar';
   const paragraphs = ar ? [
     'يوفر اشتراك Plus أو Pro رصيداً إضافياً لإجابات الذكاء الاصطناعي. يظهر السعر والفترة والرصيد المتاح قبل الدفع. التفسير والمراجع والتطبيق تتشارك في رصيد واحد يتجدد كل ٢٤ ساعة، ولا يتراكم الرصيد غير المستخدم. الطلبات الفاشلة لا تُخصم منه.',
@@ -22,10 +20,10 @@ export default function SubscriptionTerms() {
     'The original payment provider’s refund and payment policies apply alongside your applicable statutory rights. If charged without receiving access, avoid paying again; keep the payment reference and use Restore purchases or contact support.',
     'AI is a study aid and can make mistakes. Consult the biblical text and context when assessing answers.'
   ];
-  return <article className={`min-h-screen px-5 pb-24 pt-24 ${isDark ? 'bg-[#080d16] text-slate-100' : 'bg-slate-50 text-slate-900'}`} dir={ar ? 'rtl' : 'ltr'}><div className="mx-auto max-w-2xl">
+  return <article className="app-page min-h-screen px-5 pb-24 pt-24 text-slate-100" dir={ar ? 'rtl' : 'ltr'}><div className="mx-auto max-w-2xl">
     <Link href="/plans" className="text-sm text-cyan-500">{ar ? 'العودة للخطط' : 'Back to plans'}</Link>
     <h1 className="mb-8 mt-6 text-3xl font-bold">{ar ? 'شروط الاشتراك' : 'Subscription terms'}</h1>
-    {paragraphs.map(paragraph => <p key={paragraph} className={`mb-6 text-base leading-8 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{paragraph}</p>)}
+    {paragraphs.map(paragraph => <p key={paragraph} className={`mb-6 text-base leading-8 text-slate-300`}>{paragraph}</p>)}
     <Link href="/privacy-policy" className="text-cyan-500 underline">{ar ? 'سياسة الخصوصية' : 'Privacy policy'}</Link>
   </div></article>;
 }

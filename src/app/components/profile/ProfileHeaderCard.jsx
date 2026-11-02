@@ -5,8 +5,8 @@ import OfflineAvatar from '../OfflineAvatar';
 
 export default function ProfileHeaderCard({ user, avatar, badges, stats, onEditName, onEditUsername, children }) {
   const name = user?.Name || user?.username || 'N/A';
-  return <section data-testid="profile-header-card" className="rounded-[2rem] border border-white/5 bg-white/[0.02] p-5 sm:p-8 backdrop-blur-2xl mb-6 sm:mb-8 relative overflow-hidden shadow-2xl shadow-black/50">
-    <div className="absolute top-1/2 left-0 w-32 h-32 bg-sky-500/10 blur-[100px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2" />
+  return <section data-testid="profile-header-card" className="app-card rounded-[2rem] border p-5 sm:p-8 backdrop-blur-2xl mb-6 sm:mb-8 relative overflow-hidden shadow-2xl shadow-black/50">
+    <div className="app-ambient-glow absolute top-1/2 left-0 w-32 h-32 bg-sky-500/10 blur-[100px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2" />
     <div className="relative z-10 flex flex-row items-start justify-between gap-3 sm:gap-6 max-[380px]:grid max-[380px]:grid-cols-[minmax(0,1fr)_auto]">
       <div className="flex flex-1 flex-row items-center gap-3 sm:gap-6 min-w-0 max-[380px]:contents">
         <div className="shrink-0 max-[380px]:justify-self-start">

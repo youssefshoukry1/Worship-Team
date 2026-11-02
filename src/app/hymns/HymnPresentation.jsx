@@ -93,7 +93,7 @@ export default function HymnPresentation({ view }) {
   // Opened by a client action, so render into the document on the first commit.
   if (typeof document === 'undefined') return null;
   return createPortal(
-      <div id="showDataContainer" data-feature="hymn-presentation" className="fixed inset-0 z-10000 bg-[#020617] flex flex-col" data-lenis-prevent>
+      <div id="showDataContainer" data-feature="hymn-presentation" className="fixed inset-0 z-10000 bg-app-page flex flex-col" data-lenis-prevent>
         {/* Keep the presentation header focused on dismissing the view. */}
         <div className="flex justify-end px-4 sm:px-6 py-2 shrink-0 z-20">
           <button
@@ -378,7 +378,7 @@ export default function HymnPresentation({ view }) {
     
               {/* Dropdown Recommendations Box for Hymns */}
               {desktopSearchType === 'hymns' && presetSearchResults.length > 0 && (
-                <div className="absolute top-full mt-2 left-0 right-0 max-h-60 overflow-y-auto bg-[#0d1321]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] p-2 custom-scrollbar flex flex-col gap-1.5 z-[100]">
+                <div className="absolute top-full mt-2 left-0 right-0 max-h-60 overflow-y-auto bg-app-panel/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] p-2 custom-scrollbar flex flex-col gap-1.5 z-[100]">
                   {presetSearchResults.map((hymn) => (
                     <button
                       key={hymn._id}
@@ -411,7 +411,7 @@ export default function HymnPresentation({ view }) {
     
               {/* Dropdown Recommendations Box for Bible Search Hits */}
               {desktopSearchType === 'bible' && bibleSearchQuery.trim() && bibleSearchResults.length > 0 && (
-                <div className="absolute top-full mt-2 left-0 right-0 max-h-60 overflow-y-auto bg-[#0d1321]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] p-2 custom-scrollbar flex flex-col gap-1.5 z-[100]">
+                <div className="absolute top-full mt-2 left-0 right-0 max-h-60 overflow-y-auto bg-app-panel/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] p-2 custom-scrollbar flex flex-col gap-1.5 z-[100]">
                   {bibleSearchResults.map((hit, idx) => (
                     <button
                       key={idx}
@@ -431,7 +431,7 @@ export default function HymnPresentation({ view }) {
     
               {/* Dropdown Book Selection Grid */}
               {desktopSearchType === 'bible' && biblePickerOpen === 'book_present' && (
-                <div className="bible-picker-dropdown absolute top-full mt-2 left-0 right-0 max-h-60 overflow-y-auto bg-[#0d1321]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] p-3 custom-scrollbar z-[100]">
+                <div className="bible-picker-dropdown absolute top-full mt-2 left-0 right-0 max-h-60 overflow-y-auto bg-app-panel/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] p-3 custom-scrollbar z-[100]">
                   <div className="grid grid-cols-3 gap-1.5">
                     {bibleModalBooks.map((book) => (
                       <button
@@ -455,7 +455,7 @@ export default function HymnPresentation({ view }) {
     
               {/* Dropdown Chapter Selection Grid */}
               {desktopSearchType === 'bible' && biblePickerOpen === 'chapter_present' && (
-                <div className="bible-picker-dropdown absolute top-full mt-2 left-0 right-0 max-h-60 overflow-y-auto bg-[#0d1321]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] p-3 custom-scrollbar z-[100]">
+                <div className="bible-picker-dropdown absolute top-full mt-2 left-0 right-0 max-h-60 overflow-y-auto bg-app-panel/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] p-3 custom-scrollbar z-[100]">
                   <div className="grid grid-cols-6 gap-1.5">
                     {bibleModalChapters.map((ch) => (
                       <button
@@ -569,7 +569,7 @@ export default function HymnPresentation({ view }) {
           </div>
     
           {/* Quick Settings Footer (Bottom Bar) */}
-          <div className="shrink-0 bg-[#0d1321] border-t border-white/5 z-20" dir="rtl">
+          <div className="shrink-0 bg-app-panel border-t border-white/5 z-20" dir="rtl">
     
             {/* Toggle Header Bar */}
             <button

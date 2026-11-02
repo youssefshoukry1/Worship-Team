@@ -5,7 +5,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Heart, BookOpen, Music, Users, User } from 'lucide-react';
 import { ensureNavigationServiceWorker } from '../utils/appNavigation';
 import useTabNavigation, { normalizeTabPath } from '../hooks/useTabNavigation';
-import { useTheme } from '../context/ThemeContext';
 import { useTestimonyFeed } from './testimonies/TestimonyFeedProvider';
 
 const NAV_ITEMS = [
@@ -17,7 +16,6 @@ const NAV_ITEMS = [
 ];
 
 export default function BottomNav() {
-  const { isDark } = useTheme();
   const hasNewNotes = useTestimonyFeed()?.state.hasUnseen || false;
   const pathname = usePathname();
   const router = useRouter();
@@ -108,11 +106,7 @@ export default function BottomNav() {
   return (
     <div
       data-lenis-prevent
-      className={`fixed bottom-0 left-0 right-0 z-[10000] border-t backdrop-blur-xl transition-all duration-200 ease-out touch-manipulation select-none ${shouldShow ? 'translate-y-0' : 'translate-y-full pointer-events-none'
-        } ${isDark
-          ? 'bg-[#060b13]/95 border-white/[0.06] shadow-[0_-10px_30px_rgba(6,11,19,0.8)]'
-          : 'bg-[#002238]/95 border-sky-400/20 shadow-[0_-10px_30px_rgba(0,34,56,0.5)]'
-        }`}
+      className={`app-bottom-nav fixed bottom-0 left-0 right-0 z-[10000] border-t transition-all duration-200 ease-out touch-manipulation select-none ${shouldShow ? 'translate-y-0' : 'translate-y-full pointer-events-none'}`}
     >
       <nav className="flex justify-around items-center h-[58px] max-w-md mx-auto" aria-label="Primary navigation">
         {NAV_ITEMS.map((item) => {

@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Portal from '../Portal/Portal';
 import { UserContext } from '../context/User_Context';
 import { useLanguage } from '../context/LanguageContext';
-import { useTheme } from '../context/ThemeContext';
 import { showToast } from '../components/ToastContainer';
 import { X, Check, Search, FileText, BookOpen, ChevronLeft, ChevronRight, Loader2, Copy, Lightbulb, FolderPlus, Monitor, PlusCircle, Link2, List, AlignJustify, Download, SlidersHorizontal, CircleHelp, Plus, Trash2 } from 'lucide-react';
 import WaslaWaveLogo from '../components/WaslaWaveLogo';
@@ -111,26 +110,23 @@ const VerseItem = React.memo(({
   highlightColor,
   highlightColorsList,
   hasNote,
-  isDark = true,
   onClick,
   onNoteClick
 }) => {
   const highlightStyle = getHighlightStyles(highlightColor, highlightColorsList);
   return (
     <div
+      data-selected={isSelected}
+      data-highlighted={Boolean(highlightStyle)}
       onClick={() => onClick(verse._id)}
       style={{
         marginBottom: `${spacing}px`,
         ...highlightStyle
       }}
-      className={`group relative cursor-pointer p-4 rounded-xl transition-all duration-200 ${!highlightStyle && isSelected
-        ? isDark
-          ? 'bg-white/5 border border-white/10'
-          : 'bg-sky-500/15 border border-sky-400/30'
+      className={`bible-verse group relative cursor-pointer p-4 rounded-xl transition-all duration-200 ${!highlightStyle && isSelected
+        ? 'bg-white/5 border border-white/10'
         : !highlightStyle
-          ? isDark
-            ? 'hover:bg-white/5 border border-white/0 hover:border-white/10'
-            : 'hover:bg-sky-500/10 border border-transparent hover:border-sky-400/20'
+          ? 'hover:bg-white/5 border border-white/0 hover:border-white/10'
           : ''
         }`}
     >
@@ -311,7 +307,6 @@ function ColorCustomizer({
   onClose,
   t
 }) {
-  const { isDark } = useTheme();
   const [hsv, setHsv] = useState(() => hexToHsv(initialHex));
   const [hexInput, setHexInput] = useState(() => initialHex.toUpperCase());
   const satValRef = useRef(null);
@@ -366,10 +361,7 @@ function ColorCustomizer({
     <div
       onPointerDown={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
-      className={`flex flex-col sm:flex-row gap-4 backdrop-blur-2xl text-white rounded-2xl p-4 border w-full max-w-[500px] select-none transition-colors ${isDark
-        ? 'bg-[#141824]/95 border-white/10 shadow-[0_15px_50px_rgba(0,0,0,0.7)]'
-        : 'bg-[#002238]/95 border-sky-400/25 shadow-[0_15px_50px_rgba(0,20,35,0.7)]'
-        }`}
+      className={`flex flex-col sm:flex-row gap-4 backdrop-blur-2xl text-white rounded-2xl p-4 border w-full max-w-[500px] select-none transition-colors bg-app-panel/95 border-white/10 shadow-[0_15px_50px_rgba(0,0,0,0.7)]`}
       dir="rtl"
     >
       {/* 2D Saturation / Value Box & Hue Slider */}
@@ -485,10 +477,10 @@ function ColorCustomizer({
   );
 }
 
-function BibleReaderWrapper({ isPage, isDark, onClose, children }) {
+function BibleReaderWrapper({ isPage, onClose, children }) {
   if (isPage) {
     return (
-      <div data-feature="bible-reader" className="w-full flex items-center justify-center p-0 sm:p-6 h-[calc(100dvh-5rem)] overflow-hidden">
+      <div data-feature="bible-reader" className="app-page w-full flex items-center justify-center p-0 sm:p-6 h-[calc(100dvh-5rem)] overflow-hidden">
         {children}
       </div>
     );
@@ -497,8 +489,7 @@ function BibleReaderWrapper({ isPage, isDark, onClose, children }) {
     <Portal>
       <div data-feature="bible-reader" className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-6 overflow-hidden app-page-transition">
         <div data-feature="bible-reader"
-          className={`absolute inset-0 backdrop-blur-xl transition-colors duration-200 ${isDark ? 'bg-[#050505]/80' : 'bg-[#001424]/80'
-            }`}
+          className={`app-overlay absolute inset-0 backdrop-blur-xl transition-colors duration-200 bg-[#050505]/80`}
           onClick={onClose}
         />
         {children}
@@ -590,7 +581,6 @@ export function BibleForm({ controller, isPage = false }) {
     document.addEventListener('pointerdown', handleOutsideClick);
     return () => document.removeEventListener('pointerdown', handleOutsideClick);
   }, [isSettingsOpen]);
-  const { isDark } = useTheme();
   const { isLogin } = useContext(UserContext);
   const { t, language } = useLanguage();
   const {
@@ -750,23 +740,10 @@ export function BibleForm({ controller, isPage = false }) {
     <>
       {/* This is the Bible search and reader */}
       {isOpen && (
-        <BibleReaderWrapper isPage={isStandalonePage} isDark={isDark} onClose={closeBibleModal}>
+        <BibleReaderWrapper isPage={isStandalonePage} onClose={closeBibleModal}>
           <div
-            className={`relative w-full h-full sm:h-[85vh] max-w-4xl border sm:rounded-[2.5rem] flex flex-col overflow-hidden backdrop-blur-2xl transition-colors duration-200 ${isDark
-              ? 'bg-[#060b13]/90 sm:bg-[#060b13]/85 border-white/10 shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)]'
-              : 'bg-[#001f33]/95 sm:bg-[#002238]/90 border-sky-400/25 shadow-[0_0_60px_-12px_rgba(14,165,233,0.25)]'
-              }`}
+            className="app-reading-surface relative w-full h-full sm:h-[85vh] max-w-4xl border sm:rounded-[2.5rem] flex flex-col overflow-hidden transition-colors duration-200"
           >
-            {/* Background Glows matching project light/dark theme */}
-            <div
-              className={`absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,${isDark ? '0.06' : '0.14'
-                }),transparent_70%)] pointer-events-none`}
-            />
-            <div
-              className={`absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(37,99,235,${isDark ? '0.04' : '0.10'
-                }),transparent_70%)] pointer-events-none`}
-            />
-
             {/* --- MAIN SCROLL AREA - FIXED HEIGHT --- */}
             {/* Added 'overscroll-contain' to stop the website from scrolling when this reaches the end */}
             <div
@@ -857,10 +834,7 @@ export function BibleForm({ controller, isPage = false }) {
                       }`}
                   >
                     <div
-                      className={`min-h-0 rounded-3xl overflow-hidden shadow-2xl relative border transition-colors ${isDark
-                        ? 'bg-white/[0.02] border-white/5'
-                        : 'bg-[#001829]/90 border-sky-400/20 shadow-[0_15px_40px_rgba(0,18,34,0.6)]'
-                        }`}
+                      className={`min-h-0 rounded-3xl overflow-hidden shadow-2xl relative border transition-colors bg-white/[0.02] border-white/5`}
                     >
                       <div
                         className="flex transition-transform duration-300 ease-out w-[200%]"
@@ -1064,7 +1038,7 @@ export function BibleForm({ controller, isPage = false }) {
                               if (h) {
                                 b = `${h}26`;
                               } else if (isSel) {
-                                b = 'rgba(255, 255, 255, 0.05)';
+                                b = 'var(--app-selected-bg)';
                               }
                               return { bg: b, hex: h, isSelected: isSel };
                             };
@@ -1109,8 +1083,8 @@ export function BibleForm({ controller, isPage = false }) {
                               >
                                 <span
                                   className={`inline-flex items-center justify-center text-[10px] sm:text-xs font-black px-1.5 py-0.5 ml-1 mr-0 select-none transition-colors leading-none ${curr.isSelected
-                                    ? isDark ? 'text-sky-500/70' : 'text-sky-400'
-                                    : isDark ? 'text-white/30' : 'text-sky-300/60'
+                                    ? 'text-sky-500/70'
+                                    : 'text-white/30'
                                     }`}
                                   style={{ verticalAlign: 'middle', transform: 'translateY(-1px)', marginInlineStart: `${verseNumberGap}px` }}
                                 >
@@ -1146,7 +1120,6 @@ export function BibleForm({ controller, isPage = false }) {
                               highlightColor={highlightColor}
                               highlightColorsList={highlightColorsList}
                               hasNote={existingNote}
-                              isDark={isDark}
                               onClick={onVerseClick}
                               onNoteClick={handleVerseNoteClick}
                             />
@@ -1165,10 +1138,7 @@ export function BibleForm({ controller, isPage = false }) {
                 <button
                   onClick={goToPrevChapter}
                   disabled={!hasPrevChapter}
-                  className={`pointer-events-auto w-9 h-9 rounded-full backdrop-blur-md border flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 ${isDark
-                    ? 'bg-black/90 hover:bg-black/80 border-white/10'
-                    : 'bg-[#002238]/95 hover:bg-[#002d4a] border-sky-400/30 text-sky-100 shadow-[0_4px_20px_rgba(0,34,56,0.6)]'
-                    } ${!hasPrevChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
+                  className={`pointer-events-auto w-9 h-9 rounded-full backdrop-blur-md border flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 bg-black/90 hover:bg-black/80 border-white/10 ${!hasPrevChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
                   title="الأصحاح السابق"
                 >
                   <ChevronLeft className="w-4 h-4 text-white" />
@@ -1176,10 +1146,7 @@ export function BibleForm({ controller, isPage = false }) {
                 <button
                   onClick={goToNextChapter}
                   disabled={!hasNextChapter}
-                  className={`pointer-events-auto w-9 h-9 rounded-full backdrop-blur-md border flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 ${isDark
-                    ? 'bg-black/90 hover:bg-black/80 border-white/10'
-                    : 'bg-[#002238]/95 hover:bg-[#002d4a] border-sky-400/30 text-sky-100 shadow-[0_4px_20px_rgba(0,34,56,0.6)]'
-                    } ${!hasNextChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
+                  className={`pointer-events-auto w-9 h-9 rounded-full backdrop-blur-md border flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 bg-black/90 hover:bg-black/80 border-white/10 ${!hasNextChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
                   title="الأصحاح التالي"
                 >
                   <ChevronRight className="w-4 h-4 text-white" />
@@ -1200,10 +1167,7 @@ export function BibleForm({ controller, isPage = false }) {
                   }
                 }}
                 style={{ willChange: 'transform' }}
-                className={`animate-sheet-slide-up absolute bottom-0 left-0 right-0 z-50 border-t rounded-t-[1.5rem] flex flex-col text-white overflow-hidden transition-colors ${isDark
-                  ? 'bg-[#0d0e15] border-white/10 shadow-[0_-15px_35px_rgba(0,0,0,0.6)]'
-                  : 'bg-[#001e33] border-sky-400/25 shadow-[0_-15px_35px_rgba(0,20,35,0.7)]'
-                  }`}
+                className={`animate-sheet-slide-up absolute bottom-0 left-0 right-0 z-50 border-t rounded-t-[1.5rem] flex flex-col text-white overflow-hidden transition-colors bg-app-panel border-white/10 shadow-[0_-15px_35px_rgba(0,0,0,0.6)]`}
                 dir="rtl"
               >
                 {/* Pull bar */}
@@ -1290,7 +1254,7 @@ export function BibleForm({ controller, isPage = false }) {
                           key={type}
                           onClick={() => handleAiAnalysis(type)}
                           disabled={aiAnalysis.loading}
-                          className={`flex-1 py-3 px-4 rounded-2xl bg-[#0b1b2a]/50 hover:bg-black/20 transition-all duration-300 flex flex-col items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 group`}
+                          className={`flex-1 py-3 px-4 rounded-2xl bg-app-panel/50 hover:bg-black/20 transition-all duration-300 flex flex-col items-center justify-center gap-1.5 active:scale-95 disabled:opacity-40 group`}
                         >
                           <IconComponent className={`w-5 h-5 ${color} group-hover:scale-110 group-active:scale-95 transition-transform duration-300`} />
                           <span className="text-[11px] font-black text-slate-300 group-hover:text-white transition-colors duration-300">{label}</span>
@@ -1302,7 +1266,7 @@ export function BibleForm({ controller, isPage = false }) {
                   {/* AI Response — no header bar, floating dismiss pill */}
                   {(aiAnalysis.loading || aiAnalysis.text || aiAnalysis.error) && (
                     <div
-                      className={`relative rounded-2xl overflow-hidden ${isDark ? 'bg-[#060b13]' : 'bg-[#001829]'}`}
+                      className={`relative rounded-2xl overflow-hidden bg-app-page`}
                       data-ai-response
                     >
 
@@ -1378,7 +1342,7 @@ export function BibleForm({ controller, isPage = false }) {
                                 e.stopPropagation();
                                 setHighlightColorsList(prev => prev.filter(item => item.id !== c.id));
                               }}
-                              className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-slate-900 border border-white/20 text-white/70 hover:text-red-400 hover:bg-red-500/20 hover:border-red-400/50 flex items-center justify-center transition-all shadow-sm z-10"
+                              className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-app-panel border border-white/20 text-white/70 hover:text-red-400 hover:bg-red-500/20 hover:border-red-400/50 flex items-center justify-center transition-all shadow-sm z-10"
                               title="حذف اللون"
                             >
                               <X className="w-2.5 h-2.5 stroke-[3]" />
@@ -1452,8 +1416,7 @@ export function BibleForm({ controller, isPage = false }) {
                   animate={{ opacity: 1, x: 0, scale: 1 }}
                   exit={{ opacity: 0, x: -16, scale: 0.96 }}
                   transition={{ duration: 0.16, ease: 'easeOut' }}
-                  className={`absolute top-16 sm:top-20 left-2 sm:left-4 z-50 w-[215px] sm:w-[245px] max-w-[62vw] max-h-[min(72vh,520px)] rounded-2xl sm:rounded-3xl border shadow-[0_12px_40px_rgba(0,0,0,0.65)] flex flex-col overflow-hidden ${isDark ? 'bg-[#080d18]/95 border-white/10' : 'bg-[#001726]/95 border-sky-400/25'
-                    }`}
+                  className={`app-popover absolute top-16 sm:top-20 left-2 sm:left-4 z-50 w-[215px] sm:w-[245px] max-w-[62vw] max-h-[min(72vh,520px)] rounded-2xl sm:rounded-3xl border shadow-[0_12px_40px_rgba(0,0,0,0.65)] flex flex-col overflow-hidden bg-app-panel/95 border-white/10`}
                   dir={language === 'ar' ? 'rtl' : 'ltr'}
                 >
                   {/* Header */}
@@ -1508,7 +1471,7 @@ export function BibleForm({ controller, isPage = false }) {
                               >
                                 <div className="flex items-center gap-1.5 min-w-0">
                                   <div className={`w-2.5 h-2.5 rounded-full border shrink-0 flex items-center justify-center ${isSelected ? 'border-sky-400 bg-sky-400' : 'border-white/30'}`}>
-                                    {isSelected && <div className="w-1 h-1 rounded-full bg-slate-900" />}
+                                    {isSelected && <div className="w-1 h-1 rounded-full bg-app-panel" />}
                                   </div>
                                   <span className="text-[11px] font-bold tracking-wide truncate">{tr}</span>
                                 </div>
@@ -1719,8 +1682,7 @@ export function BibleForm({ controller, isPage = false }) {
             >
               {/* ── Modern Backdrop with Blur ── */}
               <div
-                className={`absolute inset-0 backdrop-blur-sm transition-opacity ${isDark ? 'bg-[#020205]/80' : 'bg-[#001424]/80'
-                  }`}
+                className={`app-overlay absolute inset-0 backdrop-blur-sm transition-opacity bg-[#020205]/80`}
                 onClick={() => setCompareModal(false)}
               />
 
@@ -1734,10 +1696,7 @@ export function BibleForm({ controller, isPage = false }) {
                 exit={{ y: 30, opacity: 0, scale: 0.98 }}
                 transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
                 style={{ willChange: 'transform, opacity' }}
-                className={`relative w-full sm:max-w-2xl h-[90vh] sm:h-[85vh] rounded-t-[2rem] sm:rounded-[2rem] backdrop-blur-2xl border-t sm:border shadow-2xl flex flex-col overflow-hidden ring-1 transition-colors ${isDark
-                  ? 'bg-[#0A0A14]/95 border-white/[0.08] ring-white/5 sm:shadow-[0_0_60px_-15px_rgba(14,165,233,0.15)]'
-                  : 'bg-[#002238]/95 border-sky-400/20 ring-sky-400/10 shadow-[0_0_60px_-15px_rgba(14,165,233,0.25)]'
-                  }`}
+                className={`relative w-full sm:max-w-2xl h-[90vh] sm:h-[85vh] rounded-t-[2rem] sm:rounded-[2rem] backdrop-blur-2xl border-t sm:border shadow-2xl flex flex-col overflow-hidden ring-1 transition-colors bg-app-panel/95 border-white/[0.08] ring-white/5 sm:shadow-[0_0_60px_-15px_rgba(14,165,233,0.15)]`}
               >
                 {/* ── Compare Modal Header (Hymns Lyrics Style with Drag Bar) ── */}
                 <div className="shrink-0 pt-3 pb-3 px-6 border-b border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent flex flex-col items-center">
@@ -1750,7 +1709,7 @@ export function BibleForm({ controller, isPage = false }) {
                 {/* ── Compare Body: Vertical Stacked Translations ── */}
                 <div
                   ref={compareScrollRef}
-                  className={`flex-1 overflow-y-auto px-5 sm:px-7 py-3 custom-scrollbar ${isDark ? 'bg-[#0A0A14]/50' : 'bg-[#001829]/60'}`}
+                  className={`flex-1 overflow-y-auto px-5 sm:px-7 py-3 custom-scrollbar bg-app-panel/50`}
                 >
                   {isLoadingCompare ? (
                     <div className="py-6 space-y-6">
@@ -1808,7 +1767,7 @@ export function BibleForm({ controller, isPage = false }) {
                                   className="fixed inset-0 z-10"
                                   onClick={() => setAddVersionMenuOpen(false)}
                                 />
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 rounded-2xl bg-[#0c1424] border border-white/10 shadow-2xl z-20 space-y-1">
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 rounded-2xl bg-app-panel border border-white/10 shadow-2xl z-20 space-y-1">
                                   <div className="px-3 py-1.5 text-[11px] font-bold text-white/40 border-b border-white/[0.06]" dir="rtl">
                                     اختر ترجمة لإضافتها:
                                   </div>
@@ -1875,14 +1834,11 @@ export function BibleForm({ controller, isPage = false }) {
           >
             {/* Backdrop - stopPropagation prevents bible modal from reacting */}
             <div
-              className={`absolute inset-0 backdrop-blur-md ${isDark ? 'bg-black/70' : 'bg-[#001424]/75'}`}
+              className={`app-overlay absolute inset-0 backdrop-blur-md bg-black/70`}
               onClick={(e) => { e.stopPropagation(); setNoteModalConfig(null); setNoteText(''); }}
             />
             <div
-              className={`relative w-full sm:max-w-lg border rounded-t-3xl sm:rounded-3xl shadow-[0_0_60px_-10px_rgba(99,102,241,0.3)] overflow-hidden flex flex-col ${isDark
-                ? 'bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border-indigo-500/20'
-                : 'bg-gradient-to-b from-[#002238] to-[#001726] border-sky-400/30'
-                }`}
+              className={`relative w-full sm:max-w-lg border rounded-t-3xl sm:rounded-3xl shadow-[0_0_60px_-10px_rgba(99,102,241,0.3)] overflow-hidden flex flex-col app-popover border-indigo-500/20`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Decorative top bar mobile */}
@@ -1984,12 +1940,9 @@ export function BibleForm({ controller, isPage = false }) {
             style={{ isolation: 'isolate' }}
             onClick={(e) => { e.stopPropagation(); setViewNoteConfig(null); }}
           >
-            <div className={`absolute inset-0 backdrop-blur-xl ${isDark ? 'bg-black/80' : 'bg-[#001424]/80'}`} />
+            <div className={`app-overlay absolute inset-0 backdrop-blur-xl bg-black/80`} />
             <div
-              className={`relative w-full max-w-md border rounded-3xl shadow-[0_0_80px_-10px_rgba(99,102,241,0.4)] overflow-hidden ${isDark
-                ? 'bg-gradient-to-b from-[#0d1a2d] to-[#080f1c] border-indigo-500/30'
-                : 'bg-gradient-to-b from-[#002238] to-[#001726] border-sky-400/35'
-                }`}
+              className={`relative w-full max-w-md border rounded-3xl shadow-[0_0_80px_-10px_rgba(99,102,241,0.4)] overflow-hidden app-popover border-indigo-500/30`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Ambient glow */}
