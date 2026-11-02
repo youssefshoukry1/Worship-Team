@@ -1075,25 +1075,18 @@ export function BibleForm({ controller, isPage = false }) {
 
                             const isConnectedRight = prev && prev.bg !== 'transparent' && prev.bg === curr.bg;
                             const isConnectedLeft = next && next.bg !== 'transparent' && next.bg === curr.bg;
-                            // Keep verse numbers inside painted backgrounds and clear of the previous verse.
-                            const touchesBackground = curr.bg !== 'transparent' || (prev && prev.bg !== 'transparent');
-                            const verseNumberGap = idx === 0 ? 0 : touchesBackground
-                              ? Math.max(bibleVerseGap, isConnectedRight ? bibleVerseFontSize / 5 : 0)
-                              : bibleVerseGap;
+                            // Selection and highlighting must not change the inline text layout.
+                            const verseNumberGap = idx === 0 ? 0 : bibleVerseGap;
 
                             let borderRadius = '5px';
-                            let padding = '2px 5px';
 
                             if (curr.bg !== 'transparent') {
                               if (isConnectedRight && isConnectedLeft) {
                                 borderRadius = '0px';
-                                padding = '2px 0px';
                               } else if (isConnectedRight && !isConnectedLeft) {
                                 borderRadius = '5px 0 0 5px';
-                                padding = '2px 0px 2px 5px';
                               } else if (!isConnectedRight && isConnectedLeft) {
                                 borderRadius = '0 5px 5px 0';
-                                padding = '2px 5px 2px 0px';
                               }
                             }
 
@@ -1106,18 +1099,18 @@ export function BibleForm({ controller, isPage = false }) {
                                 style={{
                                   backgroundColor: curr.bg,
                                   border: 'none',
-                                  padding,
+                                  padding: '2px 5px',
                                   margin: '0',
                                   borderRadius,
                                   boxDecorationBreak: 'clone',
                                   WebkitBoxDecorationBreak: 'clone',
                                 }}
-                                className={`inline cursor-pointer transition-all duration-200 ${!curr.hex && !curr.isSelected ? 'hover:bg-white/5' : ''} ${curr.bg !== 'transparent' ? 'text-white' : 'text-white/80 hover:text-white'}`}
+                                className={`inline cursor-pointer transition-colors duration-200 ${!curr.hex && !curr.isSelected ? 'hover:bg-white/5' : ''} ${curr.bg !== 'transparent' ? 'text-white' : 'text-white/80 hover:text-white'}`}
                               >
                                 <span
-                                  className={`inline-flex items-center justify-center text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-md ml-1 mr-0 select-none border transition-colors leading-none ${curr.isSelected
-                                    ? isDark ? 'text-sky-500/70 bg-white/5 border-white/10' : 'text-sky-400 bg-sky-500/20 border-sky-400/30'
-                                    : isDark ? 'text-white/30 bg-white/5 border-white/10' : 'text-sky-300/60 bg-sky-500/10 border-sky-400/15'
+                                  className={`inline-flex items-center justify-center text-[10px] sm:text-xs font-black px-1.5 py-0.5 ml-1 mr-0 select-none transition-colors leading-none ${curr.isSelected
+                                    ? isDark ? 'text-sky-500/70' : 'text-sky-400'
+                                    : isDark ? 'text-white/30' : 'text-sky-300/60'
                                     }`}
                                   style={{ verticalAlign: 'middle', transform: 'translateY(-1px)', marginInlineStart: `${verseNumberGap}px` }}
                                 >

@@ -339,6 +339,127 @@ function bibleApi(requests) {
   };
 }
 
+test('Bible presentation stays on the Bible page while opening and closing chapters and search verses', async t => {
+  for (const mode of ['mobile', 'desktop', 'document-fallback', 'loading-hymns']) {
+    await t.test(mode, async () => {
+      let release;
+      const pendingHymns = new Promise(resolve => { release = resolve; });
+      const { context, page } = await setup({ electron: mode !== 'loading-hymns', api: async route => {
+        if (mode === 'loading-hymns' && new URL(route.request().url()).pathname.endsWith('/hymns')) {
+          await pendingHymns;
+          await route.fulfill({ json: [] }).catch(() => {}); return true;
+        }
+        return bibleApi([])(route);
+      } });
+      const verses = ['Opening verse content', 'Needle second verse', 'Closing verse content'].map((text, index) => ({
+        _id: `present-verse-${index}`, bookName: 'Genesis', bookNumber: 1, chapter: 1, verseNumber: index + 1, text, translation: 'AVD',
+      }));
+      try {
+        await page.setViewportSize({ width: mode === 'desktop' ? 1280 : 390, height: 900 });
+        if (mode === 'document-fallback') await context.route('**/sw.js*', route => route.abort());
+        await page.evaluate(async verses => {
+          localStorage.setItem('taspe7_bible_last_position', JSON.stringify({ bookName: 'Genesis', chapter: 1 }));
+          const db = await new Promise(resolve => { const req = indexedDB.open('taspe7_app'); req.onsuccess = () => resolve(req.result); });
+          await new Promise(resolve => {
+            const tx = db.transaction('bible_store', 'readwrite');
+            tx.objectStore('bible_store').put(verses, 'taspe7_bible_db_AVD'); tx.oncomplete = resolve;
+          }); db.close();
+        }, verses);
+        await page.addInitScript(() => {
+          window.__presentedSlide = null;
+          const channel = new BroadcastChannel('taspe_presenter');
+          channel.onmessage = event => { if (event.data?.type === 'slide') window.__presentedSlide = event.data; };
+        });
+        if (mode === 'desktop') { await openHymns(page); await controlled(page); }
+        await page.goto(base + '/bible_form/', { waitUntil: 'domcontentloaded' });
+        const reader = page.locator('[data-feature="bible-reader"]');
+        await reader.getByText(verses[0].text, { exact: true }).waitFor();
+        const session = await page.evaluate(() => window.__navigationSession);
+        const navigation = [];
+        page.on('framenavigated', frame => { if (frame === page.mainFrame()) navigation.push(frame.url()); });
+        const observeReader = () => page.evaluate(() => {
+          window.__originalBibleReader = document.querySelector('[data-feature="bible-reader"]');
+          window.__hymnsFlashes = [];
+          new MutationObserver(records => {
+            for (const record of records) for (const node of record.addedNodes) {
+              if (node.nodeType === Node.ELEMENT_NODE && (node.id === 'Category_Humns' || node.querySelector('#Category_Humns'))) window.__hymnsFlashes.push(node.id);
+            }
+          }).observe(document.body, { childList: true, subtree: true });
+        });
+        await observeReader();
+        await reader.getByTitle('Data Show', { exact: true }).click();
+        const presenter = page.locator('#showDataContainer');
+        await presenter.waitFor();
+        await page.waitForFunction(() => window.__presentedSlide?.slide.text === 'Opening verse content');
+        assert.equal(await page.evaluate(() => window.__presentedSlide.total), 3);
+        if (mode === 'mobile') {
+          const before = await page.locator('#mobileSlideArea').boundingBox();
+          await presenter.getByRole('button', { name: 'Hide slide controls', exact: true }).click();
+          assert.equal(await presenter.locator('#presentation-mobile-controls').isVisible(), false);
+          const after = await page.locator('#mobileSlideArea').boundingBox();
+          assert.ok(after.height > before.height + 100, 'Collapsing the bottom controls gives the verse more screen space');
+          assert.equal(await page.evaluate(() => localStorage.getItem('taspe7_presentation_controls_collapsed')), 'true');
+        }
+        assert.equal(page.url(), base + '/bible_form/', 'Opening presentation does not leave the Bible route');
+        assert.equal(await page.evaluate(() => window.__navigationSession), session);
+        await page.keyboard.press('ArrowLeft');
+        await page.waitForFunction(() => window.__presentedSlide?.slide.text === 'Needle second verse');
+        if (mode === 'desktop') {
+          // A newly opened display asks for the active verse, then follows navigation.
+          await context.route('**/*', route => route.request().url().startsWith(base)
+            ? route.continue() : route.fulfill({ json: {} }));
+          const popup = page.waitForEvent('popup');
+          await presenter.locator('button').filter({ has: page.locator('svg.lucide-monitor-up') }).click();
+          const display = await popup;
+          await display.getByText('Needle second verse', { exact: true }).waitFor();
+          await page.keyboard.press('ArrowRight');
+          await display.getByText('Opening verse content', { exact: true }).waitFor();
+          await display.close();
+        }
+        await presenter.getByTitle('Close', { exact: true }).click();
+        await page.waitForURL(base + '/bible_form/');
+        await reader.getByText(verses[0].text, { exact: true }).waitFor();
+        assert.deepEqual(navigation, [], 'Closing must not navigate through another page');
+        assert.deepEqual(await page.evaluate(() => window.__hymnsFlashes), []);
+        assert.equal(await page.evaluate(() => window.__originalBibleReader === document.querySelector('[data-feature="bible-reader"]')), true, 'Keep the original reader mounted');
+        if (mode === 'mobile') {
+          await page.reload({ waitUntil: 'domcontentloaded' });
+          await reader.getByText(verses[0].text, { exact: true }).waitFor();
+          await observeReader();
+          navigation.length = 0;
+        }
+        await reader.getByTitle('Search Bible', { exact: true }).click();
+        await reader.locator('input').fill('Needle');
+        await reader.getByText('Genesis 1:2', { exact: true }).waitFor();
+        await reader.getByTitle('Data Show', { exact: true }).click();
+        await presenter.waitFor();
+        await page.waitForFunction(() => window.__presentedSlide?.slide.text === 'Needle second verse');
+        assert.equal(await page.evaluate(() => window.__presentedSlide.index), 1);
+        if (mode === 'mobile') {
+          assert.equal(await presenter.locator('#presentation-mobile-controls').isVisible(), false, 'Remember the collapsed preference after closing and reloading');
+          const restore = presenter.getByRole('button', { name: 'Show slide controls', exact: true });
+          assert.equal(await restore.getAttribute('aria-expanded'), 'false');
+          await restore.click();
+          assert.equal(await presenter.locator('#presentation-mobile-controls').isVisible(), true);
+          assert.equal(await page.evaluate(() => localStorage.getItem('taspe7_presentation_controls_collapsed')), 'false');
+        }
+        // Verify the initial search verse is retained after the local index finishes restoring.
+        await page.waitForTimeout(200);
+        assert.equal(await page.evaluate(() => window.__presentedSlide.index), 1);
+        await page.keyboard.press('ArrowLeft');
+        await page.waitForFunction(() => window.__presentedSlide?.slide.text === 'Closing verse content');
+        await page.keyboard.press('Escape');
+        await page.waitForURL(base + '/bible_form/');
+        await reader.getByText('Genesis 1:2', { exact: true }).waitFor();
+        assert.equal(await reader.locator('input').inputValue(), 'Needle', 'Keep the reader search when presentation closes');
+        assert.deepEqual(navigation, []);
+        assert.deepEqual(await page.evaluate(() => window.__hymnsFlashes), []);
+        assert.equal(await page.evaluate(() => window.__originalBibleReader === document.querySelector('[data-feature="bible-reader"]')), true);
+      } finally { release(); await context.close(); }
+    });
+  }
+});
+
 test('the Bible tab opens its reader without flashing the deferred-panel loading screen', async () => {
   const { context, page } = await setup({ electron: true, api: bibleApi([]) });
   try {

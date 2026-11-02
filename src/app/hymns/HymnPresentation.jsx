@@ -3,10 +3,20 @@
 import LocalFullscreenButton from '../presentation/local/LocalFullscreenButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
+import { useState } from 'react';
 import { PlusCircle, X, Search, Eye, EyeOff, Tv2, Mic, MicOff, ChevronDown, Loader2, Moon, RotateCcw, ZoomOut, ZoomIn } from 'lucide-react';
 import { buildHymnPresentationSlides } from '../utils/hymnSlides';
 
+const CONTROLS_COLLAPSED_KEY = 'taspe7_presentation_controls_collapsed';
+
 export default function HymnPresentation({ view }) {
+  const [controlsCollapsed, setControlsCollapsed] = useState(() => {
+    try {
+      return typeof window !== 'undefined' && localStorage.getItem(CONTROLS_COLLAPSED_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
   const {
     bibleModalBook,
     bibleModalBooks,
@@ -36,7 +46,6 @@ export default function HymnPresentation({ view }) {
     handleUploadBackground,
     increaseFontSize,
     isAudioActive,
-    isConnected,
     isCreatingSession,
     isJoiningSession,
     isSearchingPreset,
@@ -69,48 +78,35 @@ export default function HymnPresentation({ view }) {
     toggleAudio,
     toggleBlackout
   } = view;
+  const toggleControls = () => {
+    const collapsed = !controlsCollapsed;
+    setControlsCollapsed(collapsed);
+    try {
+      localStorage.setItem(CONTROLS_COLLAPSED_KEY, String(collapsed));
+    } catch { /* Keep the toggle usable when browser storage is unavailable. */ }
+    if (!collapsed) {
+      requestAnimationFrame(() => {
+        thumbContainerRef.current?.children[dataShowIndex]?.scrollIntoView({ block: 'nearest', inline: 'center' });
+      });
+    }
+  };
   // Opened by a client action, so render into the document on the first commit.
   if (typeof document === 'undefined') return null;
   return createPortal(
       <div id="showDataContainer" data-feature="hymn-presentation" className="fixed inset-0 z-10000 bg-[#020617] flex flex-col" data-lenis-prevent>
-        {/* ── Shared Header ── */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-[#0f172a] border-b border-white/10 shrink-0 z-20">
-          <div className="flex flex-col min-w-0">
-            <h2 className="text-base sm:text-xl font-bold text-white tracking-tight truncate">{selectedLyricsHymn.title}</h2>
-            <p className="text-[10px] sm:text-xs text-sky-400 font-medium">
-              {selectedLyricsHymn?.isBible ? (
-                <>
-                  <span className="sm:hidden">اسحب أو اختر آية من الشريط · مثل عرض الترانيم</span>
-                  <span className="hidden sm:inline">عرض الكتاب المقدس · آية بآية مثل مقاطع الترانيم</span>
-                </>
-              ) : (
-                <>
-                  <span className="sm:hidden">Swipe or tap a part below</span>
-                  <span className="hidden sm:inline">Presenter View • Click a cut to broadcast</span>
-                </>
-              )}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {isConnected && (
-              <span className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-green-400 bg-green-500/10 border border-green-500/30 px-3 py-1.5 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                LIVE · {dataShowId}
-              </span>
-            )}
-            <span className="sm:hidden text-xs font-mono text-white/40">
-              {dataShowSlides.length} / {dataShowIndex + 1}
-            </span>
-            <button
-              onClick={() => setShowDataShow(false)}
-              className="p-2 sm:p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 text-white/70 hover:text-red-400 transition-all border border-white/10 hover:border-red-500/30"
-              title="Close"
-            >
-              <X className="w-5 h-5 sm:w-6 sm:h-6" />
-            </button>
-          </div>
+        {/* Keep the presentation header focused on dismissing the view. */}
+        <div className="flex justify-end px-4 sm:px-6 py-2 shrink-0 z-20">
+          <button
+            type="button"
+            onClick={() => setShowDataShow(false)}
+            className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/5 text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+            title="Close"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
         </div>
-    
+
         {/* ══ MOBILE VIEW ══ */}
         <div className="flex-1 flex flex-col sm:hidden min-h-0">
           <div id="mobileSlideArea" className="flex-1 flex flex-col min-h-0 relative">
@@ -166,12 +162,12 @@ export default function HymnPresentation({ view }) {
                                     </span>
                                   )}
                                   <span
-                                    className={`font-bold whitespace-pre-wrap break-words text-center leading-snug select-none drop-shadow-lg tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}
+                                    className={`whitespace-pre-wrap break-words text-center leading-snug select-none ${selectedLyricsHymn?.isBible ? 'font-arabic font-normal tracking-normal text-slate-100' : `font-bold drop-shadow-lg tracking-tight ${isChorus ? 'text-yellow-300' : 'text-white'}`}`}
                                     style={{
                                       fontSize: selectedLyricsHymn?.isBible
-                                        ? 'clamp(26px, 7.2vw, 56px)'
+                                        ? 'clamp(24px, 6vw, 34px)'
                                         : 'clamp(24px, 6.5vw, 52px)',
-                                      lineHeight: selectedLyricsHymn?.isBible ? 1.72 : undefined,
+                                      lineHeight: selectedLyricsHymn?.isBible ? 1.9 : undefined,
                                     }}
                                   >
                                     {seg.text || '\u00A0'}
@@ -189,62 +185,77 @@ export default function HymnPresentation({ view }) {
             </AnimatePresence>
           </div>
     
-          {/* Dot nav + arrow buttons */}
-          <div className="flex items-center justify-center gap-5 py-2.5 shrink-0">
+          <div className="relative shrink-0">
             <button
-              onClick={() => { if (dataShowIndex < dataShowSlides.length - 1) { const ni = dataShowIndex + 1; setDataShowIndex(ni); broadcastLocalSlide(dataShowSlides, ni, selectedLyricsHymn?.title); } }}
-              disabled={dataShowIndex === dataShowSlides.length - 1}
-              className="p-2 rounded-full bg-white/5 border border-white/10 text-white/50 disabled:opacity-20 transition-all active:scale-90"
+              type="button"
+              onClick={toggleControls}
+              aria-expanded={!controlsCollapsed}
+              aria-controls="presentation-mobile-controls"
+              aria-label={controlsCollapsed ? 'Show slide controls' : 'Hide slide controls'}
+              title={controlsCollapsed ? 'Show slide controls' : 'Hide slide controls'}
+              className="absolute right-4 bottom-full mb-3 z-20 flex h-11 w-11 items-center justify-center rounded-full text-white/40 transition-colors hover:bg-white/5 hover:text-white/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${controlsCollapsed ? 'rotate-180' : ''}`} />
             </button>
-            <div dir="rtl" className="flex gap-1.5 overflow-x-auto max-w-[60vw]" style={{ scrollbarWidth: 'none' }}>
-              {dataShowSlides.map((_, i) => (
+            <div id="presentation-mobile-controls" hidden={controlsCollapsed}>
+              {/* Dot nav + arrow buttons */}
+              <div className="flex items-center justify-center gap-5 py-2.5 shrink-0">
                 <button
-                  key={i}
-                  onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
-                  className={`flex-none rounded-full transition-all duration-200 ${i === dataShowIndex ? 'w-5 h-2 bg-sky-400' : 'w-2 h-2 bg-white/20 hover:bg-white/40'}`}
-                />
-              ))}
-            </div>
-            <button
-              onClick={() => { if (dataShowIndex > 0) { const ni = dataShowIndex - 1; setDataShowIndex(ni); broadcastLocalSlide(dataShowSlides, ni, selectedLyricsHymn?.title); } }}
-              disabled={dataShowIndex === 0}
-              className="p-2 rounded-full bg-white/5 border border-white/10 text-white/50 disabled:opacity-20 transition-all active:scale-90"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
-            </button>
-          </div>
-    
-          {/* Bottom thumbnail strip */}
-          <div className="shrink-0 bg-black/50 border-t border-white/10 py-3 px-3">
-            <div ref={thumbContainerRef} className="flex gap-2.5 overflow-x-auto pb-1" dir="rtl" style={{ scrollbarWidth: 'none' }}>
-              {dataShowSlides.map((slide, i) => {
-                const isActive = dataShowIndex === i;
-                const isChorus = slide.type === 'chorus';
-                return (
-                  <button
-                    key={i}
-                    onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
-                    className={`relative flex-none flex flex-col w-24 h-20 p-2 rounded-xl border text-right transition-all duration-200 overflow-hidden
-                      ${isActive
-                        ? 'bg-sky-500/25 border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                        : 'bg-white/5 border-white/10 opacity-60 active:opacity-100'}`}
-                  >
-                    {isActive && <div className="absolute inset-0 bg-linear-to-b from-sky-500/10 to-transparent pointer-events-none" />}
-                    <div className="flex items-center justify-between mb-1 relative z-10" dir="ltr">
-                      <span className="text-[9px] font-mono text-gray-500">{i + 1}</span>
-                      {isActive
-                        ? <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                        : slide.title && <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${isChorus ? 'text-yellow-300 bg-yellow-500/20' : 'text-gray-400 bg-white/10'}`}>{slide.title.slice(0, 6)}</span>
-                      }
-                    </div>
-                    <div className="flex-1 text-[9px] font-semibold text-gray-300 line-clamp-3 leading-tight text-right relative z-10">
-                      {slide.text.replace(/\[.*?\]/g, '')}
-                    </div>
-                  </button>
-                );
-              })}
+                  onClick={() => { if (dataShowIndex < dataShowSlides.length - 1) { const ni = dataShowIndex + 1; setDataShowIndex(ni); broadcastLocalSlide(dataShowSlides, ni, selectedLyricsHymn?.title); } }}
+                  disabled={dataShowIndex === dataShowSlides.length - 1}
+                  className="p-2 rounded-full bg-white/5 border border-white/10 text-white/50 disabled:opacity-20 transition-all active:scale-90"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                </button>
+                <div dir="rtl" className="flex gap-1.5 overflow-x-auto max-w-[60vw]" style={{ scrollbarWidth: 'none' }}>
+                  {dataShowSlides.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
+                      className={`flex-none rounded-full transition-all duration-200 ${i === dataShowIndex ? 'w-5 h-2 bg-sky-400' : 'w-2 h-2 bg-white/20 hover:bg-white/40'}`}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={() => { if (dataShowIndex > 0) { const ni = dataShowIndex - 1; setDataShowIndex(ni); broadcastLocalSlide(dataShowSlides, ni, selectedLyricsHymn?.title); } }}
+                  disabled={dataShowIndex === 0}
+                  className="p-2 rounded-full bg-white/5 border border-white/10 text-white/50 disabled:opacity-20 transition-all active:scale-90"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                </button>
+              </div>
+
+              {/* Bottom thumbnail strip */}
+              <div className="shrink-0 bg-black/50 border-t border-white/10 py-3 px-3">
+                <div ref={thumbContainerRef} className="flex gap-2.5 overflow-x-auto pb-1" dir="rtl" style={{ scrollbarWidth: 'none' }}>
+                  {dataShowSlides.map((slide, i) => {
+                    const isActive = dataShowIndex === i;
+                    const isChorus = slide.type === 'chorus';
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => { setDataShowIndex(i); broadcastLocalSlide(dataShowSlides, i, selectedLyricsHymn?.title); }}
+                        className={`relative flex-none flex flex-col w-24 h-20 p-2 rounded-xl border text-right transition-all duration-200 overflow-hidden
+                          ${isActive
+                            ? 'bg-sky-500/25 border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                            : 'bg-white/5 border-white/10 opacity-60 active:opacity-100'}`}
+                      >
+                        {isActive && <div className="absolute inset-0 bg-linear-to-b from-sky-500/10 to-transparent pointer-events-none" />}
+                        <div className="flex items-center justify-between mb-1 relative z-10" dir="ltr">
+                          <span className="text-[9px] font-mono text-gray-500">{i + 1}</span>
+                          {isActive
+                            ? <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                            : slide.title && <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${isChorus ? 'text-yellow-300 bg-yellow-500/20' : 'text-gray-400 bg-white/10'}`}>{slide.title.slice(0, 6)}</span>
+                          }
+                        </div>
+                        <div className={`flex-1 text-[9px] text-gray-300 line-clamp-3 text-right relative z-10 ${selectedLyricsHymn?.isBible ? 'font-arabic font-normal leading-relaxed' : 'font-semibold leading-tight'}`}>
+                          {slide.text.replace(/\[.*?\]/g, '')}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -498,7 +509,7 @@ export default function HymnPresentation({ view }) {
                 }}
               >
                 <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-gray-500/20 to-transparent" />
-                <div className="text-2xl sm:text-4xl font-extrabold text-white leading-relaxed wrap-break-word whitespace-pre-line drop-shadow-[0_5px_15px_rgba(0,0,0,0.8)]">
+                <div className={`wrap-break-word whitespace-pre-line ${selectedLyricsHymn?.isBible ? 'font-arabic text-[28px] font-normal leading-[1.9] text-slate-100' : 'text-2xl sm:text-4xl font-extrabold text-white leading-relaxed drop-shadow-[0_5px_15px_rgba(0,0,0,0.8)]'}`}>
                   {dataShowSlides[dataShowIndex] ? dataShowSlides[dataShowIndex].text.replace(/\[.*?\]/g, '') : 'لا يوجد نص'}
                 </div>
                 {dataShowBlackout && (
@@ -547,7 +558,7 @@ export default function HymnPresentation({ view }) {
                           )}
                         </div>
                       </div>
-                      <div className="flex-1 w-full text-[15px] font-bold leading-relaxed text-gray-100 line-clamp-4 relative z-10 wrap-break-word whitespace-pre-line text-right">
+                      <div className={`flex-1 w-full text-[15px] leading-relaxed text-gray-100 line-clamp-4 relative z-10 wrap-break-word whitespace-pre-line text-right ${selectedLyricsHymn?.isBible ? 'font-arabic font-normal' : 'font-bold'}`}>
                         {slide.text.replace(/\[.*?\]/g, '')}
                       </div>
                     </button>

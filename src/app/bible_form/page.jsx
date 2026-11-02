@@ -1,22 +1,32 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useBibleForm } from './useBibleForm';
 import BibleReader from './BibleReader';
+import { usePresenter } from '../hooks/usePresenter';
+import HymnPresentationView from '../hymns/HymnPresentation';
+import { createFeatureBoundary } from '../components/DeferredFeature';
 
 export { useBibleForm } from './useBibleForm';
-// The reader is the page's primary content. Load it with the route so even a
-// cached revisit cannot briefly commit the optional-panel loading screen.
-// The optional reader inside Hymns keeps its own deferred boundary.
 export const BibleForm = BibleReader;
+const Presentation = createFeatureBoundary(HymnPresentationView, 'presentation');
 
 export default function BibleFormPage() {
   const router = useRouter();
-  const controller = useBibleForm({
-    isOpen: true,
-    presentationActive: false,
-    onClose: () => router.back(),
-    onPresent: () => {},
+  const [selectedLyricsHymn, setSelectedLyricsHymn] = useState(null);
+  const [showChords, setShowChords] = useState(false);
+  const presenter = usePresenter({
+    selectedLyricsHymn, setSelectedLyricsHymn, showChords, setShowChords,
+    isBiblePage: true,
+    onCloseBible: () => router.back(),
   });
-  return <BibleForm controller={controller} isPage />;
+
+  return (
+    <>
+      <BibleForm controller={presenter.bibleController} isPage />
+      {presenter.showDataShow && selectedLyricsHymn && (
+        <Presentation view={presenter} onLoadClose={() => presenter.setShowDataShow(false)} />
+      )}
+    </>
+  );
 }
