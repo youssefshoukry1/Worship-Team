@@ -83,7 +83,7 @@ export function usePresenter({
     if (savedSession) {
       const checkSession = async () => {
         try {
-          const BASE_URL = "https://worship-team-api.onrender.com/api";
+          const BASE_URL = "http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api";
           const response = await axios.get(`${BASE_URL}/presentation/check/${encodeURIComponent(savedSession)}`);
           if (response.data.exists) {
             setDataShowId(savedSession);
@@ -613,7 +613,7 @@ export function usePresenter({
         let results;
         if (typeof navigator === 'undefined' || navigator.onLine) {
           try {
-            const API_BASE = 'https://worship-team-api.onrender.com/api/hymns';
+            const API_BASE = 'http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api/hymns';
             const response = await axios.get(`${API_BASE}/search?limit=15&q=${encodeURIComponent(query)}`, { signal: controller.signal });
             if (Array.isArray(response.data)) results = response.data;
           } catch { /* Fall back to the downloaded hymns if online search fails. */ }

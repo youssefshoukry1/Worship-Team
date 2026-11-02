@@ -12,7 +12,7 @@ import { showToast } from '../components/ToastContainer';
 
 export const UserContext = createContext();
 
-const API_URL = "https://worship-team-api.onrender.com/api";
+const API_URL = "http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api";
 
 export default function UserContextProvider({ children }) {
 

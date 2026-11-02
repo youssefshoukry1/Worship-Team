@@ -1026,7 +1026,7 @@ export default function WorkSpace() {
         if (savedSession) {
             const checkSession = async () => {
                 try {
-                    const BASE_URL = "https://worship-team-api.onrender.com/api";
+                    const BASE_URL = "http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api";
                     const response = await fetch(`${BASE_URL}/presentation/check/${encodeURIComponent(savedSession)}`);
                     const data = await response.json();
                     if (data.exists) {

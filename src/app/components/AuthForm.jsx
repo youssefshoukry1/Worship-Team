@@ -43,7 +43,7 @@ export default function AuthForm() {
   const googleBtnRef = useRef(null);
   const cooldownTimer = useRef(null);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://worship-team-api.onrender.com/api";
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api";
   const googleClientId =
     process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
     "984547740511-7rpebq39vq1vife50heqavik47fqh9hc.apps.googleusercontent.com";

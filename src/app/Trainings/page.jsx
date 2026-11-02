@@ -444,7 +444,7 @@ export default function Trainings() {
   const get_All_Users = () => {
     if (!isLogin) return [];
     return axios
-      .get(`https://worship-team-api.onrender.com/api/users/my-team`, {
+      .get(`http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api/users/my-team`, {
         headers: { Authorization: `Bearer ${isLogin}` },
       })
       .then((res) => res.data)
@@ -454,7 +454,7 @@ export default function Trainings() {
   const delete_song = (userid, songid) => {
     if (!isLogin) return <Login />;
     return axios
-      .delete(`https://worship-team-api.onrender.com/api/users/${userid}/${songid}`, {
+      .delete(`http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api/users/${userid}/${songid}`, {
         headers: { Authorization: `Bearer ${isLogin}` },
       })
       .then(() => queryClient.invalidateQueries({ queryKey: ["data", isLogin] }))
@@ -466,7 +466,7 @@ export default function Trainings() {
     setSubmitClicked(true);
     return axios
       .patch(
-        `https://worship-team-api.onrender.com/api/users/${userid}/${churchId}`,
+        `http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api/users/${userid}/${churchId}`,
         { hymns },
         { headers: { Authorization: `Bearer ${isLogin}` } }
       )
@@ -487,7 +487,7 @@ export default function Trainings() {
     if (!isLogin) return <Login />;
     setSubmitClicked(true);
     return axios.patch(
-      `https://worship-team-api.onrender.com/api/users/${userid}/${songid}/${churchId}`,
+      `http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api/users/${userid}/${songid}/${churchId}`,
       { song, scale, link },
       { headers: { Authorization: `Bearer ${isLogin}` } }
     )

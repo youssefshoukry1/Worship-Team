@@ -74,12 +74,12 @@ export default function TeamSwitcher({ dashboardOnly = false, showDelete = false
     if (!window.confirm("Are you sure you want to delete this team? This action is permanent and cannot be undone.")) return;
     setDeletingId(targetChurchId);
     try {
-      await axios.delete(`https://worship-team-api.onrender.com/api/team/${targetChurchId}`, {
+      await axios.delete(`http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api/team/${targetChurchId}`, {
         headers: { Authorization: `Bearer ${isLogin}` }
       });
       alert("Team deleted successfully.");
       const token = localStorage.getItem("user_Taspe7_Token");
-      const teamsRes = await axios.get(`https://worship-team-api.onrender.com/api/users/my-teams`, {
+      const teamsRes = await axios.get(`http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api/users/my-teams`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const newTeams = teamsRes.data || [];

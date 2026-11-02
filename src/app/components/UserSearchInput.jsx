@@ -10,7 +10,7 @@ export default function UserSearchInput({ onSelectUser, placeholder = "Search by
   const [isOpen, setIsOpen] = useState(false);
   const searchTimer = useRef(null);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://worship-team-api.onrender.com/api";
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://u8j23uxsp8ylp6cnzjaoiuvg.2.31.163.21.sslip.io/api";
 
   const handleSearch = (val) => {
     const clean = val.replace(/^@/, "").toLowerCase();
