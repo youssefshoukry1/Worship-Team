@@ -25,8 +25,9 @@ export function installInteriorSwipe({ element, begin, update, finish, cancel, w
     const dx = point.clientX - touch.x;
     const dy = Math.abs(point.clientY - touch.y);
     if (!touch.locked) {
-      if (dy > 8 && dy > Math.abs(dx)) { reset(); return; }
-      if (Math.abs(dx) < 10 || Math.abs(dx) < dy * 1.5) return;
+      // Keep an indecisive diagonal eligible until one axis clearly wins.
+      if (dy >= 18 && dy > Math.abs(dx) * 1.4) { reset(); return; }
+      if (Math.abs(dx) < 8 || Math.abs(dx) < dy * 1.2) return;
       if (!event.cancelable || !begin(dx < 0 ? 1 : -1)) { reset(); return; }
       touch.locked = true;
       touch.direction = dx < 0 ? 1 : -1;
@@ -84,7 +85,8 @@ export function installInteriorSwipe({ element, begin, update, finish, cancel, w
     }
   };
   // Capture sees gestures even when a card stops touch event propagation.
-  doc.addEventListener('touchstart', start, { capture: true, passive: true });
+  // Declare cancellation capability before native gesture arbitration.
+  doc.addEventListener('touchstart', start, { capture: true, passive: false });
   doc.addEventListener('click', suppressSwipeClick, true);
   doc.addEventListener('visibilitychange', abort);
   win.addEventListener('resize', abort, { passive: true });

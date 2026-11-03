@@ -16,6 +16,7 @@ function setup({ saved = {}, isApp = true, storageReady = Promise.resolve(), get
   const local = new Map();
   const reads = [], writes = [], fetches = [], downloads = [];
   const context = {
+    waitForNavigationIdle: async () => {},
     ...work,
     isApp, storageReady, console: { log() {}, warn() {}, error() {} },
     window: { location: { origin: 'https://example.test' } },

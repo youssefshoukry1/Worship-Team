@@ -1,91 +1,11 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Node test and benchmark entry points use CommonJS. */
 // Run after npm run build: node --test tests/primary-tab-swipe.browser.cjs
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { chromium, webkit, devices } = require('playwright');
-const http = require('node:http');
-const fs = require('node:fs');
-const path = require('node:path');
-const root = path.resolve(__dirname, '../out');
-const version = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../public/version.json'))).version;
-const types = { '.js': 'application/javascript', '.css': 'text/css', '.html': 'text/html', '.json': 'application/json', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.txt': 'text/plain' };
-let server, base;
-const browsers = {};
-
-before(async () => {
-  server = http.createServer((req, res) => {
-    const pathname = new URL(req.url, 'http://localhost').pathname;
-    if (pathname === '/__seed') { res.setHeader('Content-Type', 'text/html'); return res.end('<html></html>'); }
-    let file = path.join(root, decodeURIComponent(pathname));
-    if (!file.startsWith(root + path.sep)) { res.writeHead(403); return res.end(); }
-    if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
-    if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
-    res.setHeader('Content-Type', types[path.extname(file)] || 'application/octet-stream');
-    fs.createReadStream(file).pipe(res);
-  });
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  base = `http://127.0.0.1:${server.address().port}`;
-  browsers.chromium = await chromium.launch();
-  browsers.webkit = await webkit.launch();
-});
-after(async () => {
-  await Promise.all(Object.values(browsers).map(browser => browser.close()));
-  if (server) await new Promise(resolve => server.close(resolve));
-});
-
-async function setup(t, engine, { href = '/', platform = 'ios', authenticated = true } = {}) {
-  const context = await browsers[engine].newContext({ ...devices['iPhone 13'], serviceWorkers: 'block' });
-  t.after(() => context.close());
-  const page = await context.newPage();
-  const errors = [], state = { profiles: 0, inbox: 0, sent: 0 };
-  page.on('pageerror', error => errors.push(error.message));
-  await page.route('**/*', route => {
-    const url = route.request().url();
-    if (url.startsWith(base)) {
-      // Keep API mocks interceptable in WebKit. Exported RSC remapping is
-      // reproduced here; real worker routing has separate integration tests.
-      const parsed = new URL(url);
-      if (parsed.searchParams.has('_rsc') && !parsed.pathname.split('/').filter(Boolean).pop()?.includes('.')) {
-        const payload = path.join(root, parsed.pathname, 'index.txt');
-        return route.fulfill({ contentType: 'text/x-component', body: fs.readFileSync(payload) });
-      }
-      return route.continue();
-    }
-    const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET, POST, OPTIONS' };
-    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
-    if (url.includes('accounts.google.com/gsi/client')) return route.fulfill({ contentType: 'application/javascript', body: 'window.google={accounts:{id:{initialize(){},renderButton(){}}}};' });
-    if (url.includes('/bible/translations')) return route.fulfill({ json: ['AVD'], headers });
-    if (url.includes('/bible/')) return route.fulfill({ json: [], headers });
-    if (url.includes('/my-teams') || url.includes('/hymns')) return route.fulfill({ json: [], headers });
-    if (url.includes('/my-profile')) state.profiles++;
-    if (url.includes('/pray-time/inbox')) state.inbox++;
-    if (url.includes('/pray-time/sent-updates')) state.sent++;
-    return route.fulfill({ headers, json: { user: { _id: 'tester', Name: 'iOS Tester', username: 'tester', prayTime: [], bibleNotes: [], bibleHighlights: [] }, inbox: [], updates: [], friends: [], incoming: [], outgoing: [], items: [], accounts: [] } });
-  });
-  await page.goto(base + '/__seed');
-  await page.evaluate(({ authenticated, version }) => {
-    if (authenticated) for (const [key, value] of Object.entries({ Token: 'test-token', ID: 'tester', Username: 'tester', GlobalRole: 'USER' })) localStorage.setItem(`user_Taspe7_${key}`, value);
-    localStorage.setItem('app-language', 'en'); localStorage.setItem('wasla_splash_version', version);
-  }, { authenticated, version });
-  await page.addInitScript(platform => {
-    window.__documentId = Math.random(); window.__refreshes = 0; window.__exits = 0;
-    Object.defineProperty(navigator.serviceWorker, 'controller', { value: { scriptURL: '/sw.js?v=navigation-v2' } });
-    window.addEventListener('taspe7:home-refresh', () => window.__refreshes++);
-    if (platform === 'web') return;
-    window.CapacitorCustomPlatform = { name: platform };
-    window.Capacitor = {
-      PluginHeaders: [{ name: 'App', methods: [{ name: 'exitApp', rtype: 'promise' }, { name: 'getLaunchUrl', rtype: 'promise' }] }],
-      async nativePromise(plugin, method) { if (method === 'exitApp') window.__exits++; return {}; },
-    };
-  }, platform);
-  const initialReads = authenticated && ['/', '/index.html', '/pray/', '/pray/index.html'].includes(href)
-    ? Promise.all(['/my-profile', '/pray-time/inbox', '/pray-time/sent-updates'].map(suffix => page.waitForResponse(response => response.request().method() === 'GET' && response.url().includes(suffix))))
-    : Promise.resolve();
-  await page.goto(base + href, { waitUntil: 'domcontentloaded' });
-  if (authenticated) await page.locator('nav[aria-label="Primary navigation"]').waitFor();
-  else await page.getByRole('heading', { name: 'Sign in to Wasla' }).waitFor();
-  await initialReads;
-  return { page, context, state, errors };
-}
+const { start, stop, setup, getBase } = require('./helpers/swipe-browser.cjs');
+let base;
+before(async () => { await start(); base = getBase(); });
+after(stop);
 
 async function touch(page, type, x, y = 350, { edge = false, cancel = false, selector } = {}) {
   return page.evaluate(({ type, x, y, edge, cancel, selector }) => {
@@ -108,9 +28,41 @@ async function drag(page, from, to, { cancel = false } = {}) {
 }
 
 for (const engine of ['webkit', 'chromium']) {
+  test(`${engine}: cold neighbors stay lightweight during a held gesture and load after navigation`, async t => {
+    const { page, errors } = await setup(t, engine, { href: '/friends/', deferIdle: true });
+    const preview = panel(page, '/normal_UserProfile');
+    assert.equal(await preview.getAttribute('data-tab-ready'), 'false');
+    await touch(page, 'touchstart', 280); await touch(page, 'touchmove', 170); await frame(page);
+    await page.waitForTimeout(400);
+    assert.equal(await preview.getAttribute('data-tab-ready'), 'false', 'touch must not mount a cold full page');
+    assert.equal(await preview.locator('[data-page-skeleton]').count(), 1);
+    await touch(page, 'touchend', 60);
+    await page.waitForURL(base + '/normal_UserProfile/');
+    await preview.getByText('iOS Tester', { exact: true }).waitFor();
+    assert.deepEqual(errors, []);
+  });
+
+  test(`${engine}: repeated cancellations reuse the prepared page and keep it inactive`, async t => {
+    const { page, state, errors } = await setup(t, engine, { href: '/friends/' });
+    const preview = panel(page, '/normal_UserProfile');
+    await preview.getByText('iOS Tester', { exact: true }).waitFor({ state: 'attached' });
+    await preview.getByText('iOS Tester', { exact: true }).evaluate(node => { node.__mountProof = 'retained'; });
+    const requests = state.profiles;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await drag(page, 280, 150, { cancel: true });
+      await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
+      assert.equal(await preview.getByText('iOS Tester', { exact: true }).evaluate(node => node.__mountProof), 'retained');
+      assert.equal(await preview.getAttribute('inert'), '');
+      assert.equal(await preview.getAttribute('data-tab-active'), 'false');
+    }
+    assert.equal(state.profiles, requests, 'canceling must not repeat Profile loads');
+    assert.deepEqual(errors, []);
+  });
+
   test(`${engine}: a held drag reveals the real Profile page proportionally, then commits without reloading`, async t => {
     const { page, errors } = await setup(t, engine, { href: '/friends/' });
     await panel(page, '/friends').locator('[data-page-skeleton]').waitFor({ state: 'detached' });
+    await panel(page, '/normal_UserProfile').getByText('iOS Tester', { exact: true }).waitFor({ state: 'attached' });
     const documentId = await page.evaluate(() => window.__documentId);
     await touch(page, 'touchstart', 280);
     await touch(page, 'touchmove', 200);
@@ -131,7 +83,8 @@ for (const engine of ['webkit', 'chromium']) {
     await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
     assert.equal(await panel(page, '/normal_UserProfile').getAttribute('data-tab-active'), 'true');
     assert.equal(await panel(page, '/normal_UserProfile').evaluate(node => node.__previewProof), 'same-page', 'the revealed page must stay mounted when navigation commits');
-    assert.equal(await page.locator('[data-tab-panel]').count(), 1);
+    assert.ok(await page.locator('[data-tab-panel]').count() <= 3);
+    assert.equal(await page.locator('[data-tab-active="true"]').count(), 1);
     assert.equal(await page.evaluate(() => window.__documentId), documentId);
     assert.deepEqual(errors, []);
   });
@@ -148,7 +101,8 @@ for (const engine of ['webkit', 'chromium']) {
     await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
     assert.equal(new URL(page.url()).pathname, '/');
     assert.equal(await draft.inputValue(), 'Do not lose this prayer');
-    assert.equal(await page.locator('[data-tab-panel]').count(), 1);
+    assert.ok(await page.locator('[data-tab-panel]').count() <= 3);
+    assert.equal(await page.locator('[data-tab-active="true"]').count(), 1);
     assert.deepEqual(errors, []);
   });
 
@@ -225,6 +179,7 @@ for (const engine of ['webkit', 'chromium']) {
       document.querySelector('[data-tab-active="true"]').appendChild(button);
     });
     await touch(page, 'touchstart', 195, 350, { selector: '#center-card' });
+    await touch(page, 'touchmove', 193, 359); // Initial diagonal jitter must not discard the gesture.
     await touch(page, 'touchmove', 100, 350); await frame(page);
     assert.equal(await page.locator('[data-tab-pager]').getAttribute('data-swiping'), 'true');
     await touch(page, 'touchend', 100, 350, { cancel: true });
@@ -283,6 +238,26 @@ test('trusted touch starts on the center of the prayer textarea and reveals the 
   assert.deepEqual(errors, []);
 });
 
+test('trusted touch on a real settings switch begins a drag without toggling it, and a later tap still works', async t => {
+  const { page, context, errors } = await setup(t, 'chromium', { href: '/normal_UserProfile/' });
+  const toggle = page.getByRole('switch', { name: 'Toggle Theme', exact: true });
+  await toggle.scrollIntoViewIfNeeded();
+  const checked = await toggle.getAttribute('aria-checked');
+  const bounds = await toggle.boundingBox();
+  const x = bounds.x + 5, y = bounds.y + bounds.height / 2;
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  for (const delta of [10, 20, 30]) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + delta, y }] });
+  await frame(page);
+  assert.equal(await page.locator('[data-tab-pager]').getAttribute('data-swiping'), 'true');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+  await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
+  assert.equal(await toggle.getAttribute('aria-checked'), checked);
+  await toggle.tap();
+  assert.notEqual(await toggle.getAttribute('aria-checked'), checked);
+  assert.deepEqual(errors, []);
+});
+
 test('interior swipes traverse every bottom tab in both directions', async t => {
   const { page, errors } = await setup(t, 'chromium');
   await page.evaluate(() => localStorage.setItem('taspe7_category_hymns_tour_done', '1'));
@@ -292,6 +267,7 @@ test('interior swipes traverse every bottom tab in both directions', async t => 
     await page.waitForURL(base + href + '/');
     await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
     assert.equal(await panel(page, href).getAttribute('data-tab-active'), 'true');
+    assert.ok(await page.locator('[data-tab-panel]').count() <= 3, 'page cache must stay bounded');
   }
   for (const href of hrefs.slice(0, -1).reverse()) {
     await drag(page, 90, 310);
@@ -299,7 +275,8 @@ test('interior swipes traverse every bottom tab in both directions', async t => 
     await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
     assert.equal(await panel(page, href).getAttribute('data-tab-active'), 'true');
   }
-  assert.equal(await page.locator('[data-tab-panel]').count(), 1);
+  assert.ok(await page.locator('[data-tab-panel]').count() <= 3);
+  assert.equal(await page.locator('[data-tab-active="true"]').count(), 1);
   assert.deepEqual(errors, []);
 });
 

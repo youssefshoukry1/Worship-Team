@@ -9,7 +9,7 @@ const flush = async () => { for (let i = 0; i < 10; i++) await Promise.resolve()
 function moduleApi(file, names, values = {}) {
   const source = fs.readFileSync(path.join(__dirname, '../src/app', file), 'utf8').replace(/^import .*;$/gm, '')
     .replaceAll('export async function', 'async function').replaceAll('export function', 'function').replaceAll('export const', 'const');
-  const context = { AbortController, setTimeout, clearTimeout, console, ...cooperativeWork(), ...values };
+  const context = { AbortController, setTimeout, clearTimeout, console, waitForNavigationIdle: async () => {}, ...cooperativeWork(), ...values };
   vm.runInNewContext(source + `;globalThis.api={${names.join(',')}};`, context);
   return context.api;
 }

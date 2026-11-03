@@ -886,13 +886,13 @@ test('native backup settings save intervals and manual progress continues after 
     });
     await seed(page, []); await page.goto(base + '/pray/');
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
-    const select = page.getByRole('combobox', { name: 'Automatic backup' });
-    await select.waitFor(); await page.getByText('drive@test', { exact: true }).waitFor();
+    const schedule = page.getByRole('group', { name: 'Automatic backup' });
+    await schedule.waitFor(); await page.getByText('drive@test', { exact: true }).waitFor();
     for (const days of [7, 14, 30]) {
-      await select.selectOption(String(days));
+      await schedule.getByRole('radio', { name: `Every ${days} days`, exact: true }).check();
       await page.waitForFunction(days => JSON.parse(localStorage.getItem('my_prays_schedule_tester') || '{}').intervalDays === days, days);
     }
-    const wifi = page.getByRole('checkbox', { name: 'Wi-Fi only' });
+    const wifi = page.getByRole('switch', { name: 'Wi-Fi only' });
     await wifi.uncheck();
     await page.waitForFunction(() => JSON.parse(localStorage.getItem('my_prays_schedule_tester')).wifiOnly === false);
     await wifi.check();
@@ -901,7 +901,7 @@ test('native backup settings save intervals and manual progress continues after 
     await page.waitForFunction(() => window.backupCalls.some(call => call.method === 'runNow'));
     await page.getByText('57%', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'close', exact: true }).click();
-    await select.waitFor({ state: 'hidden' });
+    await schedule.waitFor({ state: 'hidden' });
     assert.equal(await page.evaluate(() => window.backupStatus.state), 'running');
     await page.evaluate(() => { window.backupStatus = { ...window.backupStatus, state: 'complete', progress: 100, lastSuccess: Date.now() }; });
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
@@ -1126,12 +1126,14 @@ for (const theme of ['light', 'dark']) {
         await account.waitFor();
         assert.equal(await dialog.evaluate(el => el.matches(':modal')), true);
         assert.equal(await page.evaluate(() => document.body.style.overflow), 'hidden');
-        assert.equal(await dialog.getByRole('combobox', { name: 'Automatic backup' }).count(), 1);
-        assert.equal(await dialog.getByRole('combobox').isDisabled(), true);
-        assert.equal(await dialog.getByRole('checkbox', { name: 'Wi-Fi only' }).count(), 1);
-        assert.equal(await dialog.getByRole('checkbox').isChecked(), true);
+        const schedule = dialog.getByRole('group', { name: 'Automatic backup' });
+        assert.equal(await schedule.count(), 1);
+        assert.equal(await schedule.getByRole('radio').count(), 4);
+        for (const option of await schedule.getByRole('radio').all()) assert.equal(await option.isDisabled(), true);
+        assert.equal(await dialog.getByRole('switch', { name: 'Wi-Fi only' }).count(), 1);
+        assert.equal(await dialog.getByRole('switch', { name: 'Wi-Fi only' }).isChecked(), true);
         const background = await dialog.evaluate(el => getComputedStyle(el).backgroundColor);
-        assert.equal(background, theme === 'dark' ? 'rgb(15, 23, 42)' : 'rgb(255, 255, 255)');
+        assert.equal(background, theme === 'dark' ? 'rgba(16, 20, 23, 0.97)' : 'rgba(20, 24, 36, 0.97)');
         await account.click();
         await dialog.getByText('Connected Google Accounts', { exact: true }).waitFor();
         await dialog.getByRole('button', { name: 'Disconnect ' + accounts[7].email, exact: true }).scrollIntoViewIfNeeded();

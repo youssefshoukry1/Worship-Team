@@ -1,6 +1,7 @@
 import localforage from 'localforage';
 import { storageReady } from './platform';
 import { forEachChunked } from './cooperativeWork';
+import { waitForNavigationIdle } from './navigationWork';
 
 const HYMNS_CACHE_KEY = 'taspe7_hymns_json';
 
@@ -32,6 +33,7 @@ async function loadDownloadedHymns() {
   try {
     const response = await fetch('/hymns.json');
     if (response.ok) {
+      await waitForNavigationIdle();
       const bundled = await response.json();
       if (Array.isArray(bundled) && bundled.length > 0) {
         const normalized = await normalizeDownloadedHymns(bundled);

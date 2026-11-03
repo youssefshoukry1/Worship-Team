@@ -55,17 +55,20 @@ export function preserveManualInputScroll(win = window) {
         }, 180);
     };
     const onPointerDown = event => {
+        if (event.pointerType === 'touch') return;
         pointerStart = { x: event.clientX, y: event.clientY };
         dragging = false;
         const input = editable(event.target);
         if (input) beginEditing(input);
     };
     const onPointerMove = event => {
+        if (event.pointerType === 'touch') return;
         if (!pointerStart || Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) < 6) return;
         dragging = true;
         userScrolling = true;
     };
-    const onPointerEnd = () => {
+    const onPointerEnd = event => {
+        if (event?.pointerType === 'touch') return;
         pointerStart = null;
         dragging = false;
         if (userScrolling) settle();

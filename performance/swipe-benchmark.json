@@ -1,0 +1,253 @@
+{
+  "measuredAt": "2026-11-03T22:53:15.343Z",
+  "environment": {
+    "cpu": "12th Gen Intel(R) Core(TM) i5-12450H",
+    "platform": "win32",
+    "cpuThrottle": 4,
+    "browser": "Playwright Chromium",
+    "viewport": "iPhone 13 emulation"
+  },
+  "method": "Friends to Profile. Trusted CDP touch: 26 movement events, then cancel and 240ms settle. 4x desktop CPU simulation. Both a cold neighbor and an idle-prepared real neighbor, with empty or 2000 notes plus 2000 highlights. API and Capacitor mocked; not physical-device or production-network results.",
+  "scenarios": [
+    {
+      "profileEntriesPerSection": 0,
+      "neighbor": "cold skeleton",
+      "first": {
+        "frames": 91,
+        "p95FrameGapMs": 16.799999999999955,
+        "maxFrameGapMs": 16.800000000000182,
+        "longTasks": [],
+        "inheritedOffsetWrites": 0,
+        "style": {
+          "count": 91,
+          "totalMs": 46.21,
+          "maxMs": 2.83
+        },
+        "layout": {
+          "count": 2,
+          "totalMs": 0.45,
+          "maxMs": 0.23
+        },
+        "paint": {
+          "count": 7,
+          "totalMs": 8.03,
+          "maxMs": 3.57
+        },
+        "requests": {
+          "profiles": 0,
+          "inbox": 0,
+          "sent": 0
+        },
+        "mountedPanels": 1
+      },
+      "repeated": {
+        "frames": 91,
+        "p95FrameGapMs": 16.799999999999727,
+        "maxFrameGapMs": 16.800000000000182,
+        "longTasks": [],
+        "inheritedOffsetWrites": 0,
+        "style": {
+          "count": 93,
+          "totalMs": 77.28,
+          "maxMs": 4.65
+        },
+        "layout": {
+          "count": 2,
+          "totalMs": 0.61,
+          "maxMs": 0.38
+        },
+        "paint": {
+          "count": 7,
+          "totalMs": 3.83,
+          "maxMs": 1.41
+        },
+        "requests": {
+          "profiles": 0,
+          "inbox": 0,
+          "sent": 0
+        },
+        "mountedPanels": 1
+      }
+    },
+    {
+      "profileEntriesPerSection": 0,
+      "neighbor": "prepared page",
+      "first": {
+        "frames": 89,
+        "p95FrameGapMs": 16.799999999999955,
+        "maxFrameGapMs": 16.800000000000182,
+        "longTasks": [],
+        "inheritedOffsetWrites": 0,
+        "style": {
+          "count": 91,
+          "totalMs": 45.27,
+          "maxMs": 2.63
+        },
+        "layout": {
+          "count": 2,
+          "totalMs": 1.02,
+          "maxMs": 0.63
+        },
+        "paint": {
+          "count": 11,
+          "totalMs": 16.36,
+          "maxMs": 4.49
+        },
+        "requests": {
+          "profiles": 0,
+          "inbox": 0,
+          "sent": 0
+        },
+        "mountedPanels": 3
+      },
+      "repeated": {
+        "frames": 92,
+        "p95FrameGapMs": 16.800000000000182,
+        "maxFrameGapMs": 16.800000000000182,
+        "longTasks": [],
+        "inheritedOffsetWrites": 0,
+        "style": {
+          "count": 93,
+          "totalMs": 98.02,
+          "maxMs": 4.66
+        },
+        "layout": {
+          "count": 2,
+          "totalMs": 0.64,
+          "maxMs": 0.39
+        },
+        "paint": {
+          "count": 11,
+          "totalMs": 16.11,
+          "maxMs": 4.43
+        },
+        "requests": {
+          "profiles": 0,
+          "inbox": 0,
+          "sent": 0
+        },
+        "mountedPanels": 3
+      }
+    },
+    {
+      "profileEntriesPerSection": 2000,
+      "neighbor": "cold skeleton",
+      "first": {
+        "frames": 90,
+        "p95FrameGapMs": 16.700000000000273,
+        "maxFrameGapMs": 16.800000000000182,
+        "longTasks": [],
+        "inheritedOffsetWrites": 0,
+        "style": {
+          "count": 92,
+          "totalMs": 49.71,
+          "maxMs": 3.36
+        },
+        "layout": {
+          "count": 2,
+          "totalMs": 0.6,
+          "maxMs": 0.38
+        },
+        "paint": {
+          "count": 7,
+          "totalMs": 4.45,
+          "maxMs": 1.23
+        },
+        "requests": {
+          "profiles": 0,
+          "inbox": 0,
+          "sent": 0
+        },
+        "mountedPanels": 1
+      },
+      "repeated": {
+        "frames": 91,
+        "p95FrameGapMs": 16.700000000000273,
+        "maxFrameGapMs": 16.800000000000182,
+        "longTasks": [],
+        "inheritedOffsetWrites": 0,
+        "style": {
+          "count": 93,
+          "totalMs": 74.66,
+          "maxMs": 3.25
+        },
+        "layout": {
+          "count": 2,
+          "totalMs": 0.67,
+          "maxMs": 0.44
+        },
+        "paint": {
+          "count": 7,
+          "totalMs": 4.16,
+          "maxMs": 1.07
+        },
+        "requests": {
+          "profiles": 0,
+          "inbox": 0,
+          "sent": 0
+        },
+        "mountedPanels": 1
+      }
+    },
+    {
+      "profileEntriesPerSection": 2000,
+      "neighbor": "prepared page",
+      "first": {
+        "frames": 90,
+        "p95FrameGapMs": 16.700000000000273,
+        "maxFrameGapMs": 16.799999999999955,
+        "longTasks": [],
+        "inheritedOffsetWrites": 0,
+        "style": {
+          "count": 91,
+          "totalMs": 52.59,
+          "maxMs": 4.74
+        },
+        "layout": {
+          "count": 2,
+          "totalMs": 1.58,
+          "maxMs": 1.18
+        },
+        "paint": {
+          "count": 11,
+          "totalMs": 14.95,
+          "maxMs": 4.82
+        },
+        "requests": {
+          "profiles": 0,
+          "inbox": 0,
+          "sent": 0
+        },
+        "mountedPanels": 3
+      },
+      "repeated": {
+        "frames": 88,
+        "p95FrameGapMs": 16.700000000000728,
+        "maxFrameGapMs": 16.800000000000182,
+        "longTasks": [],
+        "inheritedOffsetWrites": 0,
+        "style": {
+          "count": 90,
+          "totalMs": 80.99,
+          "maxMs": 5.25
+        },
+        "layout": {
+          "count": 2,
+          "totalMs": 1.02,
+          "maxMs": 0.6
+        },
+        "paint": {
+          "count": 11,
+          "totalMs": 16.59,
+          "maxMs": 5.32
+        },
+        "requests": {
+          "profiles": 0,
+          "inbox": 0,
+          "sent": 0
+        },
+        "mountedPanels": 3
+      }
+    }
+  ]
+}

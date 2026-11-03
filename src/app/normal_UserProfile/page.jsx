@@ -49,6 +49,8 @@ import {
 } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
 import { useSwipePreference } from '../utils/swipePreferences';
+import { groupHighlights, groupNotes } from '../utils/bibleProfileGroups';
+import { useTabPageActive } from '../components/TabPageActivity';
 import { useTheme } from '../context/ThemeContext';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { useLanguage } from "../context/LanguageContext";
@@ -178,93 +180,6 @@ const formatVerseNumbers = (nums) => {
     return sorted.join(', ');
 };
 
-const groupHighlights = (highlights) => {
-    if (!highlights || highlights.length === 0) return [];
-    // Sort highlights by date ascending so we can process them sequentially
-    const sorted = [...highlights].sort((a, b) => new Date(a.date) - new Date(b.date));
-    const groups = [];
-    sorted.forEach((item) => {
-        const match = groups.find(g =>
-            g.bookName === item.bookName &&
-            g.chapter === item.chapter &&
-            g.color === item.color &&
-            Math.abs(new Date(g.date) - new Date(item.date)) < 60000 // 60 seconds threshold
-        );
-        if (match) {
-            match.verseIds.push(item.verseId);
-            match.verseNumbers.push(item.verseNumber);
-            match.verses.push({
-                verseId: item.verseId,
-                verseNumber: item.verseNumber,
-                text: item.text,
-                _id: item._id
-            });
-            match.verses.sort((a, b) => a.verseNumber - b.verseNumber);
-        } else {
-            groups.push({
-                _id: item._id || item.verseId,
-                verseIds: [item.verseId],
-                bookName: item.bookName,
-                chapter: item.chapter,
-                verseNumbers: [item.verseNumber],
-                color: item.color,
-                date: item.date,
-                verses: [{
-                    verseId: item.verseId,
-                    verseNumber: item.verseNumber,
-                    text: item.text,
-                    _id: item._id
-                }]
-            });
-        }
-    });
-    return groups.sort((a, b) => new Date(b.date) - new Date(a.date));
-};
-
-const groupNotes = (notes) => {
-    if (!notes || notes.length === 0) return [];
-    const sorted = [...notes].sort((a, b) => new Date(a.date) - new Date(b.date));
-    const groups = [];
-    sorted.forEach((item) => {
-        const match = groups.find(g =>
-            g.bookName === item.bookName &&
-            g.chapter === item.chapter &&
-            g.note === item.note &&
-            Math.abs(new Date(g.date) - new Date(item.date)) < 60000 // 60 seconds threshold
-        );
-        if (match) {
-            if (item._id) match.noteIds.push(item._id);
-            match.verseIds.push(item.verseId);
-            match.verseNumbers.push(item.verseNumber);
-            match.verses.push({
-                verseId: item.verseId,
-                verseNumber: item.verseNumber,
-                text: item.text,
-                _id: item._id
-            });
-            match.verses.sort((a, b) => a.verseNumber - b.verseNumber);
-        } else {
-            groups.push({
-                _id: item._id || item.verseId,
-                noteIds: item._id ? [item._id] : [],
-                verseIds: [item.verseId],
-                bookName: item.bookName,
-                chapter: item.chapter,
-                verseNumbers: [item.verseNumber],
-                note: item.note,
-                date: item.date,
-                verses: [{
-                    verseId: item.verseId,
-                    verseNumber: item.verseNumber,
-                    text: item.text,
-                    _id: item._id
-                }]
-            });
-        }
-    });
-    return groups.sort((a, b) => new Date(b.date) - new Date(a.date));
-};
-
 const getHighlightHex = (colorId) => {
     if (!colorId) return '#38bdf8';
     if (colorId.startsWith('#')) return colorId;
@@ -316,6 +231,7 @@ export default function NormalUserProfilePage() {
 }
 
 function UserProfile({ profileUserId }) {
+    const pageActive = useTabPageActive();
     const [swipeEnabled, setSwipeEnabled] = useSwipePreference();
     const { user_id, isLogin, logout, setLogin, setUsername, profilePhoto, setProfilePhoto, profilePhotoPreview, clearProfilePhotoPreview, isUploadingProfilePhoto, uploadProfilePhoto } = useContext(UserContext);
     const isOwner = String(profileUserId).toLowerCase() === String(user_id).toLowerCase();
@@ -867,9 +783,9 @@ function UserProfile({ profileUserId }) {
                 if (!ignore) { setProfile(data); setError(null); }
             }).catch(() => {});
         };
-        window.addEventListener('focus', refresh);
+        if (pageActive) window.addEventListener('focus', refresh);
         return () => { ignore = true; window.removeEventListener('focus', refresh); };
-    }, [isLogin, user_id, isOwner, profileUserId, handleSocialProfile, profileNotes]);
+    }, [isLogin, user_id, isOwner, profileUserId, handleSocialProfile, profileNotes, pageActive]);
 
     const handleDeleteBibleNote = async (noteId) => {
         if (!isOwner) return;

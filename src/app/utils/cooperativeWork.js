@@ -1,6 +1,9 @@
 // Yield between CPU batches so input, navigation and audio timers can run.
 // A microtask (Promise.resolve) would keep blocking the same browser task.
-export function yieldToMain() {
+import { waitForNavigationIdle } from './navigationWork';
+
+export async function yieldToMain() {
+  await waitForNavigationIdle();
   if (typeof globalThis.scheduler?.yield === 'function') return globalThis.scheduler.yield();
   return new Promise(resolve => setTimeout(resolve, 0));
 }

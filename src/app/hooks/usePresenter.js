@@ -14,6 +14,7 @@ import { transposeLyrics } from '../utils/musicUtils';
 import { selectLocalHymns } from '../utils/hymnSearch';
 import { downloadedHymnsQueryOptions } from '../utils/hymnsCache';
 import { openLocalDisplay, prepareLocalDisplay } from '../presentation/local/openLocalDisplay';
+import { useTabPageActive } from '../components/TabPageActivity';
 
 const API_ROOT = getApiBaseUrl();
 
@@ -23,6 +24,7 @@ export function usePresenter({
   allHymns, isBiblePage = false, onCloseBible,
 }) {
   const router = useRouter();
+  const pageActive = useTabPageActive();
   const queryClient = useQueryClient();
   const { vocalsMode } = useContext(UserContext);
   const { t, language } = useLanguage();
@@ -79,6 +81,7 @@ export function usePresenter({
   const [showBgSelector, setShowBgSelector] = useState(false);
 
   useEffect(() => {
+    if (!pageActive) return;
     const savedSession = localStorage.getItem('myLivePresentationId');
     if (savedSession) {
       const checkSession = async () => {
@@ -97,10 +100,10 @@ export function usePresenter({
       };
       checkSession();
     }
-  }, []);
+  }, [pageActive]);
 
   const { isConnected, broadcastHymn, broadcastSlide, clearDisplay, toggleAudio, isAudioActive } = usePresentation(
-    dataShowId || null,
+    pageActive ? dataShowId || null : null,
     'controller'
   );
 
@@ -174,7 +177,7 @@ export function usePresenter({
 
   const LOCAL_CHANNEL = 'taspe_presenter';
   const localDisplayRef = React.useRef(null);
-  useEffect(() => prepareLocalDisplay(), []);
+  useEffect(() => { if (pageActive) return prepareLocalDisplay(); }, [pageActive]);
 
   const broadcastLocalSettings = React.useCallback((settings) => {
     const ch = new BroadcastChannel(LOCAL_CHANNEL);

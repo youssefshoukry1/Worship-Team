@@ -2,6 +2,7 @@ import localforage from 'localforage';
 import axios from 'axios';
 import { isApp, storageReady } from './platform';
 import { checkCancelled, forEachChunked } from './cooperativeWork';
+import { waitForNavigationIdle } from './navigationWork';
 
 // Map translation key helper
 const getCacheKey = (translation) => `taspe7_bible_db_${String(translation || 'AVD').toUpperCase()}`;
@@ -139,6 +140,7 @@ async function hydrateDefaultBible() {
       const response = await fetch('/Taspe7.bibles.json');
       if (!response.ok) throw new Error("Local Taspe7.bibles.json not found in public folder");
 
+      await waitForNavigationIdle();
       const raw = await response.json();
       if (!Array.isArray(raw) || raw.length === 0) throw new Error('Bundled Bible is empty or invalid');
       const normalized = new Array(raw.length);

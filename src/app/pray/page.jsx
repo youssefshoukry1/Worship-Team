@@ -25,6 +25,7 @@ import { newPrayerAction, preparePrayerAction, retryPrayerAction, localPrayerOve
 import usePrayerDeleteWindow, { prayerDeleteAvailable } from './usePrayerDeleteWindow';
 import { HOME_REFRESH_EVENT } from '../utils/androidBack';
 import { useTabPageActive } from '../components/TabPageActivity';
+import { waitForNavigationIdle } from '../utils/navigationWork';
 
 const API_URL = getApiBaseUrl();
 
@@ -739,7 +740,7 @@ export default function PrayPage() {
     useEffect(() => {
         let ignore = false;
         const handleFocus = async () => {
-            if (!token || !userId) return;
+            if (!pageActive || !token || !userId) return;
             try {
                 const newProfileData = await refreshProfile(API_URL, token, userId, { force: true });
                 if (!ignore) setProfile(newProfileData);
@@ -752,7 +753,7 @@ export default function PrayPage() {
             window.removeEventListener('focus', handleFocus);
             window.removeEventListener(HOME_REFRESH_EVENT, handleFocus);
         };
-    }, [token, userId]);
+    }, [token, userId, pageActive]);
 
     const { t, language } = useLanguage();
 
@@ -902,8 +903,21 @@ export default function PrayPage() {
             .catch((err) => console.warn('Could not load prayer recordings:', err));
     }, []);
 
+    // Prepare read-only local content offscreen; delivery, repairs and polling
+    // remain owned by the active Prayer page.
+    useEffect(() => {
+        if (pageActive) return;
+        let cancelled = false;
+        getGuestPrays().then(async entries => {
+            await waitForNavigationIdle();
+            if (!cancelled) setGuestPrays(entries);
+        }).catch(() => {});
+        return () => { cancelled = true; };
+    }, [pageActive, setGuestPrays]);
+
     useEffect(() => { refreshRecordings(); }, [refreshRecordings]);
     useEffect(() => {
+        if (!pageActive) return;
         let active = true;
         let sequence = 0;
         const refresh = async event => {
@@ -917,10 +931,11 @@ export default function PrayPage() {
         };
         window.addEventListener(PRAYER_SYNC_EVENT, refresh);
         return () => { active = false; window.removeEventListener(PRAYER_SYNC_EVENT, refresh); };
-    }, [setGuestPrays, refreshRecordings]);
+    }, [pageActive, setGuestPrays, refreshRecordings]);
 
 
     useEffect(() => {
+        if (!pageActive) return;
         let isCancelled = false;
         const loadAndRepairPrays = async () => {
             try {
@@ -986,11 +1001,11 @@ export default function PrayPage() {
 
         loadAndRepairPrays();
         return () => { isCancelled = true; };
-    }, [token, userId, legacyOpenedFriendPrayers, setGuestPrays]);
+    }, [pageActive, token, userId, legacyOpenedFriendPrayers, setGuestPrays]);
 
     // One-time import for existing users who already had prayers in MongoDB
     useEffect(() => {
-        if (!profile?.prayTime?.length) return;
+        if (!pageActive || !profile?.prayTime?.length) return;
         getGuestPrays().then(async (locals) => {
             const localMap = new Map(locals.map((p) => [String(p._id), p]));
             let changed = false;
@@ -1018,7 +1033,7 @@ export default function PrayPage() {
                 setGuestPrays(await getGuestPrays());
             }
         }).catch(() => {});
-    }, [profile?.prayTime, setGuestPrays]);
+    }, [pageActive, profile?.prayTime, setGuestPrays]);
 
     // Check for incoming shared prayers from Cloudflare R2
     const checkIncomingSharedPrayers = useCallback(async (force = false) => {
@@ -1105,6 +1120,7 @@ export default function PrayPage() {
     }, [notificationTarget, checkIncomingSharedPrayers, checkSentPrayUpdates]);
 
     useEffect(() => {
+        if (!pageActive) return;
         checkIncomingSharedPrayers();
         checkSentPrayUpdates();
         const refresh = () => {
@@ -1127,7 +1143,7 @@ export default function PrayPage() {
             window.removeEventListener('online', refresh);
             document.removeEventListener('visibilitychange', refreshWhenVisible);
         };
-    }, [checkIncomingSharedPrayers, checkSentPrayUpdates]);
+    }, [pageActive, checkIncomingSharedPrayers, checkSentPrayUpdates]);
 
 
     const recorder = usePrayRecorder((blockId, recording) => {

@@ -137,6 +137,7 @@ export default function FriendsPage() {
   }, [isLogin, user_id]);
 
   useLayoutEffect(() => {
+    if (!pageActive) return;
     const open = (target) => {
       if (!target) return;
       notificationScrolledRef.current = false;
@@ -158,13 +159,13 @@ export default function FriendsPage() {
     };
     window.addEventListener('taspe7:open-friends', handleOpen);
     return () => window.removeEventListener('taspe7:open-friends', handleOpen);
-  }, [loadData]);
+  }, [loadData, pageActive]);
 
   useEffect(() => {
     // Rapid revisits reuse fresh data; notifications and returning to the page
     // fetch changes without periodically polling either endpoint.
     void loadData(Boolean(readFriendNotificationTarget(window.location.search)));
-    const refresh = () => { void loadData(true); };
+    const refresh = () => { if (pageActive) void loadData(true); };
     const whenVisible = () => { if (document.visibilityState === 'visible') refresh(); };
     const restore = event => { if (event.persisted) whenVisible(); };
     window.addEventListener('taspe7:friends-push', whenVisible);
@@ -175,7 +176,7 @@ export default function FriendsPage() {
       window.removeEventListener('pageshow', restore);
       document.removeEventListener('visibilitychange', whenVisible);
     };
-  }, [loadData]);
+  }, [loadData, pageActive]);
 
   useLayoutEffect(() => {
     if (!pageActive || !notificationTarget?.actorId || notificationScrolledRef.current || activeTab !== notificationTarget.tab) return;

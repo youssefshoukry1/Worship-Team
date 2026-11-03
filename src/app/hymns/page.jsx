@@ -28,6 +28,7 @@ import { createDeferredFeature, createFeatureBoundary } from '../components/Defe
 import HymnLyricsView from './HymnLyrics';
 import HymnPresentationView from './HymnPresentation';
 import { useLocalHymns } from '../hooks/useLocalHymns';
+import { useTabPageActive } from '../components/TabPageActivity';
 import { usePresenter } from '../hooks/usePresenter';
 
 const BibleForm = createDeferredFeature(() => import('../bible_form/BibleReader'), 'Bible reader');
@@ -40,6 +41,7 @@ const API_ROOT = getApiBaseUrl();
 const EMPTY_HYMNS = [];
 
 export default function Category_Humns() {
+  const pageActive = useTabPageActive();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { isLogin, UserRole, vocalsMode, user_id } = useContext(UserContext);
@@ -495,7 +497,7 @@ export default function Category_Humns() {
   // ── APP: background sync — runs after mount, only when needed ──────────
   // Triggered by: (a) force_sync flag from dashboard, (b) BroadcastChannel signal, (c) no cache yet
   useEffect(() => {
-    if (!isApp || typeof window === 'undefined') return;
+    if (!pageActive || !isApp || typeof window === 'undefined') return;
 
     syncDownloadedHymns(queryClient);
     // Listen for real-time force sync from dashboard (same device, any tab)
@@ -504,7 +506,7 @@ export default function Category_Humns() {
       if (e.data?.type === 'force_sync') syncDownloadedHymns(queryClient, { force: true });
     };
     return () => channel.close();
-  }, [isApp, queryClient]);
+  }, [pageActive, isApp, queryClient]);
 
   // ── WEB: Server-side infinite scrolling ──────────────────────────────
   const {

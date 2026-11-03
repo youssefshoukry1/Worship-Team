@@ -1,5 +1,6 @@
 // Session-only cache for repeatable GETs. Writes, prayer delivery/acknowledgement
 // and version synchronization deliberately do not use this cache.
+import { waitForNavigationIdle } from './navigationWork';
 export const TAB_READ_FRESH_MS = 15000;
 const reads = new Map();
 
@@ -43,7 +44,8 @@ export function readTabResource(key, load, { force = false, maxAge = TAB_READ_FR
     timer = setTimeout(() => { entry.controller.abort(); reject(new Error('Read timed out')); }, 20000);
   });
   entry.pending = Promise.race([Promise.resolve().then(() => load(entry.controller.signal)), deadline])
-    .then(value => {
+    .then(async value => {
+      await waitForNavigationIdle();
       if (reads.get(key) !== entry || entry.controller.signal.aborted) throw cancelled();
       entry.value = value;
       entry.updatedAt = Date.now();
@@ -67,6 +69,7 @@ export async function fetchTabJson(url, token, signal) {
     error.status = response.status;
     throw error;
   }
+  await waitForNavigationIdle();
   return response.json();
 }
 

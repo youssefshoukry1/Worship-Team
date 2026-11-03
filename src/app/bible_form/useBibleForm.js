@@ -14,6 +14,7 @@ import { invalidateProfile, readCachedProfile, refreshProfile } from '../utils/p
 import { prepareLocalAiOpening, completeLocalAiRequest, cancelLocalAiOpening } from '../utils/aiPersonalization';
 import { readTabJson, readTabResource, tabReadKey } from '../utils/tabRequests';
 import { HIGHLIGHT_COLORS, BIBLE_LAST_POS_KEY } from './bibleShared';
+import { useTabPageActive } from '../components/TabPageActivity';
 
 const API_ROOT = getApiBaseUrl();
 
@@ -165,6 +166,7 @@ async function getUsersWithFallback(path, config) {
 }
 
 export function useBibleForm({ isOpen, presentationActive, onClose, onPresent }) {
+  const pageActive = useTabPageActive();
   const { isLogin, user_id } = useContext(UserContext);
   const { addToWorkspace } = useContext(HymnsContext);
   const { t, language } = useLanguage();
@@ -192,12 +194,13 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
 
   // Lock bottom nav when verses are selected
   useEffect(() => {
+    if (!pageActive) return;
     const isLocked = isOpen && bibleSelectedVerseIds.size > 0;
     window.dispatchEvent(new CustomEvent('lockBottomNav', { detail: { hidden: isLocked } }));
     return () => {
       window.dispatchEvent(new CustomEvent('lockBottomNav', { detail: { hidden: false } }));
     };
-  }, [isOpen, bibleSelectedVerseIds.size]);
+  }, [pageActive, isOpen, bibleSelectedVerseIds.size]);
 
   // AI analysis state
   const [aiAnalysis, setAiAnalysis] = useState({ loading: false, type: null, text: '', error: null, isLimit: false });
@@ -450,6 +453,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   // Bibles stay on disk until a Bible tool actually needs the verses.
   useEffect(() => {
     if (!isOpen && !presentationActive) {
+      if (!pageActive) return;
       const prepare = () => { prepareLocalBible().catch(() => {}); };
       if (window.requestIdleCallback) {
         const id = window.requestIdleCallback(prepare, { timeout: 3000 });
@@ -474,7 +478,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     }).catch(() => { });
     // Let shared preparation finish; only stop updates to this closed view.
     return () => { cancelled = true; };
-  }, [isOpen, presentationActive]);
+  }, [pageActive, isOpen, presentationActive]);
 
   // Check which translations are offline when modal opens or available translations change
   useEffect(() => {

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Heart, BookOpen, Music, Users, User } from 'lucide-react';
@@ -22,7 +22,7 @@ export default function BottomNav() {
   const [isVisible, setIsVisible] = useState(true);
   const [isLockedHidden, setIsLockedHidden] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollY = useRef(0);
   const { navigate, pendingHref } = useTabNavigation();
 
   const visualPath = normalizeTabPath(pendingHref || pathname);
@@ -85,12 +85,12 @@ export default function BottomNav() {
         currentScrollY = window.scrollY;
       }
 
-      if (currentScrollY > lastScrollY && currentScrollY > 50) {
+      if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
         setIsVisible(false);
-      } else if (currentScrollY < lastScrollY || currentScrollY <= 50) {
+      } else if (currentScrollY < lastScrollY.current || currentScrollY <= 50) {
         setIsVisible(true);
       }
-      setLastScrollY(currentScrollY);
+      lastScrollY.current = currentScrollY;
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -99,7 +99,7 @@ export default function BottomNav() {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('internalScroll', handleScroll);
     };
-  }, [lastScrollY]);
+  }, []);
 
   const shouldShow = isVisible && !isLockedHidden && !isKeyboardOpen;
 

@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { translations } from "../i18n/translations";
 
 const LanguageContext = createContext(undefined);
@@ -22,26 +22,22 @@ export function LanguageProvider({ children }) {
         document.documentElement.lang = activeLang;
     }, []);
 
-    const handleSetLanguage = (lang) => {
+    const handleSetLanguage = useCallback((lang) => {
         setLanguage(lang);
         localStorage.setItem("app-language", lang);
         document.documentElement.dir = "ltr";
         document.documentElement.lang = lang;
-    };
+    }, []);
 
-    const t = (key) => {
+    const t = useCallback((key) => {
         // @ts-ignore
         return translations[language][key] || translations["en"][key] || key;
-    };
+    }, [language]);
+    const value = useMemo(() => ({ language, setLanguage: handleSetLanguage, t, dir: 'ltr' }), [language, handleSetLanguage, t]);
 
     return (
         <LanguageContext.Provider
-            value={{
-                language,
-                setLanguage: handleSetLanguage,
-                t,
-                dir: "ltr",
-            }}
+            value={value}
         >
             {children}
         </LanguageContext.Provider>

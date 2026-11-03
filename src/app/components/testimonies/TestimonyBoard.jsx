@@ -11,13 +11,15 @@ import { NOTE_ACTIVE_MESSAGE, profileHref, testimonyRequest } from './testimonyA
 import { showToast } from '../ToastContainer';
 import styles from './testimonies.module.css';
 import { useTestimonyFeed } from './TestimonyFeedProvider';
+import { useTabPageActive } from '../TabPageActivity';
 
 const EMPTY_PROFILE = { items: [], loading: false };
 
 function Board({ token, userId, username, profileUserId, onProfileLoad, profileAccess, onLoadingChange }) {
+  const pageActive = useTabPageActive();
   const isFeed = !profileUserId;
   const ownProfile = String(profileUserId) === String(userId);
-  const shared = useTestimonyFeed();
+  const shared = useTestimonyFeed(!profileUserId);
   const feedStore = shared?.store;
   const isSharedFeed = isFeed && Boolean(feedStore);
   const profileStore = shared?.profiles;
@@ -47,16 +49,16 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, profileA
 
   useEffect(() => {
     const received = event => {
-      if (String(event.detail?.authorId) !== String(userId) || document.visibilityState !== 'visible') return;
+      if (!pageActive || String(event.detail?.authorId) !== String(userId) || document.visibilityState !== 'visible') return;
       if (event.detail.title) setNotice(event.detail.title);
       if (isSharedFeed && !event.detail.testimonyId) load();
     };
     window.addEventListener('taspe7:testimony-push', received);
     return () => window.removeEventListener('taspe7:testimony-push', received);
-  }, [load, userId, isSharedFeed]);
+  }, [load, userId, isSharedFeed, pageActive]);
 
   useEffect(() => {
-    if (!ownProfile) return;
+    if (!pageActive || !ownProfile) return;
     const openNote = async id => {
       if (!/^[a-f\d]{24}$/i.test(id || '')) return;
       notificationRequest.current?.abort();
@@ -78,7 +80,7 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, profileA
     };
     window.addEventListener('taspe7:open-testimony', fromPush);
     return () => { notificationRequest.current?.abort(); window.removeEventListener('taspe7:open-testimony', fromPush); };
-  }, [ownProfile, token, profileStore, profileUserId]);
+  }, [pageActive, ownProfile, token, profileStore, profileUserId]);
 
   useEffect(() => {
     if (isSharedFeed) return;

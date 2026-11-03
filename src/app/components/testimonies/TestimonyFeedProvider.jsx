@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { usePathname } from 'next/navigation';
 import { UserContext } from '../../context/User_Context';
 import { getApiBaseUrl } from '../../utils/apiBase';
@@ -11,9 +11,10 @@ import { createProfileNotesStore } from './profileNotesStore';
 import { profileNotesStorage } from './profileNotesStorage';
 
 const FeedContext = createContext(null);
-export const useTestimonyFeed = () => useContext(FeedContext);
-export const useNoteReactorsStore = () => useContext(FeedContext)?.reactors;
-export const useProfileNotesStore = () => useContext(FeedContext)?.profiles;
+const StoresContext = createContext(null);
+export const useTestimonyFeed = (includeState = true) => useContext(includeState ? FeedContext : StoresContext);
+export const useNoteReactorsStore = () => useContext(StoresContext)?.reactors;
+export const useProfileNotesStore = () => useContext(StoresContext)?.profiles;
 
 function Session({ token, userId, children }) {
   const pathname = usePathname();
@@ -99,7 +100,8 @@ function Session({ token, userId, children }) {
       store.setFeedVisible(false);
     };
   }, [store, isFriendsPage]);
-  return <FeedContext.Provider value={{ store, state, reactors, profiles }}>{children}</FeedContext.Provider>;
+  const stores = useMemo(() => ({ store, reactors, profiles }), [store, reactors, profiles]);
+  return <StoresContext.Provider value={stores}><FeedContext.Provider value={{ ...stores, state }}>{children}</FeedContext.Provider></StoresContext.Provider>;
 }
 
 export default function TestimonyFeedProvider({ children }) {
