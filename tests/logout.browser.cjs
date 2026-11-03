@@ -82,6 +82,9 @@ for (const engine of ['chromium', 'webkit']) {
       loggingOut = true;
       await button.click();
       await page.getByRole('heading', { name: 'Sign in to Wasla' }).waitFor({ timeout: 2000 });
+      // A fast logout can finish before the first scheduled animation frame.
+      // Sample the rendered state before focusing the email field below.
+      await page.waitForFunction(() => window.__logoutFrames.length > 0);
       await page.getByPlaceholder('name@example.com').fill('next@example.com');
       await page.evaluate(() => document.activeElement.blur());
       const frames = await page.evaluate(() => { cancelAnimationFrame(window.__logoutRaf); return window.__logoutFrames; });

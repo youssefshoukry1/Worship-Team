@@ -48,6 +48,7 @@ import {
     X,
 } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
+import { useSwipePreference } from '../utils/swipePreferences';
 import { useTheme } from '../context/ThemeContext';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { useLanguage } from "../context/LanguageContext";
@@ -315,6 +316,7 @@ export default function NormalUserProfilePage() {
 }
 
 function UserProfile({ profileUserId }) {
+    const [swipeEnabled, setSwipeEnabled] = useSwipePreference();
     const { user_id, isLogin, logout, setLogin, setUsername, profilePhoto, setProfilePhoto, profilePhotoPreview, clearProfilePhotoPreview, isUploadingProfilePhoto, uploadProfilePhoto } = useContext(UserContext);
     const isOwner = String(profileUserId).toLowerCase() === String(user_id).toLowerCase();
     const router = useRouter();
@@ -1259,6 +1261,20 @@ function UserProfile({ profileUserId }) {
                                     General Settings
                                 </h3>
                                 <div className="app-card rounded-2xl border divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
+                                    <div className="flex items-center justify-between gap-4 p-4">
+                                        <div className="flex items-center gap-3.5">
+                                            <SlidersHorizontal className="h-5 w-5 shrink-0 text-slate-300" />
+                                            <div>
+                                                <p id="swipe-setting-label" className="text-sm sm:text-base font-semibold text-white">{language === 'ar' ? 'السحب بين الصفحات' : language === 'de' ? 'Zwischen Seiten wischen' : 'Swipe between pages'}</p>
+                                                <p id="swipe-setting-description" className="mt-1 text-xs text-slate-400">{language === 'ar' ? 'اسحب داخل الشاشة للتنقل بين علامات التبويب.' : language === 'de' ? 'Im Bildschirm ziehen, um Tabs zu wechseln.' : 'Drag inside the screen to switch tabs.'}</p>
+                                            </div>
+                                        </div>
+                                        <button type="button" role="switch" aria-checked={swipeEnabled} aria-labelledby="swipe-setting-label" aria-describedby="swipe-setting-description"
+                                            onClick={() => setSwipeEnabled(!swipeEnabled)}
+                                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-400 ${swipeEnabled ? 'bg-sky-500' : 'bg-slate-700'}`}>
+                                            <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${swipeEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                        </button>
+                                    </div>
                                     <div className="flex items-center justify-between p-4">
                                         <div className="flex items-center gap-3.5">
                                             <Settings className="w-5 h-5 text-slate-300 shrink-0" />

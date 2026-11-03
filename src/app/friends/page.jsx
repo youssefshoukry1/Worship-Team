@@ -17,6 +17,7 @@ import {
   Send
 } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
+import { useTabPageActive } from '../components/TabPageActivity';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { showToast } from '../components/ToastContainer';
 import OfflineAvatar from '../components/OfflineAvatar';
@@ -31,6 +32,7 @@ import { announceTestimonyChange, profileHref } from '../components/testimonies/
 const API_URL = getApiBaseUrl();
 
 export default function FriendsPage() {
+  const pageActive = useTabPageActive();
   const router = useRouter();
   const { isLogin, user_id } = useContext(UserContext);
 
@@ -176,14 +178,14 @@ export default function FriendsPage() {
   }, [loadData]);
 
   useLayoutEffect(() => {
-    if (!notificationTarget?.actorId || notificationScrolledRef.current || activeTab !== notificationTarget.tab) return;
+    if (!pageActive || !notificationTarget?.actorId || notificationScrolledRef.current || activeTab !== notificationTarget.tab) return;
     const row = Array.from(document.querySelectorAll('[data-friend-id]'))
       .find(element => element.dataset.friendId === notificationTarget.actorId);
     if (row) {
       notificationScrolledRef.current = true;
       row.scrollIntoView({ behavior: 'instant', block: 'center' });
     }
-  }, [notificationTarget, activeTab, incomingRequests, friends, loading]);
+  }, [pageActive, notificationTarget, activeTab, incomingRequests, friends, loading]);
 
   useEffect(() => {
     if (!cacheReadyRef.current || !user_id) return;

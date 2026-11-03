@@ -235,6 +235,17 @@ html[data-startup-language="de"] [data-startup-lang="de"] { display: inline; }
   }
 }
 
+.primary-tab-pager { position: relative; width: 100%; overflow-x: clip; }
+.primary-tab-panel[data-tab-active="false"] { position: absolute; inset-inline: 0; top: var(--preview-top); }
+.primary-tab-pager[data-swiping] { overflow: clip; }
+.primary-tab-pager[data-swiping] > .primary-tab-panel {
+  transform: translate3d(calc(var(--panel-direction) * 100% + var(--swipe-offset, 0px)), 0, 0);
+  will-change: transform;
+  background: var(--app-bg);
+}
+.primary-tab-pager[data-settling] > .primary-tab-panel { transition: transform 180ms cubic-bezier(.2,.7,.2,1); }
+@media (prefers-reduced-motion: reduce) { .primary-tab-pager[data-settling] > .primary-tab-panel { transition: none; } }
+
 .app-page-transition {
   animation: app-page-enter 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
   will-change: opacity, transform;

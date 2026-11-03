@@ -3,11 +3,14 @@ import { useEffect } from 'react';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import './tour.css';
+import { useTabPageActive } from '../components/TabPageActivity';
 
 const TOUR_KEY = 'taspe7_category_hymns_tour_done';
 
 export function useCategoryHymnsTour(language) {
+  const active = useTabPageActive();
   useEffect(() => {
+    if (!active) return;
     if (typeof window === 'undefined') return;
     if (localStorage.getItem(TOUR_KEY)) return;
 
@@ -140,7 +143,7 @@ export function useCategoryHymnsTour(language) {
 
     timeoutId = setTimeout(startTour, 800);
     return () => clearTimeout(timeoutId);
-  }, [language]);
+  }, [language, active]);
 }
 
 

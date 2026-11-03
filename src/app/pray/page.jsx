@@ -24,6 +24,7 @@ import usePrayerCircleOrder from './usePrayerCircleOrder';
 import { newPrayerAction, preparePrayerAction, retryPrayerAction, localPrayerOverlay, PRAYER_SYNC_EVENT } from '../services/prayerSync';
 import usePrayerDeleteWindow, { prayerDeleteAvailable } from './usePrayerDeleteWindow';
 import { HOME_REFRESH_EVENT } from '../utils/androidBack';
+import { useTabPageActive } from '../components/TabPageActivity';
 
 const API_URL = getApiBaseUrl();
 
@@ -179,6 +180,7 @@ function PrayerSyncStatus({ entry, language, actions }) {
 }
 
 const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUnread, recordings, responseValue, resolveFriendProfile, myProfilePhoto, myUsername, getPrayTypeLabel, t, language, actions }) {
+    const pageActive = useTabPageActive();
     const { handleConfirmSharedPrayer, handleDeletePrayTime, refreshRecordings, toggleFriendPrayerExpand, onResponseChange } = actions;
     const formattedDate = useMemo(() => formatDate(entry.date, 'N/A', language), [entry.date, language]);
 
@@ -199,7 +201,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
 
     // Only expanded content actually visible on screen counts as read. Offscreen pre-rendering does not.
     useEffect(() => {
-        if (!isExpanded || !isUnread) return;
+        if (!pageActive || !isExpanded || !isUnread) return;
         const element = isSent && entry.sharedWith?.responseWords ? replyContentRef.current : expandedContentRef.current;
         if (!element) return;
         let visible = false;
@@ -228,7 +230,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
             window.removeEventListener('resize', checkViewport);
             document.removeEventListener('visibilitychange', markVisible);
         };
-    }, [entry._id, entry.sharedWith?.responseWords, incomingActivity, isSent, isExpanded, isUnread, actions]);
+    }, [pageActive, entry._id, entry.sharedWith?.responseWords, incomingActivity, isSent, isExpanded, isUnread, actions]);
 
     const senderInfo = resolveFriendProfile(entry.sharedFrom, true);
     const targetInfo = resolveFriendProfile(entry.sharedWith, false);
@@ -541,6 +543,7 @@ const ListPanel = memo(function ListPanel({ title, icon: Icon, items, emptyText,
 });
 
 export default function PrayPage() {
+    const pageActive = useTabPageActive();
     const mountedRef = useRef(true);
     const deletionSyncRef = useRef(null);
     useEffect(() => {
@@ -810,6 +813,7 @@ export default function PrayPage() {
     const notificationTargetRef = useRef(null);
 
     useLayoutEffect(() => {
+        if (!pageActive) return;
         const openTarget = (target) => {
             notificationTargetRef.current = target;
             notificationScrolled.current = false;
@@ -828,7 +832,7 @@ export default function PrayPage() {
         };
         window.addEventListener('taspe7:open-prayer', handleOpen);
         return () => window.removeEventListener('taspe7:open-prayer', handleOpen);
-    }, []);
+    }, [pageActive]);
 
     // The target can arrive from local storage or the inbox sync. Expand it once,
     // without changing the card's styling or preventing the user from closing it.
@@ -843,13 +847,13 @@ export default function PrayPage() {
     }, [guestPrays, notificationTarget, notificationPrayerId]);
 
     useLayoutEffect(() => {
-        if (notificationPrayerId === null || notificationScrolled.current) return;
+        if (!pageActive || notificationPrayerId === null || notificationScrolled.current) return;
         const card = Array.from(document.querySelectorAll('[data-prayer-id]'))
             .find((element) => element.dataset.prayerId === notificationPrayerId);
         if (!card) return;
         notificationScrolled.current = true;
         card.scrollIntoView({ behavior: 'instant', block: 'center' });
-    }, [notificationPrayerId, activePrayTab, circleFilter]);
+    }, [pageActive, notificationPrayerId, activePrayTab, circleFilter]);
 
     const unreadPrayCount = unreadPrayerIds.size;
     const unreadReceivedCount = receivedPrayList.filter(entry => unreadPrayerIds.has(String(entry._id))).length;
