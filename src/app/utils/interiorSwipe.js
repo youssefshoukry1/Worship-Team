@@ -4,12 +4,15 @@ export function installInteriorSwipe({ element, begin, update, finish, cancel, w
   let touch = null;
   let frame = null;
   let distance = 0;
-  const ignored = 'input,textarea,select,button,a,[contenteditable]:not([contenteditable="false"]),[role="slider"],video,audio,canvas,[data-edge-back="off"],[data-page-swipe="off"]';
+  let suppressClickUntil = 0;
+  // Taps and text entry do not compete with a horizontal page drag. Reserve
+  // only controls that already use dragging, or an explicit gesture opt-out.
+  const ignored = 'select,input[type="range"],[role="slider"],video,audio,canvas,[data-edge-back="off"],[data-page-swipe="off"]';
   const find = list => Array.from(list).find(point => point.identifier === touch?.id);
   const detach = () => {
-    doc.removeEventListener('touchmove', move);
-    doc.removeEventListener('touchend', end);
-    doc.removeEventListener('touchcancel', abort);
+    doc.removeEventListener('touchmove', move, true);
+    doc.removeEventListener('touchend', end, true);
+    doc.removeEventListener('touchcancel', abort, true);
     if (frame !== null) win.cancelAnimationFrame(frame);
     frame = null;
   };
@@ -27,6 +30,7 @@ export function installInteriorSwipe({ element, begin, update, finish, cancel, w
       if (!event.cancelable || !begin(dx < 0 ? 1 : -1)) { reset(); return; }
       touch.locked = true;
       touch.direction = dx < 0 ? 1 : -1;
+      suppressClickUntil = win.performance.now() + 1000;
     }
     if (event.cancelable) event.preventDefault();
     distance = Math.max(0, Math.min(win.innerWidth, -dx * touch.direction));
@@ -38,6 +42,7 @@ export function installInteriorSwipe({ element, begin, update, finish, cancel, w
     const current = touch;
     const point = find(event.changedTouches);
     if (current.locked && point && !event.defaultPrevented && event.touches.length === 0) {
+      suppressClickUntil = win.performance.now() + 500;
       if (event.cancelable) event.preventDefault();
       const amount = Math.max(0, -(point.clientX - current.x) * current.direction);
       const elapsed = Math.max(1, win.performance.now() - current.started);
@@ -49,29 +54,44 @@ export function installInteriorSwipe({ element, begin, update, finish, cancel, w
   }
   const start = event => {
     abort();
+    suppressClickUntil = 0;
     if (event.defaultPrevented || event.touches.length !== 1 || doc.visibilityState === 'hidden'
-      || (win.visualViewport?.scale || 1) > 1.05 || win.location.search || win.location.hash) return;
+      || (win.visualViewport?.scale || 1) > 1.05) return;
     const point = event.touches[0];
     if (point.clientX <= 24 || point.clientX >= win.innerWidth - 24) return;
     const target = event.target instanceof win.Element ? event.target : null;
-    if (!target || target.closest(ignored) || doc.getSelection()?.isCollapsed === false
+    // Portaled dialogs keep their gestures; both navigation bars belong to
+    // the page surface even though they sit outside the tab panel.
+    if (!target || (!element.contains(target) && !target.closest('nav'))) return;
+    if (target.closest(ignored) || doc.getSelection()?.isCollapsed === false
       || doc.querySelector('[aria-modal="true"],dialog[open]')) return;
-    // Nested carousels and overlays keep their own gestures.
+    const input = target.closest('input,textarea');
+    if (input && input.selectionStart !== null && input.selectionEnd > input.selectionStart) return;
+    // Nested horizontal carousels keep their own gestures.
     for (let node = target; node && node !== element; node = node.parentElement) {
-      if (win.getComputedStyle(node).position === 'fixed'
-        || (node.scrollWidth > node.clientWidth + 1 && /^(auto|scroll)$/.test(win.getComputedStyle(node).overflowX))) return;
+      if (node.scrollWidth > node.clientWidth + 1 && /^(auto|scroll)$/.test(win.getComputedStyle(node).overflowX)) return;
     }
     touch = { id: point.identifier, x: point.clientX, y: point.clientY, started: win.performance.now(), locked: false };
-    doc.addEventListener('touchmove', move, { passive: false });
-    doc.addEventListener('touchend', end, { passive: false });
-    doc.addEventListener('touchcancel', abort, { passive: true });
+    doc.addEventListener('touchmove', move, { capture: true, passive: false });
+    doc.addEventListener('touchend', end, { capture: true, passive: false });
+    doc.addEventListener('touchcancel', abort, { capture: true, passive: true });
   };
-  element.addEventListener('touchstart', start, { passive: true });
+  const suppressSwipeClick = event => {
+    if (event.detail !== 0 && win.performance.now() < suppressClickUntil) {
+      suppressClickUntil = 0;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  };
+  // Capture sees gestures even when a card stops touch event propagation.
+  doc.addEventListener('touchstart', start, { capture: true, passive: true });
+  doc.addEventListener('click', suppressSwipeClick, true);
   doc.addEventListener('visibilitychange', abort);
   win.addEventListener('resize', abort, { passive: true });
   return () => {
     abort();
-    element.removeEventListener('touchstart', start);
+    doc.removeEventListener('touchstart', start, true);
+    doc.removeEventListener('click', suppressSwipeClick, true);
     doc.removeEventListener('visibilitychange', abort);
     win.removeEventListener('resize', abort);
   };

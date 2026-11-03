@@ -177,14 +177,13 @@ for (const engine of ['webkit', 'chromium']) {
     assert.deepEqual(errors, []);
   });
 
-  test(`${engine}: vertical scrolling, inputs, horizontal galleries and tab boundaries do not start a page drag`, async t => {
+  test(`${engine}: vertical scrolling, horizontal galleries and tab boundaries do not start a page drag`, async t => {
     const { page, errors } = await setup(t, engine);
     const root = page.locator('[data-tab-pager]');
     await touch(page, 'touchstart', 160, 400); await touch(page, 'touchmove', 165, 200); await touch(page, 'touchend', 165, 150);
     assert.equal(await root.getAttribute('data-swiping'), null);
     await drag(page, 150, 300); // no previous tab before Pray
     assert.equal(await root.getAttribute('data-swiping'), null);
-    await touch(page, 'touchstart', 180, 250, { selector: 'textarea' }); await touch(page, 'touchmove', 40, 250); await touch(page, 'touchend', 40, 250);
     await page.evaluate(() => {
       const div = document.createElement('div'); div.style.cssText = 'width:200px;overflow-x:auto';
       div.innerHTML = '<div id="horizontal-gallery" style="width:800px">Gallery</div>';
@@ -193,6 +192,61 @@ for (const engine of ['webkit', 'chromium']) {
     await touch(page, 'touchstart', 180, 300, { selector: '#horizontal-gallery' }); await touch(page, 'touchmove', 40, 300); await touch(page, 'touchend', 40, 300);
     assert.equal(await root.getAttribute('data-swiping'), null);
     assert.equal(new URL(page.url()).pathname, '/');
+    assert.deepEqual(errors, []);
+  });
+
+  test(`${engine}: horizontal drags start in the center of the prayer editor while typing and vertical scrolling still work`, async t => {
+    const { page, errors } = await setup(t, engine);
+    const draft = page.locator('textarea').first();
+    await draft.tap(); await draft.fill('Keep typing and keep my draft');
+    assert.equal(await draft.evaluate(node => document.activeElement === node), true);
+    await touch(page, 'touchstart', 195, 300, { selector: 'textarea' });
+    await touch(page, 'touchmove', 190, 180);
+    assert.equal(await page.locator('[data-tab-pager]').getAttribute('data-swiping'), null);
+    await touch(page, 'touchend', 190, 180);
+    await touch(page, 'touchstart', 195, 300, { selector: 'textarea' });
+    await touch(page, 'touchmove', 120, 300); await frame(page);
+    assert.equal(await page.locator('[data-tab-pager]').getAttribute('data-swiping'), 'true');
+    await touch(page, 'touchend', 120, 300, { cancel: true });
+    await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
+    assert.equal(await draft.inputValue(), 'Keep typing and keep my draft');
+    assert.equal(new URL(page.url()).pathname, '/');
+    assert.deepEqual(errors, []);
+  });
+
+  test(`${engine}: cards that stop propagation can start center swipes without activating their button`, async t => {
+    const { page, errors } = await setup(t, engine, { href: '/friends/' });
+    await page.evaluate(() => {
+      const button = document.createElement('button'); button.id = 'center-card'; button.textContent = 'Full-width card';
+      window.__cardClicks = 0;
+      button.onclick = () => window.__cardClicks++;
+      button.addEventListener('touchstart', event => event.stopPropagation());
+      button.addEventListener('touchmove', event => event.stopPropagation());
+      document.querySelector('[data-tab-active="true"]').appendChild(button);
+    });
+    await touch(page, 'touchstart', 195, 350, { selector: '#center-card' });
+    await touch(page, 'touchmove', 100, 350); await frame(page);
+    assert.equal(await page.locator('[data-tab-pager]').getAttribute('data-swiping'), 'true');
+    await touch(page, 'touchend', 100, 350, { cancel: true });
+    await page.evaluate(() => document.querySelector('#center-card').dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 })));
+    assert.equal(await page.evaluate(() => window.__cardClicks), 0);
+    await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
+    // A fresh tap is still a click, even immediately after a cancelled drag.
+    await touch(page, 'touchstart', 195, 350, { selector: '#center-card' }); await touch(page, 'touchend', 195, 350);
+    await page.evaluate(() => document.querySelector('#center-card').dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 })));
+    assert.equal(await page.evaluate(() => window.__cardClicks), 1);
+    assert.deepEqual(errors, []);
+  });
+
+  test(`${engine}: swipes can start on the center navigation link without selecting that link`, async t => {
+    const { page, errors } = await setup(t, engine);
+    const selector = 'nav[aria-label="Primary navigation"] a[href^="/hymns"]';
+    await touch(page, 'touchstart', 195, 800, { selector });
+    await touch(page, 'touchmove', 55, 800); await frame(page);
+    assert.equal(await page.locator('[data-tab-pager]').getAttribute('data-swiping'), 'true');
+    await touch(page, 'touchend', 55, 800);
+    await page.evaluate(selector => document.querySelector(selector).dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 })), selector);
+    await page.waitForURL(base + '/bible_form/');
     assert.deepEqual(errors, []);
   });
 }
@@ -209,6 +263,23 @@ test('trusted mobile drag follows the finger before navigating to the next tab',
   assert.equal(new URL(page.url()).pathname, '/friends/');
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await page.waitForURL(base + '/normal_UserProfile/');
+  assert.deepEqual(errors, []);
+});
+
+test('trusted touch starts on the center of the prayer textarea and reveals the neighboring page', async t => {
+  const { page, context, errors } = await setup(t, 'chromium');
+  const draft = page.locator('textarea').first(); await draft.fill('A prayer to keep'); await draft.blur();
+  const bounds = await draft.boundingBox();
+  const x = bounds.x + bounds.width / 2, y = bounds.y + bounds.height / 2;
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  for (const delta of [15, 35, 70, 100, 130]) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x - delta, y }] });
+  await frame(page);
+  assert.equal(await page.locator('[data-tab-pager]').getAttribute('data-swiping'), 'true');
+  assert.equal(new URL(page.url()).pathname, '/');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+  await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
+  assert.equal(await draft.inputValue(), 'A prayer to keep');
   assert.deepEqual(errors, []);
 });
 
