@@ -162,6 +162,7 @@ for (const engine of ['chromium', 'webkit']) {
     await map.waitFor();
     assert.equal(await map.locator('li').count(), 3);
     assert.equal(await map.locator('svg').count(), 3);
+    assert.equal(await map.locator('[data-ai-journey-scrollbar]').count(), 0, 'A route that fits needs no horizontal scrollbar');
     assert.equal(await map.locator('figcaption').count(), 0);
     const mapText = await map.innerText();
     for (const removed of ['Journey', 'In passage order', 'A schematic sequence', 'مسار الرحلة', 'حسب تسلسل المقطع', 'دون مقياس']) assert.equal(mapText.includes(removed), false);
@@ -191,6 +192,12 @@ for (const engine of ['chromium', 'webkit']) {
       { place: 'بئر يعقوب', description: 'جلس عند البئر', reference: 'يوحنا 4:6', kind: 'stop' }, journey.stops[2]] } };
     await request();
     assert.equal(await map.locator('li').count(), 5);
+    const horizontalBar = map.locator('[data-ai-journey-scrollbar]');
+    await horizontalBar.waitFor();
+    await page.waitForTimeout(1000);
+    assert.equal(await horizontalBar.evaluate(element => Number(getComputedStyle(element).opacity)), 1, 'Overflow hint remains visible until the user scrolls');
+    const initialThumb = await horizontalBar.boundingBox();
+    if (process.env.AI_MODE_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.AI_MODE_SCREENSHOT_DIR, `wasla-ai-journey-scrollbar-${engine}.png`) });
     if (engine === 'chromium') {
       const session = await page.context().newCDPSession(page);
       const bounds = await map.locator('[data-ai-journey-scroll]').boundingBox();
@@ -200,11 +207,25 @@ for (const engine of ['chromium', 'webkit']) {
         await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + step * 12, y }] });
         await page.waitForTimeout(20);
       }
+      await page.waitForTimeout(1000);
+      assert.equal(await horizontalBar.evaluate(element => Number(getComputedStyle(element).opacity)), 1, 'The bar must not hide while the finger is held down');
       await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       await page.waitForFunction(() => Math.abs(document.querySelector('[data-ai-journey-scroll]').scrollLeft) > 3);
       await session.detach();
       assert.equal(await card.isVisible(), true, 'Swiping the route must not dismiss the response');
+    } else {
+      const routeScroll = map.locator('[data-ai-journey-scroll]');
+      await routeScroll.evaluate(element => element.dispatchEvent(new TouchEvent('touchstart')));
+      await routeScroll.evaluate(element => { element.scrollLeft = -72; });
+      await page.waitForTimeout(1000);
+      assert.equal(await horizontalBar.evaluate(element => Number(getComputedStyle(element).opacity)), 1, 'Holding the route keeps its scrollbar visible');
+      await routeScroll.evaluate(element => element.dispatchEvent(new TouchEvent('touchcancel')));
     }
+    assert.ok((await horizontalBar.boundingBox()).x < initialThumb.x, 'The thumb follows the RTL scroll position');
+    await page.waitForFunction(() => Number(getComputedStyle(document.querySelector('[data-ai-journey-scrollbar]')).opacity) < 0.05);
+    await map.locator('[data-ai-journey-scroll]').evaluate(element => { element.scrollLeft = 0; });
+    await page.waitForFunction(() => Number(getComputedStyle(document.querySelector('[data-ai-journey-scrollbar]')).opacity) > 0.95);
+    await page.waitForFunction(() => Number(getComputedStyle(document.querySelector('[data-ai-journey-scrollbar]')).opacity) < 0.05);
     await map.getByText('الجليل', { exact: true }).scrollIntoViewIfNeeded();
     assert.ok(await map.locator('[data-ai-journey-scroll]').evaluate(element => element.scrollWidth > element.clientWidth && Math.abs(element.scrollLeft) > 0), 'A longer route scrolls sideways within the card');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
