@@ -7,7 +7,7 @@ const verses = JSON.parse(fs.readFileSync(path.join(__dirname, '../../public/Tas
   .sort((a, b) => a.verseNumber - b.verseNumber)
   .map((verse, i) => ({ ...verse, _id: `settings-verse-${i}`, translation: 'AVD' }));
 
-async function reader(t, engine, { mode = 'paragraph', reducedMotion = false, language = 'en', warmSettings = true, platform = 'ios', contextOptions } = {}) {
+async function reader(t, engine, { mode = 'paragraph', reducedMotion = false, language = 'en', warmSettings = true, platform = 'ios', contextOptions, swipeEnabled = false } = {}) {
   const fixture = await setup(t, engine, { href: '/bible_form/', platform, contextOptions, deferIdle: !warmSettings, beforeNavigate: async page => {
   if (platform === 'web') await page.route('**/bible/**', route => {
     const url = new URL(route.request().url());
@@ -19,11 +19,12 @@ async function reader(t, engine, { mode = 'paragraph', reducedMotion = false, la
     return route.fallback();
   });
   await page.emulateMedia({ reducedMotion: reducedMotion ? 'reduce' : 'no-preference' });
-  await page.evaluate(async ({ verses, mode, language }) => {
+  await page.evaluate(async ({ verses, mode, language, swipeEnabled }) => {
     localStorage.setItem('app-language', language);
     // This fixture isolates settings/search; adjacent tab preparation has its
     // own browser suite and should not distort opening-frame measurements.
-    localStorage.setItem('wasla_swipe_navigation', 'off');
+    localStorage.setItem('wasla_swipe_navigation', swipeEnabled ? 'on' : 'off');
+    localStorage.setItem('taspe7_category_hymns_tour_done', '1');
     localStorage.setItem('taspe7_storage_migrated_v1', '1');
     localStorage.setItem('taspe7_bible_translation', 'AVD');
     localStorage.setItem('taspe7_bible_downloaded_translations', JSON.stringify(['AVD']));
@@ -41,7 +42,7 @@ async function reader(t, engine, { mode = 'paragraph', reducedMotion = false, la
       tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
     });
     db.close();
-  }, { verses, mode, language });
+  }, { verses, mode, language, swipeEnabled });
   await page.addInitScript(() => {
     // A data-specific counter catches a full chapter render even if React's
     // DOM diff produces no mutations. No production instrumentation is added.

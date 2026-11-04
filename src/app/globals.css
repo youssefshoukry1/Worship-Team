@@ -235,9 +235,18 @@ html[data-startup-language="de"] [data-startup-lang="de"] { display: inline; }
   }
 }
 
-.primary-tab-pager { position: relative; width: 100%; overflow-x: clip; }
-.primary-tab-panel[data-tab-active="false"] { position: absolute; inset-inline: 0; top: 0; }
-.primary-tab-pager[data-swiping] { overflow: clip; }
+.primary-tab-pager { position: relative; width: 100%; overflow: clip; }
+/* Prepared pages must not contribute their full list height to another tab's
+   document, or become enormous moving layers when a gesture starts. */
+.primary-tab-panel[data-tab-active="false"],
+.primary-tab-panel[data-swipe-moving] {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: calc(100dvh - 5rem);
+  overflow: clip;
+  contain: paint;
+}
 .primary-tab-panel[data-swipe-moving] { background: var(--app-bg); }
 
 .app-page-transition {

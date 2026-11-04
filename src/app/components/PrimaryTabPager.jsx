@@ -74,11 +74,14 @@ export default function PrimaryTabPager({ index }) {
         panel.style.removeProperty('transition');
         panel.style.removeProperty('will-change');
         panel.style.top = '';
+        panel.style.height = '';
+        panel.firstElementChild.style.marginTop = '';
         panel.style.transform = Number(panel.dataset.tabIndex) === indexRef.current ? '' : `translate3d(${Number(panel.dataset.tabIndex) < indexRef.current ? -100 : 100}%,0,0)`;
         panel.removeAttribute('data-swipe-moving');
       }
       root.removeAttribute('data-swiping');
       root.removeAttribute('data-settling');
+      root.style.height = '';
       releaseNavigationWork();
     };
     cancelRef.current = clear;
@@ -120,10 +123,18 @@ export default function PrimaryTabPager({ index }) {
         if (!source || !incoming) return false;
         const width = root.clientWidth;
         const top = window.scrollY;
+        const rootBox = root.getBoundingClientRect();
+        // The inactive frame already resolves 100dvh, including browser chrome.
+        const viewportHeight = incoming.clientHeight;
         holdNavigationWork();
         session.current = { direction, target, source, incoming, width };
-        incoming.style.top = `${top}px`;
+        // Leave a spacer equal to the active document's height. Cropping a
+        // long source to the visible screen must never clamp window.scrollY.
+        root.style.height = `${rootBox.height}px`;
+        source.firstElementChild.style.marginTop = `${-top}px`;
         for (const panel of [source, incoming]) {
+          panel.style.top = `${top}px`;
+          panel.style.height = `${viewportHeight}px`;
           panel.style.willChange = 'transform';
           panel.setAttribute('data-swipe-moving', 'true');
         }
@@ -131,7 +142,8 @@ export default function PrimaryTabPager({ index }) {
         return true;
       }, update: move, finish: settle, cancel: () => settle(false),
     }) : () => {};
-    return () => { disposed = true; remove(); clear(); cancelRef.current = null; };
+    window.addEventListener('resize', clear, { passive: true });
+    return () => { disposed = true; remove(); clear(); cancelRef.current = null; window.removeEventListener('resize', clear); };
   }, [enabled, router]);
 
   // Keep the current page and its immediate neighbors, never the whole app.
@@ -144,11 +156,11 @@ export default function PrimaryTabPager({ index }) {
       return <div key={routes[pageIndex]} data-tab-panel={routes[pageIndex]} data-tab-index={pageIndex} data-tab-ready={ready ? 'true' : 'false'} data-tab-active={active ? 'true' : 'false'}
         className="primary-tab-panel" aria-hidden={active ? undefined : true} inert={active ? undefined : true}
         style={{ transform: active ? undefined : `translate3d(${pageIndex < index ? -100 : 100}%,0,0)` }}>
-        <TabPageActivity.Provider value={active}>
+        <div className="primary-tab-content"><TabPageActivity.Provider value={active}>
           <Suspense fallback={<PageSkeleton variant={variants[pageIndex]} fullPage />}>
             {ready ? <Page /> : <PageSkeleton variant={variants[pageIndex]} fullPage />}
           </Suspense>
-        </TabPageActivity.Provider>
+        </TabPageActivity.Provider></div>
       </div>;
     })}
   </div>;

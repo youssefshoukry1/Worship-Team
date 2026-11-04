@@ -600,6 +600,7 @@ export function BibleForm({ controller, isPage = false }) {
   } = controller;
 
   const actionCardRef = useRef(null);
+  const actionTouchStartX = useRef(0);
   const actionTouchStartY = useRef(0);
   const actionLastY = useRef(0);
   const actionLastTime = useRef(0);
@@ -609,6 +610,39 @@ export function BibleForm({ controller, isPage = false }) {
   const actionResponseScroller = useRef(null);
 
   const isClosingActionPanel = useRef(false);
+  const selectionPanelOpen = isOpen && bibleSelectedVerseIds.size > 0;
+
+  useEffect(() => {
+    const panel = actionCardRef.current;
+    if (!selectionPanelOpen || !panel) return;
+    let previousY = 0;
+    const rememberTouch = event => { previousY = event.touches[0]?.clientY ?? 0; };
+    // React's delegated touchmove is passive. Cancel at the panel itself so
+    // its gestures cannot pan the document, while real response/palette
+    // scrollers retain native scrolling in the direction they can consume.
+    const containTouch = event => {
+      if (event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      const dx = touch.clientX - actionTouchStartX.current;
+      const dy = touch.clientY - actionTouchStartY.current;
+      const stepY = touch.clientY - previousY;
+      previousY = touch.clientY;
+      const response = event.target.closest('[data-ai-response-scroll]');
+      if (response && Math.abs(dy) >= Math.abs(dx) && (
+        (stepY < 0 && response.scrollTop + response.clientHeight < response.scrollHeight - 1)
+        || (stepY > 0 && response.scrollTop > 0)
+      )) return;
+      const palette = event.target.closest('[data-bible-highlight-palette]');
+      if (palette && Math.abs(dx) > Math.abs(dy) && palette.scrollWidth > palette.clientWidth) return;
+      if (event.cancelable) event.preventDefault();
+    };
+    panel.addEventListener('touchstart', rememberTouch, { passive: true });
+    panel.addEventListener('touchmove', containTouch, { passive: false });
+    return () => {
+      panel.removeEventListener('touchstart', rememberTouch);
+      panel.removeEventListener('touchmove', containTouch);
+    };
+  }, [selectionPanelOpen]);
 
   const closeSelectionPanel = () => {
     if (isClosingActionPanel.current) return;
@@ -633,6 +667,8 @@ export function BibleForm({ controller, isPage = false }) {
   };
 
   const handleActionTouchStart = (e) => {
+    actionTouchStartX.current = e.touches[0].clientX;
+    actionTouchStartY.current = e.touches[0].clientY;
     const response = e.target.closest('[data-ai-response]');
     const scroller = response?.querySelector('[data-ai-response-scroll]') || null;
     actionResponseScroller.current = scroller;
@@ -655,8 +691,14 @@ export function BibleForm({ controller, isPage = false }) {
 
   const handleActionTouchMove = (e) => {
     if (showColorCustomizer || !actionDragEnabled.current) return;
+    if (e.touches.length !== 1) { actionDragEnabled.current = false; return; }
     const currentY = e.touches[0].clientY;
     const deltaY = currentY - actionTouchStartY.current;
+    const deltaX = Math.abs(e.touches[0].clientX - actionTouchStartX.current);
+    if (deltaX > 8 && deltaX > Math.abs(deltaY) * 1.2) {
+      actionDragEnabled.current = false;
+      return;
+    }
     const scroller = actionResponseScroller.current;
     if (scroller && (scroller.scrollTop > 0 || deltaY < -5)) {
       // Once the user scrolls, reaching the top cannot turn this gesture into a drag.
@@ -1158,6 +1200,8 @@ export function BibleForm({ controller, isPage = false }) {
             {bibleSelectedVerseIds.size > 0 && (
               <div
                 ref={actionCardRef}
+                data-bible-selection-panel
+                data-page-swipe="off"
                 onTouchStart={handleActionTouchStart}
                 onTouchMove={handleActionTouchMove}
                 onTouchEnd={handleActionTouchEnd}
@@ -1322,7 +1366,7 @@ export function BibleForm({ controller, isPage = false }) {
                   )}
 
                   {/* Highlights */}
-                  <div className="flex items-center gap-2.5 overflow-x-auto py-1 hide-scrollbar">
+                  <div data-bible-highlight-palette className="flex items-center gap-2.5 overflow-x-auto py-1 hide-scrollbar">
                     {highlightColorsList.map(c => {
                       const isColorActive = Array.from(bibleSelectedVerseIds).every(id => bibleHighlights[id] === c.id);
                       const isCustom = c.id.startsWith('custom-') || !HIGHLIGHT_COLORS.some(h => h.id === c.id);

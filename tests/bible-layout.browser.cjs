@@ -57,7 +57,7 @@ for (const engine of ['chromium', 'webkit']) {
   });
 
   test(`${engine}: mobile website and native-sized viewports keep the reader within the visible window`, async t => {
-    const { page, surface, errors } = await reader(t, engine, { platform: 'web' });
+    const { page, surface, errors } = await reader(t, engine, { platform: 'web', swipeEnabled: true });
     for (const viewport of [{ width: 390, height: 844 }, { width: 390, height: 650 }, { width: 844, height: 390 }, { width: 320, height: 568 }]) {
       await page.setViewportSize(viewport);
       await surface.locator(':scope > [data-lenis-prevent-wheel]').evaluate(node => { node.scrollTop = node.scrollHeight; });
