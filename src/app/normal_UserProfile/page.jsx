@@ -19,6 +19,7 @@ import ProfileLayout from '../components/profile/ProfileLayout';
 import ProfileHeaderCard from '../components/profile/ProfileHeaderCard';
 import ProfileStats from '../components/profile/ProfileStats';
 import FriendshipControls from '../components/profile/FriendshipControls';
+import AiStudyModeSettings from '../components/profile/AiStudyModeSettings';
 import cropStyles from './profileCropper.module.css';
 import {
     Activity,
@@ -1131,6 +1132,8 @@ function UserProfile({ profileUserId }) {
                                     </button>
                                 </div>
                             </div>
+
+                            <AiStudyModeSettings userId={user_id} />
 
                             {/* Appearance Group */}
                             <div>

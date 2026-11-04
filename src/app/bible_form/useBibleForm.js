@@ -12,6 +12,7 @@ import { initLocalBible, prepareLocalBible, getLocalBibleIndex, searchLocalBible
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { invalidateProfile, readCachedProfile, refreshProfile } from '../utils/profileCache';
 import { prepareLocalAiOpening, completeLocalAiRequest, cancelLocalAiOpening } from '../utils/aiPersonalization';
+import { readAiStudyMode } from '../utils/aiStudyMode';
 import { readTabJson, readTabResource, tabReadKey } from '../utils/tabRequests';
 import { HIGHLIGHT_COLORS, BIBLE_LAST_POS_KEY } from './bibleShared';
 import { useTabPageActive } from '../components/TabPageActivity';
@@ -1075,6 +1076,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('user_Taspe7_Token') : null;
       requestUserId = token ? localStorage.getItem('user_Taspe7_ID') : null;
+      const studyMode = readAiStudyMode(requestUserId);
       const sameAccount = () => requestUserId && localStorage.getItem('user_Taspe7_ID') === requestUserId
         && localStorage.getItem('user_Taspe7_Token') === token;
       if (sameAccount()) {
@@ -1095,6 +1097,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
         verseReference: getSelectedVersesRef(),
         textContent,
         analysisType,
+        studyMode,
         ...(openingReservation && sameAccount() ? { openingContext: openingReservation.context } : {})
       }, { headers });
       let explanation = data.explanation || '';
