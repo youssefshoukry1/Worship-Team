@@ -7,15 +7,15 @@ const verses = JSON.parse(fs.readFileSync(path.join(__dirname, '../../public/Tas
   .sort((a, b) => a.verseNumber - b.verseNumber)
   .map((verse, i) => ({ ...verse, _id: `settings-verse-${i}`, translation: 'AVD' }));
 
-async function reader(t, engine, { mode = 'paragraph', reducedMotion = false, language = 'en', warmSettings = true, platform = 'ios', contextOptions, swipeEnabled = false } = {}) {
+async function reader(t, engine, { mode = 'paragraph', reducedMotion = false, language = 'en', warmSettings = true, platform = 'ios', contextOptions, swipeEnabled = false, passage = verses } = {}) {
   const fixture = await setup(t, engine, { href: '/bible_form/', platform, contextOptions, deferIdle: !warmSettings, beforeNavigate: async page => {
   if (platform === 'web') await page.route('**/bible/**', route => {
     const url = new URL(route.request().url());
     const headers = { 'access-control-allow-origin': '*' };
     if (url.pathname.endsWith('/translations')) return route.fulfill({ headers, json: ['AVD'] });
-    if (url.pathname.endsWith('/books')) return route.fulfill({ headers, json: [{ _id: verses[0].bookName, bookName: verses[0].bookName, bookNumber: 19 }] });
-    if (url.pathname.includes('/chapters/')) return route.fulfill({ headers, json: [119] });
-    if (url.pathname.includes('/verses/')) return route.fulfill({ headers, json: verses });
+    if (url.pathname.endsWith('/books')) return route.fulfill({ headers, json: [{ _id: passage[0].bookName, bookName: passage[0].bookName, bookNumber: passage[0].bookNumber }] });
+    if (url.pathname.includes('/chapters/')) return route.fulfill({ headers, json: [passage[0].chapter] });
+    if (url.pathname.includes('/verses/')) return route.fulfill({ headers, json: passage });
     return route.fallback();
   });
   await page.emulateMedia({ reducedMotion: reducedMotion ? 'reduce' : 'no-preference' });
@@ -29,8 +29,8 @@ async function reader(t, engine, { mode = 'paragraph', reducedMotion = false, la
     localStorage.setItem('taspe7_bible_translation', 'AVD');
     localStorage.setItem('taspe7_bible_downloaded_translations', JSON.stringify(['AVD']));
     localStorage.setItem('taspe7_bible_view_mode', mode);
-    localStorage.setItem('taspe7_bible_last_position', JSON.stringify({ bookName: verses[0].bookName, chapter: 119 }));
-    localStorage.setItem('taspe7_bible_last_verses', JSON.stringify({ bookName: verses[0].bookName, chapter: 119, translation: 'AVD', verses }));
+    localStorage.setItem('taspe7_bible_last_position', JSON.stringify({ bookName: verses[0].bookName, chapter: verses[0].chapter }));
+    localStorage.setItem('taspe7_bible_last_verses', JSON.stringify({ bookName: verses[0].bookName, chapter: verses[0].chapter, translation: 'AVD', verses }));
     const db = await new Promise((resolve, reject) => {
       const request = indexedDB.open('taspe7_app');
       request.onupgradeneeded = () => request.result.createObjectStore('bible_store');
@@ -42,7 +42,7 @@ async function reader(t, engine, { mode = 'paragraph', reducedMotion = false, la
       tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
     });
     db.close();
-  }, { verses, mode, language, swipeEnabled });
+  }, { verses: passage, mode, language, swipeEnabled });
   await page.addInitScript(() => {
     // A data-specific counter catches a full chapter render even if React's
     // DOM diff produces no mutations. No production instrumentation is added.
@@ -59,7 +59,7 @@ async function reader(t, engine, { mode = 'paragraph', reducedMotion = false, la
   await surface.getByTitle(language === 'ar' ? '\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a' : 'Settings', { exact: true }).waitFor();
   if (warmSettings) await surface.locator('[data-bible-settings]').waitFor({ state: 'attached' });
   await page.waitForTimeout(250);
-  return { ...fixture, surface, verseCount: verses.length };
+  return { ...fixture, surface, verseCount: passage.length };
 }
 
 module.exports = { reader, verses };

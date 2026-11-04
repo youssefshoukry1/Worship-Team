@@ -12,8 +12,10 @@ import PageSkeleton from '../components/PageSkeleton';
 import { useRouter, usePathname } from 'next/navigation';
 import { HIGHLIGHT_COLORS, BIBLE_LAST_POS_KEY } from './bibleShared';
 import BibleSettings from './BibleSettings';
+import { aiStudyTextSegments } from '../utils/aiWordStudies';
+import AiJourneyMap from './AiJourneyMap';
 
-function AiResponseText({ text }) {
+function AiResponseText({ text, wordStudies, journey }) {
   const scrollRef = useRef(null);
   const [thumb, setThumb] = useState({ height: 0, top: 0 });
   const [scrollbarVisible, setScrollbarVisible] = useState(true);
@@ -48,16 +50,23 @@ function AiResponseText({ text }) {
 
   return (
     <div className="relative mx-auto max-w-[65ch] font-arabic text-[13px] font-normal leading-[2] tracking-normal text-right text-slate-100 whitespace-pre-line break-words antialiased">
-      <p
+      <div
         ref={scrollRef}
         lang="ar"
         dir="rtl"
         data-ai-response-scroll
         data-lenis-prevent-wheel
-        className="max-h-[10em] overflow-y-auto overscroll-y-contain touch-pan-y hide-scrollbar"
+        className={`${journey ? 'max-h-[min(44dvh,360px)]' : 'max-h-[10em]'} overflow-y-auto overscroll-y-contain touch-pan-y hide-scrollbar`}
       >
-        {text}
-      </p>
+        <p>
+        {aiStudyTextSegments(text, wordStudies).map((segment, index) => segment.kind === 'word'
+          ? <span key={index} data-ai-study-word className="font-semibold text-sky-400">{segment.text}</span>
+          : segment.kind === 'original'
+            ? <bdi key={index} lang={segment.language === 'hebrew' ? 'he' : 'el'} dir={segment.language === 'hebrew' ? 'rtl' : 'ltr'}>{segment.text}</bdi>
+            : <React.Fragment key={index}>{segment.text}</React.Fragment>)}
+        </p>
+        {journey && <AiJourneyMap journey={journey} />}
+      </div>
       {thumb.height > 0 && (
         <span
           aria-hidden="true"
@@ -1359,7 +1368,7 @@ export function BibleForm({ controller, isPage = false }) {
                             {aiAnalysis.isLimit && isLogin && <div className="mt-2 flex justify-center"><button type="button" onClick={() => router.push('/plans')} className="inline-flex min-h-11 items-center justify-center rounded-full bg-sky-500 px-5 py-2 text-xs font-bold text-white hover:bg-sky-400">{language === 'ar' ? 'عرض الخطط' : 'View plans'}</button></div>}
                           </>
                         ) : (
-                          <AiResponseText key={aiAnalysis.text} text={aiAnalysis.text} />
+                          <AiResponseText key={aiAnalysis.text} text={aiAnalysis.text} wordStudies={aiAnalysis.studyMode === 'old_man' ? aiAnalysis.wordStudies : []} journey={aiAnalysis.studyMode === 'old_man' ? aiAnalysis.journey : null} />
                         )}
                       </div>
                     </div>
