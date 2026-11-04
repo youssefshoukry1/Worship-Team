@@ -56,7 +56,7 @@ function AiResponseText({ text, wordStudies, journey }) {
         dir="rtl"
         data-ai-response-scroll
         data-lenis-prevent-wheel
-        className={`${journey ? 'max-h-[min(44dvh,360px)]' : 'max-h-[10em]'} overflow-y-auto overscroll-y-contain touch-pan-y hide-scrollbar`}
+        className={`${journey ? 'max-h-[min(44dvh,360px)] touch-auto' : 'max-h-[10em] touch-pan-y'} overflow-y-auto overscroll-y-contain hide-scrollbar`}
       >
         <p>
         {aiStudyTextSegments(text, wordStudies).map((segment, index) => segment.kind === 'word'
@@ -643,6 +643,8 @@ export function BibleForm({ controller, isPage = false }) {
       )) return;
       const palette = event.target.closest('[data-bible-highlight-palette]');
       if (palette && Math.abs(dx) > Math.abs(dy) && palette.scrollWidth > palette.clientWidth) return;
+      const journey = event.target.closest('[data-ai-journey-scroll]');
+      if (journey && Math.abs(dx) > Math.abs(dy) && journey.scrollWidth > journey.clientWidth) return;
       if (event.cancelable) event.preventDefault();
     };
     panel.addEventListener('touchstart', rememberTouch, { passive: true });

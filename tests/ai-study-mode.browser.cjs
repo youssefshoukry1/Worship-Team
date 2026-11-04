@@ -162,7 +162,17 @@ for (const engine of ['chromium', 'webkit']) {
     await map.waitFor();
     assert.equal(await map.locator('li').count(), 3);
     assert.equal(await map.locator('svg').count(), 3);
-    assert.equal(await map.getByText('الوجهة المذكورة', { exact: true }).count(), 1);
+    assert.equal(await map.locator('figcaption').count(), 0);
+    const mapText = await map.innerText();
+    for (const removed of ['Journey', 'In passage order', 'A schematic sequence', 'مسار الرحلة', 'حسب تسلسل المقطع', 'دون مقياس']) assert.equal(mapText.includes(removed), false);
+    const stations = await map.locator('li').evaluateAll(elements => elements.map(element => {
+      const rect = element.getBoundingClientRect(); return { x: rect.x, y: rect.y };
+    }));
+    assert.ok(stations.every(station => Math.abs(station.y - stations[0].y) < 1));
+    assert.ok(stations[0].x > stations[1].x && stations[1].x > stations[2].x, 'Stations run right to left in one row');
+    assert.equal(await map.getByText('الوجهة المذكورة', { exact: true }).count(), 0);
+    assert.equal(await map.getByText('Stated destination', { exact: true }).count(), 0);
+    assert.equal(/يوحنا 4:\d/u.test(mapText), false);
     assert.equal(await map.getByText('السامرة', { exact: true }).count(), 1);
     assert.equal(requests[0].nearbyVerses.length, 4);
     assert.equal(requests[0].nearbyVerses.some(verse => verse.verseNumber === 4), false);
@@ -170,17 +180,41 @@ for (const engine of ['chromium', 'webkit']) {
     await scroller.evaluate(element => { element.scrollTop = element.scrollHeight; });
     await map.getByText('الجليل', { exact: true }).scrollIntoViewIfNeeded();
     assert.equal(await map.getByText('الجليل', { exact: true }).isVisible(), true);
+    const horizontal = await map.locator('[data-ai-journey-scroll]').evaluate(element => ({ width: element.clientWidth, content: element.scrollWidth, left: element.scrollLeft, page: document.documentElement.scrollWidth, viewport: innerWidth }));
+    assert.ok(horizontal.content <= horizontal.width || Math.abs(horizontal.left) > 0, `Overflow stays inside the horizontal route: ${JSON.stringify(horizontal)}`);
     const size = await card.boundingBox();
     assert.ok(size.y >= 0 && size.y + size.height <= (await page.viewportSize()).height + 1);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     if (process.env.AI_MODE_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.AI_MODE_SCREENSHOT_DIR, `wasla-ai-journey-${engine}.png`) });
+    payload = { ...payload, journey: { stops: [journey.stops[0], journey.stops[1],
+      { place: 'سوخار', description: 'وصل إلى المدينة', reference: 'يوحنا 4:5', kind: 'stop' },
+      { place: 'بئر يعقوب', description: 'جلس عند البئر', reference: 'يوحنا 4:6', kind: 'stop' }, journey.stops[2]] } };
+    await request();
+    assert.equal(await map.locator('li').count(), 5);
+    if (engine === 'chromium') {
+      const session = await page.context().newCDPSession(page);
+      const bounds = await map.locator('[data-ai-journey-scroll]').boundingBox();
+      const x = bounds.x + bounds.width * 0.3, y = bounds.y + 20;
+      await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+      for (let step = 1; step <= 6; step++) {
+        await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + step * 12, y }] });
+        await page.waitForTimeout(20);
+      }
+      await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await page.waitForFunction(() => Math.abs(document.querySelector('[data-ai-journey-scroll]').scrollLeft) > 3);
+      await session.detach();
+      assert.equal(await card.isVisible(), true, 'Swiping the route must not dismiss the response');
+    }
+    await map.getByText('الجليل', { exact: true }).scrollIntoViewIfNeeded();
+    assert.ok(await map.locator('[data-ai-journey-scroll]').evaluate(element => element.scrollWidth > element.clientWidth && Math.abs(element.scrollLeft) > 0), 'A longer route scrolls sideways within the card');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     payload = { explanation: 'شرح مباشر دون رحلة تتطلب مخططاً.', journey: null, wordStudies: [] };
     await request(); assert.equal(await map.count(), 0);
     await page.evaluate(() => localStorage.setItem('wasla_ai_study_mode_v1:tester', 'normal'));
     payload = { explanation: 'شرح مباشر للمقطع.', journey };
     await request(); assert.equal(await map.count(), 0);
-    assert.equal(requests[2].nearbyVerses, undefined);
-    assert.equal(requests.length, 3);
+    assert.equal(requests[3].nearbyVerses, undefined);
+    assert.equal(requests.length, 4);
     assert.deepEqual(mapRequests, []);
     assert.deepEqual(errors, []);
   });
