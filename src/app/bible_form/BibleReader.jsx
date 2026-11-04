@@ -6,11 +6,12 @@ import Portal from '../Portal/Portal';
 import { UserContext } from '../context/User_Context';
 import { useLanguage } from '../context/LanguageContext';
 import { showToast } from '../components/ToastContainer';
-import { X, Check, Search, FileText, BookOpen, ChevronLeft, ChevronRight, Loader2, Copy, Lightbulb, FolderPlus, Monitor, PlusCircle, Link2, List, AlignJustify, Download, SlidersHorizontal, CircleHelp, Plus, Trash2 } from 'lucide-react';
+import { X, Check, Search, FileText, BookOpen, ChevronLeft, ChevronRight, Loader2, Copy, Lightbulb, Monitor, PlusCircle, Link2, Download, CircleHelp, Plus, Trash2 } from 'lucide-react';
 import WaslaWaveLogo from '../components/WaslaWaveLogo';
 import PageSkeleton from '../components/PageSkeleton';
 import { useRouter, usePathname } from 'next/navigation';
 import { HIGHLIGHT_COLORS, BIBLE_LAST_POS_KEY } from './bibleShared';
+import BibleSettings from './BibleSettings';
 
 function AiResponseText({ text }) {
   const scrollRef = useRef(null);
@@ -116,6 +117,7 @@ const VerseItem = React.memo(({
   const highlightStyle = getHighlightStyles(highlightColor, highlightColorsList);
   return (
     <div
+      data-bible-verse={verse._id}
       data-selected={isSelected}
       data-highlighted={Boolean(highlightStyle)}
       onClick={() => onClick(verse._id)}
@@ -123,7 +125,7 @@ const VerseItem = React.memo(({
         marginBottom: `${spacing}px`,
         ...highlightStyle
       }}
-      className={`bible-verse group relative cursor-pointer p-4 rounded-xl transition-all duration-200 ${!highlightStyle && isSelected
+      className={`bible-verse group relative cursor-pointer p-4 rounded-xl transition-colors duration-200 ${!highlightStyle && isSelected
         ? 'bg-white/5 border border-white/10'
         : !highlightStyle
           ? 'hover:bg-white/5 border border-white/0 hover:border-white/10'
@@ -141,7 +143,7 @@ const VerseItem = React.memo(({
         </div>
         <div className="flex-1 flex flex-col gap-2 min-w-0">
           <p
-            className={`leading-relaxed sm:leading-normal font-arabic transition-all break-words ${isSelected || highlightStyle ? 'text-white' : 'text-white/80 group-hover:text-white'}`}
+            className={`leading-relaxed sm:leading-normal font-arabic transition-colors break-words ${isSelected || highlightStyle ? 'text-white' : 'text-white/80 group-hover:text-white'}`}
             style={{ fontSize: `${fontSize}px` }}
           >
             {verse.text}
@@ -480,7 +482,7 @@ function ColorCustomizer({
 function BibleReaderWrapper({ isPage, onClose, children }) {
   if (isPage) {
     return (
-      <div data-feature="bible-reader" className="app-page w-full flex items-center justify-center p-0 sm:p-6 h-[calc(100dvh-5rem)] overflow-hidden">
+      <div data-feature="bible-reader" className="app-page w-full flex items-center justify-center p-0 sm:px-6 sm:pt-6 h-[calc(100dvh-5rem)] overflow-hidden">
         {children}
       </div>
     );
@@ -502,10 +504,9 @@ export function BibleForm({ controller, isPage = false }) {
   const router = useRouter();
   const pathname = usePathname();
   const isStandalonePage = isPage || pathname?.startsWith('/bible_form');
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [addVersionMenuOpen, setAddVersionMenuOpen] = useState(false);
-  const settingsPanelRef = useRef(null);
-  const settingsBtnRef = useRef(null);
+  const settingsRef = useRef(null);
+  const readerSurfaceRef = useRef(null);
 
   const compareModalCardRef = useRef(null);
   const compareScrollRef = useRef(null);
@@ -567,38 +568,24 @@ export function BibleForm({ controller, isPage = false }) {
     compareStartedAtTop.current = false;
   };
 
-  const justClosedSettingsRef = useRef(0);
-
-  useEffect(() => {
-    if (!isSettingsOpen) return;
-    const handleOutsideClick = (e) => {
-      if (settingsBtnRef.current && settingsBtnRef.current.contains(e.target)) return;
-      if (settingsPanelRef.current && !settingsPanelRef.current.contains(e.target)) {
-        setIsSettingsOpen(false);
-        justClosedSettingsRef.current = Date.now();
-      }
-    };
-    document.addEventListener('pointerdown', handleOutsideClick);
-    return () => document.removeEventListener('pointerdown', handleOutsideClick);
-  }, [isSettingsOpen]);
   const { isLogin } = useContext(UserContext);
   const { t, language } = useLanguage();
   const {
     isOpen,
-    bibleSearchQuery, setBibleSearchQuery, bibleSearchResults, setBibleSearchResults, isSearchingBible,
+    bibleSearchQuery, setBibleSearchQuery, bibleSearchResults, setBibleSearchResults, bibleSearchUnavailable, retryBibleSearch, isSearchingBible,
     showBibleSearchBar, setShowBibleSearchBar,
     bibleModalBooks, setBibleModalBooks, bibleModalBook, setBibleModalBook,
     bibleModalChapters, setBibleModalChapters, bibleModalChapter, setBibleModalChapter,
     bibleModalVerses, setBibleModalVerses, bibleSelectedVerseIds, setBibleSelectedVerseIds,
-    aiAnalysis, setAiAnalysis, showAiOptions, setShowAiOptions, bibleVerseFontSize, setBibleVerseFontSize,
-    bibleAddedSuccess, bibleModalBrowseLoading, biblePickerOpen, setBiblePickerOpen,
-    bibleBookPickerRef, bibleChapterPickerRef, isSavingBible, bibleVerseSpacing,
-    handleSetBibleVerseSpacing, bibleViewMode, handleSetBibleViewMode, bibleHighlights, imageCardConfig, setImageCardConfig,
-    bibleVerseGap, handleSetBibleVerseGap,
+    aiAnalysis, setAiAnalysis, showAiOptions, setShowAiOptions, bibleVerseFontSize,
+    bibleModalBrowseLoading, biblePickerOpen, setBiblePickerOpen,
+    bibleBookPickerRef, bibleChapterPickerRef, bibleVerseSpacing,
+    bibleViewMode, bibleHighlights, imageCardConfig, setImageCardConfig,
+    bibleVerseGap,
     prayModeActive, setPrayModeActive, highlightColorsList, setHighlightColorsList,
     showColorCustomizer, setShowColorCustomizer, customColorHex, setCustomColorHex,
     colorInputRef, handleTriggerColorPicker, handleColorPickerChange, handleApplyHighlight,
-    handleVerseClick, handleVerseNoteClick, bibleTranslation, setBibleTranslation,
+    handleVerseClick, handleVerseNoteClick, bibleTranslation,
     availableTranslations, downloadedTranslations, isDownloadingTranslation, isCheckingOffline,
     toggleDownloadTranslation, compareModal, setCompareModal, compareData, isLoadingCompare, compareVerseNums,
     compareSelectedTranslations, setCompareSelectedTranslations, compareMobileTab,
@@ -607,7 +594,7 @@ export function BibleForm({ controller, isPage = false }) {
     openCompare, verseNotes, noteModalConfig, setNoteModalConfig, noteText, setNoteText,
     isSubmittingNote, viewNoteConfig, setViewNoteConfig, handleSaveNote, closeBibleModal,
     getSelectedVersesRef, handleCopySelectedVerses, handleOpenImageCard, handleAiAnalysis,
-    saveBibleToWorkspace, openBiblePresentation, presentBibleFromSearchHit,
+    openBiblePresentation, presentBibleFromSearchHit,
     goToChapterFromSearch, goToNextChapter, goToPrevChapter, hasNextChapter, hasPrevChapter,
     bibleScrollContainerRef
   } = controller;
@@ -725,10 +712,7 @@ export function BibleForm({ controller, isPage = false }) {
   };
 
   const onVerseClick = (verseId) => {
-    if (isSettingsOpen || Date.now() - justClosedSettingsRef.current < 400) {
-      setIsSettingsOpen(false);
-      return;
-    }
+    if (settingsRef.current?.dismissForVerseTap()) return;
     if (bibleSelectedVerseIds.has(verseId) && bibleSelectedVerseIds.size === 1) {
       closeSelectionPanel();
     } else {
@@ -742,7 +726,8 @@ export function BibleForm({ controller, isPage = false }) {
       {isOpen && (
         <BibleReaderWrapper isPage={isStandalonePage} onClose={closeBibleModal}>
           <div
-            className="app-reading-surface relative w-full h-full sm:h-[85vh] max-w-4xl border sm:rounded-[2.5rem] flex flex-col overflow-hidden transition-colors duration-200"
+            ref={readerSurfaceRef}
+            className={`app-reading-surface relative w-full h-full ${isStandalonePage ? '' : 'sm:h-[85vh]'} max-w-4xl border sm:rounded-[2.5rem] flex flex-col overflow-hidden transition-colors duration-200`}
           >
             {/* --- MAIN SCROLL AREA - FIXED HEIGHT --- */}
             {/* Added 'overscroll-contain' to stop the website from scrolling when this reaches the end */}
@@ -767,6 +752,7 @@ export function BibleForm({ controller, isPage = false }) {
                       <button
                         onClick={() => {
                           setShowBibleSearchBar(!showBibleSearchBar);
+                          if (!showBibleSearchBar) setBiblePickerOpen(null);
                           if (showBibleSearchBar) {
                             setBibleSearchQuery('');
                           }
@@ -789,6 +775,7 @@ export function BibleForm({ controller, isPage = false }) {
                           <input
                             autoFocus
                             type="text"
+                            maxLength={512}
                             value={bibleSearchQuery}
                             onChange={(e) => setBibleSearchQuery(e.target.value)}
                             placeholder="ابحث بعمق..."
@@ -808,6 +795,7 @@ export function BibleForm({ controller, isPage = false }) {
                     </div>
 
                     {/* Compact Selectors */}
+                    {!showBibleSearchBar && (
                     <div className="flex gap-2 shrink-0">
                       <button
                         onClick={() => setBiblePickerOpen(o => o === 'book' ? null : 'book')}
@@ -826,6 +814,7 @@ export function BibleForm({ controller, isPage = false }) {
                         <span>{bibleModalChapter || '0'}</span>
                       </button>
                     </div>
+                    )}
                   </div>
 
                   {/* Smart Floating Pickers Area - Facebook-style CSS Accordion & Sliding Navigation */}
@@ -907,7 +896,7 @@ export function BibleForm({ controller, isPage = false }) {
                                     e.stopPropagation();
                                     presentBibleFromSearchHit(hit);
                                   }}
-                                  className="p-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 transition-all active:scale-90"
+                                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/5 transition-colors active:scale-90"
                                   title="Data Show"
                                 >
                                   <Monitor className="w-4 h-4" />
@@ -921,11 +910,28 @@ export function BibleForm({ controller, isPage = false }) {
                           ))}
                         </div>
                       </>
+                    ) : bibleSearchUnavailable ? (
+                      <div className="py-12 text-center text-sm text-white/60">
+                        <p role="status">
+                        {bibleSearchUnavailable === 'busy'
+                          ? (language === 'ar' ? 'خدمة البحث مشغولة مؤقتًا. حاول مجددًا بعد قليل.' : language === 'de' ? 'Die Suche ist vorübergehend ausgelastet. Versuche es gleich erneut.' : 'Search is temporarily busy. Please try again shortly.')
+                          : language === 'ar'
+                          ? 'البحث غير متاح الآن. اتصل بالإنترنت أو حمّل هذه الترجمة للبحث بدون اتصال.'
+                          : language === 'de'
+                            ? 'Die Suche ist gerade nicht verfügbar. Stelle eine Internetverbindung her oder lade diese Übersetzung für die Offline-Suche herunter.'
+                            : 'Search is unavailable right now. Connect to the internet or download this translation to search offline.'}
+                        </p>
+                        {bibleSearchUnavailable === 'busy' && (
+                          <button type="button" onClick={retryBibleSearch} className="mt-3 rounded-lg border border-white/10 px-4 py-2 text-sky-400">
+                            {language === 'ar' ? 'حاول مجددًا' : language === 'de' ? 'Erneut versuchen' : 'Try again'}
+                          </button>
+                        )}
+                      </div>
                     ) : (
                       <div className="py-20 text-center opacity-30">
                         <Search className="w-12 h-12 mx-auto mb-4" />
                         <p className="text-sm font-bold uppercase tracking-widest">
-                          {language === 'arabic' ? 'لم يتم العثور على نتائج' : 'No results found'}
+                          {language === 'ar' ? 'لم يتم العثور على نتائج' : 'No results found'}
                         </p>
                       </div>
                     )}
@@ -944,14 +950,7 @@ export function BibleForm({ controller, isPage = false }) {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button
-                          ref={settingsBtnRef}
-                          onClick={() => setIsSettingsOpen(prev => !prev)}
-                          className="p-3 hover:bg-sky-500/20 text-white rounded-2xl transition-all active:scale-90 group"
-                          title={language === 'ar' ? 'الإعدادات' : 'Settings'}
-                        >
-                          <SlidersHorizontal className="w-5 h-5 group-hover:scale-110 transition-transform text-sky-400" />
-                        </button>
+                        <BibleSettings ref={settingsRef} controller={controller} containerRef={readerSurfaceRef} onDeselectAll={closeSelectionPanel} />
                         <button
                           onClick={() => openBiblePresentation({ bookName: bibleModalBook.bookName, chapter: bibleModalChapter, verses: bibleModalVerses, startIndex: 0 })}
                           className="p-3 bg-white/5 hover:bg-sky-500 text-white rounded-2xl transition-all active:scale-90 group"
@@ -1008,7 +1007,7 @@ export function BibleForm({ controller, isPage = false }) {
                         <PageSkeleton variant="bible" compact />
                       ) : bibleViewMode === 'paragraph' ? (
                         <div
-                          className="font-arabic text-right transition-all"
+                          className="font-arabic text-right"
                           dir="rtl"
                           style={{
                             fontSize: `${bibleVerseFontSize}px`,
@@ -1069,6 +1068,8 @@ export function BibleForm({ controller, isPage = false }) {
                             return (
                               <span
                                 key={verse._id}
+                                data-bible-verse={verse._id}
+                                data-selected={curr.isSelected}
                                 onClick={() => onVerseClick(verse._id)}
                                 style={{
                                   backgroundColor: curr.bg,
@@ -1134,7 +1135,7 @@ export function BibleForm({ controller, isPage = false }) {
 
             {/* Chapter Navigation Buttons */}
             {bibleSelectedVerseIds.size === 0 && !bibleSearchQuery.trim() && bibleModalVerses.length > 0 && (
-              <div className="absolute bottom-4 inset-x-4 sm:inset-x-6 flex items-center justify-between pointer-events-none z-30" dir="ltr">
+              <div data-bible-chapter-navigation className={`absolute bottom-4 ${isStandalonePage ? 'sm:bottom-20' : ''} inset-x-4 sm:inset-x-6 flex items-center justify-between pointer-events-none z-30`} dir="ltr">
                 <button
                   onClick={goToPrevChapter}
                   disabled={!hasPrevChapter}
@@ -1387,279 +1388,6 @@ export function BibleForm({ controller, isPage = false }) {
             )}
 
 
-            {/* Compact Floating Settings Panel (Left side floating - verses stay visible for live preview) */}
-            <AnimatePresence>
-              {isSettingsOpen && (
-                <div
-                  key="settings-backdrop"
-                  className="fixed inset-0 z-40 bg-transparent"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsSettingsOpen(false);
-                    justClosedSettingsRef.current = Date.now();
-                  }}
-                  onTouchStart={(e) => {
-                    e.stopPropagation();
-                    setIsSettingsOpen(false);
-                    justClosedSettingsRef.current = Date.now();
-                  }}
-                />
-              )}
-              {isSettingsOpen && (
-                <motion.div
-                  key="settings-panel"
-                  ref={settingsPanelRef}
-                  initial={{ opacity: 0, x: -16, scale: 0.96 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: -16, scale: 0.96 }}
-                  transition={{ duration: 0.16, ease: 'easeOut' }}
-                  className={`app-popover absolute top-16 sm:top-20 left-2 sm:left-4 z-50 w-[215px] sm:w-[245px] max-w-[62vw] max-h-[min(72vh,520px)] rounded-2xl sm:rounded-3xl border shadow-[0_12px_40px_rgba(0,0,0,0.65)] flex flex-col overflow-hidden bg-app-panel/95 border-white/10`}
-                  dir={language === 'ar' ? 'rtl' : 'ltr'}
-                >
-                  {/* Header */}
-                  <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 shrink-0">
-                    <span className="text-xs font-bold text-white tracking-wide">
-                      {language === 'ar' ? 'الإعدادات' : 'Settings'}
-                    </span>
-                    <button
-                      onClick={() => setIsSettingsOpen(false)}
-                      className="w-6 h-6 rounded-full bg-white/5 hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition-all active:scale-90"
-                      title="Close"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {/* Scrollable Settings Content */}
-                  <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 custom-scrollbar-thin">
-                    {/* Section 1: Translations */}
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-bold text-gray-400/90 uppercase tracking-widest px-1">
-                        {language === 'ar' ? 'الترجمة' : 'Translation'}
-                      </span>
-                      <div className="p-1.5 rounded-xl border bg-black/30 border-white/10 space-y-1">
-                        <div className="flex flex-col gap-1">
-                          {availableTranslations.map((tr) => {
-                            const isDownloaded = downloadedTranslations.has(tr);
-                            const isDownloading = isDownloadingTranslation === tr;
-                            const isSelected = bibleTranslation === tr;
-                            return (
-                              <div
-                                key={tr}
-                                onClick={() => {
-                                  if (isDownloaded) {
-                                    setBibleTranslation(tr);
-                                  } else {
-                                    setBibleTranslation(tr);
-                                    if (!isDownloading) {
-                                      showToast(
-                                        language === 'ar'
-                                          ? `جاري تحميل ترجمة ${tr}...`
-                                          : `Downloading ${tr} translation...`
-                                      );
-                                      toggleDownloadTranslation(tr, true);
-                                    }
-                                  }
-                                }}
-                                className={`flex items-center justify-between px-2 py-1.5 rounded-lg border transition-all cursor-pointer ${isSelected
-                                  ? 'bg-sky-500/20 border-sky-400 text-white shadow-sm'
-                                  : 'bg-black/20 border-white/10 text-gray-200 hover:bg-black/40 hover:text-white'
-                                  }`}
-                              >
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  <div className={`w-2.5 h-2.5 rounded-full border shrink-0 flex items-center justify-center ${isSelected ? 'border-sky-400 bg-sky-400' : 'border-white/30'}`}>
-                                    {isSelected && <div className="w-1 h-1 rounded-full bg-app-panel" />}
-                                  </div>
-                                  <span className="text-[11px] font-bold tracking-wide truncate">{tr}</span>
-                                </div>
-
-                                {isDownloading ? (
-                                  <Loader2 className="w-3 h-3 animate-spin text-sky-400 shrink-0" />
-                                ) : !isDownloaded ? (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (!isDownloading) {
-                                        showToast(
-                                          language === 'ar'
-                                            ? `جاري تحميل ترجمة ${tr}...`
-                                            : `Downloading ${tr} translation...`
-                                        );
-                                        toggleDownloadTranslation(tr, true);
-                                      }
-                                    }}
-                                    className="p-0.5 rounded bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 transition-all active:scale-95 shrink-0"
-                                    title={language === 'ar' ? `تحميل ترجمة ${tr}` : `Download ${tr}`}
-                                  >
-                                    <Download className="w-3 h-3" />
-                                  </button>
-                                ) : (
-                                  <Check className="w-3 h-3 text-emerald-400 shrink-0" />
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Section 2: Verse Controls */}
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-bold text-gray-400/90 uppercase tracking-widest px-1">
-                        {language === 'ar' ? 'التحكم في الآيات' : 'Verse Controls'}
-                      </span>
-                      <div className="p-2 rounded-xl border bg-black/30 border-white/10 space-y-2">
-
-                        {/* View Mode */}
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="text-[11px] font-bold text-gray-300 shrink-0">
-                            {language === 'ar' ? 'العرض' : 'Mode'}
-                          </span>
-                          <div className="flex items-center bg-black/20 border border-white/10 rounded-lg p-0.5 gap-0.5 min-w-0">
-                            <button
-                              onClick={() => handleSetBibleViewMode('list')}
-                              className={`px-1 sm:px-1.5 py-0.5 rounded flex items-center justify-center gap-0.5 sm:gap-1 text-[9px] sm:text-[10px] font-bold transition-all shrink-0 ${bibleViewMode === 'list'
-                                ? 'bg-sky-500 text-white shadow-sm'
-                                : 'text-white/50 hover:text-white'
-                                }`}
-                              title={t("listViewTitle")}
-                            >
-                              <List className="w-2.5 h-2.5 shrink-0" />
-                              <span>{t("vertical")}</span>
-                            </button>
-                            <button
-                              onClick={() => handleSetBibleViewMode('paragraph')}
-                              className={`px-1 sm:px-1.5 py-0.5 rounded flex items-center justify-center gap-0.5 sm:gap-1 text-[9px] sm:text-[10px] font-bold transition-all min-w-0 ${bibleViewMode === 'paragraph'
-                                ? 'bg-sky-500 text-white shadow-sm'
-                                : 'text-white/50 hover:text-white'
-                                }`}
-                              title={t("continuousViewTitle")}
-                            >
-                              <AlignJustify className="w-2.5 h-2.5 shrink-0" />
-                              <span className="truncate">{t("continuous")}</span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Font Size */}
-                        <div className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-white/5">
-                          <span className="text-[11px] font-bold text-gray-300">{t("font")}</span>
-                          <div className="flex items-center border border-white/10 rounded-lg overflow-hidden bg-black/20">
-                            <button
-                              onClick={() => setBibleVerseFontSize(prev => Math.max(16, prev - 2))}
-                              className="h-5 px-1.5 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] transition-all active:bg-white/20"
-                              title="Decrease font size"
-                            >
-                              -A
-                            </button>
-                            <span className="font-bold min-w-[20px] px-1 text-center text-[11px] text-sky-400">{bibleVerseFontSize}</span>
-                            <button
-                              onClick={() => setBibleVerseFontSize(prev => Math.min(44, prev + 2))}
-                              className="h-5 px-1.5 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] transition-all active:bg-white/20"
-                              title="Increase font size"
-                            >
-                              +A
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Verse Spacing */}
-                        <div className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-white/5">
-                          <span className="text-[11px] font-bold text-gray-300">{t("spacing")}</span>
-                          <div className="flex items-center border border-white/10 rounded-lg overflow-hidden bg-black/20">
-                            <button
-                              onClick={() => handleSetBibleVerseSpacing(Math.max(2, bibleVerseSpacing - 2))}
-                              className="h-5 px-2 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] transition-all active:bg-white/20"
-                              title="Decrease spacing"
-                            >
-                              -
-                            </button>
-                            <span className="font-bold min-w-[22px] px-1 text-center text-[11px] text-sky-400">{bibleVerseSpacing}px</span>
-                            <button
-                              onClick={() => handleSetBibleVerseSpacing(Math.min(36, bibleVerseSpacing + 2))}
-                              className="h-5 px-2 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] transition-all active:bg-white/20"
-                              title="Increase spacing"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-
-                        {bibleViewMode === 'paragraph' && (
-                          <div
-                            role="group"
-                            aria-label={language === 'ar' ? 'المسافة بين الآيات' : 'Verse gap'}
-                            className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-white/5"
-                          >
-                            <span className="text-[11px] font-bold text-gray-300">
-                              {language === 'ar' ? 'المسافة بين الآيات' : 'Verse gap'}
-                            </span>
-                            <div className="flex items-center border border-white/10 rounded-lg overflow-hidden bg-black/20 shrink-0">
-                              <button
-                                onClick={() => handleSetBibleVerseGap(bibleVerseGap - 2)}
-                                disabled={bibleVerseGap <= -8}
-                                className="h-5 px-2 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] transition-all active:bg-white/20 disabled:opacity-30"
-                                aria-label={language === 'ar' ? 'تقليل المسافة بين الآيات' : 'Decrease verse gap'}
-                              >
-                                -
-                              </button>
-                              <output className="font-bold min-w-[22px] px-1 text-center text-[11px] text-sky-400" aria-live="polite">{bibleVerseGap + 6}px</output>
-                              <button
-                                onClick={() => handleSetBibleVerseGap(bibleVerseGap + 2)}
-                                disabled={bibleVerseGap >= 32}
-                                className="h-5 px-2 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] transition-all active:bg-white/20 disabled:opacity-30"
-                                aria-label={language === 'ar' ? 'زيادة المسافة بين الآيات' : 'Increase verse gap'}
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Selection Actions */}
-                        <div className="flex items-center gap-1 pt-1.5 border-t border-white/5">
-                          <button
-                            onClick={() => setBibleSelectedVerseIds(new Set(bibleModalVerses.map(v => v._id)))}
-                            className="flex-1 py-1.5 text-[10px] font-bold rounded-md bg-black/20 hover:bg-black/40 border border-white/10 text-slate-200 transition-all active:scale-95 text-center"
-                          >
-                            {t("selectAll")}
-                          </button>
-                          <button
-                            onClick={closeSelectionPanel}
-                            className="flex-1 py-1.5 text-[10px] font-bold rounded-md bg-black/20 hover:bg-black/40 border border-white/10 text-slate-300 transition-all active:scale-95 text-center"
-                          >
-                            {t("deselectAll")}
-                          </button>
-                        </div>
-
-                        {/* Save Selected to Workspace */}
-                        {bibleSelectedVerseIds.size > 0 && (
-                          <button
-                            onClick={saveBibleToWorkspace}
-                            disabled={isSavingBible || bibleAddedSuccess}
-                            className={`w-full py-1.5 px-2 text-[10px] font-black rounded-md transition-all shadow-md active:scale-95 whitespace-nowrap flex items-center justify-center gap-1
-                                ${bibleAddedSuccess ? 'bg-green-500 text-white' : 'bg-sky-500 hover:bg-sky-400 text-white'}
-                                disabled:opacity-50`}
-                          >
-                            {isSavingBible ? (
-                              <><Loader2 className="w-3 h-3 animate-spin" /> ...</>
-                            ) : bibleAddedSuccess ? (
-                              <><Check className="w-3 h-3" /> {t("saved")}</>
-                            ) : (
-                              <>
-                                <FolderPlus className="w-3 h-3" />
-                                {t("save")} ({bibleSelectedVerseIds.size})
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         </BibleReaderWrapper>
       )}

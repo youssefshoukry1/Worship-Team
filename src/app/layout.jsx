@@ -71,7 +71,7 @@ export default function RootLayout({
                 />
             </head>
             <body
-                className="antialiased text-white min-h-screen"
+                className="antialiased text-white min-h-dvh"
             >
                 <WaslaSplashIntro />
                 <ServiceWorkerRegistry />

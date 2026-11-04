@@ -1,0 +1,25 @@
+.panel {
+  /* An opaque surface avoids filtering all the chapter text behind the panel. */
+  background-color: rgb(var(--app-panel-rgb));
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.22);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate3d(0, 4px, 0);
+  transition: opacity 100ms ease-out, transform 100ms ease-out, visibility 0s linear 100ms;
+}
+
+.panel[data-state='open'] {
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate3d(0, 0, 0);
+  transition: opacity 140ms ease-out, transform 140ms ease-out, visibility 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .panel[data-state='open'] {
+    transform: none;
+    transition: none;
+  }
+}

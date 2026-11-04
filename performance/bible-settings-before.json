@@ -1,0 +1,92 @@
+{
+  "measuredAt": "2026-11-03T23:19:14.912Z",
+  "cpu": "12th Gen Intel(R) Core(TM) i5-12450H",
+  "cpuThrottle": 4,
+  "method": "176 real Arabic verses (Psalm 119), mobile Chromium emulation, mocked backend, 4x CPU. Capture click to first visible/settled animation frame, RAF gaps and long tasks over a 400ms opening window. Then close and count chapter map passes across both operations. Desktop simulation, not physical phone results.",
+  "scenarios": [
+    {
+      "mode": "paragraph",
+      "attempt": 1,
+      "verseCount": 176,
+      "backdropFilter": "blur(12px)",
+      "background": "rgba(20, 24, 36, 0.96)",
+      "shadow": "rgba(0, 0, 0, 0.25) 0px 12px 36px 0px",
+      "firstVisibleMs": 66.10000001788148,
+      "settledMs": 182.7000000178814,
+      "maxFrameGapMs": 83.40000000000009,
+      "p95FrameGapMs": 83.40000000000009,
+      "longTasksMs": [],
+      "chapterMapPasses": 2
+    },
+    {
+      "mode": "paragraph",
+      "attempt": 2,
+      "verseCount": 176,
+      "backdropFilter": "blur(12px)",
+      "background": "rgba(20, 24, 36, 0.96)",
+      "shadow": "rgba(0, 0, 0, 0.25) 0px 12px 36px 0px",
+      "firstVisibleMs": 28.800000023841676,
+      "settledMs": 178.70000002384177,
+      "maxFrameGapMs": 50.09999999999991,
+      "p95FrameGapMs": 33.40000000000009,
+      "longTasksMs": [],
+      "chapterMapPasses": 2
+    },
+    {
+      "mode": "paragraph",
+      "attempt": 3,
+      "verseCount": 176,
+      "backdropFilter": "blur(12px)",
+      "background": "rgba(20, 24, 36, 0.96)",
+      "shadow": "rgba(0, 0, 0, 0.25) 0px 12px 36px 0px",
+      "firstVisibleMs": 52,
+      "settledMs": 185.30000000000018,
+      "maxFrameGapMs": 66.69999999999982,
+      "p95FrameGapMs": 33.399999999999636,
+      "longTasksMs": [],
+      "chapterMapPasses": 2
+    },
+    {
+      "mode": "list",
+      "attempt": 1,
+      "verseCount": 176,
+      "backdropFilter": "blur(12px)",
+      "background": "rgba(20, 24, 36, 0.96)",
+      "shadow": "rgba(0, 0, 0, 0.25) 0px 12px 36px 0px",
+      "firstVisibleMs": 58.400000005960464,
+      "settledMs": 208.40000000596046,
+      "maxFrameGapMs": 66.70000000000005,
+      "p95FrameGapMs": 33.40000000000009,
+      "longTasksMs": [],
+      "chapterMapPasses": 2
+    },
+    {
+      "mode": "list",
+      "attempt": 2,
+      "verseCount": 176,
+      "backdropFilter": "blur(12px)",
+      "background": "rgba(20, 24, 36, 0.96)",
+      "shadow": "rgba(0, 0, 0, 0.25) 0px 12px 36px 0px",
+      "firstVisibleMs": 30.600000005960283,
+      "settledMs": 197.20000000596065,
+      "maxFrameGapMs": 33.399999999999636,
+      "p95FrameGapMs": 16.700000000000273,
+      "longTasksMs": [],
+      "chapterMapPasses": 2
+    },
+    {
+      "mode": "list",
+      "attempt": 3,
+      "verseCount": 176,
+      "backdropFilter": "blur(12px)",
+      "background": "rgba(20, 24, 36, 0.96)",
+      "shadow": "rgba(0, 0, 0, 0.25) 0px 12px 36px 0px",
+      "firstVisibleMs": 48.09999998807916,
+      "settledMs": 181.49999998807925,
+      "maxFrameGapMs": 66.59999999999991,
+      "p95FrameGapMs": 16.700000000000273,
+      "longTasksMs": [],
+      "chapterMapPasses": 2
+    }
+  ]
+}

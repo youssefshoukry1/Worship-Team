@@ -29,8 +29,8 @@ async function stop() {
   if (server) await new Promise(resolve => server.close(resolve));
 }
 
-async function setup(t, engine, { href = '/', platform = 'ios', authenticated = true, profile = {}, deferIdle = false } = {}) {
-  const context = await browsers[engine].newContext({ ...devices['iPhone 13'], serviceWorkers: 'block' });
+async function setup(t, engine, { href = '/', platform = 'ios', authenticated = true, profile = {}, deferIdle = false, beforeNavigate, contextOptions = {} } = {}) {
+  const context = await browsers[engine].newContext({ ...devices['iPhone 13'], ...contextOptions, serviceWorkers: 'block' });
   t.after(() => context.close());
   const page = await context.newPage();
   if (deferIdle) await page.addInitScript(() => {
@@ -68,6 +68,7 @@ async function setup(t, engine, { href = '/', platform = 'ios', authenticated = 
     if (authenticated) for (const [key, value] of Object.entries({ Token: 'test-token', ID: 'tester', Username: 'tester', GlobalRole: 'USER' })) localStorage.setItem(`user_Taspe7_${key}`, value);
     localStorage.setItem('app-language', 'en'); localStorage.setItem('wasla_splash_version', version);
   }, { authenticated, version });
+  if (beforeNavigate) await beforeNavigate(page);
   await page.addInitScript(platform => {
     window.__documentId = Math.random(); window.__refreshes = 0; window.__exits = 0;
     Object.defineProperty(navigator.serviceWorker, 'controller', { value: { scriptURL: '/sw.js?v=navigation-v2' } });

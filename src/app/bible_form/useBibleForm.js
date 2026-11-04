@@ -15,6 +15,8 @@ import { prepareLocalAiOpening, completeLocalAiRequest, cancelLocalAiOpening } f
 import { readTabJson, readTabResource, tabReadKey } from '../utils/tabRequests';
 import { HIGHLIGHT_COLORS, BIBLE_LAST_POS_KEY } from './bibleShared';
 import { useTabPageActive } from '../components/TabPageActivity';
+import { waitForNavigationIdle } from '../utils/navigationWork';
+import { searchOnlineBible } from '../utils/onlineBibleSearch';
 
 const API_ROOT = getApiBaseUrl();
 
@@ -173,6 +175,9 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
 
   const [bibleSearchQuery, setBibleSearchQuery] = useState('');
   const [bibleSearchResults, setBibleSearchResults] = useState([]);
+  const [bibleSearchUnavailable, setBibleSearchUnavailable] = useState(false);
+  const [bibleSearchRetry, setBibleSearchRetry] = useState(0);
+  const retryBibleSearch = () => setBibleSearchRetry(previous => previous + 1);
   const [isSearchingBible, setIsSearchingBible] = useState(false);
   const [showBibleSearchBar, setShowBibleSearchBar] = useState(false);
 
@@ -799,8 +804,9 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
-    if ((!isOpen && !presentationActive) || !bibleSearchQuery.trim()) {
+    if (!pageActive || (!isOpen && !presentationActive) || !bibleSearchQuery.trim()) {
       setBibleSearchResults([]);
+      setBibleSearchUnavailable(false);
       setIsSearchingBible(false);
       return () => controller.abort();
     }
@@ -811,17 +817,39 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
         return;
       }
       setIsSearchingBible(true);
+      setBibleSearchUnavailable(false);
+      let onlineBusy = false;
       try {
+        // Use the server's ranked search even when this translation is cached.
+        // A valid empty response is authoritative; only failures fall back.
+        if (typeof navigator === 'undefined' || navigator.onLine !== false) {
+          try {
+            const data = await searchOnlineBible(BIBLE_API, bibleSearchQuery, bibleTranslation, { signal: controller.signal });
+            await waitForNavigationIdle();
+            if (!cancelled) setBibleSearchResults(data);
+            return;
+          } catch (error) {
+            if (cancelled || controller.signal.aborted || axios.isCancel(error)) return;
+            onlineBusy = error.status === 503 || [429, 503].includes(error.response?.status);
+            // An unreachable API must not disable downloaded translations.
+          }
+        }
         const isDownloaded = downloadedTranslations.has(bibleTranslation) || (await isTranslationDownloaded(bibleTranslation));
         if (isDownloaded) {
           const localResults = await searchLocalBible(bibleSearchQuery, bibleTranslation, { signal: controller.signal });
           if (!cancelled) setBibleSearchResults(localResults || []);
         } else {
-          if (!cancelled) setBibleSearchResults([]);
+          if (!cancelled) {
+            setBibleSearchResults([]);
+            setBibleSearchUnavailable(onlineBusy ? 'busy' : true);
+          }
         }
       } catch (error) {
         if (!cancelled) console.error("Bible search error:", error);
-        if (!cancelled) setBibleSearchResults([]);
+        if (!cancelled) {
+          setBibleSearchResults([]);
+          setBibleSearchUnavailable(onlineBusy ? 'busy' : true);
+        }
       } finally {
         if (!cancelled) setIsSearchingBible(false);
       }
@@ -836,7 +864,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       controller.abort();
       clearTimeout(handler);
     };
-  }, [bibleSearchQuery, bibleTranslation, downloadedTranslations, isOpen, presentationActive]);
+  }, [bibleSearchQuery, bibleTranslation, downloadedTranslations, isOpen, presentationActive, pageActive, bibleSearchRetry]);
 
   const handleSaveNote = async () => {
     if (!noteText.trim() || !noteModalConfig) return;
@@ -1243,6 +1271,8 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     isOpen,
     bibleSearchQuery, setBibleSearchQuery,
     bibleSearchResults, setBibleSearchResults,
+    bibleSearchUnavailable,
+    retryBibleSearch,
     isSearchingBible,
     showBibleSearchBar, setShowBibleSearchBar,
     bibleModalBooks, setBibleModalBooks,

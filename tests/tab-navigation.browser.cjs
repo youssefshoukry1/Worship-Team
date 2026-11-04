@@ -355,6 +355,10 @@ test('Bible presentation stays on the Bible page while opening and closing chapt
         _id: `present-verse-${index}`, bookName: 'Genesis', bookNumber: 1, chapter: 1, verseNumber: index + 1, text, translation: 'AVD',
       }));
       try {
+        await page.route('**/bible/search?*', route => route.fulfill({
+          headers: { 'access-control-allow-origin': '*' },
+          json: verses.filter(verse => verse.text.includes(new URL(route.request().url()).searchParams.get('q'))),
+        }));
         await page.setViewportSize({ width: mode === 'desktop' ? 1280 : 390, height: 900 });
         if (mode === 'document-fallback') await context.route('**/sw.js*', route => route.abort());
         await page.evaluate(async verses => {
@@ -698,7 +702,7 @@ async function featurePage(api) {
   return { context, page };
 }
 
-test('Hymns readies lyrics/presentation with the route while reader/editor stay deferred and editing still saves', async () => {
+test('Hymns readies lyrics/presentation while editor stays deferred, reader stays unmounted and editing still saves', async () => {
   let saved;
   const { context, page } = await featurePage(async route => {
     if (route.request().method() === 'PATCH' && new URL(route.request().url()).pathname.endsWith('/hymns/old')) {
@@ -713,7 +717,11 @@ test('Hymns readies lyrics/presentation with the route while reader/editor stay 
   try {
     assert.ok(chunks.every(group => group.size > 0));
     await openHymns(page); await controlled(page); await page.getByText('Lazy hymn', { exact: true }).waitFor();
-    assert.equal(loaded(chunks[0]), false); assert.equal(loaded(chunks[3]), false);
+    assert.equal(loaded(chunks[0]), false);
+    // BottomNav intentionally prefetches Bible's route, which can download
+    // its script. That must not mount the reader or prepare its settings.
+    assert.equal(await page.locator('[data-feature="bible-reader"]').count(), 0);
+    assert.equal(await page.locator('[data-bible-settings]').count(), 0);
     assert.equal(loaded(chunks[1]), true); assert.equal(loaded(chunks[2]), true);
     await page.getByRole('button', { name: 'Lyrics', exact: true }).click();
     const lyrics = page.locator('[data-feature="hymn-lyrics"]');
