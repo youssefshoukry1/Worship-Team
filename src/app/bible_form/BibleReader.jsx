@@ -1369,7 +1369,7 @@ export function BibleForm({ controller, isPage = false }) {
                           </div>
                         ) : aiAnalysis.error ? (
                           <>
-                            <p className="text-xs text-red-400 text-center py-3">{aiAnalysis.error}</p>
+                            <p role="alert" className="text-xs text-red-400 text-center py-3 whitespace-pre-line">{aiAnalysis.error}</p>
                             {aiAnalysis.isLimit && !isLogin && (
                               <div className="mt-2 flex justify-center">
                                 <button
