@@ -15,6 +15,7 @@ import { prepareLocalAiOpening, completeLocalAiRequest, cancelLocalAiOpening } f
 import { readAiStudyMode } from '../utils/aiStudyMode';
 import { buildAiNearbyVerses } from '../utils/aiJourney';
 import { readAiResponseDiagrams } from '../utils/aiPracticalFlow';
+import { readAiResponseError } from '../utils/aiResponseError';
 import { readTabJson, readTabResource, tabReadKey } from '../utils/tabRequests';
 import { HIGHLIGHT_COLORS, BIBLE_LAST_POS_KEY } from './bibleShared';
 import { useTabPageActive } from '../components/TabPageActivity';
@@ -1121,9 +1122,8 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
         ...readAiResponseDiagrams(data, analysisType, studyMode) });
     } catch (err) {
       await cancelLocalAiOpening(requestUserId, openingReservation?.id);
-      const responseMessage = err?.response?.data?.message || 'حدث خطأ، حاول مجدداً.';
-      const isLimit = err?.response?.status === 429;
-      setAiAnalysis({ loading: false, type: analysisType, text: '', error: responseMessage, isLimit });
+      const { message, isLimit } = readAiResponseError(err);
+      setAiAnalysis({ loading: false, type: analysisType, text: '', error: message, isLimit });
     }
   };
 
