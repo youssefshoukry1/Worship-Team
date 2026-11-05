@@ -14,8 +14,9 @@ import { HIGHLIGHT_COLORS, BIBLE_LAST_POS_KEY } from './bibleShared';
 import BibleSettings from './BibleSettings';
 import { aiStudyTextSegments } from '../utils/aiWordStudies';
 import AiJourneyMap from './AiJourneyMap';
+import AiPracticalFlow from './AiPracticalFlow';
 
-function AiResponseText({ text, wordStudies, journey }) {
+function AiResponseText({ text, wordStudies, journey, practicalFlow }) {
   const scrollRef = useRef(null);
   const [thumb, setThumb] = useState({ height: 0, top: 0 });
   const [scrollbarVisible, setScrollbarVisible] = useState(true);
@@ -56,7 +57,7 @@ function AiResponseText({ text, wordStudies, journey }) {
         dir="rtl"
         data-ai-response-scroll
         data-lenis-prevent-wheel
-        className={`${journey ? 'max-h-[min(44dvh,360px)] touch-auto' : 'max-h-[10em] touch-pan-y'} overflow-y-auto overscroll-y-contain hide-scrollbar`}
+        className={`${journey || practicalFlow ? 'max-h-[min(44dvh,360px)] touch-auto' : 'max-h-[10em] touch-pan-y'} overflow-y-auto overscroll-y-contain hide-scrollbar`}
       >
         <p>
         {aiStudyTextSegments(text, wordStudies).map((segment, index) => segment.kind === 'word'
@@ -66,6 +67,7 @@ function AiResponseText({ text, wordStudies, journey }) {
             : <React.Fragment key={index}>{segment.text}</React.Fragment>)}
         </p>
         {journey && <AiJourneyMap journey={journey} />}
+        {practicalFlow && <AiPracticalFlow flow={practicalFlow} />}
       </div>
       {thumb.height > 0 && (
         <span
@@ -1370,7 +1372,9 @@ export function BibleForm({ controller, isPage = false }) {
                             {aiAnalysis.isLimit && isLogin && <div className="mt-2 flex justify-center"><button type="button" onClick={() => router.push('/plans')} className="inline-flex min-h-11 items-center justify-center rounded-full bg-sky-500 px-5 py-2 text-xs font-bold text-white hover:bg-sky-400">{language === 'ar' ? 'عرض الخطط' : 'View plans'}</button></div>}
                           </>
                         ) : (
-                          <AiResponseText key={aiAnalysis.text} text={aiAnalysis.text} wordStudies={aiAnalysis.studyMode === 'old_man' ? aiAnalysis.wordStudies : []} journey={aiAnalysis.studyMode === 'old_man' ? aiAnalysis.journey : null} />
+                          <AiResponseText key={aiAnalysis.text} text={aiAnalysis.text} wordStudies={aiAnalysis.studyMode === 'old_man' ? aiAnalysis.wordStudies : []}
+                            journey={aiAnalysis.studyMode === 'old_man' && aiAnalysis.type === 'explain' ? aiAnalysis.journey : null}
+                            practicalFlow={aiAnalysis.studyMode === 'old_man' && aiAnalysis.type === 'practical' ? aiAnalysis.practicalFlow : null} />
                         )}
                       </div>
                     </div>

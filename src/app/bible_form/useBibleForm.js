@@ -13,7 +13,8 @@ import { queueOfflineAction } from '../utils/offlineQueue';
 import { invalidateProfile, readCachedProfile, refreshProfile } from '../utils/profileCache';
 import { prepareLocalAiOpening, completeLocalAiRequest, cancelLocalAiOpening } from '../utils/aiPersonalization';
 import { readAiStudyMode } from '../utils/aiStudyMode';
-import { buildAiNearbyVerses, readAiJourney } from '../utils/aiJourney';
+import { buildAiNearbyVerses } from '../utils/aiJourney';
+import { readAiResponseDiagrams } from '../utils/aiPracticalFlow';
 import { readTabJson, readTabResource, tabReadKey } from '../utils/tabRequests';
 import { HIGHLIGHT_COLORS, BIBLE_LAST_POS_KEY } from './bibleShared';
 import { useTabPageActive } from '../components/TabPageActivity';
@@ -1099,7 +1100,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
         textContent,
         analysisType,
         studyMode,
-        ...(studyMode === 'old_man' ? { nearbyVerses: buildAiNearbyVerses(bibleModalVerses, bibleSelectedVerseIds) } : {}),
+        ...(studyMode === 'old_man' && analysisType === 'explain' ? { nearbyVerses: buildAiNearbyVerses(bibleModalVerses, bibleSelectedVerseIds) } : {}),
         ...(openingReservation && sameAccount() ? { openingContext: openingReservation.context } : {})
       }, { headers });
       let explanation = data.explanation || '';
@@ -1117,7 +1118,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       }
       setAiAnalysis({ loading: false, type: analysisType, text: explanation, error: null, isLimit: false,
         studyMode, wordStudies: studyMode === 'old_man' && Array.isArray(data.wordStudies) ? data.wordStudies : [],
-        journey: studyMode === 'old_man' ? readAiJourney(data.journey) : null });
+        ...readAiResponseDiagrams(data, analysisType, studyMode) });
     } catch (err) {
       await cancelLocalAiOpening(requestUserId, openingReservation?.id);
       const responseMessage = err?.response?.data?.message || 'حدث خطأ، حاول مجدداً.';
