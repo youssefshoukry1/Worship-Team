@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, Loader2, RefreshCw, UserMinus, UserPlus, X } from 'lucide-react';
+import { Loader2, RefreshCw, UserMinus, UserPlus, X } from 'lucide-react';
 import { changeFriendship, invalidateFriendship, readFriendship } from '../../utils/friendshipActions';
 import TestimonyDialog from '../testimonies/TestimonyDialog';
 import styles from '../testimonies/testimonies.module.css';
@@ -112,9 +112,10 @@ export default function FriendshipControls({ profile, token, userId, refreshing,
   };
   const spinner = busy ? <Loader2 size={15} className={styles.spin} /> : null;
   return <>
+    {relationship === 'friends' && <button type="button" className={styles.profileRemoveFriend} disabled={requestDisabled} onClick={() => { setError(''); setConfirmRemove(true); }}>Remove friend</button>}
     <div className={styles.friendshipActions}>
       {relationship === null ? <span className={styles.pendingBadge} role="status">{checking && <Loader2 size={14} className={styles.spin} />}{checking ? 'Checking friendship…' : 'Friendship unavailable'}</span>
-        : relationship === 'friends' ? <><span className={styles.friendsBadge}><Check size={14} /> Friends</span><button type="button" className={styles.friendSecondary} disabled={requestDisabled} onClick={() => { setError(''); setConfirmRemove(true); }}><UserMinus size={14} /> Remove friend</button></>
+        : relationship === 'friends' ? null
         : relationship === 'incoming' ? <><span className={styles.requestHint}>Sent you a friend request</span><button type="button" className={styles.friendPrimary} disabled={disabled} onClick={() => perform('accept')}>{spinner || <UserPlus size={15} />} Accept request</button><button type="button" className={styles.friendSecondary} disabled={disabled} onClick={() => perform('decline')}><X size={14} /> Decline</button></>
           : relationship === 'outgoing' ? <button type="button" className={styles.friendSecondary} disabled={requestDisabled} onClick={() => performRequest('cancel')}><X size={14} /> Cancel request</button>
             : <button type="button" className={styles.friendPrimary} disabled={requestDisabled} onClick={() => performRequest('add')}><UserPlus size={15} /> Add friend</button>}

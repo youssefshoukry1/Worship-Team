@@ -131,7 +131,7 @@ async function confirmRemoval(f) {
   assert.equal(await f.button('Add friend').isEnabled(), true);
   assert.equal(await f.button('Add friend').locator('svg[class*="spin"]').count(), 0);
   assert.equal(f.serverRelationship(), 'friends', 'removal has not saved yet');
-  assert.equal(await f.card.locator('dl dd').first().innerText(), '9', 'friend count decreases immediately');
+  assert.equal(await f.card.locator('[aria-label="Profile connections"] strong').first().innerText(), '9', 'friend count decreases immediately');
   assert.equal(await f.page.getByText('Shared with friends', { exact: true }).isVisible(), true);
 }
 
@@ -153,7 +153,7 @@ test('failed removal restores the friendship, friend count, and testimony access
   f.gate.resolve();
   await f.card.getByRole('alert').filter({ hasText: 'Could not save request.' }).waitFor();
   await f.button('Remove friend').waitFor();
-  assert.equal(await f.card.locator('dl dd').first().innerText(), '10');
+  assert.equal(await f.card.locator('[aria-label="Profile connections"] strong').first().innerText(), '10');
   assert.equal(await f.page.getByText('Shared with friends', { exact: true }).count(), 0);
   assert.equal(await f.card.getByText('Friend removed.', { exact: true }).count(), 0);
   assert.deepEqual(f.errors, []);

@@ -22,6 +22,7 @@ export default function BottomNav() {
   const [isVisible, setIsVisible] = useState(true);
   const [isLockedHidden, setIsLockedHidden] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [isHiddenForChapter, setIsHiddenForChapter] = useState(false);
   const lastScrollY = useRef(0);
   const { navigate, pendingHref } = useTabNavigation();
 
@@ -48,6 +49,61 @@ export default function BottomNav() {
       window.removeEventListener('resize', handleViewportChange);
       window.visualViewport?.removeEventListener('resize', handleViewportChange);
       window.removeEventListener('focusout', handleFocusOut);
+    };
+  }, []);
+
+  // Chapter loading can reset scrollTop; only an upward user gesture ends this hide.
+  useEffect(() => {
+    let scroller = null;
+    let touchStart = null;
+    const restore = () => {
+      scroller = null;
+      touchStart = null;
+      setIsHiddenForChapter(false);
+      setIsVisible(true);
+    };
+    const withinReader = target => scroller && target instanceof Node && scroller.contains(target);
+    const hideForChapter = event => {
+      if (event.detail?.hidden === false) { restore(); return; }
+      scroller = event.detail?.scroller || null;
+      touchStart = null;
+      setIsHiddenForChapter(Boolean(scroller));
+    };
+    const wheel = event => {
+      if (withinReader(event.target) && event.deltaY < 0) restore();
+    };
+    const startTouch = event => {
+      const touch = event.touches.length === 1 && event.touches[0];
+      touchStart = withinReader(event.target) && touch ? { x: touch.clientX, y: touch.clientY } : null;
+    };
+    const moveTouch = event => {
+      if (!touchStart || !withinReader(event.target) || event.touches.length !== 1) return;
+      const dx = event.touches[0].clientX - touchStart.x;
+      const dy = event.touches[0].clientY - touchStart.y;
+      if (dy > 8 && dy > Math.abs(dx)) restore();
+    };
+    const endTouch = () => { touchStart = null; };
+    const keyDown = event => {
+      if (!scroller || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (['ArrowUp', 'PageUp', 'Home'].includes(event.key)) restore();
+    };
+
+    window.addEventListener('hideBottomNavUntilScrollUp', hideForChapter);
+    window.addEventListener('wheel', wheel, { passive: true });
+    window.addEventListener('touchstart', startTouch, { passive: true });
+    window.addEventListener('touchmove', moveTouch, { passive: true });
+    window.addEventListener('touchend', endTouch, { passive: true });
+    window.addEventListener('touchcancel', endTouch, { passive: true });
+    window.addEventListener('keydown', keyDown);
+    return () => {
+      window.removeEventListener('hideBottomNavUntilScrollUp', hideForChapter);
+      window.removeEventListener('wheel', wheel);
+      window.removeEventListener('touchstart', startTouch);
+      window.removeEventListener('touchmove', moveTouch);
+      window.removeEventListener('touchend', endTouch);
+      window.removeEventListener('touchcancel', endTouch);
+      window.removeEventListener('keydown', keyDown);
     };
   }, []);
 
@@ -101,7 +157,7 @@ export default function BottomNav() {
     };
   }, []);
 
-  const shouldShow = isVisible && !isLockedHidden && !isKeyboardOpen;
+  const shouldShow = isVisible && !isLockedHidden && !isKeyboardOpen && !isHiddenForChapter;
 
   return (
     <div

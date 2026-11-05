@@ -11,6 +11,7 @@ import WaslaWaveLogo from '../components/WaslaWaveLogo';
 import PageSkeleton from '../components/PageSkeleton';
 import { useRouter, usePathname } from 'next/navigation';
 import { HIGHLIGHT_COLORS, BIBLE_LAST_POS_KEY } from './bibleShared';
+import { useTabPageActive } from '../components/TabPageActivity';
 import BibleSettings from './BibleSettings';
 import { aiStudyTextSegments } from '../utils/aiWordStudies';
 import AiJourneyMap from './AiJourneyMap';
@@ -513,6 +514,7 @@ function BibleReaderWrapper({ isPage, onClose, children }) {
 
 export function BibleForm({ controller, isPage = false }) {
   const router = useRouter();
+  const pageActive = useTabPageActive();
   const pathname = usePathname();
   const isStandalonePage = isPage || pathname?.startsWith('/bible_form');
   const [addVersionMenuOpen, setAddVersionMenuOpen] = useState(false);
@@ -611,6 +613,15 @@ export function BibleForm({ controller, isPage = false }) {
   } = controller;
 
   const actionCardRef = useRef(null);
+  useEffect(() => {
+    if (!isOpen || !pageActive) return;
+    return () => window.dispatchEvent(new CustomEvent('hideBottomNavUntilScrollUp', { detail: { hidden: false } }));
+  }, [isOpen, pageActive]);
+
+  const navigateChapter = navigate => {
+    window.dispatchEvent(new CustomEvent('hideBottomNavUntilScrollUp', { detail: { scroller: bibleScrollContainerRef.current } }));
+    navigate();
+  };
   const actionTouchStartX = useRef(0);
   const actionTouchStartY = useRef(0);
   const actionLastY = useRef(0);
@@ -1192,7 +1203,7 @@ export function BibleForm({ controller, isPage = false }) {
             {bibleSelectedVerseIds.size === 0 && !bibleSearchQuery.trim() && bibleModalVerses.length > 0 && (
               <div data-bible-chapter-navigation className={`absolute bottom-4 ${isStandalonePage ? 'sm:bottom-20' : ''} inset-x-4 sm:inset-x-6 flex items-center justify-between pointer-events-none z-30`} dir="ltr">
                 <button
-                  onClick={goToPrevChapter}
+                  onClick={() => navigateChapter(goToPrevChapter)}
                   disabled={!hasPrevChapter}
                   className={`pointer-events-auto w-9 h-9 rounded-full backdrop-blur-md border flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 bg-black/90 hover:bg-black/80 border-white/10 ${!hasPrevChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
                   title="الأصحاح السابق"
@@ -1200,7 +1211,7 @@ export function BibleForm({ controller, isPage = false }) {
                   <ChevronLeft className="w-4 h-4 text-white" />
                 </button>
                 <button
-                  onClick={goToNextChapter}
+                  onClick={() => navigateChapter(goToNextChapter)}
                   disabled={!hasNextChapter}
                   className={`pointer-events-auto w-9 h-9 rounded-full backdrop-blur-md border flex items-center justify-center text-white shadow-lg transition-all duration-150 active:scale-90 bg-black/90 hover:bg-black/80 border-white/10 ${!hasNextChapter ? 'opacity-20 pointer-events-none' : 'cursor-pointer'}`}
                   title="الأصحاح التالي"

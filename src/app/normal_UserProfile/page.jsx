@@ -1046,13 +1046,8 @@ function UserProfile({ profileUserId }) {
                                     </div>
 
                             }
-                            badges={isOwner ? <>
-                                    <Badge icon={User} label="Role" value={titleCase(profile?.user?.role)} classes="bg-sky-500/5 text-sky-200 border-sky-500/10" />
-                                    {!navigator.onLine && (
-                                        <Badge icon={Activity} label="Status" value="Offline Mode" classes="bg-orange-500/10 text-orange-400 border-orange-500/20" />
-                                    )}
-                            </> : undefined}
-                            stats={socialProfile?.stats && <ProfileStats stats={socialProfile.stats} isOwner={isOwner} />}
+                            stats={socialProfile?.stats && <ProfileStats stats={socialProfile.stats} isOwner={isOwner}
+                                roleBadge={isOwner && profile?.user?.role && !['USER', 'USERS'].includes(profile.user.role.toUpperCase()) ? <Badge icon={User} label="Role" value={titleCase(profile.user.role)} classes="bg-sky-500/5 text-sky-200 border-sky-500/10" /> : null} profileUserId={profile?.user?._id} token={isLogin} userId={user_id} />}
                         >
                             {!isOwner && socialProfile?.user && <FriendshipControls profile={socialProfile} token={isLogin} userId={user_id} refreshing={refreshingSocial} onRevoke={revokeFriendship} onRefresh={refreshFriendship} />}
                         </ProfileHeaderCard>
@@ -1060,20 +1055,20 @@ function UserProfile({ profileUserId }) {
                         <TestimonyBoard profileUserId={profileUserId} onProfileLoad={handleSocialProfile} profileAccess={socialProfile?.canViewTestimonies} onLoadingChange={setRefreshingSocial} />
 
                         {/* --- SETTINGS GROUPS (CHATGPT STYLE) --- */}
-                        {isOwner && <div className="space-y-6">
+                        {isOwner && <div className="space-y-5">
                             {/* Bible Group */}
                             <div>
-                                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
+                                <h3 className="text-xs font-medium text-slate-400 mb-2 px-1">
                                     Bible
                                 </h3>
-                                <div className="app-card rounded-2xl border divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
+                                <div className="app-card rounded-xl border divide-y divide-white/5 overflow-hidden">
                                     <button
                                         type="button"
                                         onClick={() => navigateToView('highlights')}
-                                        className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left"
+                                        className="w-full flex items-center justify-between min-h-11 px-3 py-2 hover:bg-white/5 transition-colors text-left"
                                     >
-                                        <div className="flex items-center gap-3.5">
-                                            <span className="text-sm sm:text-base font-semibold text-white">Bible Highlights</span>
+                                        <div className="flex items-center gap-2.5">
+                                            <span className="text-sm font-medium text-white">Bible Highlights</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <span className="text-xs text-slate-400 font-medium">
@@ -1085,10 +1080,10 @@ function UserProfile({ profileUserId }) {
                                     <button
                                         type="button"
                                         onClick={() => navigateToView('notes')}
-                                        className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left"
+                                        className="w-full flex items-center justify-between min-h-11 px-3 py-2 hover:bg-white/5 transition-colors text-left"
                                     >
-                                        <div className="flex items-center gap-3.5">
-                                            <span className="text-sm sm:text-base font-semibold text-white">Bible Notes</span>
+                                        <div className="flex items-center gap-2.5">
+                                            <span className="text-sm font-medium text-white">Bible Notes</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <span className="text-xs text-slate-400 font-medium">
@@ -1097,21 +1092,15 @@ function UserProfile({ profileUserId }) {
                                         </div>
                                     </button>
 
-                                    <button
-                                        type="button"
-                                        onClick={() => router.push('/plans')}
-                                        className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left"
-                                    >
-                                        <div className="flex items-center gap-3.5"><span className="text-sm sm:text-base font-semibold text-white">{language === 'ar' ? 'الخطط والاشتراك' : 'Plans & subscription'}</span></div>
-                                    </button>
+
                                     <button
                                         type="button"
                                         onClick={() => navigateToView('bible_settings')}
-                                        className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left"
+                                        className="w-full flex items-center justify-between min-h-11 px-3 py-2 hover:bg-white/5 transition-colors text-left"
                                     >
-                                        <div className="flex items-center gap-3.5">
+                                        <div className="flex items-center gap-2.5">
                                             <div>
-                                                <span className="text-sm sm:text-base font-semibold text-white block">Bible Settings</span>
+                                                <span className="text-sm font-medium text-white block">Bible Settings</span>
                                                 <span className="text-xs text-slate-400">
                                                     {bibleTranslation} • {bibleVerseFontSize}px • {bibleViewMode === 'paragraph' ? 'Continuous' : 'Vertical'}
                                                 </span>
@@ -1121,16 +1110,35 @@ function UserProfile({ profileUserId }) {
                                 </div>
                             </div>
 
+                            <div>
+                                <h3 className="text-xs font-medium text-slate-400 mb-2 px-1">
+                                    {language === 'ar' ? 'الخطط والاشتراك' : 'Plans & subscription'}
+                                </h3>
+                                <div className="app-card rounded-xl border divide-y divide-white/5 overflow-hidden">
+                                    <button
+                                        type="button"
+                                        onClick={() => router.push('/plans')}
+                                        className="w-full flex items-center justify-between min-h-11 px-3 py-2 hover:bg-white/5 transition-colors text-left"
+                                    >
+                                        <div className="flex items-center gap-2.5"><span className="text-sm font-medium text-white">{language === 'ar' ? 'الخطط والاشتراك' : 'Plans & subscription'}</span></div>
+                                    </button>
+                                    <button type="button" disabled className="w-full flex items-center justify-between gap-3 min-h-11 px-3 py-2 text-left cursor-not-allowed">
+                                        <span className="text-sm font-medium text-slate-400">{language === 'ar' ? '?????' : 'Support'}</span>
+                                        <span className="rounded-md bg-white/5 px-2 py-1 text-[10px] font-medium text-slate-400">{language === 'ar' ? '??????' : 'Coming soon'}</span>
+                                    </button>
+                                </div>
+                            </div>
+
                             {/* Appearance Group */}
                             <div>
-                                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
+                                <h3 className="text-xs font-medium text-slate-400 mb-2 px-1">
                                     Appearance
                                 </h3>
-                                <div className="app-card rounded-2xl border divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
-                                    <div className="flex items-center justify-between p-4">
-                                        <div className="flex items-center gap-3.5">
+                                <div className="app-card rounded-xl border divide-y divide-white/5 overflow-hidden">
+                                    <div className="flex items-center justify-between min-h-11 px-3 py-2">
+                                        <div className="flex items-center gap-2.5">
                                             <div>
-                                                <p className="text-sm sm:text-base font-semibold text-white">Theme</p>
+                                                <p className="text-sm font-medium text-white">Theme</p>
                                                 <p className="text-xs text-slate-400">{isDark ? 'Dark Mode' : 'main'}</p>
                                             </div>
                                         </div>
@@ -1152,24 +1160,24 @@ function UserProfile({ profileUserId }) {
 
                             {(profile?.user?.global_role || profile?.user?.role) === 'PROGRAMER' && (
                                 <div>
-                                    <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">PROGRAMER</h3>
-                                    <button type="button" onClick={() => router.push('/ProgramerDashboard')} className="flex w-full items-center justify-between rounded-2xl border border-sky-400/20 bg-sky-400/5 p-4 text-left hover:bg-sky-400/10">
-                                        <div className="flex items-center gap-3.5"><div><span className="block text-sm font-semibold text-white">App control center</span><span className="mt-1 block text-xs text-slate-400">OTA controll and UI animations</span></div></div>
+                                    <h3 className="mb-2 px-1 text-xs font-medium text-slate-400">PROGRAMER</h3>
+                                    <button type="button" onClick={() => router.push('/ProgramerDashboard')} className="flex w-full items-center justify-between rounded-xl border border-sky-400/20 bg-sky-400/5 min-h-11 px-3 py-2 text-left hover:bg-sky-400/10">
+                                        <div className="flex items-center gap-2.5"><div><span className="block text-sm font-medium text-white">App control center</span><span className="mt-0.5 block text-xs text-slate-400">OTA controll and UI animations</span></div></div>
                                     </button>
                                 </div>
                             )}
 
                             {/* General Settings Group */}
                             <div>
-                                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
+                                <h3 className="text-xs font-medium text-slate-400 mb-2 px-1">
                                     General Settings
                                 </h3>
-                                <div className="app-card rounded-2xl border divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
-                                    <div className="flex items-center justify-between gap-4 p-4">
-                                        <div className="flex items-center gap-3.5">
+                                <div className="app-card rounded-xl border divide-y divide-white/5 overflow-hidden">
+                                    <div className="flex items-center justify-between gap-4 min-h-11 px-3 py-2">
+                                        <div className="flex items-center gap-2.5">
                                             <div>
-                                                <p id="swipe-setting-label" className="text-sm sm:text-base font-semibold text-white">{language === 'ar' ? 'السحب بين الصفحات' : language === 'de' ? 'Zwischen Seiten wischen' : 'Swipe between pages'}</p>
-                                                <p id="swipe-setting-description" className="mt-1 text-xs text-slate-400">{language === 'ar' ? 'اسحب داخل الشاشة للتنقل بين علامات التبويب.' : language === 'de' ? 'Im Bildschirm ziehen, um Tabs zu wechseln.' : 'Drag inside the screen to switch tabs.'}</p>
+                                                <p id="swipe-setting-label" className="text-sm font-medium text-white">{language === 'ar' ? 'السحب بين الصفحات' : language === 'de' ? 'Zwischen Seiten wischen' : 'Swipe between pages'}</p>
+                                                <p id="swipe-setting-description" className="mt-0.5 text-xs text-slate-400">{language === 'ar' ? 'اسحب داخل الشاشة للتنقل بين علامات التبويب.' : language === 'de' ? 'Im Bildschirm ziehen, um Tabs zu wechseln.' : 'Drag inside the screen to switch tabs.'}</p>
                                             </div>
                                         </div>
                                         <button type="button" role="switch" aria-checked={swipeEnabled} aria-labelledby="swipe-setting-label" aria-describedby="swipe-setting-description"
@@ -1178,10 +1186,10 @@ function UserProfile({ profileUserId }) {
                                             <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${swipeEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                                         </button>
                                     </div>
-                                    <div className="flex items-center justify-between p-4">
-                                        <div className="flex items-center gap-3.5">
+                                    <div className="flex items-center justify-between min-h-11 px-3 py-2">
+                                        <div className="flex items-center gap-2.5">
                                             <div>
-                                                <p className="text-sm sm:text-base font-semibold text-white">General Preferences</p>
+                                                <p className="text-sm font-medium text-white">General Preferences</p>
                                                 <p className="text-xs text-slate-400">Configure app and account options</p>
                                             </div>
                                         </div>
@@ -1191,13 +1199,13 @@ function UserProfile({ profileUserId }) {
 
                             {/* Translations Group */}
                             <div>
-                                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
+                                <h3 className="text-xs font-medium text-slate-400 mb-2 px-1">
                                     {language === 'ar' ? 'الترجمة واللغة' : 'Translations & Language'}
                                 </h3>
-                                <div className="app-card rounded-2xl border p-4 shadow-xl shadow-black/20 flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-3.5 min-w-0">
+                                <div className="app-card rounded-xl border min-h-11 px-3 py-2 flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2.5 min-w-0">
                                         <div>
-                                            <p className="text-sm sm:text-base font-semibold text-white">
+                                            <p className="text-sm font-medium text-white">
                                                 {language === 'ar' ? 'لغة التطبيق' : 'App Language'}
                                             </p>
                                             <p className="text-xs text-slate-400">
@@ -1237,7 +1245,7 @@ function UserProfile({ profileUserId }) {
                                 <button
                                     type="button"
                                     onClick={handleLogout}
-                                    className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 hover:border-rose-500/30 font-bold text-sm sm:text-base transition-all duration-200 active:scale-[0.99] cursor-pointer"
+                                    className="w-full flex items-center justify-center gap-2.5 min-h-11 py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 hover:border-rose-500/30 font-medium text-sm transition-all duration-200 active:scale-[0.99] cursor-pointer"
                                 >
                                     <span>{language === 'ar' ? 'تسجيل الخروج' : 'Log Out'}</span>
                                 </button>
@@ -1261,7 +1269,6 @@ function UserProfile({ profileUserId }) {
                                         </button>
                                         <div>
                                             <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-                                                <Sparkles className="w-5 h-5 text-slate-300" />
                                                 Bible Highlights
                                             </h1>
                                             <p className="text-xs text-slate-400">
@@ -1329,7 +1336,7 @@ function UserProfile({ profileUserId }) {
                                                             {highlightsViewMode === 'list' ? (
                                                                 <div className="space-y-2 mt-2">
                                                                     {highlight.verses.map((v) => (
-                                                                        <p key={v.verseId} className="text-xs sm:text-sm text-slate-200 leading-relaxed p-3 rounded-xl border border-white/5 bg-white/5 shadow-inner" style={{ backgroundColor: `${hex}15`, borderColor: `${hex}30` }} dir="rtl">
+                                                                        <p key={v.verseId} className="text-xs sm:text-sm text-slate-200 leading-relaxed py-1" dir="rtl">
                                                                             <span className="text-sky-400/80 font-bold ml-1.5">[{v.verseNumber}]</span>
                                                                             {v.text}
                                                                         </p>
@@ -1337,7 +1344,7 @@ function UserProfile({ profileUserId }) {
                                                                 </div>
                                                             ) : (
                                                                 <div className="mt-2">
-                                                                    <p className="text-xs sm:text-sm text-slate-200 leading-relaxed p-3 rounded-xl border border-white/5 bg-white/5 shadow-inner" style={{ backgroundColor: `${hex}15`, borderColor: `${hex}30`, lineHeight: 1.8 }} dir="rtl">
+                                                                    <p className="text-xs sm:text-sm text-slate-200 leading-relaxed py-1" style={{ lineHeight: 1.8 }} dir="rtl">
                                                                         {highlight.verses.map((v, i) => (
                                                                             <span key={v.verseId}>
                                                                                 <span className="text-sky-400/80 font-bold ml-1.5">[{v.verseNumber}]</span>
@@ -1379,7 +1386,6 @@ function UserProfile({ profileUserId }) {
                                         </button>
                                         <div>
                                             <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-                                                <Book className="w-5 h-5 text-slate-300" />
                                                 Bible Notes
                                             </h1>
                                             <p className="text-xs text-slate-400">
@@ -1444,7 +1450,7 @@ function UserProfile({ profileUserId }) {
                                                         {notesViewMode === 'list' ? (
                                                             <div className="space-y-2 mb-3">
                                                                 {note.verses.map((v) => (
-                                                                    <p key={v.verseId} className="text-xs sm:text-sm text-slate-300 leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5" dir="rtl">
+                                                                    <p key={v.verseId} className="text-xs sm:text-sm text-slate-300 leading-relaxed py-1" dir="rtl">
                                                                         <span className="text-sky-400 font-bold ml-1.5">[{v.verseNumber}]</span>
                                                                         {v.text}
                                                                     </p>
@@ -1452,7 +1458,7 @@ function UserProfile({ profileUserId }) {
                                                             </div>
                                                         ) : (
                                                             <div className="mb-3">
-                                                                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5" dir="rtl" style={{ lineHeight: 1.8 }}>
+                                                                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed py-1" dir="rtl" style={{ lineHeight: 1.8 }}>
                                                                     {note.verses.map((v, i) => (
                                                                         <span key={v.verseId}>
                                                                             <span className="text-sky-400 font-bold ml-1.5">[{v.verseNumber}]</span>
