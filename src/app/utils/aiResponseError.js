@@ -13,7 +13,8 @@ export function readAiResponseError(error) {
   };
   const message = typeof data?.message === 'string' && data.message.trim()
     ? data.message
-    : fallbackMessages[status] || (['ECONNABORTED', 'ETIMEDOUT'].includes(error?.code)
+    : error?.code === 'AI_INVALID_API_RESPONSE' ? 'وصل ردّ غير مكتمل من خادم التطبيق. حاول مجدداً.'
+      : fallbackMessages[status] || (['ECONNABORTED', 'ETIMEDOUT'].includes(error?.code)
       ? 'انتهت مهلة اتصال جهازك بخادم التطبيق. حاول مجدداً.'
       : 'تعذّر اتصال جهازك بخادم التطبيق. تحقق من الإنترنت ثم حاول مجدداً.');
   // A provider's 429 is not the user's daily allowance. Older server versions

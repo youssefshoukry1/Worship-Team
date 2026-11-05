@@ -29,7 +29,7 @@ test('missing or malformed error data still gives a readable message without cra
 
 test('proxy, authentication, client timeout and device connection errors have distinct messages', () => {
     const errors = [400, 401, 403, 429, 500, 502, 503, 504].map(status => ({ response: { status, data: '<html>Proxy failure</html>' } }));
-    errors.push({ code: 'ECONNABORTED' }, { code: 'ERR_NETWORK' });
+    errors.push({ code: 'ECONNABORTED' }, { code: 'ERR_NETWORK' }, { code: 'AI_INVALID_API_RESPONSE' });
     const messages = errors.map(error => context.read(error).message);
     assert.equal(new Set(messages).size, errors.length);
     for (const error of errors) assert.equal(context.read(error).isLimit, false);

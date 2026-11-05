@@ -199,7 +199,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   const [bibleModalChapters, setBibleModalChapters] = useState([]);
   const [bibleModalChapter, setBibleModalChapter] = useState(initialBibleRef.current.chapter);
   const [bibleModalVerses, setBibleModalVerses] = useState(initialBibleRef.current.verses);
-  const [bibleSelectedVerseIds, setBibleSelectedVerseIds] = useState(new Set());
+  const [bibleSelectedVerseIds, setBibleSelectedVerseIdsState] = useState(new Set());
 
   // Lock bottom nav when verses are selected
   useEffect(() => {
@@ -213,6 +213,16 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
 
   // AI analysis state
   const [aiAnalysis, setAiAnalysis] = useState({ loading: false, type: null, text: '', error: null, isLimit: false });
+  const aiRequestRef = useRef(null);
+  const clearAiAnalysis = React.useCallback(() => {
+    aiRequestRef.current = null;
+    setAiAnalysis({ loading: false, type: null, text: '', error: null, isLimit: false });
+  }, []);
+  const setBibleSelectedVerseIds = React.useCallback(next => {
+    clearAiAnalysis();
+    setBibleSelectedVerseIdsState(next);
+  }, [clearAiAnalysis]);
+  useEffect(() => () => { aiRequestRef.current = null; }, []);
   const [showAiOptions, setShowAiOptions] = useState(false);
   const [bibleVerseFontSize, setBibleVerseFontSize] = useState(() => {
     if (typeof window === 'undefined') return 20;
@@ -427,7 +437,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       }
       return next;
     });
-  }, []);
+  }, [setBibleSelectedVerseIds]);
 
   const handleVerseNoteClick = React.useCallback((verse, existingNote) => {
     setViewNoteConfig({ verse, note: existingNote });
@@ -715,7 +725,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       }
     })();
     return () => { cancelled = true; };
-  }, [isOpen, presentationActive]);
+  }, [isOpen, presentationActive, setBibleSelectedVerseIds]);
 
   // Restore last book/chapter after books are loaded
   useEffect(() => {
@@ -765,7 +775,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       }
     })();
     return () => { cancelled = true; };
-  }, [isOpen, presentationActive, bibleModalBook, bibleTranslation, downloadedTranslations]);
+  }, [isOpen, presentationActive, bibleModalBook, bibleTranslation, downloadedTranslations, setBibleSelectedVerseIds]);
 
   // ─── Load verses when chapter or translation changes (synced with presentation) ───
   useEffect(() => {
@@ -801,7 +811,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       }
     })();
     return () => { cancelled = true; };
-  }, [isOpen, presentationActive, bibleModalBook?.bookName, bibleModalChapter, bibleTranslation, downloadedTranslations]);
+  }, [isOpen, presentationActive, bibleModalBook?.bookName, bibleModalChapter, bibleTranslation, downloadedTranslations, setBibleSelectedVerseIds]);
 
 
   // Bible Search Debounce Effect
@@ -1068,9 +1078,13 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   };
 
   const handleAiAnalysis = async (analysisType) => {
+    if (aiRequestRef.current) return;
     setShowAiOptions(false);
     const selectedVersesData = bibleModalVerses.filter(v => bibleSelectedVerseIds.has(v._id));
     if (!selectedVersesData.length) return;
+    const request = {};
+    aiRequestRef.current = request;
+    const isCurrent = () => aiRequestRef.current === request;
     const textContent = selectedVersesData.map(v => `[${v.verseNumber}] ${v.text}`).join(' ');
     const verseId = Array.from(bibleSelectedVerseIds).sort().join('-');
     setAiAnalysis({ loading: true, type: analysisType, text: '', error: null, isLimit: false });
@@ -1082,7 +1096,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       const studyMode = readAiStudyMode(requestUserId);
       const sameAccount = () => requestUserId && localStorage.getItem('user_Taspe7_ID') === requestUserId
         && localStorage.getItem('user_Taspe7_Token') === token;
-      if (sameAccount()) {
+      if (sameAccount() && analysisType !== 'cross_reference') {
         const profile = await readCachedProfile(requestUserId);
         if (sameAccount()) {
           openingReservation = await prepareLocalAiOpening({
@@ -1092,6 +1106,10 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
             chapter: Number(bibleModalChapter)
           });
         }
+      }
+      if (!isCurrent()) {
+        await cancelLocalAiOpening(requestUserId, openingReservation?.id);
+        return;
       }
       const headers = {};
       if (token) headers.Authorization = `Bearer ${token}`;
@@ -1103,7 +1121,14 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
         studyMode,
         ...(studyMode === 'old_man' && analysisType === 'explain' ? { nearbyVerses: buildAiNearbyVerses(bibleModalVerses, bibleSelectedVerseIds) } : {}),
         ...(openingReservation && sameAccount() ? { openingContext: openingReservation.context } : {})
-      }, { headers });
+      }, { headers, timeout: 25000 });
+      if (!isCurrent()) {
+        await cancelLocalAiOpening(requestUserId, openingReservation?.id);
+        return;
+      }
+      if (typeof data?.explanation !== 'string' || !data.explanation.trim() || data.success === false) {
+        throw Object.assign(new Error('Invalid AI API response'), { code: 'AI_INVALID_API_RESPONSE' });
+      }
       let explanation = data.explanation || '';
       if (explanation && sameAccount()) {
         const opening = await completeLocalAiRequest({
@@ -1117,13 +1142,17 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       } else {
         await cancelLocalAiOpening(requestUserId, openingReservation?.id);
       }
+      if (!isCurrent()) return;
       setAiAnalysis({ loading: false, type: analysisType, text: explanation, error: null, isLimit: false,
         studyMode, wordStudies: studyMode === 'old_man' && Array.isArray(data.wordStudies) ? data.wordStudies : [],
         ...readAiResponseDiagrams(data, analysisType, studyMode) });
     } catch (err) {
       await cancelLocalAiOpening(requestUserId, openingReservation?.id);
+      if (!isCurrent()) return;
       const { message, isLimit } = readAiResponseError(err);
       setAiAnalysis({ loading: false, type: analysisType, text: '', error: message, isLimit });
+    } finally {
+      if (isCurrent()) aiRequestRef.current = null;
     }
   };
 
@@ -1289,7 +1318,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     bibleModalChapter, setBibleModalChapter,
     bibleModalVerses, setBibleModalVerses,
     bibleSelectedVerseIds, setBibleSelectedVerseIds,
-    aiAnalysis, setAiAnalysis, showAiOptions, setShowAiOptions,
+    aiAnalysis, clearAiAnalysis, showAiOptions, setShowAiOptions,
     bibleVerseFontSize, setBibleVerseFontSize,
     bibleAddedSuccess,
     bibleModalBrowseLoading,

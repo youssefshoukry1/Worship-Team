@@ -14,25 +14,67 @@ const journeyVerses = JSON.parse(fs.readFileSync(path.join(__dirname, '../public
   .map(verse => ({ ...verse, _id: `journey-${verse.verseNumber}`, translation: 'AVD' }));
 
 for (const engine of ['chromium', 'webkit']) {
+  test(`${engine}: a dismissed request cannot overwrite newer references with its late error`, async t => {
+    const { page, surface, errors } = await reader(t, engine, { mode: 'list', platform: 'web' });
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    const requests = [];
+    t.after(() => release());
+    await page.route('**/ai/analyze-verse', async route => {
+      const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, OPTIONS' };
+      if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+      const body = route.request().postDataJSON();
+      requests.push(body);
+      if (body.analysisType === 'explain') {
+        await gate;
+        return route.fulfill({ status: 503, headers, json: { code: 'AI_PROVIDER_BUSY', message: 'OLD_PROVIDER_ERROR' } });
+      }
+      return route.fulfill({ headers, json: { success: true, explanation: '• تثنية 6:5 — محبة الرب من القلب.' } });
+    });
+    await surface.locator('[data-bible-verse]').first().click();
+    const card = page.locator('[data-bible-selection-panel]');
+    const posted = page.waitForRequest(request => request.url().includes('/ai/analyze-verse') && request.method() === 'POST');
+    await card.getByRole('button', { name: 'AI', exact: true }).click();
+    await card.getByRole('button', { name: 'تفسير', exact: true }).click();
+    await posted;
+    assert.equal(await card.getByRole('button', { name: 'AI', exact: true }).isDisabled(), true);
+    await card.getByRole('button', { name: 'Close AI response', exact: true }).click();
+    await card.getByRole('button', { name: 'AI', exact: true }).click();
+    await card.getByRole('button', { name: 'مراجع', exact: true }).click();
+    const text = card.locator('[data-ai-response-scroll]');
+    await text.waitFor();
+    assert.match(await text.textContent(), /تثنية 6:5/);
+    const oldResponse = page.waitForResponse(response => response.url().includes('/ai/analyze-verse')
+      && response.request().method() === 'POST' && response.request().postDataJSON().analysisType === 'explain');
+    release();
+    await oldResponse;
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(resolve)));
+    assert.match(await text.textContent(), /تثنية 6:5/);
+    assert.equal(await card.getByText('OLD_PROVIDER_ERROR').count(), 0);
+    assert.equal(requests.length, 2);
+    assert.deepEqual(errors, []);
+  });
+
   for (const language of ['en', 'ar']) test(`${engine}: ${language} Profile mode defaults to normal and persists without saving to the server`, async t => {
-    const { page, errors } = await setup(t, engine, { href: '/normal_UserProfile/', platform: 'web', beforeNavigate: async page => {
+    const { page, errors } = await setup(t, engine, { href: '/normal_UserProfile/#bible_settings', platform: 'web', beforeNavigate: async page => {
       await page.evaluate(language => localStorage.setItem('app-language', language), language);
     } });
     const section = page.locator('section[aria-labelledby="ai-study-mode-title"]');
     await section.waitFor();
+    assert.equal(await section.getByText(language === 'ar' ? 'متوسط' : 'Medium', { exact: true }).count(), 1);
     const normal = section.locator('input[value="normal"]');
     const oldMan = section.locator('input[value="old_man"]');
     assert.equal(await normal.isChecked(), true);
     const mutations = [];
     page.on('request', request => { if (!['GET', 'OPTIONS'].includes(request.method())) mutations.push(request.url()); });
-    await section.getByText(language === 'ar' ? 'الرجل الحكيم' : 'Old Man', { exact: true }).click();
+    await section.locator('label:has(input[value="old_man"])').click();
     assert.equal(await oldMan.isChecked(), true);
     assert.deepEqual(mutations, []);
     assert.equal(await page.evaluate(() => localStorage.getItem('wasla_ai_study_mode_v1:tester')), 'old_man');
     await page.reload();
     await section.waitFor();
     assert.equal(await oldMan.isChecked(), true);
-    await section.getByText(language === 'ar' ? 'العادي' : 'Normal', { exact: true }).click();
+    await section.locator('label:has(input[value="normal"])').click();
     assert.equal(await normal.isChecked(), true);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     assert.deepEqual(errors, []);
@@ -52,9 +94,9 @@ for (const engine of ['chromium', 'webkit']) {
       requests.push(route.request().postDataJSON());
       return route.fulfill({ headers, json: { explanation: longAnswer } });
     });
-    await page.goto(`${getBase()}/normal_UserProfile/`);
+    await page.goto(`${getBase()}/normal_UserProfile/#bible_settings`);
     const section = page.locator('section[aria-labelledby="ai-study-mode-title"]');
-    await section.getByText('Old Man', { exact: true }).click();
+    await section.locator('label:has(input[value="old_man"])').click();
     await page.goto(`${getBase()}/bible_form/`);
     await surface.locator('[data-bible-verse]').first().click();
     const card = page.locator('[data-bible-selection-panel]');
@@ -71,8 +113,8 @@ for (const engine of ['chromium', 'webkit']) {
       await response.evaluate(element => { element.scrollTop = element.scrollHeight; });
       assert.equal(await response.evaluate(element => element.scrollTop > 0), true);
     }
-    await page.goto(`${getBase()}/normal_UserProfile/`);
-    await section.getByText('Normal', { exact: true }).click();
+    await page.goto(`${getBase()}/normal_UserProfile/#bible_settings`);
+    await section.locator('label:has(input[value="normal"])').click();
     await page.goto(`${getBase()}/bible_form/`);
     if (!await card.isVisible()) await surface.locator('[data-bible-verse]').first().click();
     const received = page.waitForResponse(response => response.url().includes('/ai/analyze-verse') && response.request().method() === 'POST');

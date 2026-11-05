@@ -590,7 +590,7 @@ export function BibleForm({ controller, isPage = false }) {
     bibleModalBooks, setBibleModalBooks, bibleModalBook, setBibleModalBook,
     bibleModalChapters, setBibleModalChapters, bibleModalChapter, setBibleModalChapter,
     bibleModalVerses, setBibleModalVerses, bibleSelectedVerseIds, setBibleSelectedVerseIds,
-    aiAnalysis, setAiAnalysis, showAiOptions, setShowAiOptions, bibleVerseFontSize,
+    aiAnalysis, clearAiAnalysis, showAiOptions, setShowAiOptions, bibleVerseFontSize,
     bibleModalBrowseLoading, biblePickerOpen, setBiblePickerOpen,
     bibleBookPickerRef, bibleChapterPickerRef, bibleVerseSpacing,
     bibleViewMode, bibleHighlights, imageCardConfig, setImageCardConfig,
@@ -678,14 +678,14 @@ export function BibleForm({ controller, isPage = false }) {
       setTimeout(() => {
         setBibleSelectedVerseIds(new Set());
         setShowAiOptions(false);
-        setAiAnalysis({ loading: false, type: null, text: '', error: null });
+        clearAiAnalysis();
         setShowColorCustomizer(false);
         isClosingActionPanel.current = false;
       }, 180);
     } else {
       setBibleSelectedVerseIds(new Set());
       setShowAiOptions(false);
-      setAiAnalysis({ loading: false, type: null, text: '', error: null });
+      clearAiAnalysis();
       setShowColorCustomizer(false);
     }
   };
@@ -1303,9 +1303,10 @@ export function BibleForm({ controller, isPage = false }) {
                     <button
                       onClick={() => {
                         setShowAiOptions(p => !p);
-                        setAiAnalysis({ loading: false, type: null, text: '', error: null });
+                        clearAiAnalysis();
                       }}
-                      className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center active:scale-95 bg-white/5 hover:bg-white/10 border-white/10 text-white"
+                      disabled={aiAnalysis.loading}
+                      className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full border text-[11px] font-black tracking-wider transition-all flex items-center justify-center active:scale-95 bg-white/5 hover:bg-white/10 border-white/10 text-white disabled:opacity-40"
                     >
                       {t('Ai')}
                     </button>
@@ -1355,7 +1356,8 @@ export function BibleForm({ controller, isPage = false }) {
                           )}
                         </div>
                         <button
-                          onClick={() => setAiAnalysis({ loading: false, type: null, text: '', error: null })}
+                          aria-label={language === 'ar' ? 'إغلاق إجابة الذكاء الاصطناعي' : 'Close AI response'}
+                          onClick={clearAiAnalysis}
                           className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 hover:bg-red-500/15 text-white/25 hover:text-red-400 border border-white/8 hover:border-red-500/20 transition-all duration-150 text-[10px] font-bold"
                         >
                           <X className="w-2.5 h-2.5" />

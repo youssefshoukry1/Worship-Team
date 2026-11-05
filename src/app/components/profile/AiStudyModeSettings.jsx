@@ -11,10 +11,10 @@ export default function AiStudyModeSettings({ userId }) {
   const ar = language === 'ar';
   const mode = useSyncExternalStore(subscribeAiStudyMode, () => readAiStudyMode(userId), defaultMode);
   const choices = [
-    { id: 'normal', title: ar ? '????' : 'Light',
-      description: ar ? '?????? ????? ??????? ????????? ??????. ?????? ????? ???.' : 'Quick, concise answers for everyday questions. Uses fewer tokens.' },
-    { id: 'old_man', title: ar ? '?????' : 'Medium',
-      description: ar ? '??? ???? ?? ???? ??????. ?????? ????? ???? ??????? ????? ????.' : 'Deeper explanations with historical context. Takes longer and uses more tokens.' }
+    { id: 'normal', title: ar ? 'خفيف' : 'Light',
+      description: ar ? 'إجابات سريعة ومختصرة للأسئلة اليومية، باستهلاك أقل للرموز.' : 'Quick, concise answers for everyday questions. Uses fewer tokens.' },
+    { id: 'old_man', title: ar ? 'متوسط' : 'Medium',
+      description: ar ? 'شرح أعمق مع سياق تاريخي، يستغرق وقتاً أطول ويستهلك رموزاً أكثر.' : 'Deeper explanations with historical context. Takes longer and uses more tokens.' }
   ];
 
   return <section aria-labelledby="ai-study-mode-title" dir={ar ? 'rtl' : 'ltr'}>
