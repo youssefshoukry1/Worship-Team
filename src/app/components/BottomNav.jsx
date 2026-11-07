@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Heart, BookOpen, Music, Users, User } from 'lucide-react';
+import { Heart, BookOpen, Users, User } from 'lucide-react';
 import { ensureNavigationServiceWorker } from '../utils/appNavigation';
 import useTabNavigation, { normalizeTabPath } from '../hooks/useTabNavigation';
 import { useTestimonyFeed } from './testimonies/TestimonyFeedProvider';
@@ -10,7 +10,6 @@ import { useTestimonyFeed } from './testimonies/TestimonyFeedProvider';
 const NAV_ITEMS = [
   { label: 'Pray', icon: Heart, href: '/pray' },
   { label: 'Bible', icon: BookOpen, href: '/bible_form' },
-  { label: 'Hymns', icon: Music, href: '/hymns' },
   { label: 'Friends', icon: Users, href: '/friends' },
   { label: 'Profile', icon: User, href: '/normal_UserProfile' }
 ];

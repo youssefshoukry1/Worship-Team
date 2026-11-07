@@ -1,13 +1,12 @@
 'use client';
 
 import { useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import Link from 'next/link';
-import { ArrowUpRight, Loader2, LockKeyhole, Plus, RefreshCw } from 'lucide-react';
+import { Loader2, LockKeyhole, Plus, RefreshCw } from 'lucide-react';
 import { UserContext } from '../../context/User_Context';
 import TestimonyCard from './TestimonyCard';
 import TestimonyComposer from './TestimonyComposer';
 import TestimonyReader from './TestimonyReader';
-import { NOTE_ACTIVE_MESSAGE, profileHref, testimonyRequest } from './testimonyApi';
+import { NOTE_ACTIVE_MESSAGE, testimonyRequest } from './testimonyApi';
 import { showToast } from '../ToastContainer';
 import styles from './testimonies.module.css';
 import { useTestimonyFeed } from './TestimonyFeedProvider';
@@ -118,11 +117,9 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, profileA
   };
 
   return <>
-    <section className={styles.board} aria-label={isFeed ? 'Friends testimony highlights' : 'Profile testimony highlights'}>
+    <section className={styles.board} aria-label={isFeed ? 'Friends highlights' : 'Profile testimony highlights'}>
       <header className={styles.boardHeader}>
         <h2>{isFeed ? 'Friends’ testimonies' : 'Highlights'}</h2>
-        {isFeed && <button type="button" className={styles.refreshNotes} disabled={loading || loadingMore} aria-label="Refresh testimonies" title="Refresh notes" onClick={() => load()}><RefreshCw size={12} className={loading || loadingMore ? styles.spin : undefined} /></button>}
-        {isFeed && <Link href={profileHref(userId)} className={styles.quietLink}>Your notes <ArrowUpRight size={12} /></Link>}
       </header>
       {restricted ? <div className={styles.lockedTestimonies}><LockKeyhole size={18} /><div><strong>Shared with friends</strong><p>Become friends to read each other’s testimonies.</p></div></div> : <div className={styles.noteRail} data-testid="testimony-cards">
         {(isFeed || ownProfile) && <div className={styles.miniCard}>

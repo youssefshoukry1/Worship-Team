@@ -10,9 +10,9 @@ import { holdNavigationWork, releaseNavigationWork } from '../utils/navigationWo
 import { TabPageActivity } from './TabPageActivity';
 import { createFeatureBoundary } from './DeferredFeature';
 
-const routes = ['/pray', '/bible_form', '/hymns', '/friends', '/normal_UserProfile'];
-const variants = ['cards', 'bible', 'hymns', 'friends', 'profile'];
-const imports = [() => import('../pray/page'), () => import('../bible_form/page'), () => import('../hymns/page'), () => import('../friends/page'), () => import('../normal_UserProfile/page')];
+const routes = ['/pray', '/bible_form', '/friends', '/normal_UserProfile'];
+const variants = ['cards', 'bible', 'friends', 'profile'];
+const imports = [() => import('../pray/page'), () => import('../bible_form/page'), () => import('../friends/page'), () => import('../normal_UserProfile/page')];
 const loads = imports.map(load => { let pending; return () => pending || (pending = load().catch(error => { pending = null; throw error; })); });
 const pages = loads.map(load => createFeatureBoundary(lazy(load), 'page'));
 

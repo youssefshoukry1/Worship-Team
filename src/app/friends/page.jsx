@@ -11,7 +11,6 @@ import {
   X,
   Clock,
   UserMinus,
-  ArrowLeft,
   Loader2,
   Inbox,
   Send
@@ -393,21 +392,8 @@ export default function FriendsPage() {
   return (
     <div className="app-page min-h-screen text-slate-100 pb-28 pt-4 px-4 sm:px-6 max-w-2xl mx-auto transition-colors duration-150">
       {/* Top Header */}
-      <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => router.back()}
-          className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-slate-300"
-          aria-label="Back"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-xl bg-[#00C2FF]/10 text-[#00C2FF] border border-[#00C2FF]/20">
-            <Users className="w-5 h-5" />
-          </div>
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">Friends</h1>
-        </div>
-        <div className="w-9" />
+      <div className="flex items-center justify-start mb-6">
+        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">Friends activity</h1>
       </div>
 
       <TestimonyBoard />
