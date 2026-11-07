@@ -6,14 +6,14 @@ export default function SubscriptionTerms() {
   const { language } = useLanguage();
   const ar = language === 'ar';
   const paragraphs = ar ? [
-    'يوفر اشتراك Plus أو Pro رصيداً إضافياً لإجابات الذكاء الاصطناعي. يظهر السعر والفترة والرصيد المتاح قبل الدفع. التفسير والمراجع والتطبيق تتشارك في رصيد واحد يتجدد كل ٢٤ ساعة، ولا يتراكم الرصيد غير المستخدم. الطلبات الفاشلة لا تُخصم منه.',
+    'يوفر اشتراك Plus أو Pro رصيد توكنز للذكاء الاصطناعي. يظهر السعر والفترة والرصيد قبل الدفع. التفسير والمراجع والتطبيق تتشارك في رصيد واحد يتجدد بعد ٢٤ ساعة من أول طلب في النافذة. يُحسب النص المرسل والإجابة وتفكير النموذج ضمن الاستهلاك الفعلي للإجابة المكتملة. لا يتراكم الرصيد غير المستخدم، ولا تُخصم الطلبات الفاشلة أو محاولات الإصلاح الداخلية. قد يستهلك المقطع الأطول أو النمط الأعمق توكنز أكثر.',
     'تُحصّل اشتراكات Android وiOS من خلال متجر التطبيقات المعني. تتجدد الاشتراكات تلقائياً حتى إلغائها من إعدادات المتجر. يظل الوصول المدفوع متاحاً حتى نهاية الفترة المؤكدة، وقد تُزال الصلاحية قبل ذلك في حالة الاسترداد أو إلغاء المعاملة.',
     'تمنح مشتريات الموقع عبر Paymob مدة ٣٠ يوماً، ولا تتجدد تلقائياً. يظهر السعر النهائي قبل تأكيد الدفع. يضيف تجديد الخطة نفسها ٣٠ يوماً إلى المدة المتبقية بعد التحقق من الدفع.',
     'المشتريات مرتبطة بحساب وصلة الذي استخدمته عند الشراء. استخدم الحساب نفسه على أجهزتك، واستعادة المشتريات داخل تطبيق المتجر عند الحاجة. لا يمكن نقل إيصال شراء إلى حساب آخر تلقائياً.',
     'تنطبق سياسات الاسترداد وشروط الدفع الخاصة بجهة الشراء، بالإضافة إلى حقوقك القانونية المعمول بها. إذا خُصم مبلغ ولم يظهر الاشتراك، لا تكرر الدفع؛ احتفظ بمرجع العملية واستخدم استعادة المشتريات أو تواصل مع الدعم.',
     'الذكاء الاصطناعي أداة مساعدة للدراسة وقد يخطئ. راجع النص الكتابي وسياقه عند تقييم الإجابات.'
   ] : [
-    'Plus and Pro provide additional AI answers. The price, period and allowance are shown before purchase. Explanation, references and application share one allowance that resets every 24 hours. Unused answers do not roll over. Failed AI requests do not consume the allowance.',
+    'Plus and Pro provide an AI token allowance. The price, period and allowance are shown before purchase. Explanation, references and application share one balance that resets 24 hours after the first request in each window. Usage includes the input, response and model thinking tokens for the completed answer. Unused tokens do not roll over. Failed requests and internal repair attempts do not consume the allowance. Longer passages and deeper study may use more tokens.',
     'Android and iOS subscriptions are billed by the relevant app store. They renew automatically until canceled in store settings. Paid access continues until the verified period ends, unless a refund or revoked transaction removes access earlier.',
     'Website purchases through Paymob provide 30 days of access and do not renew automatically. The final price is shown before payment confirmation. Renewing the same plan adds 30 days to any remaining verified access after payment is confirmed.',
     'Purchases belong to the Wasla account used when buying. Use that account across your devices and Restore purchases in the store app when necessary. A purchase receipt cannot automatically be moved to a different Wasla account.',

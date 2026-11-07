@@ -218,6 +218,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     aiRequestRef.current = null;
     setAiAnalysis({ loading: false, type: null, text: '', error: null, isLimit: false });
   }, []);
+  useEffect(() => { clearAiAnalysis(); }, [user_id, isLogin, clearAiAnalysis]);
   const setBibleSelectedVerseIds = React.useCallback(next => {
     clearAiAnalysis();
     setBibleSelectedVerseIdsState(next);
@@ -1144,13 +1145,14 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       }
       if (!isCurrent()) return;
       setAiAnalysis({ loading: false, type: analysisType, text: explanation, error: null, isLimit: false,
+        quota: data.quota,
         studyMode, wordStudies: studyMode === 'old_man' && Array.isArray(data.wordStudies) ? data.wordStudies : [],
         ...readAiResponseDiagrams(data, analysisType, studyMode) });
     } catch (err) {
       await cancelLocalAiOpening(requestUserId, openingReservation?.id);
       if (!isCurrent()) return;
       const { message, isLimit } = readAiResponseError(err);
-      setAiAnalysis({ loading: false, type: analysisType, text: '', error: message, isLimit });
+      setAiAnalysis({ loading: false, type: analysisType, text: '', error: message, isLimit, quota: err.response?.data?.quota });
     } finally {
       if (isCurrent()) aiRequestRef.current = null;
     }

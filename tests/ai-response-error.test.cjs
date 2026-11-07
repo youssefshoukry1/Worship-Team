@@ -8,7 +8,7 @@ const context = {};
 vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/app/utils/aiResponseError.js'), 'utf8').replace('export function', 'function') + ';globalThis.read = readAiResponseError;', context);
 
 test('only actual daily allowance errors show the subscription controls', () => {
-    for (const data of [{ code: 'AI_DAILY_LIMIT', message: 'Limit reached' }, { quota: { remaining: 0 }, message: 'Limit reached' }]) {
+    for (const data of [{ code: 'AI_DAILY_LIMIT', message: 'Limit reached' }, { code: 'AI_TOKEN_BUDGET', message: 'Not enough tokens' }, { quota: { remaining: 0 }, message: 'Limit reached' }]) {
         assert.equal(context.read({ response: { status: 429, data } }).isLimit, true);
     }
     for (const status of [429, 503, 504]) {

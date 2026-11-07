@@ -1,5 +1,6 @@
 'use client';
 import PageSkeleton from '../components/PageSkeleton';
+import AiTokenBalance from '../components/AiTokenBalance';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, Loader2, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
@@ -12,6 +13,7 @@ export default function PlansPage() {
   const { language } = useLanguage();
   const ar = language === 'ar';
   const text = (en, arabic) => ar ? arabic : en;
+  const tokens = value => new Intl.NumberFormat(ar ? 'ar-EG' : 'en-GB').format(value);
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -65,7 +67,8 @@ export default function PlansPage() {
         {data.catalog.testMode && Object.values(data.catalog.providers).some(Boolean) && <p className="mb-5 rounded-xl bg-amber-500/10 p-4 text-sm text-amber-600">{text('Test purchases only. Live subscriptions are not on sale yet.', 'المشتريات تجريبية فقط. الاشتراكات الفعلية ليست متاحة للبيع بعد.')}</p>}
         <div className={`mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-5 ${panel}`}>
           <div><p className={`text-xs ${muted}`}>{text('Your account', 'حسابك')}</p><p className="mt-1 text-lg font-semibold">{data.current.unlimited ? text('Unlimited AI access', 'استخدام غير محدود للذكاء الاصطناعي') : data.current.plan === 'free' ? text('Free', 'مجاني') : data.current.plan === 'pro' ? 'Pro' : 'Plus'}</p>
-            {data.current.expiresAt && <p className={`mt-1 text-sm ${muted}`}>{text('Access until ', 'متاح حتى ')}{new Date(data.current.expiresAt).toLocaleDateString(ar ? 'ar-EG' : 'en-GB')}</p>}</div>
+            {data.current.expiresAt && <p className={`mt-1 text-sm ${muted}`}>{text('Access until ', 'متاح حتى ')}{new Date(data.current.expiresAt).toLocaleDateString(ar ? 'ar-EG' : 'en-GB')}</p>}
+            <AiTokenBalance quota={data.current.quota} language={language} /></div>
           {data.platform !== 'paymob' && <div className="flex flex-wrap gap-2">
             <button disabled={!!busy} type="button" onClick={() => perform('restore', async () => {
               const count = await restoreStorePurchases(isLogin, user_id);
@@ -82,8 +85,9 @@ export default function PlansPage() {
         </div>}
         <div className="grid gap-4 md:grid-cols-3">
           <div className={`rounded-2xl border p-6 ${panel}`}><h2 className="text-lg font-semibold">{text('Free', 'مجاني')}</h2><p className="mt-5 text-3xl font-bold">{text('Free', 'مجاناً')}</p>
-            <p className={`mt-2 text-sm ${muted}`}>{data.catalog.freeDailyLimit} {text('AI answers per 24 hours', 'إجابات كل ٢٤ ساعة')}</p>
+            <p className={`mt-2 text-sm ${muted}`}>{tokens(data.catalog.freeDailyTokenLimit)} {text('AI tokens per 24 hours', 'توكن ذكاء اصطناعي كل ٢٤ ساعة')}</p>
             {data.catalog.launchBonusEndsAt && <p className={`mt-4 text-xs leading-6 ${muted}`}>{text('Includes a temporary launch bonus until ', 'يشمل مكافأة الإطلاق المؤقتة حتى ')}{new Date(data.catalog.launchBonusEndsAt).toLocaleDateString(ar ? 'ar-EG' : 'en-GB')}</p>}
+            {data.catalog.launchBonusEndsAt && <p className={`mt-2 text-xs leading-6 ${muted}`}>{text('After the launch offer: ', 'بعد عرض الإطلاق: ')}{tokens(data.catalog.freeStandardTokenLimit)} {text('tokens per 24 hours.', 'توكن كل ٢٤ ساعة.')}</p>}
             <p className={`mt-6 flex items-center gap-2 text-sm ${muted}`}><Check size={16} />{text('Available without a subscription', 'متاح دون اشتراك')}</p>
           </div>
           {data.catalog.plans.map(plan => {
@@ -96,7 +100,7 @@ export default function PlansPage() {
             return <div key={plan.id} className={`relative rounded-2xl border p-6 ${panel} ${current ? 'ring-1 ring-cyan-500' : ''}`}>
               <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{plan.title}</h2>{current && <span className="rounded-full bg-cyan-500/10 px-2 py-1 text-xs text-cyan-500">{text('Current plan', 'خطتك الحالية')}</span>}</div>
               <p className="mt-5 text-3xl font-bold">{price || text('Coming soon', 'قريباً')}</p><p className={`mt-1 text-sm ${muted}`}>{web ? text('30 days · renew manually', '٣٠ يوماً · تجديد يدوي') : text('per month · auto-renews', 'شهرياً · يتجدد تلقائياً')}</p>
-              <p className="mt-6 flex items-start gap-2 text-sm leading-6"><Check size={17} className="mt-1 shrink-0 text-cyan-500" />{plan.dailyLimit} {text('AI answers per 24 hours, shared across all three options.', 'إجابة كل ٢٤ ساعة، مشتركة بين الخيارات الثلاثة.')}</p>
+              <p className="mt-6 flex items-start gap-2 text-sm leading-6"><Check size={17} className="mt-1 shrink-0 text-cyan-500" />{tokens(plan.dailyTokenLimit)} {text('AI tokens per 24 hours, shared across all three options.', 'توكن كل ٢٤ ساعة، مشتركة بين الخيارات الثلاثة.')}</p>
               <p className={`mt-3 text-sm ${muted}`}>{text('The same account works on your devices.', 'اشتراكك مرتبط بحسابك على أجهزتك.')}</p>
               <button type="button" disabled={!!busy || !ready || anotherActive || !!data.current.pendingProvider || data.current.unlimited} onClick={() => purchase(plan)} className="mt-7 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:bg-slate-500/15 disabled:text-slate-500">
                 {busy === plan.id && <Loader2 size={16} className="animate-spin" />}{!ready ? text('Not available yet', 'غير متاح حالياً') : anotherActive ? current ? text('Plan active', 'الخطة مفعّلة') : text('Manage your current plan first', 'أدر خطتك الحالية أولاً') : current ? text('Extend by 30 days', 'تمديد ٣٠ يوماً') : text(`Subscribe to ${plan.title}`, `اشترك في ${plan.title}`)}
@@ -104,7 +108,7 @@ export default function PlansPage() {
             </div>;
           })}
         </div>
-        <div className={`mt-6 flex items-start gap-2 text-sm leading-6 ${muted}`}><ShieldCheck className="mt-1 shrink-0" size={17} /><p>{text('Your daily AI allowance resets every 24 hours. Failed AI requests do not use your allowance.', 'يتجدد رصيد الذكاء الاصطناعي كل ٢٤ ساعة. الطلبات الفاشلة لا تُخصم من رصيدك.')}</p></div>
+        <div className={`mt-6 flex items-start gap-2 text-sm leading-6 ${muted}`}><ShieldCheck className="mt-1 shrink-0" size={17} /><p>{text('Your token allowance resets 24 hours after first use. Longer passages and deeper responses may use more tokens. Unused tokens do not roll over, and failed requests do not consume your allowance.', 'يتجدد رصيد التوكنز بعد ٢٤ ساعة من أول استخدام. قد تستهلك المقاطع الأطول والإجابات الأعمق توكنز أكثر. لا يتراكم الرصيد غير المستخدم، ولا تُخصم الطلبات الفاشلة.')}</p></div>
         <p className={`mt-4 text-sm leading-7 ${muted}`}>{data.platform === 'paymob' ? text('Website payments use Paymob. Card and wallet options depend on availability at checkout. Your pass does not renew automatically.', 'الدفع على الموقع عبر Paymob. تظهر البطاقات والمحافظ المتاحة أثناء الدفع. لا تتجدد الباقة تلقائياً.') : text('Subscriptions are billed by your app store and renew automatically until canceled in store settings. Cancellation keeps access until the paid period ends.', 'يُحصّل متجر التطبيقات قيمة الاشتراك ويتجدد تلقائياً حتى إلغائه من إعدادات المتجر. يظل الوصول متاحاً حتى نهاية الفترة المدفوعة.')}</p>
         <div className={`mt-5 flex flex-wrap gap-5 text-sm ${muted}`}><Link href="/subscription-terms" className="underline">{text('Subscription terms', 'شروط الاشتراك')}</Link><Link href="/privacy-policy" className="underline">{text('Privacy policy', 'سياسة الخصوصية')}</Link>{data.catalog.supportEmail && <a href={`mailto:${data.catalog.supportEmail}`} className="underline">{text('Contact support', 'تواصل مع الدعم')}</a>}</div>
       </>}

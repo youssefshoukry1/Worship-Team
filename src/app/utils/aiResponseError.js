@@ -5,6 +5,7 @@ export function readAiResponseError(error) {
     400: 'تعذّر إرسال طلب صحيح. أعد تحديد الآيات ثم حاول مجدداً.',
     401: 'انتهت جلسة تسجيل الدخول. سجّل الدخول مجدداً.',
     403: 'ليس لحسابك صلاحية تنفيذ هذا الطلب.',
+    409: 'يوجد طلب ذكاء اصطناعي جارٍ لحسابك. انتظر انتهاءه ثم حاول مجدداً.',
     429: 'وصلت الطلبات إلى الحدّ المؤقت. انتظر قليلاً ثم حاول مجدداً.',
     500: 'حدث خطأ في خادم التطبيق أثناء تجهيز الرد. حاول مجدداً.',
     502: 'تعذّر على بوابة التطبيق الحصول على ردّ من الخادم. حاول مجدداً.',
@@ -20,7 +21,7 @@ export function readAiResponseError(error) {
   // A provider's 429 is not the user's daily allowance. Older server versions
   // identify real allowance failures with quota metadata rather than a code.
   const isLimit = status === 429
-    && (data?.code === 'AI_DAILY_LIMIT' || Boolean(data?.quota));
+    && (['AI_DAILY_LIMIT', 'AI_TOKEN_BUDGET'].includes(data?.code) || Boolean(data?.quota));
   const retryAfterSeconds = Number(data?.retryAfterSeconds);
   // This is a retry hint, not a guarantee that a daily provider quota resets then.
   const showWait = data?.retryable && Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0

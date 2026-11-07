@@ -15,6 +15,7 @@ import { useTabPageActive } from '../components/TabPageActivity';
 import BibleSettings from './BibleSettings';
 import { aiStudyTextSegments } from '../utils/aiWordStudies';
 import AiJourneyMap from './AiJourneyMap';
+import AiTokenBalance from '../components/AiTokenBalance';
 import AiPracticalFlow from './AiPracticalFlow';
 
 function AiResponseText({ text, wordStudies, journey, practicalFlow }) {
@@ -1389,6 +1390,7 @@ export function BibleForm({ controller, isPage = false }) {
                             journey={aiAnalysis.studyMode === 'old_man' && aiAnalysis.type === 'explain' ? aiAnalysis.journey : null}
                             practicalFlow={aiAnalysis.studyMode === 'old_man' && aiAnalysis.type === 'practical' ? aiAnalysis.practicalFlow : null} />
                         )}
+                        {!aiAnalysis.loading && <AiTokenBalance quota={aiAnalysis.quota} language={language} />}
                       </div>
                     </div>
                   )}

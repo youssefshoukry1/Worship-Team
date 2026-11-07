@@ -14,6 +14,34 @@ const journeyVerses = JSON.parse(fs.readFileSync(path.join(__dirname, '../public
   .map(verse => ({ ...verse, _id: `journey-${verse.verseNumber}`, translation: 'AVD' }));
 
 for (const engine of ['chromium', 'webkit']) {
+  test(`${engine}: AI token balances update from the response without an extra request`, async t => {
+    const { page, surface, errors } = await reader(t, engine, { mode: 'list', platform: 'web', language: 'en' });
+    let posts = 0;
+    await page.route('**/ai/analyze-verse', route => {
+      const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, OPTIONS' };
+      if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+      posts++;
+      const quota = { unit: 'tokens', plan: 'free', limit: 14000, used: posts === 1 ? 1600 : 12500,
+        remaining: posts === 1 ? 12400 : 1500, resetsAt: '2026-11-08T12:00:00Z' };
+      return posts === 1 ? route.fulfill({ headers, json: { success: true, explanation: 'يوضح المقطع أهمية حفظ الوصية في الحياة اليومية.', quota } })
+        : route.fulfill({ status: 429, headers, json: { success: false, code: 'AI_TOKEN_BUDGET', message: 'رصيد التوكنز لا يكفي لهذا المقطع.', quota } });
+    });
+    await surface.locator('[data-bible-verse]').first().click();
+    const card = page.locator('[data-bible-selection-panel]');
+    await card.getByRole('button', { name: 'AI', exact: true }).click();
+    await card.getByRole('button', { name: 'تفسير', exact: true }).click();
+    const balance = card.locator('[data-ai-token-balance]');
+    await balance.getByText('12,400 of 14,000 tokens remaining', { exact: true }).waitFor();
+    await card.getByRole('button', { name: 'Close AI response', exact: true }).click();
+    await card.getByRole('button', { name: 'AI', exact: true }).click();
+    await card.getByRole('button', { name: 'مراجع', exact: true }).click();
+    await balance.getByText('1,500 of 14,000 tokens remaining', { exact: true }).waitFor();
+    assert.match(await card.getByRole('alert').textContent(), /التوكنز/);
+    assert.equal(posts, 2);
+    assert.deepEqual(errors, []);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  });
+
   test(`${engine}: a dismissed request cannot overwrite newer references with its late error`, async t => {
     const { page, surface, errors } = await reader(t, engine, { mode: 'list', platform: 'web' });
     let release;
