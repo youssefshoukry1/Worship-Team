@@ -14,7 +14,7 @@ const journeyVerses = JSON.parse(fs.readFileSync(path.join(__dirname, '../public
   .map(verse => ({ ...verse, _id: `journey-${verse.verseNumber}`, translation: 'AVD' }));
 
 for (const engine of ['chromium', 'webkit']) {
-  test(`${engine}: AI token balances update from the response without an extra request`, async t => {
+  test(`${engine}: AI responses and errors omit token balances and reset details`, async t => {
     const { page, surface, errors } = await reader(t, engine, { mode: 'list', platform: 'web', language: 'en' });
     let posts = 0;
     await page.route('**/ai/analyze-verse', route => {
@@ -30,12 +30,15 @@ for (const engine of ['chromium', 'webkit']) {
     const card = page.locator('[data-bible-selection-panel]');
     await card.getByRole('button', { name: 'AI', exact: true }).click();
     await card.getByRole('button', { name: 'تفسير', exact: true }).click();
-    const balance = card.locator('[data-ai-token-balance]');
-    await balance.getByText('12,400 of 14,000 tokens remaining', { exact: true }).waitFor();
+    await card.getByText('يوضح المقطع أهمية حفظ الوصية في الحياة اليومية.', { exact: true }).waitFor();
+    assert.equal(await card.locator('[data-ai-token-balance]').count(), 0);
+    assert.doesNotMatch(await card.textContent(), /12,400|14,000|Resets /);
     await card.getByRole('button', { name: 'Close AI response', exact: true }).click();
     await card.getByRole('button', { name: 'AI', exact: true }).click();
     await card.getByRole('button', { name: 'مراجع', exact: true }).click();
-    await balance.getByText('1,500 of 14,000 tokens remaining', { exact: true }).waitFor();
+    await card.getByRole('alert').waitFor();
+    assert.equal(await card.locator('[data-ai-token-balance]').count(), 0);
+    assert.doesNotMatch(await card.textContent(), /1,500|14,000|Resets /);
     assert.match(await card.getByRole('alert').textContent(), /التوكنز/);
     assert.equal(posts, 2);
     assert.deepEqual(errors, []);

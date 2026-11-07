@@ -1,6 +1,5 @@
 'use client';
 import PageSkeleton from '../components/PageSkeleton';
-import AiTokenBalance from '../components/AiTokenBalance';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, Loader2, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
@@ -68,7 +67,7 @@ export default function PlansPage() {
         <div className={`mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-5 ${panel}`}>
           <div><p className={`text-xs ${muted}`}>{text('Your account', 'حسابك')}</p><p className="mt-1 text-lg font-semibold">{data.current.unlimited ? text('Unlimited AI access', 'استخدام غير محدود للذكاء الاصطناعي') : data.current.plan === 'free' ? text('Free', 'مجاني') : data.current.plan === 'pro' ? 'Pro' : 'Plus'}</p>
             {data.current.expiresAt && <p className={`mt-1 text-sm ${muted}`}>{text('Access until ', 'متاح حتى ')}{new Date(data.current.expiresAt).toLocaleDateString(ar ? 'ar-EG' : 'en-GB')}</p>}
-            <AiTokenBalance quota={data.current.quota} language={language} /></div>
+          </div>
           {data.platform !== 'paymob' && <div className="flex flex-wrap gap-2">
             <button disabled={!!busy} type="button" onClick={() => perform('restore', async () => {
               const count = await restoreStorePurchases(isLogin, user_id);

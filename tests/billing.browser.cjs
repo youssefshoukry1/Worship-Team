@@ -9,11 +9,11 @@ const root = path.resolve(__dirname, '../out');
 const version = JSON.parse(fs.readFileSync(path.join(__dirname, '../public/version.json'))).version;
 const types = { '.js': 'application/javascript', '.css': 'text/css', '.html': 'text/html', '.json': 'application/json', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.txt': 'text/plain' };
 let server, browser, base;
-const catalog = { currency: 'EGP', supportEmail: 'support@example.test', testMode: true, quotaUnit: 'tokens', freeDailyTokenLimit: 14000,
-  freeStandardTokenLimit: 8000, launchBonusEndsAt: '2027-04-25T12:00:00Z', providers: { paymob: false, apple: false, google: false },
+const catalog = { currency: 'EGP', supportEmail: 'support@example.test', testMode: true, quotaUnit: 'tokens', freeDailyTokenLimit: 20000,
+  freeStandardTokenLimit: 14000, launchBonusEndsAt: '2027-04-25T12:00:00Z', providers: { paymob: false, apple: false, google: false },
   plans: [{ id: 'plus', title: 'Plus', dailyTokenLimit: 22000, webDays: 30, webPriceCents: null }, { id: 'pro', title: 'Pro', dailyTokenLimit: 50000, webDays: 30, webPriceCents: null }] };
 const current = { plan: 'free', accountToken: 'uuid-fixture', unlimited: false, testAllowed: false,
-  quota: { unit: 'tokens', plan: 'free', limit: 14000, used: 1800, remaining: 12200, resetsAt: '2026-11-08T12:00:00Z' } };
+  quota: { unit: 'tokens', plan: 'free', limit: 20000, used: 1800, remaining: 18200, resetsAt: '2026-11-08T12:00:00Z' } };
 const reference = '00000000-0000-4000-8000-000000000001';
 
 before(async () => {
@@ -60,9 +60,11 @@ for (const language of ['en', 'ar']) test(`mobile ${language} plans show correct
     await f.page.goto(`${base}/plans/`);
     await f.page.getByText(language === 'en' ? 'Coming soon' : 'قريباً', { exact: true }).first().waitFor();
     const text = await f.page.locator('main').innerText();
-    for (const limit of [14000, 8000, 22000, 50000, 12200]) {
+    for (const limit of [20000, 14000, 22000, 50000]) {
       assert.ok(text.includes(new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en-GB').format(limit)));
     }
+    assert.equal(await f.page.locator('[data-ai-token-balance]').count(), 0);
+    assert.ok(!text.includes(new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en-GB').format(18200)));
     assert.ok(text.includes(language === 'ar' ? 'توكن' : 'tokens'));
     const buttons = f.page.getByRole('button', { name: language === 'en' ? 'Not available yet' : 'غير متاح حالياً', exact: true });
     assert.equal(await buttons.count(), 2);

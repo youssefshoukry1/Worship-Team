@@ -2,7 +2,7 @@
 import PageSkeleton from '../components/PageSkeleton';
 
 import Link from 'next/link';
-import { ArrowUpRight, Download, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowUpRight, Download, ShieldCheck, Sparkles, Gauge } from 'lucide-react';
 import useProgramerAccess from './useProgramerAccess';
 
 export default function ProgramerDashboard() {
@@ -23,6 +23,7 @@ export default function ProgramerDashboard() {
                 {[
                     { href: '/ProgramerDashboard/ota', title: 'OTA controll', Icon: Download, description: 'Hold a release, test with PROGRAMER, or publish to all users. Manage update intros and see device versions.', color: 'text-sky-300 bg-sky-400/10' },
                     { href: '/ProgramerDashboard/animations', title: 'UI animations', Icon: Sparkles, description: 'Request the navbar logo intro when you choose. Preview it, choose an audience, or cancel a pending request.', color: 'text-violet-300 bg-violet-400/10' },
+                    { href: '/ProgramerDashboard/ai-tokens', title: 'AI token controls', Icon: Gauge, description: 'Find an account, review its AI usage, reset its allowance, or start the six-month Free launch offer.', color: 'text-emerald-300 bg-emerald-400/10' },
                 ].map(({ href, title, Icon, description, color }) => <Link key={href} href={href} className="group rounded-2xl border border-white/[0.08] bg-[#101725] p-6 transition hover:border-sky-400/40 hover:bg-[#141e2e] sm:p-8">
                     <div className="flex items-center justify-between"><span className={`rounded-xl p-3 ${color}`}><Icon size={25} /></span><ArrowUpRight size={20} className="text-slate-500 transition group-hover:text-sky-300" /></div>
                     <h2 className="mt-6 text-xl font-semibold text-white">{title}</h2>

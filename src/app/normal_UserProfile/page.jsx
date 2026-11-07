@@ -20,6 +20,7 @@ import ProfileHeaderCard from '../components/profile/ProfileHeaderCard';
 import ProfileStats from '../components/profile/ProfileStats';
 import FriendshipControls from '../components/profile/FriendshipControls';
 import AiStudyModeSettings from '../components/profile/AiStudyModeSettings';
+import AiUsageSettings from '../components/profile/AiUsageSettings';
 import cropStyles from './profileCropper.module.css';
 import {
     Activity,
@@ -1056,6 +1057,7 @@ function UserProfile({ profileUserId }) {
 
                         {/* --- SETTINGS GROUPS (CHATGPT STYLE) --- */}
                         {isOwner && <div className="space-y-5">
+                            <AiUsageSettings userId={user_id} token={isLogin} active={pageActive} />
                             {/* Bible Group */}
                             <div>
                                 <h3 className="text-xs font-medium text-slate-400 mb-2 px-1">
@@ -1162,7 +1164,7 @@ function UserProfile({ profileUserId }) {
                                 <div>
                                     <h3 className="mb-2 px-1 text-xs font-medium text-slate-400">PROGRAMER</h3>
                                     <button type="button" onClick={() => router.push('/ProgramerDashboard')} className="flex w-full items-center justify-between rounded-xl border border-sky-400/20 bg-sky-400/5 min-h-11 px-3 py-2 text-left hover:bg-sky-400/10">
-                                        <div className="flex items-center gap-2.5"><div><span className="block text-sm font-medium text-white">App control center</span><span className="mt-0.5 block text-xs text-slate-400">OTA controll and UI animations</span></div></div>
+                                        <div className="flex items-center gap-2.5"><div><span className="block text-sm font-medium text-white">App control center</span><span className="mt-0.5 block text-xs text-slate-400">OTA, UI animations and AI tokens</span></div></div>
                                     </button>
                                 </div>
                             )}
@@ -1523,6 +1525,7 @@ function UserProfile({ profileUserId }) {
                                 </div>
 
                                 <AiStudyModeSettings userId={user_id} />
+                                <AiUsageSettings userId={user_id} token={isLogin} active={pageActive} />
 
                                 {/* Translation Group */}
                                 <div>

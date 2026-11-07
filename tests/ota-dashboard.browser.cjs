@@ -200,7 +200,7 @@ test('native bridge confirms app health, reports the active version, and activat
     assert.deepEqual(app.errors, []);
 });
 
-test('control center contains two entry buttons and opens the separate OTA page', async t => {
+test('control center opens the separate OTA page', async t => {
     const app = await setup(t, { routePath: '/ProgramerDashboard/' });
     await app.page.getByRole('link', { name: /OTA controll Hold a release/ }).waitFor();
     await app.page.getByRole('link', { name: /UI animations Request the navbar/ }).waitFor();
