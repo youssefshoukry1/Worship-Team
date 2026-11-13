@@ -68,3 +68,25 @@
 .wifiInput:checked + .wifiTrack { border-color: rgb(56 189 248 / 0.45); background: rgb(14 165 233 / 0.65); }
 .wifiInput:checked + .wifiTrack::after { transform: translateX(14px); }
 .wifiInput:disabled + .wifiTrack { opacity: 0.5; }
+
+.privacySection { padding: 0 2px 12px; margin-bottom: 12px; border-bottom: 1px solid var(--app-card-border); }
+.privacyHint { margin: 0; color: var(--app-muted); font-size: 11px; line-height: 1.5; }
+.blurControl { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 11px; color: var(--app-muted); }
+.blurControl input { flex: 1; min-width: 0; accent-color: #38bdf8; }
+.prayerPage[data-private-writing="true"] textarea {
+    color: transparent !important;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 var(--prayer-blur, 2px) var(--app-text, #fff);
+    caret-color: #38bdf8;
+}
+.prayerPage[data-private-writing="true"] textarea::placeholder {
+    -webkit-text-fill-color: var(--app-muted);
+    color: var(--app-muted);
+    text-shadow: none;
+}
+.schedulePicker { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.scheduleLegend { float: left; margin: 8px 0; }
+.scheduleSelect { min-width: 130px; max-width: 55%; padding: 8px 10px; border: 1px solid var(--app-card-border); border-radius: 10px; background: var(--app-bg, #15191c); color: var(--app-text); font: inherit; font-size: 12px; }
+.scheduleSelect:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
+.backupActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.backupActions button { border: 1px solid var(--app-card-border); background: rgb(255 255 255 / .025); }

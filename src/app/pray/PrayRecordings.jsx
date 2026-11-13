@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, CloudUpload, CloudDownload, HardDrive, Loader2, Mic, Pause, Play, Trash2, ArrowRightLeft, Plus, X, MoreVertical, CalendarDays, Power, Wifi } from 'lucide-react';
+import { Check, CloudUpload, CloudDownload, HardDrive, Loader2, Mic, Pause, Play, Trash2, ArrowRightLeft, Plus, X, MoreVertical, Wifi } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { buildMyPraysZip, deleteRecording, getRecordingUrl, restoreMyPraysZip } from '../utils/prayRecordings';
@@ -416,7 +416,7 @@ export function SavedPrayRecordings({ prayId, recordings, getBlockLabel, onChang
 }
 
 /** Backup / restore settings dropdown menu with multi-account support. */
-export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
+export function MyPraysBackup({ prayTime, token, userId, onRestored, privacySettings }) {
     const { t, language } = useLanguage();
     const lastBackupKey = `my_prays_last_backup_${userId}`;
     const [isOpen, setIsOpen] = useState(false);
@@ -723,23 +723,12 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                         const rect = event.currentTarget.getBoundingClientRect();
                         if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closePanel();
                     }}>
+                    {privacySettings}
                     {/* Header */}
                     <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
                         <div className="flex items-center gap-1.5 min-w-0">
                             <span id={dialogId} className="text-xs font-bold text-slate-100 truncate">{t('myPraysBackupTitle')}</span>
-                            {activeEmail && (
-                                <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" title={activeEmail} />
-                            )}
                         </div>
-                        <button
-                            type="button"
-                            onClick={closePanel}
-                            disabled={busy === 'restore'}
-                            aria-label={t('close')}
-                            className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
-                        >
-                            <X className="w-3.5 h-3.5" />
-                        </button>
                     </div>
 
                     {!token ? (
@@ -753,25 +742,14 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                             <div className="px-1 pb-2 mb-1 border-b border-white/10 space-y-2">
                                 <fieldset className={backupStyles.schedulePicker} aria-busy={savingSchedule} disabled={scheduleDisabled} dir={language === 'ar' ? 'rtl' : undefined}>
                                     <legend className={backupStyles.scheduleLegend}>{labels.automatic}</legend>
-                                    <div className={backupStyles.scheduleGrid}>
-                                        {[0, 7, 14, 30].map(days => (
-                                            <label key={days} className={backupStyles.scheduleChoice}>
-                                                <input
-                                                    className={backupStyles.scheduleInput}
-                                                    type="radio"
-                                                    name={`${dialogId}-schedule`}
-                                                    value={days}
-                                                    checked={schedule.intervalDays === days}
-                                                    onChange={event => { scheduleFocusRef.current = event.currentTarget; changeSchedule({ intervalDays: days }); }}
-                                                />
-                                                <span className={backupStyles.scheduleContent}>
-                                                    {days === 0 ? <Power className="w-4 h-4" /> : <CalendarDays className="w-4 h-4" />}
-                                                    <span>{days === 0 ? labels.off : labels.days(days)}</span>
-                                                    <Check className={backupStyles.scheduleCheck} />
-                                                </span>
-                                            </label>
-                                        ))}
-                                    </div>
+                                    <select
+                                        className={backupStyles.scheduleSelect}
+                                        aria-label={labels.automatic}
+                                        value={schedule.intervalDays}
+                                        onChange={event => { scheduleFocusRef.current = event.currentTarget; changeSchedule({ intervalDays: Number(event.target.value) }); }}
+                                    >
+                                        {[0, 7, 14, 30].map(days => <option key={days} value={days}>{days === 0 ? labels.off : labels.days(days)}</option>)}
+                                    </select>
                                 </fieldset>
                                 <label className={backupStyles.wifiRow}>
                                     <span className={backupStyles.wifiLabel}><Wifi className="w-4 h-4" />{labels.wifi}</span>
@@ -784,6 +762,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                                 {lastBackup && <p className="text-[10px] text-slate-400">{labels.last}: {new Date(lastBackup).toLocaleString(language)}</p>}
                                 {schedule.intervalDays > 0 && nextBackup > 0 && <p className="text-[10px] text-slate-400">{labels.next}: {new Date(nextBackup).toLocaleDateString(language)}</p>}
                             </div>
+                            <div className={backupStyles.backupActions}>
                             {/* Backup Button */}
                             <button
                                 type="button"
@@ -818,6 +797,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored }) {
                                 </div>
                             </button>
 
+                            </div>
                             {/* Active Drive Account Row */}
                             {activeEmail && (
                                 <div className="pt-2 mt-1 border-t border-white/5 flex flex-wrap gap-2 items-center justify-between text-[10px] text-slate-400 px-1">

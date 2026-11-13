@@ -4,6 +4,7 @@ import { memo, useMemo, useCallback, useEffect, useLayoutEffect, useState, useCo
 import { UserContext } from '../context/User_Context';
 import { Check, Clock3, CircleAlert, Heart, Loader2, Trash2, X, Share2, Search, Users, ChevronRight, ArrowRight, Send, Inbox, Lock, Layers, EyeOff, SlidersHorizontal } from 'lucide-react';
 import Portal from '../Portal/Portal';
+import privacyStyles from './PrayerBackup.module.css';
 import { getApiBaseUrl } from '../utils/apiBase';
 import {
     addGuestPray, getGuestPrays, getRecordingsIndex, updateGuestPray, addExternalRecording,
@@ -544,6 +545,18 @@ const ListPanel = memo(function ListPanel({ title, icon: Icon, items, emptyText,
 });
 
 export default function PrayPage() {
+    const [privacy, setPrivacy] = useState({ enabled: false, strength: 2 });
+    useEffect(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem('taspe7_prayer_privacy') || 'null');
+            if (saved) setPrivacy({ enabled: saved.enabled === true, strength: Math.min(4, Math.max(1, Number(saved.strength) || 2)) });
+        } catch { /* Use defaults if storage is unavailable. */ }
+    }, []);
+    const changePrivacy = (patch) => {
+        const next = { ...privacy, ...patch };
+        setPrivacy(next);
+        try { localStorage.setItem('taspe7_prayer_privacy', JSON.stringify(next)); } catch { /* Still works for this session. */ }
+    };
     const pageActive = useTabPageActive();
     const mountedRef = useRef(true);
     const deletionSyncRef = useRef(null);
@@ -1248,7 +1261,7 @@ export default function PrayPage() {
     ), [deletablePrayerIds, expandedFriendPrayers, unreadPrayerIds, recordingsIndex, responseInputs, resolveFriendProfile, myProfilePhoto, myUsername, getPrayTypeLabel, t, language, cardActions]);
 
     return (
-        <section className="app-page min-h-screen pb-[100px] pt-8 px-4 text-white transition-colors duration-150">
+        <section data-private-writing={privacy.enabled ? "true" : undefined} style={{ '--prayer-blur': `${privacy.strength}px` }} className={`${privacyStyles.prayerPage} app-page min-h-screen pb-[100px] pt-8 px-4 text-white transition-colors duration-150`}>
             <div className="max-w-5xl mx-auto">
                 <div className="grid grid-cols-1 gap-5 sm:gap-6">
                     <div className="app-card rounded-3xl border shadow-xl shadow-black/20 p-4 sm:p-6">
@@ -1258,6 +1271,23 @@ export default function PrayPage() {
                                 <h3 className="text-base sm:text-lg font-bold text-white">{t('prayTime')}</h3>
                             </div>
                             <MyPraysBackup
+                                privacySettings={
+                                    <div className={privacyStyles.privacySection} dir={language === 'ar' ? 'rtl' : undefined}>
+                                        <label className={privacyStyles.wifiRow}>
+                                            <span className={privacyStyles.wifiLabel}><EyeOff className="w-4 h-4" />{language === 'ar' ? 'تمويه نص الصلاة' : 'Blur prayer text'}</span>
+                                            <span className={privacyStyles.wifiSwitch}>
+                                                <input type="checkbox" role="switch" className={privacyStyles.wifiInput} checked={privacy.enabled} onChange={event => changePrivacy({ enabled: event.target.checked })} />
+                                                <span className={privacyStyles.wifiTrack} />
+                                            </span>
+                                        </label>
+                                        <p className={privacyStyles.privacyHint}>{language === 'ar' ? 'تمويه أثناء الكتابة لخصوصية أكثر بجوار الآخرين. اضبطه لتتمكن من ملاحظة أخطاء الكتابة.' : 'Blur as you type for privacy around others. Adjust until you can still spot typos.'}</p>
+                                        {privacy.enabled && <label className={privacyStyles.blurControl}>
+                                            <span>{language === 'ar' ? 'درجة التمويه' : 'Blur strength'}</span>
+                                            <input aria-label={language === 'ar' ? 'درجة التمويه' : 'Blur strength'} type="range" min="1" max="4" step="0.25" value={privacy.strength} onChange={event => changePrivacy({ strength: Number(event.target.value) })} />
+                                            <span aria-hidden="true">{Math.round((privacy.strength / 4) * 100)}%</span>
+                                        </label>}
+                                    </div>
+                                }
                                 prayTime={prayList}
                                 token={isGuest ? null : token}
                                 userId={userId}
