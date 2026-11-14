@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, CloudUpload, CloudDownload, HardDrive, Loader2, Mic, Pause, Play, Trash2, ArrowRightLeft, Plus, X, MoreVertical, Wifi } from 'lucide-react';
+import { Check, CloudUpload, CloudDownload, HardDrive, Loader2, Mic, Pause, Play, Trash2, ArrowRightLeft, Plus, MoreVertical, Wifi } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { buildMyPraysZip, deleteRecording, getRecordingUrl, restoreMyPraysZip } from '../utils/prayRecordings';
@@ -12,6 +12,7 @@ import { openVoiceInput } from '../utils/voiceProcessing';
 import React, { useEffect, useRef, useState, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 import backupStyles from './PrayerBackup.module.css';
+import BackupFrequency from './BackupFrequency';
 import { useLanguage } from '../context/LanguageContext';
 import { cacheBackupOwner, hasNativeBackup, prayerBackupStatus, readBackupSettings, saveBackupSettings, startPrayerBackup } from '../services/prayerBackupService';
 
@@ -358,10 +359,11 @@ export function VoiceRecorderPanel({ blockId, recorder, recordings = [], onRemov
                         type="button"
                         onClick={() => recorder.start(blockId)}
                         disabled={recorder.isRecording}
-                        className={`inline-flex items-center gap-2 pl-1.5 pr-3.5 py-1.5 rounded-full border text-xs font-bold transition-all active:scale-95 disabled:opacity-35 disabled:pointer-events-none ${tone.soft}`}
+                        aria-label={recordings.length ? t('recordAnother') : t('recordVoice')}
+                        title={recordings.length ? t('recordAnother') : t('recordVoice')}
+                        className={`inline-flex items-center justify-center w-9 h-9 rounded-xl border-0 transition-all active:scale-95 disabled:opacity-35 disabled:pointer-events-none ${backupStyles.matteButton}`}
                     >
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-white ${tone.solid}`}><Mic className="w-3.5 h-3.5" /></span>
-                        {recordings.length ? t('recordAnother') : t('recordVoice')}
+                        <span className="w-6 h-6 rounded-full flex items-center justify-center"><Mic className="w-3.5 h-3.5" /></span>
                     </button>
                     {recordings.length > 0 && <span className="text-[10px] text-slate-500">{recordings.length} {t('records')} · {t('savedOnDeviceTitle')}</span>}
                 </div>
@@ -372,9 +374,21 @@ export function VoiceRecorderPanel({ blockId, recorder, recordings = [], onRemov
 
 function SavedVoiceClip({ rec, label, onDelete }) {
     const { t } = useLanguage();
+    const containerRef = useRef(null);
+    const [nearViewport, setNearViewport] = useState(() => typeof IntersectionObserver === 'undefined');
     const [url, setUrl] = useState(null);
     const [missing, setMissing] = useState(false);
     useEffect(() => {
+        if (nearViewport) return;
+        if (typeof IntersectionObserver === 'undefined') return;
+        const observer = new IntersectionObserver(entries => {
+            if (entries.some(entry => entry.isIntersecting)) { setNearViewport(true); observer.disconnect(); }
+        }, { rootMargin: '150px 0px' });
+        observer.observe(containerRef.current);
+        return () => observer.disconnect();
+    }, [nearViewport]);
+    useEffect(() => {
+        if (!nearViewport) return;
         let active = true;
         let revokeUrl = null;
         getRecordingUrl(rec).then(({ url: resolved, revoke }) => {
@@ -384,7 +398,7 @@ function SavedVoiceClip({ rec, label, onDelete }) {
             setMissing(!resolved);
         }).catch(() => { if (active) setMissing(true); });
         return () => { active = false; if (revokeUrl) URL.revokeObjectURL(revokeUrl); };
-    }, [rec]);
+    }, [rec, nearViewport]);
     const tone = getVoiceTone(rec.blockType);
     if (missing) {
         return (
@@ -394,7 +408,9 @@ function SavedVoiceClip({ rec, label, onDelete }) {
             </div>
         );
     }
-    return <VoiceClip url={url} fallbackDuration={rec.duration} tone={tone} label={label} onDelete={onDelete} />;
+    return <div ref={containerRef} onFocusCapture={() => setNearViewport(true)}>
+        <VoiceClip url={url} fallbackDuration={rec.duration} tone={tone} label={label} onDelete={onDelete} />
+    </div>;
 }
 
 /** Recordings saved on this device for a prayer card. */
@@ -716,7 +732,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored, privacySett
 
             {isOpen && createPortal(
                 <dialog ref={dialogRef} style={panelPosition} className={backupStyles.panel}
-                    aria-labelledby={dialogId} aria-modal="true"
+                    aria-label={t('myPraysBackupTitle')} aria-modal="true"
                     onCancel={event => { event.preventDefault(); closePanel(); }}
                     onClick={event => {
                         if (event.target !== event.currentTarget) return;
@@ -725,9 +741,9 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored, privacySett
                     }}>
                     {privacySettings}
                     {/* Header */}
-                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+                    <div className="flex items-center justify-between pb-1 mb-2">
                         <div className="flex items-center gap-1.5 min-w-0">
-                            <span id={dialogId} className="text-xs font-bold text-slate-100 truncate">{t('myPraysBackupTitle')}</span>
+                            <span id={dialogId} className="text-xs font-bold text-slate-100 truncate">{t('backup')}</span>
                         </div>
                     </div>
 
@@ -742,14 +758,8 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored, privacySett
                             <div className="px-1 pb-2 mb-1 border-b border-white/10 space-y-2">
                                 <fieldset className={backupStyles.schedulePicker} aria-busy={savingSchedule} disabled={scheduleDisabled} dir={language === 'ar' ? 'rtl' : undefined}>
                                     <legend className={backupStyles.scheduleLegend}>{labels.automatic}</legend>
-                                    <select
-                                        className={backupStyles.scheduleSelect}
-                                        aria-label={labels.automatic}
-                                        value={schedule.intervalDays}
-                                        onChange={event => { scheduleFocusRef.current = event.currentTarget; changeSchedule({ intervalDays: Number(event.target.value) }); }}
-                                    >
-                                        {[0, 7, 14, 30].map(days => <option key={days} value={days}>{days === 0 ? labels.off : labels.days(days)}</option>)}
-                                    </select>
+                                    <BackupFrequency value={schedule.intervalDays} labels={labels} disabled={scheduleDisabled}
+                                        onChange={(days, trigger) => { scheduleFocusRef.current = trigger; changeSchedule({ intervalDays: days }); }} />
                                 </fieldset>
                                 <label className={backupStyles.wifiRow}>
                                     <span className={backupStyles.wifiLabel}><Wifi className="w-4 h-4" />{labels.wifi}</span>
@@ -758,8 +768,8 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored, privacySett
                                         <span className={backupStyles.wifiTrack} />
                                     </span>
                                 </label>
-                                <p hidden={nativeBackup} className="text-[10px] leading-relaxed text-slate-400">{labels.native}</p>
-                                {lastBackup && <p className="text-[10px] text-slate-400">{labels.last}: {new Date(lastBackup).toLocaleString(language)}</p>}
+                                <p hidden={nativeBackup} className="text-[10px] leading-relaxed text-slate-400">{language === 'ar' ? 'النسخ التلقائي متاح في تطبيق الهاتف' : language === 'de' ? 'Automatisch nur in der mobilen App' : 'Auto backup requires the mobile app'}</p>
+                                {lastBackup && <p title={new Date(lastBackup).toLocaleString(language)} className="text-[10px] text-slate-400">{language === 'ar' ? 'آخر نسخة' : language === 'de' ? 'Letztes Backup' : 'Last backup'} · {new Date(lastBackup).toLocaleDateString(language, { month: 'short', day: 'numeric', year: 'numeric' })}</p>}
                                 {schedule.intervalDays > 0 && nextBackup > 0 && <p className="text-[10px] text-slate-400">{labels.next}: {new Date(nextBackup).toLocaleDateString(language)}</p>}
                             </div>
                             <div className={backupStyles.backupActions}>
@@ -810,7 +820,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored, privacySett
                                         className="text-sky-400 hover:underline flex items-center gap-1"
                                     >
                                         <ArrowRightLeft className="w-3 h-3" />
-                                        <span>{t('changeDriveEmail')}</span>
+                                        <span>{language === 'ar' ? 'تغيير' : language === 'de' ? 'Wechseln' : 'Change'}</span>
                                     </button>
                                 </div>
                             )}

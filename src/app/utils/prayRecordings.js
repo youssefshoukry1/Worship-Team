@@ -13,7 +13,7 @@ import localforage from 'localforage';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
-import { incomingPrayerActivity, isPrayerUnread, seenPrayerChanges, mergeRestoredPrayer } from './prayerActivity';
+import { incomingPrayerActivity, isPrayerUnread, seenPrayerChanges, mergeRestoredPrayer, reconcilePrayerEntries, reconcilePrayerRecordings } from './prayerActivity';
 
 const ROOT = 'my_prays';
 const INDEX_PATH = `${ROOT}/index.json`;
@@ -67,7 +67,7 @@ const audioPath = (rec) => `${AUDIO_DIR}/${rec.id}.${rec.ext}`;
 // ─── Index (serialized so concurrent writes never clobber each other) ───────
 let _indexLock = Promise.resolve();
 
-const readIndex = async () => {
+const readIndexFromDisk = async () => {
     try {
         if (isNative()) {
             const file = await Filesystem.readFile({ path: INDEX_PATH, directory: Directory.Data, encoding: Encoding.UTF8 });
@@ -77,6 +77,68 @@ const readIndex = async () => {
     } catch {
         return emptyIndex();
     }
+};
+
+let cachedIndex = null;
+let loadingIndex = null;
+let snapshot = null;
+let cacheGeneration = 0;
+let watchingStorage = false;
+let storageChannel = null;
+const localListeners = new Set();
+const migratedOwners = new Map();
+
+export const getCachedPrayerSnapshot = () => snapshot;
+export function subscribeLocalPrayers(listener) {
+    localListeners.add(listener);
+    watchStorage();
+    return () => localListeners.delete(listener);
+}
+
+function publishIndex(index) {
+    cachedIndex = index;
+    const prayers = reconcilePrayerEntries(snapshot?.prayers || [], index.guestPrays
+        .filter(entry => !isRevokedPrayer(index, entry) && !entry._sync?.hidden).sort(byNewest));
+    const recordings = reconcilePrayerRecordings(snapshot?.recordings || {}, index.recordings);
+    if (snapshot && snapshot.prayers === prayers && snapshot.recordings === recordings) return;
+    snapshot = { prayers, recordings };
+    for (const listener of localListeners) listener(snapshot);
+}
+
+// Refresh on external writes/resume, never on ordinary React renders or tab switches.
+export function refreshLocalPrayerCache() {
+    cacheGeneration++;
+    cachedIndex = null;
+    loadingIndex = null;
+    migratedOwners.clear();
+    return readIndex();
+}
+
+function watchStorage() {
+    if (watchingStorage || typeof window === 'undefined' || !window.addEventListener) return;
+    watchingStorage = true;
+    const refresh = () => { void refreshLocalPrayerCache().catch(() => {}); };
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh(); });
+    if (typeof BroadcastChannel !== 'undefined') {
+        storageChannel = new BroadcastChannel('taspe7-local-prayers');
+        storageChannel.onmessage = refresh;
+    }
+}
+
+const readIndex = async () => {
+    watchStorage();
+    await _indexLock;
+    if (cachedIndex) return cachedIndex;
+    if (!loadingIndex) {
+        const generation = cacheGeneration;
+        const pending = readIndexFromDisk().then(index => {
+            if (generation !== cacheGeneration) return readIndex();
+            publishIndex(index);
+            return index;
+        }).finally(() => { if (loadingIndex === pending) loadingIndex = null; });
+        loadingIndex = pending;
+    }
+    return loadingIndex;
 };
 
 const writeIndex = async (index) => {
@@ -89,9 +151,17 @@ const writeIndex = async (index) => {
 
 const updateIndex = (mutator, shouldWrite = () => true) => {
     const run = _indexLock.then(async () => {
-        const index = await readIndex();
+        // Fresh transactional copy: never mutate a snapshot already held by React,
+        // and include changes made by another browser tab before this transaction.
+        const index = await readIndexFromDisk();
         const result = await mutator(index);
-        if (shouldWrite(result)) await writeIndex(index);
+        if (shouldWrite(result)) {
+            await writeIndex(index);
+            storageChannel?.postMessage('changed');
+        }
+        cacheGeneration++;
+        loadingIndex = null;
+        publishIndex(index);
         return result;
     });
     _indexLock = run.catch(() => {});
@@ -174,7 +244,8 @@ const removeAudio = async (rec) => {
 
 /** Returns `{ [prayId]: Recording[] }` */
 export async function getRecordingsIndex() {
-    return (await readIndex()).recordings;
+    await readIndex();
+    return snapshot.recordings;
 }
 
 /**
@@ -212,8 +283,8 @@ export async function addRecordings(prayId, items, pendingWords) {
 const byNewest = (a, b) => new Date(b.date) - new Date(a.date);
 
 export async function getGuestPrays() {
-    const index = await readIndex();
-    return index.guestPrays.filter(entry => !isRevokedPrayer(index, entry) && !entry._sync?.hidden).sort(byNewest);
+    await readIndex();
+    return snapshot.prayers;
 }
 
 // The action lives beside its prayer, so text and the outbox cannot drift apart.
@@ -277,7 +348,9 @@ export async function applyPrayerRevocations(shareIds, ownerId, cursor) {
 
 // Upgrade older browser-only read markers once, so native/web backups carry the same state.
 export function migratePrayerReadState(ownerId, legacyOpened) {
-    return updateIndex(index => {
+    const owner = String(ownerId || 'guest');
+    if (migratedOwners.has(owner)) return migratedOwners.get(owner).then(() => getGuestPrays());
+    const pending = updateIndex(index => {
         let changed = false;
         index.guestPrays = index.guestPrays.map(entry => {
             const field = entry.sharedWith ? 'sharedWith' : entry.sharedFrom ? 'sharedFrom' : null;
@@ -288,7 +361,9 @@ export function migratePrayerReadState(ownerId, legacyOpened) {
             return { ...entry, [field]: { ...entry[field], seenActivityBy } };
         });
         return { changed, prayers: [...index.guestPrays].sort(byNewest) };
-    }, result => result.changed).then(result => result.prayers);
+    }, result => result.changed).then(() => getGuestPrays()).catch(error => { migratedOwners.delete(owner); throw error; });
+    migratedOwners.set(owner, pending);
+    return pending;
 }
 
 /** @returns {Promise<object>} the saved entry (with a local `_id`) */

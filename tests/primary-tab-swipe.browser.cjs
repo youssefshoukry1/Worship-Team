@@ -195,7 +195,7 @@ for (const engine of ['webkit', 'chromium']) {
 
   test(`${engine}: swipes can start on the center navigation link without selecting that link`, async t => {
     const { page, errors } = await setup(t, engine);
-    const selector = 'nav[aria-label="Primary navigation"] a[href^="/hymns"]';
+    const selector = 'nav[aria-label="Primary navigation"] a[href^="/friends"]';
     await touch(page, 'touchstart', 195, 800, { selector });
     await touch(page, 'touchmove', 55, 800); await frame(page);
     assert.equal(await page.locator('[data-tab-pager]').getAttribute('data-swiping'), 'true');
@@ -261,13 +261,13 @@ test('trusted touch on a real settings switch begins a drag without toggling it,
 test('interior swipes traverse every bottom tab in both directions', async t => {
   const { page, errors } = await setup(t, 'chromium');
   await page.evaluate(() => localStorage.setItem('taspe7_category_hymns_tour_done', '1'));
-  const hrefs = ['/pray', '/bible_form', '/hymns', '/friends', '/normal_UserProfile'];
+  const hrefs = ['/pray', '/bible_form', '/friends', '/normal_UserProfile'];
   for (const href of hrefs.slice(1)) {
     await drag(page, 280, 70);
     await page.waitForURL(base + href + '/');
     await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
     assert.equal(await panel(page, href).getAttribute('data-tab-active'), 'true');
-    assert.ok(await page.locator('[data-tab-panel]').count() <= 3, 'page cache must stay bounded');
+    assert.ok(await page.locator('[data-tab-panel]').count() <= 4, 'only neighbors plus the retained Prayer page may be mounted');
   }
   for (const href of hrefs.slice(0, -1).reverse()) {
     await drag(page, 90, 310);
@@ -275,7 +275,7 @@ test('interior swipes traverse every bottom tab in both directions', async t => 
     await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
     assert.equal(await panel(page, href).getAttribute('data-tab-active'), 'true');
   }
-  assert.ok(await page.locator('[data-tab-panel]').count() <= 3);
+  assert.ok(await page.locator('[data-tab-panel]').count() <= 4);
   assert.equal(await page.locator('[data-tab-active="true"]').count(), 1);
   assert.deepEqual(errors, []);
 });

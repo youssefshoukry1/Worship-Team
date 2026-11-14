@@ -69,9 +69,9 @@
 .wifiInput:checked + .wifiTrack::after { transform: translateX(14px); }
 .wifiInput:disabled + .wifiTrack { opacity: 0.5; }
 
-.privacySection { padding: 0 2px 12px; margin-bottom: 12px; border-bottom: 1px solid var(--app-card-border); }
+.privacySection { padding: 0 2px 16px; margin-bottom: 16px; border-bottom: 1px solid var(--app-card-border); }
 .privacyHint { margin: 0; color: var(--app-muted); font-size: 11px; line-height: 1.5; }
-.blurControl { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 11px; color: var(--app-muted); }
+.blurControl { display: flex; align-items: center; gap: 16px; margin-top: 6px; font-size: 11px; color: var(--app-muted); }
 .blurControl input { flex: 1; min-width: 0; accent-color: #38bdf8; }
 .prayerPage[data-private-writing="true"] textarea {
     color: transparent !important;
@@ -90,3 +90,26 @@
 .scheduleSelect:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
 .backupActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .backupActions button { border: 1px solid var(--app-card-border); background: rgb(255 255 255 / .025); }
+
+.matteButton {
+    background: #1c2023;
+    color: #94a3b8;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+.matteButton:hover { background: #262b30; color: #cbd5e1; }
+.matteButton:focus-visible { outline: 2px solid #38bdf8; outline-offset: 3px; }
+
+.saveButton { background: color-mix(in srgb, #0ea5e9 82%, #000); color: #fff; border: 0; box-shadow: none; }
+.saveButton:hover { background: color-mix(in srgb, #0ea5e9 90%, #000); }
+.saveButton:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 3px; }
+
+.frequencyPicker { position: relative; min-width: 130px; max-width: 55%; }
+.frequencyTrigger { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-height: 36px; padding: 8px 12px; border: 1px solid var(--app-card-border); border-radius: 11px; background: var(--app-bg, #101416); color: var(--app-text); font-size: 12px; text-align: start; }
+.frequencyTrigger svg { color: var(--app-muted); transition: transform .15s; }
+.frequencyChevronOpen { transform: rotate(180deg); }
+.frequencyMenu { position: absolute; z-index: 10; inset-inline-end: 0; top: calc(100% + 6px); width: max-content; min-width: 100%; padding: 5px; border: 1px solid var(--app-card-border); border-radius: 12px; background: rgb(var(--app-panel-rgb)); box-shadow: 0 8px 24px rgb(0 0 0 / .25); }
+.frequencyOption { display: flex; align-items: center; justify-content: space-between; gap: 20px; width: 100%; min-height: 38px; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--app-muted); text-align: start; font-size: 12px; white-space: nowrap; }
+.frequencyOption:hover, .frequencyOption:focus-visible { background: rgb(128 145 160 / .12); color: var(--app-text); }
+.frequencyOption[aria-checked="true"] { background: rgb(14 165 233 / .1); color: #38bdf8; }

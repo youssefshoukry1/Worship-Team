@@ -7,7 +7,7 @@ import Portal from '../Portal/Portal';
 import privacyStyles from './PrayerBackup.module.css';
 import { getApiBaseUrl } from '../utils/apiBase';
 import {
-    addGuestPray, getGuestPrays, getRecordingsIndex, updateGuestPray, addExternalRecording,
+    addGuestPray, getGuestPrays, getRecordingsIndex, updateGuestPray, addExternalRecording, getCachedPrayerSnapshot, subscribeLocalPrayers,
     mergeIncomingPrayers, applyPrayerReplies, markPrayerActivitySeen, migratePrayerReadState, getPrayerDeletionState, applyPrayerRevocations
 } from '../utils/prayRecordings';
 import { MyPraysBackup, SavedPrayRecordings, VoiceRecorderPanel, usePrayRecorder } from './PrayRecordings';
@@ -26,7 +26,6 @@ import { newPrayerAction, preparePrayerAction, retryPrayerAction, localPrayerOve
 import usePrayerDeleteWindow, { prayerDeleteAvailable } from './usePrayerDeleteWindow';
 import { HOME_REFRESH_EVENT } from '../utils/androidBack';
 import { useTabPageActive } from '../components/TabPageActivity';
-import { waitForNavigationIdle } from '../utils/navigationWork';
 
 const API_URL = getApiBaseUrl();
 
@@ -772,11 +771,11 @@ export default function PrayPage() {
 
     const [prayWords, setPrayWords] = useState('');
     const [prayBlocks, setPrayBlocks] = useState([]);
-    const [recordingsIndex, setRecordingsIndex] = useState({});
+    const [recordingsIndex, setRecordingsIndex] = useState(() => getCachedPrayerSnapshot()?.recordings || {});
     const [generalRecordings, setGeneralRecordings] = useState([]);
     // All prayers are stored 100% on this device
     const isGuest = !token || !userId;
-    const [guestPrays, setGuestPraysState] = useState([]);
+    const [guestPrays, setGuestPraysState] = useState(() => getCachedPrayerSnapshot()?.prayers || []);
     const setGuestPrays = useCallback(next => setGuestPraysState(previous => {
         const incoming = typeof next === 'function' ? next(previous) : next;
         const overlay = localPrayerOverlay();
@@ -800,6 +799,8 @@ export default function PrayPage() {
     const deletablePrayerIds = usePrayerDeleteWindow(deleteCandidates);
 
     const [activePrayTab, setActivePrayTab] = useState('personal');
+    const [sharedTabVisited, setSharedTabVisited] = useState(false);
+    if (activePrayTab === 'shared' && !sharedTabVisited) setSharedTabVisited(true);
     const [circleFilter, setCircleFilter] = useState('all');
     const [expandedFriendPrayers, setExpandedFriendPrayers] = useState(() => new Set());
     // Compatibility only. New read state belongs to each prayer and is scoped to the account.
@@ -811,7 +812,6 @@ export default function PrayPage() {
     const sortedSharedPrays = useMemo(() => sortPrayerActivity([...receivedPrayList, ...sentPrayList]), [receivedPrayList, sentPrayList]);
     const unreadPrayerIds = useMemo(() => new Set(sortedSharedPrays.filter(entry => isPrayerUnread(entry, userId, legacyOpenedFriendPrayers)).map(entry => String(entry._id))), [sortedSharedPrays, userId, legacyOpenedFriendPrayers]);
     const visiblePrayList = useMemo(() => {
-        if (activePrayTab === 'personal') return personalPrayList;
         return sortedSharedPrays.filter(entry => {
             if (circleFilter === 'sent') return isSentPrayer(entry);
             if (circleFilter === 'received') return isReceivedPrayer(entry);
@@ -819,7 +819,7 @@ export default function PrayPage() {
             if (circleFilter === 'unread') return unreadPrayerIds.has(String(entry._id)) || expandedFriendPrayers.has(entry._id);
             return true;
         });
-    }, [activePrayTab, circleFilter, personalPrayList, sortedSharedPrays, unreadPrayerIds, expandedFriendPrayers]);
+    }, [circleFilter, sortedSharedPrays, unreadPrayerIds, expandedFriendPrayers]);
 
     const [notificationTarget, setNotificationTarget] = useState(null);
     const [notificationPrayerId, setNotificationPrayerId] = useState(null);
@@ -873,7 +873,7 @@ export default function PrayPage() {
     const unreadReceivedCount = receivedPrayList.filter(entry => unreadPrayerIds.has(String(entry._id))).length;
     const circleText = prayerCircleText(language);
     const circleAnchorRef = useRef(null);
-    const { visibleItems: orderedPrayList, pendingUpdates, revealUpdates } = usePrayerCircleOrder(visiblePrayList, `${userId || 'guest'}:${activePrayTab}:${circleFilter}`, circleAnchorRef, `${notificationPrayerId || ''}:${localActivityId}`);
+    const { visibleItems: orderedPrayList, pendingUpdates, revealUpdates } = usePrayerCircleOrder(visiblePrayList, `${userId || 'guest'}:${circleFilter}`, circleAnchorRef, `${notificationPrayerId || ''}:${localActivityId}`);
     const seenWrites = useRef(new Set());
     const markSeen = useCallback(async (id, activity) => {
         const key = `${userId || 'guest'}:${id}:${activity}`;
@@ -916,39 +916,38 @@ export default function PrayPage() {
             .catch((err) => console.warn('Could not load prayer recordings:', err));
     }, []);
 
-    // Prepare read-only local content offscreen; delivery, repairs and polling
-    // remain owned by the active Prayer page.
+    // Storage publishes stable text/recording references after durable changes.
+    // A subscription outlives tab activation, so reopening needs no disk reload.
     useEffect(() => {
-        if (pageActive) return;
-        let cancelled = false;
-        getGuestPrays().then(async entries => {
-            await waitForNavigationIdle();
-            if (!cancelled) setGuestPrays(entries);
-        }).catch(() => {});
-        return () => { cancelled = true; };
-    }, [pageActive, setGuestPrays]);
-
-    useEffect(() => { refreshRecordings(); }, [refreshRecordings]);
-    useEffect(() => {
-        if (!pageActive) return;
         let active = true;
-        let sequence = 0;
-        const refresh = async event => {
-            const current = ++sequence;
-            const localFailure = event?.detail?.entry;
-            const entries = await getGuestPrays();
-            if (!active || current !== sequence) return;
-            if (localFailure) setGuestPrays(previous => [localFailure, ...previous.filter(entry => entry._id !== localFailure._id)]);
-            else setGuestPrays(entries);
-            refreshRecordings();
+        let lastPrayers, lastRecordings;
+        const apply = next => {
+            if (!active || !next) return;
+            if (next.prayers !== lastPrayers) { lastPrayers = next.prayers; setGuestPrays(next.prayers); }
+            if (next.recordings !== lastRecordings) { lastRecordings = next.recordings; setRecordingsIndex(next.recordings); }
         };
-        window.addEventListener(PRAYER_SYNC_EVENT, refresh);
-        return () => { active = false; window.removeEventListener(PRAYER_SYNC_EVENT, refresh); };
-    }, [pageActive, setGuestPrays, refreshRecordings]);
+        const unsubscribe = subscribeLocalPrayers(apply);
+        apply(getCachedPrayerSnapshot());
+        void getGuestPrays().then(() => apply(getCachedPrayerSnapshot())).catch(() => {});
+        const syncChanged = event => {
+            const entry = event?.detail?.entry;
+            if (entry) setGuestPrays(previous => [entry, ...previous.filter(item => item._id !== entry._id)]);
+            else {
+                // Preparation overlays are removed after persistence publishes.
+                // Reconcile that overlay change from memory, without rereading disk/audio.
+                const current = getCachedPrayerSnapshot();
+                if (current) setGuestPrays(current.prayers);
+            }
+        };
+        window.addEventListener(PRAYER_SYNC_EVENT, syncChanged);
+        return () => { active = false; unsubscribe(); window.removeEventListener(PRAYER_SYNC_EVENT, syncChanged); };
+    }, [setGuestPrays]);
 
 
+    const repairCompletedRef = useRef(null);
     useEffect(() => {
         if (!pageActive) return;
+        if (repairCompletedRef.current?.userId === userId && repairCompletedRef.current?.token === token) return;
         let isCancelled = false;
         const loadAndRepairPrays = async () => {
             try {
@@ -1004,9 +1003,10 @@ export default function PrayPage() {
                             if (changed && !isCancelled) {
                                 setGuestPrays(await getGuestPrays());
                             }
-                        }
+                        } else return;
                     }
                 }
+                if (!isCancelled) repairCompletedRef.current = { userId, token };
             } catch (err) {
                 console.warn('Could not load or decrypt local prayers:', err);
             }
@@ -1280,11 +1280,9 @@ export default function PrayPage() {
                                                 <span className={privacyStyles.wifiTrack} />
                                             </span>
                                         </label>
-                                        <p className={privacyStyles.privacyHint}>{language === 'ar' ? 'تمويه أثناء الكتابة لخصوصية أكثر بجوار الآخرين. اضبطه لتتمكن من ملاحظة أخطاء الكتابة.' : 'Blur as you type for privacy around others. Adjust until you can still spot typos.'}</p>
                                         {privacy.enabled && <label className={privacyStyles.blurControl}>
-                                            <span>{language === 'ar' ? 'درجة التمويه' : 'Blur strength'}</span>
+                                            <span>{language === 'ar' ? 'درجة التمويه' : 'Strength'}</span>
                                             <input aria-label={language === 'ar' ? 'درجة التمويه' : 'Blur strength'} type="range" min="1" max="4" step="0.25" value={privacy.strength} onChange={event => changePrivacy({ strength: Number(event.target.value) })} />
-                                            <span aria-hidden="true">{Math.round((privacy.strength / 4) * 100)}%</span>
                                         </label>}
                                     </div>
                                 }
@@ -1292,6 +1290,7 @@ export default function PrayPage() {
                                 token={isGuest ? null : token}
                                 userId={userId}
                                 onRestored={async () => {
+                                    repairCompletedRef.current = null;
                                     deletionSyncRef.current = null;
                                     checkIncomingSharedPrayers(true);
                                     refreshRecordings();
@@ -1303,7 +1302,7 @@ export default function PrayPage() {
                         <div className="mb-3.5 flex items-center gap-2 flex-wrap">
                             <button
                                 onClick={() => setIsShareOpen(true)}
-                                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/25 text-xs font-semibold text-sky-300 hover:text-white transition-all shadow-sm"
+                                className={`${privacyStyles.matteButton} inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border-0 text-xs font-semibold transition-colors`}
                             >
                                 {selectedShareUser ? (
                                     <>
@@ -1428,7 +1427,7 @@ export default function PrayPage() {
                         <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-4">
                             <p className="text-[11px] text-slate-400">{(prayWords + ' ' + prayBlocks.map((block) => block.words).join(' ')).trim().split(/\s+/).filter(Boolean).length} {t('totalWords')}</p>
                             <div className="flex items-center gap-2">
-                                <button onClick={handleSubmitPrayTime} disabled={recorder.isRecording || (!prayWords.trim() && !generalRecordings.length && !prayBlocks.some(hasBlockContent))} className={`px-4 py-2 rounded-lg text-xs font-bold ${selectedShareUser ? 'bg-[#00C2FF] text-[#020817] hover:brightness-110 shadow-[#00C2FF]/20' : 'bg-sky-500 hover:bg-sky-400 text-white shadow-sky-500/20'} transition-all disabled:opacity-40 flex items-center gap-2 shadow-lg`}>
+                                <button onClick={handleSubmitPrayTime} disabled={recorder.isRecording || (!prayWords.trim() && !generalRecordings.length && !prayBlocks.some(hasBlockContent))} className={`px-4 py-2 rounded-lg text-xs font-bold ${privacyStyles.saveButton} transition-colors disabled:opacity-40 flex items-center gap-2`}>
                                     {isAnonymousShare ? <EyeOff className="w-4 h-4" /> : <Check className="w-4 h-4" />}{selectedShareUser ? 'Send' : t('saveNote')}
                                 </button>
                             </div>
@@ -1498,6 +1497,11 @@ export default function PrayPage() {
                         </div>
                     )}
                     <span className="sr-only" role="status">{unreadPrayCount} {circleText.unread}</span>
+                    <div hidden={activePrayTab !== 'personal'}>
+                        <ListPanel title={t('myPrayTimeNotes')} icon={Heart} items={personalPrayList}
+                            emptyText={t('noPrayerNotesYet')} forceRenderId={notificationPrayerId} renderItem={renderPrayer} />
+                    </div>
+                    {sharedTabVisited && <div hidden={activePrayTab !== 'shared'}>
                     <ListPanel
                         title={activePrayTab === 'personal' ? t('myPrayTimeNotes')
                             : circleFilter === 'unread' ? `${circleText.unread} (${unreadPrayCount})`
@@ -1522,7 +1526,7 @@ export default function PrayPage() {
                                         ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
                                         : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                         }
-                        items={activePrayTab === 'shared' ? orderedPrayList : visiblePrayList}
+                        items={orderedPrayList}
                         emptyText={
                             activePrayTab === 'personal'
                                 ? t('noPrayerNotesYet')
@@ -1537,6 +1541,7 @@ export default function PrayPage() {
                         forceRenderId={notificationPrayerId}
                         renderItem={renderPrayer}
                     />
+                    </div>}
                     </div>
                 </div>
             </div>
@@ -1552,11 +1557,8 @@ export default function PrayPage() {
                             className="app-popover w-full max-w-md border rounded-3xl p-5 shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                            <div className="flex items-center justify-between pb-2">
                                 <div className="flex items-center gap-2">
-                                    <div className="p-1.5 rounded-lg bg-sky-500/15 text-sky-400">
-                                        <Users className="w-4 h-4" />
-                                    </div>
                                     <h3 className="text-sm sm:text-base font-bold text-white">Share Prayer</h3>
                                 </div>
                                 <button
@@ -1575,7 +1577,7 @@ export default function PrayPage() {
                                     value={shareSearchQuery}
                                     onChange={(e) => setShareSearchQuery(e.target.value)}
                                     placeholder="Search by @username..."
-                                    className="w-full pl-9 pr-8 py-2.5 bg-white/[0.04] border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-400/60 transition-all"
+                                    className="w-full pl-9 pr-8 py-2.5 bg-white/[0.04] border-0 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-0 transition-all"
                                     autoFocus
                                 />
                                 {isSearchingUsers ? (

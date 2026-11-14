@@ -29,6 +29,8 @@ export default function PrimaryTabPager({ index }) {
   const indexRef = useRef(index);
   const cancelRef = useRef(null);
   const [prepared, setPrepared] = useState([index]);
+  const [prayerVisited, setPrayerVisited] = useState(index === 0);
+  if (index === 0 && !prayerVisited) setPrayerVisited(true);
 
   useLayoutEffect(() => {
     indexRef.current = index;
@@ -146,13 +148,14 @@ export default function PrimaryTabPager({ index }) {
     return () => { disposed = true; remove(); clear(); cancelRef.current = null; window.removeEventListener('resize', clear); };
   }, [enabled, router]);
 
-  // Keep the current page and its immediate neighbors, never the whole app.
-  const visible = enabled ? [index - 1, index, index + 1].filter(i => pages[i]) : [index];
+  // Retain the visited Prayer page so returning preserves cards, drafts and players.
+  // Other pages still use the bounded neighbor policy.
+  const visible = [...new Set([...(enabled ? [index - 1, index, index + 1].filter(i => pages[i]) : [index]), ...(prayerVisited ? [0] : [])])];
   return <div ref={rootRef} className="primary-tab-pager" data-tab-pager>
     {visible.map(pageIndex => {
       const Page = pages[pageIndex];
       const active = pageIndex === index;
-      const ready = active || prepared.includes(pageIndex);
+      const ready = active || prepared.includes(pageIndex) || (pageIndex === 0 && prayerVisited);
       return <div key={routes[pageIndex]} data-tab-panel={routes[pageIndex]} data-tab-index={pageIndex} data-tab-ready={ready ? 'true' : 'false'} data-tab-active={active ? 'true' : 'false'}
         className="primary-tab-panel" aria-hidden={active ? undefined : true} inert={active ? undefined : true}
         style={{ transform: active ? undefined : `translate3d(${pageIndex < index ? -100 : 100}%,0,0)` }}>

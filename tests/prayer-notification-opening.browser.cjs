@@ -40,6 +40,52 @@ const mockPrayerApi = (route, base) => route.request().url().startsWith(base) ? 
   : route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } });
 const personalPrayers = count => Array.from({ length: count }, (_, i) => ({ _id: 'personal-' + i, words: 'Personal prayer ' + i, date: '2026-10-01T00:00:00.000Z' }));
 
+test('local prayer cache skips reload reads and retains card DOM across journal and app tabs', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    await seed(page, [...personalPrayers(10), received('cache-test')]);
+    await page.addInitScript(() => {
+      window.__prayerReads = 0;
+      const get = IDBObjectStore.prototype.get;
+      IDBObjectStore.prototype.get = function (key) {
+        if (this.transaction.db.name === 'my_prays' && key === 'index') window.__prayerReads++;
+        return get.call(this, key);
+      };
+    });
+    await page.goto(base + '/pray/');
+    await page.locator('[data-prayer-id="personal-0"]').waitFor();
+    await page.evaluate(() => { window.__retainedPrayer = document.querySelector('[data-prayer-id="personal-0"]'); });
+    await page.getByRole('button', { name: /Prayer Circle/ }).click();
+    await page.locator('[data-prayer-id="received-cache-test"]').waitFor();
+    await page.evaluate(() => { window.__retainedShared = document.querySelector('[data-prayer-id="received-cache-test"]'); });
+    await page.getByRole('button', { name: /My Journal/ }).click();
+    assert.equal(await page.evaluate(() => window.__retainedPrayer === document.querySelector('[data-prayer-id="personal-0"]') && window.__retainedShared.isConnected), true);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.getByRole('link', { name: 'Friends', exact: true }).click();
+    await page.waitForURL(/\/friends\/?$/);
+    await page.getByRole('link', { name: 'Pray', exact: true }).click();
+    await page.waitForURL(/\/pray\/?$/);
+    assert.equal(await page.evaluate(() => window.__retainedPrayer === document.querySelector('[data-prayer-id="personal-0"]')), true);
+    const reads = await page.evaluate(() => window.__prayerReads);
+    await page.evaluate(() => { for (let i = 0; i < 20; i++) window.dispatchEvent(new Event('taspe7:prayer-sync')); });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.equal(await page.evaluate(() => window.__prayerReads), reads, 'sync events must use memory, not reload storage');
+    await page.evaluate(async () => {
+      const db = await new Promise(resolve => { const request = indexedDB.open('my_prays', 2); request.onsuccess = () => resolve(request.result); });
+      const index = await new Promise(resolve => { const request = db.transaction('keyvaluepairs').objectStore('keyvaluepairs').get('index'); request.onsuccess = () => resolve(request.result); });
+      index.guestPrays.push({ _id: 'external-cache', words: 'Prayer from another tab', date: new Date().toISOString(), prayType: 'general' });
+      await new Promise(resolve => { const tx = db.transaction('keyvaluepairs', 'readwrite'); tx.objectStore('keyvaluepairs').put(index, 'index'); tx.oncomplete = resolve; });
+      db.close();
+      const channel = new BroadcastChannel('taspe7-local-prayers');
+      channel.postMessage('changed'); channel.close();
+    });
+    await page.locator('[data-prayer-id="external-cache"]').waitFor();
+    assert.equal(await page.evaluate(() => window.__retainedPrayer === document.querySelector('[data-prayer-id="personal-0"]')), true);
+  } finally { await context.close(); }
+});
+
 test('Drive restore keeps friend history read and replied across repeat restore, inbox replay and reload', async () => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   let restores = 0; const outboundMutations = [];

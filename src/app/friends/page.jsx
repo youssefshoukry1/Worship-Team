@@ -37,7 +37,12 @@ export default function FriendsPage() {
 
   const [activeTab, setActiveTab] = useState('requests');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showFriendsSearch, setShowFriendsSearch] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true);
+  const [suggestionsError, setSuggestionsError] = useState(false);
+  const [suggestionsRetry, setSuggestionsRetry] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
 
   const [incomingRequests, setIncomingRequests] = useState([]);
@@ -208,6 +213,17 @@ export default function FriendsPage() {
     cacheAvatarsInBackground(users);
   }, [friends, incomingRequests, outgoingRequests]);
 
+  useEffect(() => {
+    if (!pageActive || !isLogin) return;
+    const controller = new AbortController();
+    fetch(`${API_URL}/users/friend-suggestions`, { headers: { Authorization: `Bearer ${isLogin}` }, signal: controller.signal })
+      .then(response => { if (!response.ok) throw new Error('Suggestions unavailable'); return response.json(); })
+      .then(data => { if (!controller.signal.aborted) { setSuggestions(data.suggestions || []); setSuggestionsError(false); } })
+      .catch(() => { if (!controller.signal.aborted) setSuggestionsError(true); })
+      .finally(() => { if (!controller.signal.aborted) setSuggestionsLoading(false); });
+    return () => controller.abort();
+  }, [pageActive, isLogin, suggestionsRetry]);
+
   // Debounced search for users by username
   useEffect(() => {
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
@@ -259,6 +275,7 @@ export default function FriendsPage() {
     invalidateTabRead(tabReadKey(`${API_URL}/users/friends`, isLogin));
     actionVersionRef.current++;
     pendingActionsRef.current--;
+    setSuggestionsRetry(value => value + 1);
     void loadData(true);
     announceTestimonyChange();
   };
@@ -392,30 +409,29 @@ export default function FriendsPage() {
   return (
     <div className="app-page min-h-screen text-slate-100 pb-28 pt-4 px-4 sm:px-6 max-w-2xl mx-auto transition-colors duration-150">
       {/* Top Header */}
-      <div className="flex items-center justify-start mb-6">
-        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">Friends activity</h1>
-      </div>
-
-      <TestimonyBoard />
-
-      <div className="max-w-2xl mx-auto mt-4">
-      {/* Search Bar */}
-      <div className="relative mb-6">
-        <div className="relative flex items-center">
-          <Search className="absolute left-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
+      <div className="flex items-center justify-between gap-3 mb-6 relative z-30">
+        <h1 className={`${showFriendsSearch ? 'hidden sm:block' : ''} text-lg sm:text-xl font-bold tracking-tight text-white`}>Friends activity</h1>
+        <div className="flex items-center justify-end gap-2 sm:gap-3 h-10 flex-1 min-w-0">
+          {showFriendsSearch && (
+      <div className="relative h-10 flex-1 min-w-0 max-w-[260px] search-fade-in">
+        <div className="relative h-10 flex items-center">
+          <div className="absolute inset-0 bg-white/5 border border-white/10 rounded-full backdrop-blur-md shadow-inner" />
           <input
             type="text"
+            autoFocus
+            aria-label="Search friends by username"
+            onKeyDown={event => { if (event.key === 'Escape') { setShowFriendsSearch(false); setSearchQuery(''); } }}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by @username..."
-            className="w-full pl-10 pr-10 py-3 bg-white/[0.04] border border-white/10 rounded-2xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#00C2FF]/60 focus:ring-1 focus:ring-[#00C2FF]/60 transition-all"
+            className="w-full h-full pl-4 pr-8 py-2 bg-transparent text-sm text-white placeholder-gray-400/70 outline-none relative z-10 font-light tracking-wide"
           />
           {isSearching ? (
-            <Loader2 className="absolute right-3.5 w-4 h-4 text-[#00C2FF] animate-spin" />
+            <Loader2 className="absolute z-20 right-3.5 w-4 h-4 text-[#00C2FF] animate-spin" />
           ) : searchQuery ? (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3.5 p-0.5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white"
+              className="absolute z-20 right-3.5 p-0.5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -424,7 +440,7 @@ export default function FriendsPage() {
 
         {/* Live Search Results Dropdown / Panel */}
         {searchQuery.trim().length >= 2 && (
-          <div className="mt-2 p-2 rounded-2xl bg-app-panel/95 border border-white/10 backdrop-blur-xl shadow-2xl shadow-black/50 space-y-1.5">
+          <div className="absolute top-full right-0 mt-2 w-[min(360px,calc(100vw-32px))] max-h-[60dvh] overflow-y-auto p-2 rounded-2xl bg-app-panel/95 border border-white/10 backdrop-blur-xl shadow-2xl shadow-black/50 space-y-1.5">
             <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Search Results
             </div>
@@ -507,8 +523,20 @@ export default function FriendsPage() {
             )}
           </div>
         )}
+      </div>)}
+          <button type="button" onClick={() => { setShowFriendsSearch(previous => !previous); setSearchQuery(''); }}
+            aria-label={showFriendsSearch ? 'Close search' : 'Search friends'} aria-expanded={showFriendsSearch}
+            className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-full transition-all duration-300 border backdrop-blur-xl relative overflow-hidden group shadow-lg z-30 ${showFriendsSearch
+              ? 'bg-red-500/10 border-red-500/20 text-red-400 rotate-90 scale-90'
+              : 'bg-white/5 border-white/20 text-sky-200 hover:bg-white/10 hover:text-white hover:border-sky-400/30 hover:shadow-[0_0_15px_rgba(56,189,248,0.3)]'}`}>
+            {showFriendsSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+          </button>
+        </div>
       </div>
 
+      <TestimonyBoard />
+
+      <div className="max-w-2xl mx-auto mt-4">
       {/* Tabs */}
       <div className="flex border-b border-white/10 mb-6 gap-2">
         <button
@@ -541,6 +569,11 @@ export default function FriendsPage() {
           {activeTab === 'friends' && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00C2FF] rounded-full" />
           )}
+        </button>
+        <button type="button" onClick={() => setActiveTab('sent')}
+          className={`relative pb-3 px-3 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 ${activeTab === 'sent' ? 'text-[#00C2FF]' : 'text-slate-400 hover:text-slate-200'}`}>
+          <span>Sent</span>{outgoingRequests.length > 0 && <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-white/10 text-slate-300">{outgoingRequests.length}</span>}
+          {activeTab === 'sent' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00C2FF] rounded-full" />}
         </button>
       </div>
 
@@ -614,7 +647,24 @@ export default function FriendsPage() {
             )}
           </div>
 
-          {/* Outgoing Requests */}
+          <section aria-label="Suggested friends">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-1">Suggested friends</h2>
+            {suggestionsLoading ? <div role="status" className="p-6 text-center text-xs text-slate-400">Finding people...</div>
+              : suggestionsError ? <div className="p-6 text-center text-xs text-slate-400">Could not load suggestions. <button type="button" className="text-sky-400" onClick={() => { setSuggestionsLoading(true); setSuggestionsRetry(value => value + 1); }}>Retry</button></div>
+              : suggestions.filter(user => getUserStatus(user._id) === 'none').length === 0 ? <p className="p-6 rounded-2xl bg-white/[0.02] text-center text-xs text-slate-400">No mutual-friend suggestions yet. Use search to find people you know.</p>
+              : <div className="space-y-2">{suggestions.filter(user => getUserStatus(user._id) === 'none').map(user => (
+                <div key={user._id} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/[0.04] border border-white/10">
+                  <button type="button" onClick={() => router.push(profileHref(user._id))} className="flex items-center gap-3 min-w-0 text-left" aria-label={`Open ${user.Name || user.username} profile`}>
+                    <OfflineAvatar userKey={user._id || user.username} remoteUrl={user.profilePhoto} name={user.Name} className="w-10 h-10 shrink-0 rounded-full overflow-hidden bg-white/5 flex items-center justify-center text-sky-300" />
+                    <span className="min-w-0"><span className="block truncate text-xs sm:text-sm font-semibold text-white">{user.Name || user.username}</span><span className="block truncate text-[11px] text-slate-400">@{user.username}</span><span className="block mt-1 text-[11px] text-sky-300/80">{user.mutualFriendCount} mutual {user.mutualFriendCount === 1 ? 'friend' : 'friends'}</span></span>
+                  </button>
+                  <button type="button" disabled={actionLoading[user._id]} onClick={() => handleSendRequest(user)} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500/10 text-sky-300 text-xs font-semibold disabled:opacity-50"><UserPlus className="w-3.5 h-3.5" />Add</button>
+                </div>
+              ))}</div>}
+          </section>
+        </div>
+      ) : activeTab === 'sent' ? (
+        <div>          {/* Outgoing Requests */}
           <div>
             <div className="flex items-center gap-2 mb-3 px-1">
               <Send className="w-4 h-4 text-slate-400" />
@@ -667,8 +717,7 @@ export default function FriendsPage() {
                 })}
               </div>
             )}
-          </div>
-        </div>
+          </div></div>
       ) : (
         /* My Friends Tab */
         <div>
