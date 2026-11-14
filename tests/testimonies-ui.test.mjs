@@ -858,13 +858,17 @@ test('authors see reactor names and photos on their opened profile note, with pa
   state.posts.find(item => item.author._id === A).loveCount = 21;
   state.posts.find(item => item.author._id === A).loveVersion = 21;
   state.reactorUsers = [{ ...friend, profilePhoto: 'https://avatars.example.test/friend.png' }, ...Array.from({ length: 20 }, (_, i) => ({ _id: (i + 1).toString(16).padStart(24, '0'), Name: `Friend ${i + 1}`, username: `friend${i + 1}`, profilePhoto: null }))];
+  await page.waitForLoadState('networkidle');
   await page.goto(`${base}/normal_UserProfile/`);
   await page.getByRole('button', { name: 'Read testimony: A prayer, quietly answered', exact: true }).click();
   const reader = page.getByRole('dialog', { name: 'Testimony', exact: true });
   const who = reader.getByRole('button', { name: 'See who loved this note', exact: true });
-  assert.equal((await who.innerText()).trim(), '21');
+  await who.getByText('Loved by', { exact: true }).waitFor();
+  await who.getByText('+17', { exact: true }).waitFor();
+  assert.equal(await who.locator('[class*="lovePreviewAvatar"]').count(), 4);
+  assert.equal(await who.locator('svg').count(), 0, 'own notes use avatars instead of a heart');
   assert.ok(state.reactorReads <= 1, 'prefetch only the opened own note, once');
-  await who.click();
+  await who.getByRole('img', { name: 'Youssef', exact: true }).click();
   const list = reader.getByRole('region', { name: 'People who loved your note', exact: true });
   await list.getByRole('link', { name: 'Visit Youssef profile', exact: true }).waitFor();
   await list.getByRole('img', { name: 'Youssef', exact: true }).waitFor();
@@ -876,9 +880,9 @@ test('authors see reactor names and photos on their opened profile note, with pa
   assert.equal(await list.evaluate(element => element.scrollWidth <= element.clientWidth), true);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
   await page.screenshot({ path: resolve(output, 'note-reactors-mobile.png'), animations: 'disabled' });
-  await list.getByRole('button', { name: 'Back to note', exact: true }).click();
+  await list.getByRole('button', { name: 'Close loved by list', exact: true }).click();
   await reader.getByLabel('Testimony text', { exact: true }).waitFor();
-  await who.click();
+  await who.getByText('+17', { exact: true }).click();
   assert.equal(await list.getByRole('link').count(), 21, 'cached pages appear immediately on reopening');
   assert.equal(await list.getByRole('status').count(), 0);
   assert.equal(state.reactorReads, 2, 'reopening does not recheck the server');
@@ -893,6 +897,161 @@ test('authors see reactor names and photos on their opened profile note, with pa
   await list.getByRole('link', { name: 'Visit Youssef profile', exact: true }).click();
   await page.getByRole('heading', { name: 'Youssef', exact: true }).waitFor();
   assert.equal(await page.getByRole('dialog', { name: 'Testimony', exact: true }).count(), 0);
+  assert.deepEqual(errors, []);
+});
+
+for (const editing of [false, true]) {
+  test(`five-minute note editing window expires automatically in the ${editing ? 'editor' : 'reader'}`, async t => {
+    const { page, state } = await setup(t);
+    await page.waitForLoadState('networkidle');
+    const now = Date.now();
+    await page.clock.install({ time: new Date(now) });
+    await page.clock.pauseAt(new Date(now + 500));
+    state.posts.find(item => item.author._id === A).createdAt = new Date(now - 290000).toISOString();
+    await page.goto(`${base}/normal_UserProfile/`);
+    await page.getByRole('button', { name: 'Read testimony: A prayer, quietly answered', exact: true }).click();
+    const reader = page.getByRole('dialog', { name: 'Testimony', exact: true });
+    await reader.getByRole('button', { name: 'Note options', exact: true }).click();
+    await reader.getByRole('menuitem', { name: 'Edit', exact: true }).waitFor();
+    if (editing) await reader.getByRole('menuitem', { name: 'Edit', exact: true }).click();
+    await page.clock.runFor(10001);
+    if (editing) {
+      await page.getByText('The 5-minute editing window has ended.', { exact: true }).waitFor();
+      assert.equal(await page.getByRole('button', { name: 'Save changes', exact: true }).isDisabled(), true);
+    } else {
+      const options = reader.getByRole('button', { name: 'Note options', exact: true });
+      if (await options.getAttribute('aria-expanded') === 'false') await options.click();
+      assert.equal(await reader.getByRole('menuitem', { name: 'Edit', exact: true }).count(), 0);
+      assert.equal(await reader.getByRole('menuitem', { name: 'Delete', exact: true }).isVisible(), true);
+    }
+  });
+}
+
+test('own note loved-by sheet opens with swipe up and dismisses without replacing the note', async t => {
+  const { page, state, errors } = await setup(t, { mobile: true });
+  const own = state.posts.find(item => item.author._id === A);
+  own.loveCount = 21; own.loveVersion = 21;
+  state.reactorUsers = [friend, ...Array.from({ length: 20 }, (_, i) => ({ _id: (i + 1).toString(16).padStart(24, '0'), Name: `Friend ${i + 1}`, username: `friend${i + 1}` }))];
+  await page.waitForLoadState('networkidle');
+  await page.goto(`${base}/normal_UserProfile/`);
+  await page.getByRole('button', { name: 'Read testimony: A prayer, quietly answered', exact: true }).click();
+  const reader = page.getByRole('dialog', { name: 'Testimony', exact: true });
+  const note = reader.getByTestId('expanded-testimony-note');
+  await note.evaluate(element => { window.__sheetNote = element; });
+  const gesture = async (target, from, to) => target.evaluate((element, { from, to }) => {
+    for (const [type, y] of [['touchstart', from], ['touchmove', to], ['touchend', to]]) {
+      const event = new Event(type, { bubbles: true });
+      const touch = { clientX: 150, clientY: y };
+      Object.defineProperties(event, { touches: { value: type !== 'touchend' ? [touch] : [] }, changedTouches: { value: [touch] } });
+      element.dispatchEvent(event);
+    }
+  }, { from, to });
+  const initialBox = await note.boundingBox();
+  const lowerY = initialBox.y + initialBox.height * .85;
+  const upperY = initialBox.y + initialBox.height * .25;
+  const text = reader.getByLabel('Testimony text', { exact: true });
+  await gesture(text, upperY, upperY - 100);
+  assert.equal(await reader.locator('[data-reactor-sheet]').isVisible(), false, 'upper-half gestures must not open the sheet');
+  const touch = async (type, y) => text.evaluate((element, { type, y }) => {
+    const event = new Event(type, { bubbles: true, cancelable: true });
+    const point = { clientX: 150, clientY: y };
+    Object.defineProperties(event, { touches: { value: type === 'touchend' || type === 'touchcancel' ? [] : [point] }, changedTouches: { value: [point] } });
+    element.dispatchEvent(event);
+  }, { type, y });
+  await touch('touchstart', lowerY);
+  await touch('touchmove', lowerY - 20);
+  const preview = await reader.locator('[data-reactor-sheet]').evaluate(element => ({ height: element.offsetHeight, y: new DOMMatrix(getComputedStyle(element).transform).m42 }));
+  assert.ok(Math.abs(preview.y - (preview.height - 20)) < 1, 'opening sheet follows the finger before release');
+  await touch('touchcancel', lowerY - 20);
+  await reader.locator('[data-reactor-sheet]').waitFor({ state: 'hidden' });
+  const limit = await note.evaluate(element => Math.min(100, element.clientHeight * .25));
+  await touch('touchstart', lowerY);
+  await touch('touchmove', lowerY - limit);
+  const capped = await reader.locator('[data-reactor-sheet]').evaluate(element => element.offsetHeight - new DOMMatrix(getComputedStyle(element).transform).m42);
+  assert.ok(Math.abs(capped - limit) < 1, 'sheet follows the finger to the preview threshold');
+  await touch('touchend', lowerY - limit);
+  await reader.locator('[data-reactor-sheet]').waitFor({ state: 'hidden' });
+  await gesture(text, lowerY, lowerY - limit - 40);
+  const list = reader.getByRole('region', { name: 'People who loved your note', exact: true });
+  await list.waitFor();
+  const sheetBox = await reader.locator('[data-reactor-sheet]').boundingBox();
+  const noteBox = await note.boundingBox();
+  assert.ok(sheetBox.height < noteBox.height * .7, 'list occupies only the lower portion of the note');
+  assert.equal(await note.evaluate(element => window.__sheetNote === element), true);
+  // The sheet follows the finger before release, and cancelled gestures snap back.
+  await list.evaluate(element => {
+    for (const [type, y] of [['touchstart', 250], ['touchmove', 270]]) {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      const touch = { clientX: 150, clientY: y };
+      Object.defineProperties(event, { touches: { value: [touch] }, changedTouches: { value: [touch] } });
+      element.dispatchEvent(event);
+    }
+  });
+  assert.equal(await reader.locator('[data-reactor-sheet]').evaluate(element => element.style.transform), 'translate3d(0px, 20px, 0px)');
+  await list.dispatchEvent('touchcancel');
+  assert.equal(await reader.locator('[data-reactor-sheet]').evaluate(element => element.style.transform), 'translate3d(0px, 0px, 0px)');
+  assert.equal(await list.isVisible(), true);
+  const scroller = list.locator('[data-reactor-scroll]');
+  await list.getByRole('link').first().waitFor();
+  await scroller.evaluate(element => { element.scrollTop = 30; });
+  await gesture(scroller, 250, 350);
+  assert.equal(await list.isVisible(), true, 'a list-scroll gesture must not dismiss the sheet');
+  await scroller.evaluate(element => { element.scrollTop = 0; });
+  await gesture(list, 250, 350);
+  await list.waitFor({ state: 'detached' });
+  await reader.getByRole('button', { name: 'See who loved this note', exact: true }).click();
+  await list.waitFor();
+  await page.keyboard.press('Escape');
+  await list.waitFor({ state: 'detached' });
+  assert.equal(await reader.isVisible(), true);
+  await reader.getByRole('button', { name: 'See who loved this note', exact: true }).click();
+  await list.waitFor();
+  const scrim = reader.getByRole('button', { name: 'Close loved by list', exact: true }).first();
+  await scrim.click({ position: { x: 10, y: 10 } });
+  await list.waitFor({ state: 'detached' });
+  assert.equal(await reader.isVisible(), true);
+  assert.deepEqual(errors, []);
+});
+
+test('loved-by sheet preserves native touch scrolling inside its users list', async t => {
+  const { page, state, errors } = await setup(t);
+  const own = state.posts.find(item => item.author._id === A);
+  own.loveCount = 21; own.loveVersion = 21;
+  state.reactorUsers = Array.from({ length: 21 }, (_, i) => ({ _id: (i + 1).toString(16).padStart(24, '0'), Name: `Friend ${i + 1}`, username: `friend${i + 1}` }));
+  await page.waitForLoadState('networkidle');
+  await page.goto(`${base}/normal_UserProfile/`);
+  await page.getByRole('button', { name: 'Read testimony: A prayer, quietly answered', exact: true }).click();
+  const reader = page.getByRole('dialog', { name: 'Testimony', exact: true });
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true });
+  const note = reader.getByTestId('expanded-testimony-note');
+  await note.scrollIntoViewIfNeeded();
+  const noteBox = await note.boundingBox();
+  const startX = noteBox.x + noteBox.width / 2, startY = noteBox.y + noteBox.height * .8;
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: startX, y: startY }] });
+  for (let i = 1; i <= 8; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: startX, y: startY - 60 * i / 8 }] });
+    await page.evaluate(() => new Promise(requestAnimationFrame));
+  }
+  assert.equal(await reader.locator('[data-sheet-open]').getAttribute('data-sheet-open'), 'false', 'opening drag stays interactive until release');
+  assert.equal(await reader.locator('[data-reactor-sheet]').isVisible(), true, 'native opening drag reveals the sheet before release');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await reader.locator('[data-reactor-sheet]').waitFor({ state: 'hidden' });
+  await reader.getByRole('button', { name: 'See who loved this note', exact: true }).click();
+  await reader.getByRole('region', { name: 'People who loved your note', exact: true }).waitFor();
+  const scroller = reader.locator('[data-reactor-scroll]');
+  await scroller.getByRole('link').first().waitFor();
+  await reader.locator('[data-reactor-sheet]').evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)));
+  const box = await scroller.boundingBox();
+  const x = box.x + box.width / 2, y = box.y + box.height * .8;
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  for (let i = 1; i <= 8; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - box.height * .6 * i / 8 }] });
+    await page.evaluate(() => new Promise(requestAnimationFrame));
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await page.waitForFunction(() => document.querySelector('[data-reactor-scroll]')?.scrollTop > 0);
+  assert.equal(await reader.locator('[data-reactor-sheet]').isVisible(), true);
   assert.deepEqual(errors, []);
 });
 

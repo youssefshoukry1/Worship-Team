@@ -1,68 +1,48 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, BookOpen, Check, Loader2, Pin, X } from 'lucide-react';
+import { ArrowUpRight, BookOpen, Loader2, Pin, X } from 'lucide-react';
 import TestimonyDialog from './TestimonyDialog';
 import OfflineAvatar from '../OfflineAvatar';
 import { announceTestimonyChange, NOTE_ACTIVE_MESSAGE, testimonyRequest } from './testimonyApi';
 import { showToast } from '../ToastContainer';
 import styles from './testimonies.module.css';
 import { NOTE_CHARACTER_LIMIT, noteContentLength } from './noteContent';
+import useNoteEditWindow, { noteCanEdit } from './useNoteEditWindow';
 
 const newClientId = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 export default function TestimonyComposer({ token, userId, author, editing, onClose }) {
+  const editWindowOpen = useNoteEditWindow(editing?.createdAt);
   const draftKey = `taspe7_testimony_draft_v1:${userId}:${editing?._id || 'new'}`;
-  const [draft, setDraft] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(draftKey));
-      if (saved && typeof saved.body === 'string') return {
-        title: typeof saved.title === 'string' ? saved.title.slice(0, 100) : '', body: saved.body,
-        style: ['olive', 'dawn', 'still'].includes(saved.style) ? saved.style : 'olive',
-        reference: typeof saved.reference === 'string' ? saved.reference.slice(0, 100) : '',
-        verseText: typeof saved.verseText === 'string' ? saved.verseText.slice(0, 1200) : '',
-        clientId: saved.clientId || newClientId(),
-      };
-    } catch { /* Writing remains available without local storage. */ }
-    return { title: editing?.title || '', body: editing?.body || '', style: editing?.style || 'olive',
-      reference: editing?.verse?.reference || '', verseText: editing?.verse?.text || '', clientId: newClientId() };
-  });
+  const [draft, setDraft] = useState(() => ({
+    title: editing?.title || '', body: editing?.body || '', style: editing?.style || 'olive',
+    reference: editing?.verse?.reference || '', verseText: editing?.verse?.text || '', clientId: newClientId(),
+  }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [blocked, setBlocked] = useState(false);
-  const [draftStatus, setDraftStatus] = useState('Saves on this device');
   const bodyRef = useRef(null);
-  const published = useRef(false);
-  const latestDraft = useRef(draft);
   const submitting = useRef(false);
 
+  // Discard legacy saved drafts too. Unpublished text lives only in this editor.
   useEffect(() => {
-    latestDraft.current = draft;
-    const timer = setTimeout(() => {
-      if (published.current) return;
-      try { localStorage.setItem(draftKey, JSON.stringify(draft)); setDraftStatus('Draft saved'); }
-      catch { setDraftStatus('Saved in this window'); }
-    }, 450);
-    return () => clearTimeout(timer);
-  }, [draft, draftKey]);
-
-  useEffect(() => () => {
-    if (!published.current) {
-      try { localStorage.setItem(draftKey, JSON.stringify(latestDraft.current)); } catch { /* Keep editing without storage. */ }
-    }
+    const clear = () => { try { localStorage.removeItem(draftKey); } catch { /* Storage may be unavailable. */ } };
+    clear();
+    return clear;
   }, [draftKey]);
 
-  // Preserve older drafts in full so the author can shorten them without data loss.
   const preserveTitle = !editing || !editing.body.startsWith(editing.title);
   const title = (preserveTitle ? draft.title.trim() : '') || draft.body.trim().split('\n')[0].slice(0, 80);
   const verse = draft.reference && draft.verseText ? { reference: draft.reference, text: draft.verseText } : null;
   const characterCount = noteContentLength({ title, body: draft.body, verse });
   const bodyLimit = Math.max(0, NOTE_CHARACTER_LIMIT - (characterCount - draft.body.trim().length));
   const overLimit = characterCount > NOTE_CHARACTER_LIMIT;
-  const canPublish = !blocked && !overLimit && draft.body.trim().length >= 1;
+  const canPublish = !blocked && !overLimit && draft.body.trim().length >= 1 && (!editing || editWindowOpen);
   const submit = async event => {
     event.preventDefault();
     if (!canPublish || submitting.current) return;
+    if (editing && !noteCanEdit(editing.createdAt)) { setError('Notes can only be edited within 5 minutes of sharing.'); return; }
     submitting.current = true;
     setBusy(true); setError('');
     try {
@@ -72,7 +52,6 @@ export default function TestimonyComposer({ token, userId, author, editing, onCl
         body: JSON.stringify({ title, body: draft.body, style: draft.style, clientId: draft.clientId,
           verse }),
       });
-      published.current = true;
       try { localStorage.removeItem(draftKey); } catch { /* Publishing succeeded. */ }
       announceTestimonyChange({ ...result, id: result.item._id, authorId: userId, action: editing ? 'updated' : 'created' });
       onClose(true);
@@ -101,12 +80,12 @@ export default function TestimonyComposer({ token, userId, author, editing, onCl
           <button type="button" aria-label="Remove verse" disabled={busy} onClick={() => setDraft(previous => ({ ...previous, reference: '', verseText: '' }))}><X size={15} /></button>
         </div>}
         {overLimit && <p className={styles.error} role="alert">Please shorten this note to {NOTE_CHARACTER_LIMIT.toLocaleString()} characters so it fits when opened. Your full draft is kept until you save.</p>}
+        {editing && !editWindowOpen && <p className={styles.error} role="status">The 5-minute editing window has ended.</p>}
         {error && <p className={styles.error} role="alert">{error}</p>}
       </div>
       <footer className={styles.composerFooter}>
         <div className={styles.composerStatus}>
           <span id="testimony-character-count" className={styles.noteCount}>{characterCount.toLocaleString()}/{NOTE_CHARACTER_LIMIT.toLocaleString()} characters{verse ? ' · including verse' : ''}</span>
-          <span className={styles.draftStatus} role="status"><Check size={12} />{draftStatus}</span>
         </div>
         <button type="submit" className={styles.primaryButton} title="Shared with friends and saved on your profile" disabled={!canPublish || busy}>{busy ? <><Loader2 size={15} className={styles.spin} /> Saving…</> : <>{editing ? 'Save changes' : 'Share'}<ArrowUpRight size={15} /></>}</button>
       </footer>

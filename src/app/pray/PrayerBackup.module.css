@@ -72,7 +72,15 @@
 .privacySection { padding: 0 2px 16px; margin-bottom: 16px; border-bottom: 1px solid var(--app-card-border); }
 .privacyHint { margin: 0; color: var(--app-muted); font-size: 11px; line-height: 1.5; }
 .blurControl { display: flex; align-items: center; gap: 16px; margin-top: 6px; font-size: 11px; color: var(--app-muted); }
-.blurControl input { flex: 1; min-width: 0; accent-color: #38bdf8; }
+.blurSlider { position: relative; flex: 1; min-width: 0; direction: ltr; }
+.blurPercent { position: absolute; top: -5px; right: 0; color: var(--app-muted); font-size: 9px; line-height: 11px; font-variant-numeric: tabular-nums; pointer-events: none; }
+.blurSlider input { display: block; appearance: none; -webkit-appearance: none; width: 100%; height: 32px; margin: 0; padding: 0; border: 0; border-radius: 0; outline: none; box-shadow: none; cursor: pointer; touch-action: pan-y; background: linear-gradient(to right, #38bdf8 0 var(--blur-progress), rgb(128 145 160 / .25) var(--blur-progress) 100%) center / 100% 4px no-repeat; }
+.blurSlider input::-webkit-slider-runnable-track { height: 4px; border: 0; border-radius: 999px; background: transparent; box-shadow: none; }
+.blurSlider input::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5px; border: 0; border-radius: 50%; background: #38bdf8; box-shadow: none; }
+.blurSlider input::-moz-range-track { height: 4px; border: 0; border-radius: 999px; background: transparent; }
+.blurSlider input::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: #38bdf8; box-shadow: none; }
+.blurSlider input:focus-visible::-webkit-slider-thumb { outline: 2px solid #bae6fd; outline-offset: 3px; }
+.blurSlider input:focus-visible::-moz-range-thumb { outline: 2px solid #bae6fd; outline-offset: 3px; }
 .prayerPage[data-private-writing="true"] textarea {
     color: transparent !important;
     -webkit-text-fill-color: transparent;

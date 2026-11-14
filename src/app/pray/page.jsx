@@ -552,10 +552,14 @@ export default function PrayPage() {
         } catch { /* Use defaults if storage is unavailable. */ }
     }, []);
     const changePrivacy = (patch) => {
-        const next = { ...privacy, ...patch };
-        setPrivacy(next);
-        try { localStorage.setItem('taspe7_prayer_privacy', JSON.stringify(next)); } catch { /* Still works for this session. */ }
+        setPrivacy(previous => ({ ...previous, ...patch }));
     };
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            try { localStorage.setItem('taspe7_prayer_privacy', JSON.stringify(privacy)); } catch { /* Still works for this session. */ }
+        }, 150);
+        return () => clearTimeout(timer);
+    }, [privacy]);
     const pageActive = useTabPageActive();
     const mountedRef = useRef(true);
     const deletionSyncRef = useRef(null);
@@ -1282,7 +1286,10 @@ export default function PrayPage() {
                                         </label>
                                         {privacy.enabled && <label className={privacyStyles.blurControl}>
                                             <span>{language === 'ar' ? 'درجة التمويه' : 'Strength'}</span>
-                                            <input aria-label={language === 'ar' ? 'درجة التمويه' : 'Blur strength'} type="range" min="1" max="4" step="0.25" value={privacy.strength} onChange={event => changePrivacy({ strength: Number(event.target.value) })} />
+                                            <span className={privacyStyles.blurSlider} style={{ '--blur-progress': `${(privacy.strength - 1) / 3 * 100}%` }}>
+                                                <span className={privacyStyles.blurPercent} aria-hidden="true">{Math.round(privacy.strength / 4 * 100)}%</span>
+                                                <input aria-label={language === 'ar' ? 'درجة التمويه' : 'Blur strength'} aria-valuetext={`${Math.round(privacy.strength / 4 * 100)}%`} type="range" min="1" max="4" step="0.01" value={privacy.strength} onChange={event => changePrivacy({ strength: Number(event.target.value) })} />
+                                            </span>
                                         </label>}
                                     </div>
                                 }

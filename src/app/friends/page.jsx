@@ -11,9 +11,7 @@ import {
   X,
   Clock,
   UserMinus,
-  Loader2,
-  Inbox,
-  Send
+  Loader2
 } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
 import { useTabPageActive } from '../components/TabPageActivity';
@@ -441,7 +439,7 @@ export default function FriendsPage() {
         {/* Live Search Results Dropdown / Panel */}
         {searchQuery.trim().length >= 2 && (
           <div className="absolute top-full right-0 mt-2 w-[min(360px,calc(100vw-32px))] max-h-[60dvh] overflow-y-auto p-2 rounded-2xl bg-app-panel/95 border border-white/10 backdrop-blur-xl shadow-2xl shadow-black/50 space-y-1.5">
-            <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400">
               Search Results
             </div>
             {searchResults.length === 0 && !isSearching ? (
@@ -563,9 +561,6 @@ export default function FriendsPage() {
           }`}
         >
           <span>My Friends</span>
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-slate-300">
-            {friends.length}
-          </span>
           {activeTab === 'friends' && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00C2FF] rounded-full" />
           )}
@@ -585,9 +580,8 @@ export default function FriendsPage() {
           {/* Incoming Requests */}
           <div>
             <div className="flex items-center gap-2 mb-3 px-1">
-              <Inbox className="w-4 h-4 text-[#00C2FF]" />
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Incoming Requests ({incomingRequests.length})
+              <h2 className="text-xs font-semibold text-slate-400">
+                Incoming requests ({incomingRequests.length})
               </h2>
             </div>
 
@@ -648,7 +642,7 @@ export default function FriendsPage() {
           </div>
 
           <section aria-label="Suggested friends">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-1">Suggested friends</h2>
+            <h2 className="text-xs font-semibold text-slate-400 mb-3 px-1">Suggested friends</h2>
             {suggestionsLoading ? <div role="status" className="p-6 text-center text-xs text-slate-400">Finding people...</div>
               : suggestionsError ? <div className="p-6 text-center text-xs text-slate-400">Could not load suggestions. <button type="button" className="text-sky-400" onClick={() => { setSuggestionsLoading(true); setSuggestionsRetry(value => value + 1); }}>Retry</button></div>
               : suggestions.filter(user => getUserStatus(user._id) === 'none').length === 0 ? <p className="p-6 rounded-2xl bg-white/[0.02] text-center text-xs text-slate-400">No mutual-friend suggestions yet. Use search to find people you know.</p>
@@ -667,9 +661,8 @@ export default function FriendsPage() {
         <div>          {/* Outgoing Requests */}
           <div>
             <div className="flex items-center gap-2 mb-3 px-1">
-              <Send className="w-4 h-4 text-slate-400" />
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Sent Requests ({outgoingRequests.length})
+              <h2 className="text-xs font-semibold text-slate-400">
+                Sent requests ({outgoingRequests.length})
               </h2>
             </div>
 
@@ -721,6 +714,7 @@ export default function FriendsPage() {
       ) : (
         /* My Friends Tab */
         <div>
+          <p className="mb-3 px-1 text-xs text-slate-400">{friends.length} {friends.length === 1 ? 'friend' : 'friends'}</p>
           {friends.length === 0 ? (
             <div className="p-10 rounded-2xl bg-white/[0.02] border border-white/5 text-center space-y-2">
               <Users className="w-8 h-8 text-slate-500 mx-auto" />

@@ -16,10 +16,12 @@
 .noteRail { display: flex; gap: 14px; align-items: flex-start; overflow-x: auto; padding: 12px 4px 5px; scrollbar-width: none; scroll-snap-type: x proximity; }
 .noteRail::-webkit-scrollbar { display: none; }
 .miniCard { width: 88px; flex: 0 0 88px; min-width: 0; scroll-snap-align: start; }
-.miniNote, .createNote { position: relative; display: flex; flex-direction: column; justify-content: space-between; width: 88px; height: 88px; padding: 14px 9px 8px; border: 1px solid #ffffff12; border-radius: 6px 6px 13px 6px; background: var(--note-bg); color: #cbd5e1; box-shadow: 1px 3px 8px #0002; transform: rotate(var(--tilt, -1deg)); transition: transform .16s, border-color .16s, background .16s; text-align: start; }
+.miniNote, .createNote { position: relative; display: flex; flex-direction: column; justify-content: space-between; width: 88px; height: 88px; padding: 14px 9px 8px; border: 0; border-radius: 6px 6px 13px 6px; background: var(--note-bg); color: #cbd5e1; box-shadow: 1px 3px 8px #0002; transform: rotate(var(--tilt, -1deg)); transition: transform .16s, border-color .16s, background .16s; text-align: start; }
 .miniNote:hover, .createNote:hover { transform: rotate(0) translateY(-2px); background: rgb(var(--app-raised-rgb)); }
 .miniNote { padding-top: 28px; }
+.miniNote .unreadPin { color: #38a0cd; }
 .miniNote.withoutAuthor { padding-top: 14px; }
+.noteTime { position: absolute; bottom: 5px; left: 7px; display: flex; align-items: center; gap: 3px; color: #8b9bb0; font-size: 7px; line-height: 10px; direction: ltr; pointer-events: none; }
 .withoutAuthor .noteReadButton { padding: 6px clamp(6px, 1.8vw, 8px) 4px; }
 .miniNote.withoutAuthor h3 { -webkit-line-clamp: 5; line-height: 1.4; flex-shrink: 0; }
 .noteReadButton { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; width: 100%; height: 100%; padding: 28px 9px 8px; border: 0; border-radius: inherit; background: transparent; color: inherit; text-align: inherit; }
@@ -54,7 +56,7 @@
 .reactorHint { display: flex; align-items: center; gap: 7px; margin: 10px 0; color: #8295ab; font-size: 11px; line-height: 1.6; }
 .moreReactors { display: block; margin: 10px auto 0; padding: 7px 10px; border: 0; border-radius: 7px; background: #ffffff05; color: #8ca9c0; font-size: 10px; }
 .reactionError { position: fixed; z-index: 10030; width: 190px; margin: 0; padding: 8px 10px; border-radius: 8px; background: rgb(var(--app-raised-rgb)); color: #e4a1a6; font-size: 10px; line-height: 1.5; }
-.createNote { justify-content: center; align-items: center; color: #00c2ff; border-style: dashed; border-color: #00c2ff35; background: #071c29; }
+.createNote { justify-content: center; align-items: center; color: #00c2ff; border: 0; background: #071c29; }
 .createNote > svg { margin-top: -7px; }
 .createNote:is(:disabled, [aria-disabled="true"]) { opacity: .4; cursor: not-allowed; transform: rotate(-1deg); }
 .noteLines { width: 28px; height: 8px; margin-top: 8px; border-top: 1px solid #00c2ff26; border-bottom: 1px solid #00c2ff18; }
@@ -120,7 +122,7 @@
 .error { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #fb718528; border-radius: 7px; color: #e4a1a6; background: #fb71850a; font-size: 11px; line-height: 1.6; }
 .dialog.expandedDialog { position: relative; width: min(420px, calc(100vw - 48px)); max-width: none; margin-top: 32px; overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .cardClose { position: absolute; top: -43px; right: 0; width: 32px; height: 32px; background: #ffffff06; }
-.expandedNote { position: relative; display: flex; flex-direction: column; width: 100%; height: var(--note-height, min(420px, calc(100vw - 48px), calc(100dvh - 112px - env(safe-area-inset-top) - env(safe-area-inset-bottom)))); max-height: calc(100dvh - 112px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); min-height: 0; flex-shrink: 0; gap: 18px; padding: 44px 24px 18px; border: 1px solid #ffffff12; border-radius: 16px 16px 36px 16px; background: #131e2b; box-shadow: 3px 12px 36px #0004; transform: rotate(-.8deg); }
+.expandedNote { position: relative; display: flex; flex-direction: column; width: 100%; height: var(--note-height, min(420px, calc(100vw - 48px), calc(100dvh - 112px - env(safe-area-inset-top) - env(safe-area-inset-bottom)))); max-height: calc(100dvh - 112px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); min-height: 0; flex-shrink: 0; gap: 18px; padding: 44px 24px 18px; border: 0; border-radius: 16px 16px 36px 16px; background: #131e2b; box-shadow: 3px 12px 36px #0004; transform: rotate(-.8deg); }
 .expandedNote .pinnedAvatar { flex-basis: 32px; width: 32px; height: 32px; font-size: 12px; }
 .expandedNote .expandedPin { top: -12px; left: 4px; width: 23px; height: 23px; }
 .expandedText { flex: 1; min-height: 0; min-width: 0; overflow: hidden; font-size: var(--note-font-size, 18px); }
@@ -145,14 +147,14 @@
 .composerStatus { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .composerFooter .primaryButton { flex-shrink: 0; }
 .composerStatus .draftStatus { color: #718b9c; }
-.expandedNote .noteDeleteConfirmation { position: absolute; z-index: 2; bottom: 14px; left: 14px; right: 14px; background: #20212d; box-shadow: 0 5px 20px #0005; }
+.expandedNote .noteDeleteConfirmation { position: absolute; z-index: 2; bottom: 14px; left: 14px; right: 14px; background: rgb(var(--app-panel-rgb)); box-shadow: 0 8px 28px #0005; }
 .secondaryButton { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 37px; padding: 8px 12px; border: 1px solid #ffffff12; border-radius: 8px; color: #8ca9c0; background: #ffffff04; font-size: 11px; }
 .secondaryButton:hover:not(:disabled) { background: #ffffff08; }
-.deleteConfirmation { margin-top: 18px; border: 1px solid #fb71851c; border-radius: 9px; padding: 15px; background: #fb718506; }
-.deleteConfirmation strong { color: #d094a3; font-size: 12px; }
-.deleteConfirmation p { font-size: 11px; color: #a67c89; margin: 7px 0 15px; }
+.deleteConfirmation { margin-top: 18px; border: 1px solid var(--app-card-border); border-radius: 14px; padding: 16px; background: rgb(var(--app-panel-rgb)); }
+.deleteConfirmation strong { color: var(--app-text); font-size: 13px; font-weight: 600; }
+.deleteConfirmation p { font-size: 11px; line-height: 1.6; color: var(--app-muted); margin: 7px 0 16px; }
 .deleteConfirmation > div { display: flex; gap: 8px; justify-content: flex-end; }
-.dangerButton { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 37px; border: 1px solid #fb718533; border-radius: 8px; background: #fb71851a; color: #f0a9b9; font-size: 11px; padding: 8px 12px; }
+.dangerButton { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 37px; border: 0; border-radius: 9px; background: #fb71851a; color: #f0a9b9; box-shadow: none; font-size: 11px; padding: 8px 12px; }
 .spin { animation: spin 1s linear infinite; }
 @supports (background: color-mix(in srgb, black, white)) {
   .board { --note-bg: color-mix(in srgb, var(--app-bg, #060b13) 93%, #fff); }
@@ -179,3 +181,42 @@
 .profileRemoveFriend:focus-visible { outline: 2px solid #f87171; outline-offset: 4px; border-radius: 4px; }
 .profileRemoveFriend:disabled { opacity: .5; cursor: default; }
 @media (min-width: 640px) { .profileRemoveFriend { right: 32px; top: 16px; } }
+
+.expandedTime { margin-left: 4px; color: #8b9bb0; font-size: 9px; line-height: 1.4; white-space: nowrap; direction: ltr; }
+.justNow { color: #38a0cd; }
+.ownerNoteFooter { flex-wrap: wrap; gap: 8px; }
+.ownerLoves { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 30px; margin-right: auto; padding: 0; border: 0; background: transparent; color: #94a3b8; font-size: 9px; white-space: nowrap; cursor: pointer; }
+.ownerLoves:hover { color: #cbd5e1; }
+.ownerLoves:focus-visible { outline: 2px solid #38a0cd; outline-offset: 3px; border-radius: 5px; }
+.loveAvatarStack { display: inline-flex; align-items: center; padding-left: 6px; }
+.lovePreviewAvatar { display: flex; align-items: center; justify-content: center; width: 23px; height: 23px; margin-left: -6px; border: 2px solid var(--note-bg, #1a1d20); border-radius: 50%; overflow: hidden; background: #26343e; color: #a6c8db; font-size: 8px; }
+.moreLoveCount { display: inline-flex; align-items: center; justify-content: center; min-width: 23px; height: 23px; padding: 0 4px; border-radius: 50%; background: #8294a516; color: #9fb3c5; font-size: 9px; }
+.swipeNote { touch-action: pan-y; }
+.reactorSheetLayer { position: absolute; inset: 0; z-index: 5; border-radius: inherit; overflow: hidden; }
+.reactorSheetScrim { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #0005; }
+.reactorSheet { position: absolute; bottom: 0; left: 0; right: 0; height: 58%; max-height: 360px; min-height: min(160px, 80%); padding: 8px 16px 12px; border-radius: 18px 18px 0 0; background: rgb(var(--app-panel-rgb)); box-shadow: 0 -8px 30px #0003; touch-action: pan-y; animation: note-sheet-up .18s ease-out; }
+.reactorSheet .reactors { height: 100%; gap: 8px; }
+.reactorSheetHandle { display: block; flex-shrink: 0; width: 30px; height: 3px; margin: 0 auto; border-radius: 4px; background: #8294a54d; }
+.reactorSheetHeader { display: flex; min-height: 30px; flex-direction: row; align-items: center; justify-content: space-between; }
+.reactorSheetHeader h2 { margin: 0; font-size: 12px; }
+.reactorSheetHeader button { min-width: 30px; min-height: 30px; justify-content: center; }
+@keyframes note-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .reactorSheet { animation: none; } }
+
+.reactorSheetLayer[data-sheet-open="false"] { visibility: hidden; pointer-events: none; }
+.reactorSheet { transition: transform 180ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+.reactorSheetScrim { opacity: var(--sheet-progress, 1); }
+
+.noteAuthorTools { position: absolute; z-index: 2; top: 4px; right: 12px; direction: ltr; }
+.expandedAuthor.authorWithTools { right: 52px; }
+
+.noteActions { position: relative; }
+.noteActionsPopup { position: absolute; right: 0; top: calc(100% + 5px); min-width: 124px; padding: 5px; border-radius: 11px; background: rgb(var(--app-panel-rgb)); box-shadow: 0 6px 24px #0005; }
+.noteActionsPopup button { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 38px; padding: 8px 10px; border: 0; border-radius: 7px; background: transparent; color: #b4c2d2; font-size: 11px; text-align: left; cursor: pointer; }
+.noteActionsPopup button:hover, .noteActionsPopup button:focus-visible { background: #8294a518; outline: none; }
+.noteActionsPopup .noteDeleteAction { color: #d08d99; }
+
+.deleteConfirmation .secondaryButton { border: 0; background: transparent; color: var(--app-muted); }
+.deleteConfirmation .secondaryButton:hover:not(:disabled) { background: rgb(128 145 160 / .1); color: var(--app-text); }
+.dangerButton:hover:not(:disabled) { background: #fb718526; }
+.deleteConfirmation button:focus-visible { outline: 2px solid #94a3b8; outline-offset: 3px; }

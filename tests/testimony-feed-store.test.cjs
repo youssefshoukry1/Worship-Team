@@ -80,36 +80,38 @@ test('a note opened before startup completes is already seen when the feed arriv
   assert.equal(f.store.getSnapshot().hasUnseen, false); f.store.dispose();
 });
 
-test('visiting Friends clears the dot, acknowledges incoming notes there, and only new notes after leaving restore it', async () => {
-  const f = fixture(), nextId = '333333333333333333333333', laterId = '444444444444444444444444';
+test('visiting Friends keeps notes unread until individually opened, including offscreen and newly arriving notes', async () => {
+  const f = fixture(), nextId = '333333333333333333333333', offscreenId = '222222222222222222222222';
   const sync = f.store.sync();
-  f.finish(0, [note()], { activeNotes: [note(), note('222222222222222222222222')].map(item => ({ _id: item._id, authorId: B, feedExpiresAt: item.feedExpiresAt })) });
+  f.finish(0, [note()], { activeNotes: [note(), note(offscreenId)].map(item => ({ _id: item._id, authorId: B, feedExpiresAt: item.feedExpiresAt })) });
   await sync;
-  assert.equal(f.store.getSnapshot().hasUnseen, true);
   f.store.setFeedVisible(true);
-  assert.equal(f.store.getSnapshot().hasUnseen, false, 'opening Friends acknowledges even notes beyond the first page');
-  assert.equal(f.requests.length, 1, 'acknowledging the feed never requests the server');
+  assert.equal(f.store.getSnapshot().hasUnseen, true);
+  assert.equal(f.store.isSeen(note()._id), false);
+  f.store.markSeen(note()._id);
+  assert.equal(f.store.isSeen(note()._id), true);
+  assert.equal(f.store.isSeen(offscreenId), false);
+  assert.equal(f.store.getSnapshot().hasUnseen, true, 'opening one note cannot acknowledge others');
   const incoming = f.store.changed({ id: nextId, authorId: B, action: 'created' });
   f.requests[1].resolve({ item: note(nextId) }); await incoming;
-  assert.equal(f.store.getSnapshot().hasUnseen, false, 'notes arriving while Friends is visible are acknowledged');
-  f.store.setFeedVisible(false);
-  assert.equal(f.store.getSnapshot().hasUnseen, false, 'leaving does not restore the previous dot');
-  const later = f.store.changed({ id: laterId, authorId: B, action: 'created' });
-  f.requests[2].resolve({ item: note(laterId) }); await later;
-  assert.equal(f.store.getSnapshot().hasUnseen, true);
-  f.store.setFeedVisible(true); f.store.setFeedVisible(false);
+  assert.equal(f.store.isSeen(nextId), false, 'arriving on the visible page is not an opening');
+  f.store.markSeen(offscreenId); f.store.markSeen(nextId);
+  assert.equal(f.store.getSnapshot().hasUnseen, false);
+  assert.equal(f.requests.length, 2, 'marking seen needs no server requests');
   f.store.dispose();
   const restored = fixture(f.storageMap);
-  const startup = restored.store.sync(); restored.finish(0, [note(), note(nextId), note(laterId)]); await startup;
-  assert.equal(restored.store.getSnapshot().hasUnseen, false, 'acknowledgements survive restarting the app');
+  const startup = restored.store.sync(); restored.finish(0, [note(), note(nextId)]); await startup;
+  assert.equal(restored.store.getSnapshot().hasUnseen, false);
+  assert.equal(restored.store.isSeen(nextId), true, 'opened state survives restarting the app');
   restored.store.dispose();
 });
 
-test('opening Friends before initial sync acknowledges notes when they finish loading', async () => {
+test('opening Friends before initial sync does not acknowledge notes when they finish loading', async () => {
   const f = fixture(); f.store.setFeedVisible(true);
   const sync = f.store.sync(); f.finish(0, [note()]); await sync;
   f.store.setFeedVisible(false);
-  assert.equal(f.store.getSnapshot().hasUnseen, false);
+  assert.equal(f.store.getSnapshot().hasUnseen, true);
+  assert.equal(f.store.isSeen(note()._id), false);
   f.store.dispose();
 });
 

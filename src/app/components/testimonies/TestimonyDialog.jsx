@@ -18,7 +18,7 @@ export default function TestimonyDialog({ title, children, onClose, note = false
       if (event.key === 'Escape') { event.preventDefault(); closeRef.current(); }
       if (event.key !== 'Tab') return;
       const controls = [...(ref.current?.querySelectorAll('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]') || [])]
-        .filter(element => element.getClientRects().length);
+        .filter(element => element.getClientRects().length && element.tabIndex >= 0 && !element.closest('[inert]'));
       const first = controls[0], last = controls[controls.length - 1];
       if (!first) { event.preventDefault(); ref.current?.focus(); }
       else if (event.shiftKey && (document.activeElement === first || !ref.current?.contains(document.activeElement))) { event.preventDefault(); last.focus(); }

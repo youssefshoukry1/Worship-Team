@@ -14,7 +14,7 @@ import { useTabPageActive } from '../TabPageActivity';
 
 const EMPTY_PROFILE = { items: [], loading: false };
 
-function Board({ token, userId, username, profileUserId, onProfileLoad, profileAccess, onLoadingChange }) {
+function Board({ token, userId, username, profilePhoto, profileUserId, onProfileLoad, profileAccess, onLoadingChange }) {
   const pageActive = useTabPageActive();
   const isFeed = !profileUserId;
   const ownProfile = String(profileUserId) === String(userId);
@@ -30,6 +30,15 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, profileA
   const [notice, setNotice] = useState('');
   const [modal, setModal] = useState(null);
   const [localNow, setNow] = useState(Date.now);
+  const [displayNow, setDisplayNow] = useState(Date.now);
+  useEffect(() => {
+    if (!pageActive) return;
+    const refresh = () => { if (document.visibilityState === 'visible') setDisplayNow(Date.now()); };
+    const initial = setTimeout(refresh, 0);
+    const timer = setInterval(refresh, 60000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => { clearTimeout(initial); clearInterval(timer); document.removeEventListener('visibilitychange', refresh); };
+  }, [pageActive]);
   const now = isSharedFeed ? shared.state.now : localNow;
   const opener = useRef(null);
   const notificationRequest = useRef(null);
@@ -95,7 +104,8 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, profileA
   const restricted = profileAccess === false || data.canViewTestimonies === false;
   const visibleItems = restricted ? [] : isFeed ? data.items.filter(item => new Date(item.feedExpiresAt).getTime() > now) : data.items;
   const reading = !restricted && modal?.type === 'read' ? data.items.find(item => item._id === modal.id) || modal.linkedItem : null;
-  const author = data.user || { _id: userId, Name: username || 'You', username };
+  const author = { _id: userId, Name: (ownProfile && data.user?.Name) || username || 'You', username,
+    profilePhoto: profilePhoto || (ownProfile ? data.user?.profilePhoto : null) };
   const reactToNote = useCallback((id, reaction) => {
     feedStore?.updateReaction(id, reaction);
     profileStore?.updateReaction(id, reaction);
@@ -118,16 +128,13 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, profileA
 
   return <>
     <section className={styles.board} aria-label={isFeed ? 'Friends highlights' : 'Profile testimony highlights'}>
-      <header className={styles.boardHeader}>
-        <h2>{isFeed ? 'Friends’ testimonies' : 'Highlights'}</h2>
-      </header>
       {restricted ? <div className={styles.lockedTestimonies}><LockKeyhole size={18} /><div><strong>Shared with friends</strong><p>Become friends to read each other’s testimonies.</p></div></div> : <div className={styles.noteRail} data-testid="testimony-cards">
         {(isFeed || ownProfile) && <div className={styles.miniCard}>
           <button type="button" className={styles.createNote} disabled={loading || !publishing} aria-disabled={!canPublish} onClick={create} aria-label="Share your testimony" title={canPublish ? 'Share your testimony' : publishing?.canPublish === false ? NOTE_ACTIVE_MESSAGE : 'Checking availability…'}><Plus size={24} strokeWidth={1.4} /><span className={styles.noteLines} aria-hidden="true" /></button>
           <span className={styles.createCaption}>{publishing?.canPublish === false && !canPublish ? 'Note active' : 'Share a note'}</span>
         </div>}
         {loading && !data.items.length ? <div className={styles.loadingNotes} aria-label="Loading testimonies" role="status"><span /><span /></div>
-          : visibleItems.map((item, index) => <TestimonyCard key={item._id} item={item} index={index} hideAuthor={!isFeed && ownProfile} onRead={(item, trigger) => {
+          : visibleItems.map((item, index) => <TestimonyCard key={item._id} item={item} index={index} isFeed={isFeed} now={displayNow} unread={isFeed && String(item.author._id) !== String(userId) && !feedStore?.isSeen(item._id)} hideAuthor={!isFeed && ownProfile} onRead={(item, trigger) => {
             feedStore?.markSeen(item._id, item);
             opener.current = trigger;
             trigger.focus({ preventScroll: true });
@@ -140,12 +147,12 @@ function Board({ token, userId, username, profileUserId, onProfileLoad, profileA
       {error && <div className={styles.boardError} role="alert"><span>{error}</span><button type="button" className={styles.retryButton} aria-label="Try again" onClick={() => load()}><RefreshCw size={13} /></button></div>}
     </section>
     {modal?.type === 'compose' && <TestimonyComposer key={modal.editing?._id || 'new'} token={token} userId={userId} author={author} editing={modal.editing} onClose={close} />}
-    {reading && <TestimonyReader key={reading._id} item={reading} userId={userId} token={token} onReaction={reactToNote} onClose={close} onEdit={item => setModal({ type: 'compose', editing: item })} />}
+    {reading && <TestimonyReader key={reading._id} item={reading} isFeed={isFeed} now={displayNow} userId={userId} token={token} onReaction={reactToNote} onClose={close} onEdit={item => setModal({ type: 'compose', editing: item })} />}
   </>;
 }
 
 export default function TestimonyBoard({ profileUserId, onProfileLoad, profileAccess, onLoadingChange }) {
-  const { isLogin, user_id, username } = useContext(UserContext);
+  const { isLogin, user_id, username, profilePhoto, profilePhotoPreview } = useContext(UserContext);
   if (!isLogin || !user_id) return null;
-  return <Board key={`${user_id}:${isLogin}:${profileUserId || 'feed'}`} token={isLogin} userId={user_id} username={username} profileUserId={profileUserId} onProfileLoad={onProfileLoad} profileAccess={profileAccess} onLoadingChange={onLoadingChange} />;
+  return <Board key={`${user_id}:${isLogin}:${profileUserId || 'feed'}`} token={isLogin} userId={user_id} username={username} profilePhoto={profilePhotoPreview || profilePhoto} profileUserId={profileUserId} onProfileLoad={onProfileLoad} profileAccess={profileAccess} onLoadingChange={onLoadingChange} />;
 }

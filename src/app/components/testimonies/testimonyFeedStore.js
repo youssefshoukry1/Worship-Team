@@ -6,7 +6,7 @@ export function createTestimonyFeedStore({ userId, request, storage, now = Date.
   if (typeof seen !== 'object' || Array.isArray(seen)) seen = {};
   let state = { items: [], activeNotes: [], publishing: null, nextCursor: null, loading: true, loadingMore: false, ready: false, error: '', hasUnseen: false, now: now() };
   const listeners = new Set(), requests = new Set(), revisions = new Map();
-  let timer, pendingSync, syncAgain = false, disposed = false, feedVisible = false, generation = 0, accessGeneration = 0;
+  let timer, pendingSync, syncAgain = false, disposed = false, generation = 0, accessGeneration = 0;
   const persistSeen = () => {
     try { storage?.setItem(key, JSON.stringify(seen)); } catch { /* Seen state still works in memory. */ }
   };
@@ -25,13 +25,6 @@ export function createTestimonyFeedStore({ userId, request, storage, now = Date.
     }
     let seenChanged = false;
     for (const [id, expiry] of Object.entries(seen)) if (expiry <= time) { delete seen[id]; seenChanged = true; }
-    if (feedVisible) {
-      for (const item of state.activeNotes) {
-        if (String(item.authorId) !== String(userId) && !seen[item._id]) {
-          seen[item._id] = new Date(item.feedExpiresAt).getTime(); seenChanged = true;
-        }
-      }
-    }
     if (seenChanged) persistSeen();
     state.hasUnseen = state.activeNotes.some(item => String(item.authorId) !== String(userId) && !seen[item._id]);
     cancel(timer);
@@ -67,7 +60,9 @@ export function createTestimonyFeedStore({ userId, request, storage, now = Date.
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     sync,
     tick: () => emit({}),
-    setFeedVisible(visible) { feedVisible = visible; emit({}); },
+    // Visiting the feed does not mean its notes have been opened.
+    setFeedVisible() { emit({}); },
+    isSeen(id) { return Boolean(seen[id]); },
     async loadMore() {
       if (!state.nextCursor || state.loadingMore) return;
       const version = generation, cursor = state.nextCursor;
