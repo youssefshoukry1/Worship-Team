@@ -1,10 +1,10 @@
-﻿# Mission 6B — Implemented inbox protocol
+# Mission 6B — Implemented inbox protocol
 
 Implemented and locally verified on 17 November 2026. Source: backend Utility/prayerDelivery.js, frontend services/prayerInbox.js and utils/prayerPayload*.js. See [verification and release notes](../performance/pray-mission-6b-report.md).
 
-## Compatibility and authorization
+## Format and authorization
 
-Deploy the backend first. Requests with protocol=2 return descriptors; requests without it retain the legacy response. New clients detect old-server responses and consume them, but those responses retain the old unbounded transfer cost. Every query and payload request is scoped to the authenticated account; cursors never grant access.
+The inbox and sent-update endpoints always return the paginated protocol-2 format, including requests without a protocol query. The frontend requires this format and rejects unsupported responses. Release the backend and updated client together; older clients expecting full bundles require an update. Every query and payload request is scoped to the authenticated account; cursors never grant access.
 
 ## Pagination
 

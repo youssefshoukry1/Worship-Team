@@ -1,8 +1,8 @@
-﻿# Mission 6B — Bounded prayer delivery
+# Mission 6B — Bounded prayer delivery
 
 Completed local implementation and verification on 17 November 2026.
 
-The inbox, deletion feed and sent replies now use stable pages of ten descriptors. Audio payloads stream separately and decode in workers, with at most two downloads across normal and notification work. Deep notification targets have an independent task. Failed payloads remain pending; acknowledgements follow durable text/audio persistence. Existing clients and older-server responses remain supported.
+The inbox, deletion feed and sent replies now use stable pages of ten descriptors. Audio payloads stream separately and decode in workers, with at most two downloads across normal and notification work. Deep notification targets have an independent task. Failed payloads remain pending; acknowledgements follow durable text/audio persistence. Only the paginated response is supported. The former full-bundle response and frontend fallback have been removed.
 
 The [implemented contract](../docs/pray-inbox-protocol-review.md) documents cursor semantics, ownership, cancellation, limits and deployment order. Per-payload persistence is intentional: batching ten decoded audio bundles would multiply peak memory. Worker parsing removes that CPU work from the UI thread; it does not eliminate storage or React work.
 
@@ -25,9 +25,15 @@ Reproduce added client checks from frontend after a production build:
 
 ## Release and remaining external validation
 
-1. Deploy backend support and ensure the new transit/deletion compound indexes are built before expecting indexed performance. Preserve legacy endpoints; do not drop indexes automatically.
-2. Release the frontend. Old servers still work but cannot provide bounded descriptor responses. Neither backend nor frontend has been deployed here.
+1. Deploy backend support and ensure the new transit/deletion compound indexes are built before expecting indexed performance. The existing endpoint URLs now always return the paginated format; do not drop indexes automatically.
+2. Release the frontend. Coordinate backend/client release: the updated client requires pagination, and older clients expecting full bundles require an update. Neither backend nor frontend has been deployed here.
 3. Previous native atomic-storage changes require a new APK/iOS binary; OTA alone cannot install those native changes. This mission itself adds JavaScript/server code.
 4. Validate save/restart, microphone/playback, gestures and background backup on physical Android/iOS hardware and the deployed service. No Android device is attached, and this Windows host cannot compile/run Xcode.
 
 The 64 MiB download cap exceeds the existing 50 MiB send request limit. An exceptional historical object above that cap remains pending with Retry; arbitrary-size legacy object migration is outside this implementation. No partial-audio acknowledgement is allowed.
+
+## Full-bundle format removal
+
+Removed at the user's request after the original mission checks. Both controller entry points always delegate to paginated delivery, including requests without protocol=2. Removed the unused full-bundle object reads and reply population path. The frontend rejects unsupported formats before saving or acknowledging. Current checks: backend 41/41; transport/worker unit tests 9/9; production build and source lint passed. Browser scenarios now emit descriptor pages and separate payload responses. Older installed clients expecting the removed response require updating. No deployment performed.
+
+Browser verification: combined run 54/56; two test-fixture routing errors were corrected and both affected cases passed their targeted rerun (pray-format-removal-browser-recheck.log). All 56 distinct unit/browser checks now have passing evidence. The corrections changed only fixture routing; application code was unchanged after the production build.

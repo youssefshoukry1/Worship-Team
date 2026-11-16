@@ -222,7 +222,7 @@ Status: [x] 6A and [x] 6B implemented and locally verified. See [Mission 6B evid
 See the [focused follow-up plan](pray-transfer-follow-up-plan.md). At 2,000 synthetic entries, isolated desktop Chromium backup/restore work delayed a timer by 106/100.4 ms and inbox merge by 51.3 ms. These are diagnostic timings, not mobile measurements.
 
 - **6A:** complete locally: worker-based web ZIP/manifest processing, compatibility/failure/cancellation tests and cooperative restore transactions. [Report](../performance/pray-mission-6a-report.md): build/lint passed, 173/173 combined checks and final targeted restore recheck; Chromium/WebKit actual-worker diagnostics passed. Device validation remains open.
-- **6B:** complete locally: backward-compatible descriptor pages, stable cursors, streamed payload workers, independent notification targets and acknowledgement-safe retries. Backend 41/41; frontend 181/181 plus the added v2 browser case. See the implemented protocol contract.
+- **6B:** complete locally: descriptor pages (the sole supported format), stable cursors, streamed payload workers, independent notification targets and acknowledgement-safe retries. Backend 41/41; frontend 181/181 plus the added v2 browser case. See the implemented protocol contract.
 
 Recommend these before Mission 7's final comparison. Carry native-device/iOS/live-service gates forward separately.
 

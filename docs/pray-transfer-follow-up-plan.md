@@ -19,7 +19,7 @@ Status: completed locally. The [implemented contract](pray-inbox-protocol-review
 
 Evidence: 2,000 synthetic inbox entries produced 3,040,891 JSON bytes, a 45.3 ms merge and 51.3 ms timer delay on desktop. Before Mission 6B, the controller retrieved all pending transit entries and loads their object-store bundles sequentially before returning; audio can increase response size substantially. These figures exclude HTTP, database, object-storage and decoding costs.
 
-1. Define a backward-compatible paginated protocol and explicit client capability/version handling. Keep existing clients functional. Use a stable server cursor, never offset pagination over a queue whose entries disappear after acknowledgement.
+1. Use the paginated protocol as the sole supported format. Remove the full-bundle response and frontend fallback; coordinate the backend/client release. Use a stable server cursor, never offset pagination over a queue whose entries disappear after acknowledgement.
 2. Keep delivery cursor and deletion cursor separate. Persist all expected audio and text before acknowledging each share; retain unacknowledged bundles across reload/retry. Recheck revocations after slow reads. Do not advance in a way that permanently skips a failed item.
 3. Bound server object-storage concurrency and response bytes/items. Let notification targets resolve promptly without requiring every older delivery to finish. Specify behavior for large single recordings and expired/deleted entries before coding.
 4. Batch local transactions and yield between bounded batches. Test two clients, lost/duplicate acknowledgements, crash/restart, newer arrivals, concurrent deletion, anonymous sharing, and old/new client compatibility using a test database/object store.

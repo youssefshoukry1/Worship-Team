@@ -5,7 +5,7 @@ import { yieldToMain } from '../utils/cooperativeWork';
 export async function syncPrayerPages({ kind, read, download, consume, remove, saveDeletionCursor, deletedSince, target, targetOnly = false, active, acknowledge }) {
     let failures = 0;
     const current = () => { if (!active()) throw Object.assign(new Error('Prayer session changed'), { name: 'AbortError' }); };
-    const deliver = async (items, legacy = false) => {
+    const deliver = async (items) => {
         for (let offset = 0; offset < items.length; offset += 10) {
             current();
             const acknowledgements = [];
@@ -14,7 +14,7 @@ export async function syncPrayerPages({ kind, read, download, consume, remove, s
             for (const item of items.slice(offset, offset + 10)) {
                 try {
                     current();
-                    const bundle = legacy ? item : await download(item, kind === 'replies');
+                    const bundle = await download(item, kind === 'replies');
                     current();
                     const committed = await consume(bundle); current();
                     if (committed !== false) {
@@ -34,15 +34,7 @@ export async function syncPrayerPages({ kind, read, download, consume, remove, s
     };
     current();
     let page = await read({ protocol: 2, kind: kind === 'replies' ? 'replies' : 'deletions', ...(deletedSince ? { deletedSince } : {}) }); current();
-    if (page.protocol !== 2) {
-        if (kind !== 'replies') {
-            await remove(page.deletedShareIds || [], page.deletionCursor);
-            const inbox = [...(page.inbox || [])];
-            if (target) inbox.sort((a, b) => Number(b.shareId === target) - Number(a.shareId === target));
-            await deliver(inbox, true);
-        } else await deliver(page.updates || [], true);
-        return { failures, protocol: 1 };
-    }
+    if (page.protocol !== 2) throw new Error('Unsupported prayer delivery protocol');
     if (kind !== 'replies') {
         const seen = new Set();
         for (;;) {
@@ -56,7 +48,7 @@ export async function syncPrayerPages({ kind, read, download, consume, remove, s
         page = null;
     }
     // Deep targets get their own authorized request and never move the normal cursor.
-    if (target) { const selected = await read({ protocol: 2, kind, target }); current(); await deliver(selected.items || []); }
+    if (target) { const selected = await read({ protocol: 2, kind, target }); current(); if (selected.protocol !== 2) throw new Error('Unsupported prayer delivery protocol'); await deliver(selected.items || []); }
     if (targetOnly) return { failures, protocol: 2 };
     const seen = new Set();
     for (;;) {

@@ -29,11 +29,17 @@ test('account change during a payload request prevents its persistence and ackno
     const f = fixture(); f.options.download = async item => { f.stop(); return item; };
     await assert.rejects(context.sync(f.options), { name: 'AbortError' }); assert.equal(f.consumed.length, 0); assert.equal(f.ack.length, 0);
 });
-test('ack failure retains saved content and legacy response consumes all batches', async () => {
-    const f = fixture(); f.options.read = async () => ({ inbox: Array.from({ length: 25 }, (_, i) => ({ shareId: String(i) })), deletedShareIds: [] });
-    f.options.acknowledge = async () => ({ ok: false });
-    const result = await context.sync(f.options); assert.equal(result.protocol, 1); assert.equal(result.failures, 25); assert.equal(f.consumed.length, 25);
+test('ack failure retains saved content across paged delivery', async () => {
+    const f = fixture(); f.options.acknowledge = async () => ({ ok: false });
+    const result = await context.sync(f.options); assert.equal(result.protocol, 2); assert.equal(result.failures, 20); assert.equal(f.consumed.length, 20);
 });
+
+test('unsupported full-bundle responses are rejected before persistence or acknowledgement', async () => {
+    const f = fixture(); f.options.read = async () => ({ inbox: [{ shareId: 'old' }] });
+    await assert.rejects(context.sync(f.options), /Unsupported prayer delivery protocol/);
+    assert.equal(f.consumed.length, 0); assert.equal(f.ack.length, 0);
+});
+
 test('revoked payload is removed rather than acknowledged and malformed continuation stops', async () => {
     const f = fixture(); f.options.download = async item => { if (item.shareId === '0') throw Object.assign(new Error('Gone'), { code: 'PRAYER_DELETED' }); return item; };
     await context.sync(f.options); assert.ok(f.removed.includes('0')); assert.equal(f.ack.includes('0'), false);

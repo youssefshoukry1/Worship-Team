@@ -1,6 +1,6 @@
 // Run after `npm run build`: node --test tests/prayer-notification-opening.browser.cjs
 // Set PLAYWRIGHT_CHANNEL=chrome to use an installed Chrome instead of Playwright Chromium.
-const { test, before, after } = require('node:test');
+const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 const http = require('node:http');
@@ -33,11 +33,33 @@ after(async () => {
   if (server) await new Promise(resolve => server.close(resolve));
 });
 
+// Scenario fixtures describe prayer content; every mock response uses the current wire format.
+const payloadFixtures = new Map();
+beforeEach(() => payloadFixtures.clear());
+function fulfillPrayerFixture(route, options) {
+  const url = new URL(route.request().url()), json = options.json;
+  if (json && Array.isArray(json.inbox)) for (const bundle of json.inbox) payloadFixtures.set(bundle.shareId, bundle);
+  if (json && Array.isArray(json.updates)) for (const bundle of json.updates) payloadFixtures.set('reply:' + bundle.shareId, bundle);
+  if (url.pathname.includes('/inbox/payload/')) {
+    const id = decodeURIComponent(url.pathname.split('/').pop());
+    const bundle = json?.shareId === id ? json : payloadFixtures.get((url.searchParams.get('kind') === 'reply' ? 'reply:' : '') + id);
+    return route.fulfill({ ...options, status: bundle ? 200 : 404, json: bundle || {} });
+  }
+  if (json && json.protocol !== 2 && /\/pray-time\/(inbox|sent-updates)$/.test(url.pathname)) {
+    const deletions = url.searchParams.get('kind') === 'deletions';
+    let items = deletions ? (json.deletedShareIds || []).map(shareId => ({ shareId })) : (url.pathname.endsWith('sent-updates') ? json.updates || [] : json.inbox || []).map(({ shareId, isAnonymous }) => ({ shareId, isAnonymous }));
+    if (url.searchParams.has('target')) items = items.filter(item => item.shareId === url.searchParams.get('target'));
+    const offset = Number(url.searchParams.get('cursor') || 0);
+    return route.fulfill({ ...options, json: { protocol: 2, items: items.slice(offset, offset + 10), nextCursor: offset + 10 < items.length ? String(offset + 10) : null, ...(deletions ? { deletionCursor: json.deletionCursor } : {}) } });
+  }
+  return route.fulfill(options);
+}
+
 const received = id => ({ _id: `received-${id}`, words: `Prayer ${id}`, date: new Date().toISOString(), sharedFrom: { username: 'friend', shareId: id, status: 'pending' } });
 const sent = { _id: 'sent-789', words: 'Sent prayer', date: new Date().toISOString(), sharedWith: { username: 'friend', shareId: '789', status: 'sent' } };
 
 const mockPrayerApi = (route, base) => route.request().url().startsWith(base) ? route.continue()
-  : route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } });
+  : fulfillPrayerFixture(route, { json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } });
 const personalPrayers = count => Array.from({ length: count }, (_, i) => ({ _id: 'personal-' + i, words: 'Personal prayer ' + i, date: '2026-10-01T00:00:00.000Z' }));
 
 async function reachPrayer(page, id) {
@@ -54,7 +76,7 @@ test('local prayer cache skips reload reads and restores cards across journal an
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/*', route => mockPrayerApi(route, base));
     await seed(page, [...personalPrayers(10), received('cache-test')]);
     await page.addInitScript(() => {
       window.__prayerReads = 0;
@@ -108,17 +130,17 @@ test('Drive restore keeps friend history read and replied across repeat restore,
   try {
     const page = await context.newPage(); const errors = []; page.on('pageerror', error => errors.push(error.message));
     page.on('dialog', dialog => dialog.accept());
-    await page.route('**/*', route => {
+    await context.route('**/*', route => {
       const request = route.request(), url = new URL(request.url());
       if (request.url().startsWith(base)) return route.continue();
       if (request.method() === 'POST' && /\/(share|confirm-share)$/.test(url.pathname)) outboundMutations.push(url.pathname);
-      if (url.pathname.endsWith('/backup/drive-accounts')) return route.fulfill({ json: { accounts: [{ email: 'drive@test', isDefault: true }] } });
-      if (url.pathname.endsWith('/backup/drive-token')) return route.fulfill({ json: { access_token: 'mock-drive-token' } });
+      if (url.pathname.endsWith('/backup/drive-accounts')) return fulfillPrayerFixture(route, { json: { accounts: [{ email: 'drive@test', isDefault: true }] } });
+      if (url.pathname.endsWith('/backup/drive-token')) return fulfillPrayerFixture(route, { json: { access_token: 'mock-drive-token' } });
       if (url.hostname === 'www.googleapis.com') {
-        if (url.searchParams.get('alt') === 'media') { restores++; return route.fulfill({ contentType: 'application/zip', body: bytes }); }
-        return route.fulfill({ json: { files: [{ id: url.searchParams.get('q').includes('application/vnd.google-apps.folder') ? 'folder' : 'backup' }] } });
+        if (url.searchParams.get('alt') === 'media') { restores++; return fulfillPrayerFixture(route, { contentType: 'application/zip', body: bytes }); }
+        return fulfillPrayerFixture(route, { json: { files: [{ id: url.searchParams.get('q').includes('application/vnd.google-apps.folder') ? 'folder' : 'backup' }] } });
       }
-      if (url.pathname.endsWith('/pray-time/inbox') && restores) return route.fulfill({ json: { inbox: [{ shareId: 'history', words: 'Prayer history', senderUsername: 'friend', date: historical.date }], deletedShareIds: [] } });
+      if (url.pathname.endsWith('/pray-time/inbox') && restores) return fulfillPrayerFixture(route, { json: { inbox: [{ shareId: 'history', words: 'Prayer history', senderUsername: 'friend', date: historical.date }], deletedShareIds: [] } });
       return mockPrayerApi(route, base);
     });
     await seed(page, [received('history'), received('truly-new')]);
@@ -160,13 +182,13 @@ test('optimistic sends show a clock before acknowledgement and resume the same a
   const bodies = [];
   try {
     const page = await context.newPage(); const errors = []; page.on('pageerror', error => errors.push(error.message));
-    await page.route('**/*', async route => {
+    await context.route('**/*', async route => {
       const url = route.request().url();
       if (url.endsWith('/pray-time/share')) {
         bodies.push(route.request().postDataJSON()); await pending;
-        return route.fulfill({ json: { success: true, shareId: 'new-share', date: new Date().toISOString() } }).catch(() => {});
+        return fulfillPrayerFixture(route, { json: { success: true, shareId: 'new-share', date: new Date().toISOString() } }).catch(() => {});
       }
-      if (url.endsWith('/users/friends')) return route.fulfill({ json: { friends: [{ _id: 'friend', username: 'friend' }] } });
+      if (url.endsWith('/users/friends')) return fulfillPrayerFixture(route, { json: { friends: [{ _id: 'friend', username: 'friend' }] } });
       return mockPrayerApi(route, base);
     });
     await seed(page, []);
@@ -205,10 +227,10 @@ test('resumed audio sends encode saved clips without losing their section or mak
   let posted;
   try {
     const page = await context.newPage();
-    await page.route('**/*', async route => {
+    await context.route('**/*', async route => {
       if (route.request().url().endsWith('/pray-time/share')) {
         posted = route.request().postDataJSON();
-        return route.fulfill({ json: { success: true, shareId: 'audio-share', date: new Date().toISOString() } });
+        return fulfillPrayerFixture(route, { json: { success: true, shareId: 'audio-share', date: new Date().toISOString() } });
       }
       return mockPrayerApi(route, base);
     });
@@ -237,11 +259,11 @@ test('optimistic replies appear immediately, retain failed text, and offer a com
   let release; const pending = new Promise(resolve => { release = resolve; }); const bodies = [];
   try {
     const page = await context.newPage();
-    await page.route('**/*', async route => {
+    await context.route('**/*', async route => {
       if (route.request().url().endsWith('/confirm-share')) {
         bodies.push(route.request().postDataJSON());
-        if (bodies.length === 1) { await pending; return route.fulfill({ status: 503, json: { msg: 'Offline' } }); }
-        return route.fulfill({ json: { success: true, respondedAt: new Date().toISOString() } });
+        if (bodies.length === 1) { await pending; return fulfillPrayerFixture(route, { status: 503, json: { msg: 'Offline' } }); }
+        return fulfillPrayerFixture(route, { json: { success: true, respondedAt: new Date().toISOString() } });
       }
       return mockPrayerApi(route, base);
     });
@@ -268,9 +290,9 @@ test('returning users see the Prayer layout before JavaScript loads, then receiv
   try {
     const page = await context.newPage();
     const errors = []; page.on('pageerror', error => errors.push(error.message));
-    await page.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/*', route => mockPrayerApi(route, base));
     await seed(page, personalPrayers(1));
-    await page.route('**/_next/static/chunks/*.js', async route => {
+    await context.route('**/_next/static/chunks/*.js', async route => {
       await scriptsReady; await route.continue().catch(() => {});
     });
     await page.goto(base + '/', { waitUntil: 'commit' });
@@ -295,8 +317,8 @@ test('the startup layout never exposes Prayer for signed-out users while scripts
   let release; const scriptsReady = new Promise(resolve => { release = resolve; });
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => mockPrayerApi(route, base));
-    await page.route('**/_next/static/chunks/*.js', async route => {
+    await context.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/_next/static/chunks/*.js', async route => {
       await scriptsReady; await route.continue().catch(() => {});
     });
     await page.goto(base + '/', { waitUntil: 'commit' });
@@ -314,14 +336,14 @@ test('app startup renders Prayer directly without an empty navigation shell or a
   let release; const pending = new Promise(resolve => { release = resolve; });
   try {
     const page = await context.newPage();
-    await page.route('**/*', async route => {
+    await context.route('**/*', async route => {
       if (route.request().url().startsWith(base)) {
         // Expose the old redirect gap even on a fast desktop with local assets.
         if (new URL(route.request().url()).pathname.startsWith('/pray')) await new Promise(resolve => setTimeout(resolve, 250));
         return route.continue();
       }
       await pending;
-      await route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } }).catch(() => {});
+      await fulfillPrayerFixture(route, { json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } }).catch(() => {});
     });
     await seed(page, personalPrayers(1));
     await page.addInitScript(() => {
@@ -367,7 +389,7 @@ test('the native index.html entry keeps Prayer drafts and opens notification tar
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/*', route => mockPrayerApi(route, base));
     await seed(page, [received('launch-target')]);
     await page.goto(base + '/index.html');
     await page.getByRole('button', { name: 'Save Note', exact: true }).waitFor();
@@ -389,7 +411,7 @@ test('the direct Prayer entry still requires sign-in before mounting the app', a
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/*', route => mockPrayerApi(route, base));
     await page.goto(base + '/');
     await page.locator('input[type="email"]').waitFor();
     assert.equal(await page.locator('nav[aria-label="Primary navigation"]').count(), 0);
@@ -401,7 +423,7 @@ test('large prayer lists defer offscreen controls while keyboard access, saving 
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/*', route => mockPrayerApi(route, base));
     page.on('dialog', dialog => dialog.accept());
     await seed(page, personalPrayers(200)); await page.goto(base + '/pray/');
     const first = page.locator('[data-prayer-id="personal-0"]');
@@ -430,7 +452,7 @@ test('personal prayer delete buttons expire one minute after saving and stay hid
     const page = await context.newPage();
     await page.clock.install({ time: new Date('2026-10-24T11:59:00Z') });
     await page.clock.pauseAt(new Date('2026-10-24T12:00:00Z'));
-    await page.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/*', route => mockPrayerApi(route, base));
     await seed(page, [
       { _id: 'fresh', words: 'Just saved personal prayer', date: '2026-10-24T12:00:00Z' },
       { _id: 'older', words: 'Older personal prayer', date: '2026-10-24T11:58:00Z' },
@@ -461,7 +483,7 @@ test('sent prayer delete buttons expire after one minute; received prayers never
     const page = await context.newPage();
     await page.clock.install({ time: new Date('2026-10-24T11:59:00Z') });
     await page.clock.pauseAt(new Date('2026-10-24T12:00:00Z'));
-    await page.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/*', route => mockPrayerApi(route, base));
     await seed(page, [{ ...sent, date: '2026-10-24T12:00:00Z' }, received('read-only')]);
     await page.goto(base + '/pray/');
     await page.getByRole('button', { name: /^Prayer Circle/ }).click();
@@ -488,17 +510,17 @@ test('deleting a sent prayer removes both device copies after reconnect; failed 
     const senderPage = await sender.newPage(), receiverPage = await receiver.newPage();
     for (const [page, recipient] of [[senderPage, false], [receiverPage, true]]) {
       page.on('dialog', dialog => dialog.accept());
-      await page.route('**/*', route => {
+      await page.context().route('**/*', route => {
         const request = route.request();
         if (request.url().startsWith(base)) return route.continue();
         const url = new URL(request.url());
         if (url.pathname.endsWith('/pray-time/share/live') && request.method() === 'DELETE') {
           attempts++;
-          if (attempts === 1) return route.fulfill({ json: { success: false, msg: 'Deletion not accepted' } });
+          if (attempts === 1) return fulfillPrayerFixture(route, { json: { success: false, msg: 'Deletion not accepted' } });
           deleted = true;
-          return route.fulfill({ json: { success: true, shareId: 'live' } });
+          return fulfillPrayerFixture(route, { json: { success: true, shareId: 'live' } });
         }
-        if (url.pathname.endsWith('/pray-time/inbox')) return route.fulfill({ json: { inbox: [], deletedShareIds: recipient && deleted ? ['live'] : [], deletionCursor: recipient && deleted ? deletedAt : null } });
+        if (url.pathname.endsWith('/pray-time/inbox')) return fulfillPrayerFixture(route, { json: { inbox: [], deletedShareIds: recipient && deleted ? ['live'] : [], deletionCursor: recipient && deleted ? deletedAt : null } });
         return mockPrayerApi(route, base);
       });
       await seed(page, [recipient ? { ...received('live'), words: 'Shared private prayer' }
@@ -534,9 +556,9 @@ test('deep notification targets render immediately in a long list even while the
   let release; const pending = new Promise(resolve => { release = resolve; });
   try {
     const page = await context.newPage();
-    await page.route('**/*', async route => {
+    await context.route('**/*', async route => {
       if (route.request().url().startsWith(base)) return route.continue();
-      await pending; await route.fulfill({ json: {} }).catch(() => {});
+      await pending; await fulfillPrayerFixture(route, { json: {} }).catch(() => {});
     });
     await seed(page, Array.from({ length: 300 }, (_, i) => ({ ...received(String(i)), date: '2026-10-01T00:00:00.000Z' })));
     await page.goto(base + '/pray/?notificationType=PRAY_SHARED&shareId=299', { waitUntil: 'domcontentloaded' });
@@ -559,8 +581,8 @@ test('saved-card actions use the latest reply text after other cards and compose
   let posted;
   try {
     const page = await context.newPage();
-    await page.route('**/*', async route => {
-      if (route.request().url().includes('/confirm-share')) { posted = route.request().postDataJSON(); return route.fulfill({ json: { success: true } }); }
+    await context.route('**/*', async route => {
+      if (route.request().url().includes('/confirm-share')) { posted = route.request().postDataJSON(); return fulfillPrayerFixture(route, { json: { success: true } }); }
       return mockPrayerApi(route, base);
     });
     await seed(page, [received('first'), received('second')]);
@@ -582,7 +604,7 @@ test('large prayer lists remain accessible when IntersectionObserver is unavaila
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/*', route => mockPrayerApi(route, base));
     await page.addInitScript(() => { window.IntersectionObserver = undefined; });
     await seed(page, personalPrayers(40)); await page.goto(base + '/pray/');
     await page.locator('[data-prayer-id="personal-0"]').waitFor();
@@ -597,11 +619,11 @@ test('recording starts, pauses and cancels while waveform code is still loading'
   let seen; const started = new Promise(resolve => { seen = resolve; });
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/*', route => mockPrayerApi(route, base));
     const chunkDir = path.join(root, '_next/static/chunks');
     const chunks = new Set(fs.readdirSync(chunkDir).filter(name => name.endsWith('.js') && fs.readFileSync(path.join(chunkDir, name), 'utf8').includes('continuousWaveformDuration')));
     assert.ok(chunks.size > 0);
-    await page.route('**/_next/static/chunks/*.js', async route => {
+    await context.route('**/_next/static/chunks/*.js', async route => {
       if (chunks.has(path.basename(new URL(route.request().url()).pathname))) { seen(); await pending; }
       await route.continue().catch(() => {});
     });
@@ -637,7 +659,7 @@ test('a live microphone recording survives composer updates and offscreen-card l
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/*', route => mockPrayerApi(route, base));
     await page.addInitScript(() => {
       navigator.mediaDevices.getUserMedia = async () => {
         const context = new AudioContext();
@@ -673,8 +695,8 @@ test('long prayer lists retain audio playback while offscreen and while the comp
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => route.request().url().startsWith(base) ? route.continue()
-      : route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } }));
+    await context.route('**/*', route => route.request().url().startsWith(base) ? route.continue()
+      : fulfillPrayerFixture(route, { json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } }));
     const prayers = personalPrayers(200);
     await seed(page, prayers);
     await page.evaluate(async () => {
@@ -718,7 +740,7 @@ test('prayer circle orders latest activity, distinguishes new replies, and persi
   try {
     const page = await context.newPage();
     const errors = []; page.on('pageerror', error => errors.push(error.message));
-    await page.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/*', route => mockPrayerApi(route, base));
     const oldPending = { ...received('old'), date: '2026-10-01T10:00:00Z' };
     const newPrayer = { ...received('new'), date: '2026-10-20T10:00:00Z' };
     const reply = { ...sent, date: '2026-09-01T10:00:00Z', sharedWith: { ...sent.sharedWith, status: 'confirmed', respondedAt: '2026-10-22T10:00:00Z', responseWords: 'Praying with you today', seenActivityBy: {} } };
@@ -759,7 +781,7 @@ test('prayer circle defers new activity while typing on a throttled CPU and keep
   let inbox = [];
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => new URL(route.request().url()).pathname.endsWith('/pray-time/inbox') ? route.fulfill({ json: { inbox } }) : mockPrayerApi(route, base));
+    await context.route('**/*', route => new URL(route.request().url()).pathname.endsWith('/pray-time/inbox') ? fulfillPrayerFixture(route, { json: { inbox } }) : mockPrayerApi(route, base));
     await seed(page, Array.from({ length: 300 }, (_, i) => ({ ...received(String(i)), date: '2026-10-01T10:00:00Z' })));
     const session = await context.newCDPSession(page);
     await session.send('Emulation.setCPUThrottlingRate', { rate: 6 });
@@ -805,10 +827,10 @@ test('prayer circle reply notification waits for its payload before opening the 
   const requestStarted = new Promise(resolve => { requested = resolve; });
   try {
     const page = await context.newPage();
-    await page.route('**/*', async route => {
+    await context.route('**/*', async route => {
       if (new URL(route.request().url()).pathname.endsWith('/pray-time/sent-updates') && waitForReply) {
         requested(); await payload;
-        return route.fulfill({ json: { updates: [{ shareId: '789', recipientId: 'friend', responseWords: 'Delayed reply', respondedAt: '2026-10-23T10:00:00Z' }] } });
+        return fulfillPrayerFixture(route, { json: { updates: [{ shareId: '789', recipientId: 'friend', responseWords: 'Delayed reply', respondedAt: '2026-10-23T10:00:00Z' }] } });
       }
       return mockPrayerApi(route, base);
     });
@@ -832,7 +854,7 @@ test('prayer circle retains playing audio when updates are revealed and cards re
   let inbox = [];
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => new URL(route.request().url()).pathname.endsWith('/pray-time/inbox') ? route.fulfill({ json: { inbox } }) : mockPrayerApi(route, base));
+    await context.route('**/*', route => new URL(route.request().url()).pathname.endsWith('/pray-time/inbox') ? fulfillPrayerFixture(route, { json: { inbox } }) : mockPrayerApi(route, base));
     await seed(page, [{ ...received('audio'), date: '2026-10-01T10:00:00Z' }]);
     await page.evaluate(async () => {
       const bytes = new ArrayBuffer(44 + 8000 * 60 * 2), view = new DataView(bytes);
@@ -878,7 +900,7 @@ test('prayer circle labels and cards fit narrow screens in light/dark English an
   const context = await browser.newContext({ viewport: { width: 320, height: 740 } });
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/*', route => mockPrayerApi(route, base));
     await seed(page, [received('layout'), { ...sent, sharedWith: { ...sent.sharedWith, status: 'confirmed', respondedAt: '2026-10-23T10:00:00Z', responseWords: 'May God give you peace today', seenActivityBy: {} } }]);
     for (const theme of ['light', 'dark']) for (const language of ['en', 'ar']) {
       await page.setViewportSize({ width: 320, height: 740 });
@@ -950,10 +972,10 @@ test('native backup settings save intervals and manual progress continues after 
         },
       };
     });
-    await page.route('**/*', route => {
+    await context.route('**/*', route => {
       if (route.request().url().startsWith(base)) return route.continue();
-      if (route.request().url().includes('/backup/drive-accounts')) return route.fulfill({ json: { accounts: [{ email: 'drive@test', isDefault: true }] } });
-      return route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } });
+      if (route.request().url().includes('/backup/drive-accounts')) return fulfillPrayerFixture(route, { json: { accounts: [{ email: 'drive@test', isDefault: true }] } });
+      return fulfillPrayerFixture(route, { json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } });
     });
     await seed(page, []); await page.goto(base + '/pray/');
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
@@ -996,11 +1018,11 @@ test('cached cards open while every backend request is stalled; further taps do 
   const stalled = new Promise(resolve => { release = resolve; });
   try {
     const page = await context.newPage();
-    await page.route('**/*', async route => {
+    await context.route('**/*', async route => {
       if (route.request().url().startsWith(base)) return route.continue();
       if (!['fetch', 'xhr'].includes(route.request().resourceType())) return route.abort();
       await stalled;
-      await route.fulfill({ json: {} }).catch(() => {});
+      await fulfillPrayerFixture(route, { json: {} }).catch(() => {});
     });
     await seed(page, [received('123'), received('456')]);
     const started = performance.now();
@@ -1033,17 +1055,17 @@ test('uncached prayers and replies appear before acknowledgement requests finish
   const acknowledged = [];
   try {
     const page = await context.newPage();
-    await page.route('**/*', async route => {
+    await context.route('**/*', async route => {
       const url = route.request().url();
       if (url.startsWith(base)) return route.continue();
       if (/\/(ack|sent-ack)$/.test(url)) {
         acknowledged.push(route.request().postDataJSON().shareId);
         await stalled;
-        return route.fulfill({ json: {} }).catch(() => {});
+        return fulfillPrayerFixture(route, { json: {} }).catch(() => {});
       }
       const inbox = ['456', '123'].map(shareId => ({ shareId, words: `Prayer ${shareId}`, senderUsername: 'friend' }));
       const updates = [{ shareId: '789', responseWords: 'New reply', recipientUsername: 'friend' }];
-      return route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, friends: [], inbox, updates } });
+      return fulfillPrayerFixture(route, { json: { user: { username: 'tester', prayTime: [] }, friends: [], inbox, updates } });
     });
     await seed(page, [sent]);
     await page.goto(base + '/pray/?notificationType=PRAY_SHARED&shareId=123');
@@ -1063,12 +1085,12 @@ test('failed delivery acknowledgements replay after reload without duplicate tex
   let acknowledgements = 0;
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => {
+    await context.route('**/*', route => {
       const url = route.request().url();
       if (url.startsWith(base)) return route.continue();
-      if (url.endsWith('/pray-time/ack')) { acknowledgements++; return route.fulfill({ status: 503, json: { success: false } }); }
+      if (url.endsWith('/pray-time/ack')) { acknowledgements++; return fulfillPrayerFixture(route, { status: 503, json: { success: false } }); }
       const inbox = [{ shareId: 'retry-audio', words: 'Durable before acknowledgement', senderUsername: 'friend', recordings: [{ id: 'retry-clip', ext: 'webm', mimeType: 'audio/webm', data: btoa('fixture-audio') }] }];
-      return route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox, updates: [], friends: [] } });
+      return fulfillPrayerFixture(route, { json: { user: { username: 'tester', prayTime: [] }, inbox, updates: [], friends: [] } });
     });
     await seed(page, []); await page.goto(base + '/pray/?notificationType=PRAY_SHARED&shareId=retry-audio');
     const persisted = () => page.evaluate(async () => {
@@ -1107,7 +1129,7 @@ test('versioned inbox pages use real workers and open a deep notification before
       const url = new URL(route.request().url());
       if (url.origin === base) return route.continue();
       const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Authorization,Content-Type', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS' };
-      if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+      if (route.request().method() === 'OPTIONS') return fulfillPrayerFixture(route, { status: 204, headers });
       let json;
       if (url.pathname.endsWith('/pray-time/inbox')) {
         requests.push(Object.fromEntries(url.searchParams));
@@ -1120,7 +1142,7 @@ test('versioned inbox pages use real workers and open a deep notification before
       } else if (url.pathname.endsWith('/pray-time/sent-updates')) json = { protocol: 2, items: [], nextCursor: null };
       else if (url.pathname.endsWith('/pray-time/ack')) { acknowledgements.push(route.request().postDataJSON().shareId); json = { success: true }; }
       else json = { user: { username: 'tester', prayTime: [] }, friends: [], inbox: [], updates: [] };
-      return route.fulfill({ headers, json });
+      return fulfillPrayerFixture(route, { headers, json });
     });
     const page = await context.newPage(); await seed(page, []);
     await page.goto(base + '/pray/?notificationType=PRAY_SHARED&shareId=paged-20');
@@ -1162,12 +1184,12 @@ test('friend notifications select the right cached section with a stalled backen
   const fetched = [];
   try {
     const page = await context.newPage();
-    await page.route('**/*', async route => {
+    await context.route('**/*', async route => {
       const url = route.request().url();
       if (url.startsWith(base)) return route.continue();
       if (!['fetch', 'xhr'].includes(route.request().resourceType())) return route.abort();
       fetched.push(url); await stalled;
-      return route.fulfill({ json: {} }).catch(() => {});
+      return fulfillPrayerFixture(route, { json: {} }).catch(() => {});
     });
     await seedFriends(page, { friends: [{ _id: 'alice', Name: 'Alice', username: 'alice' }],
       incomingRequests: [{ _id: 'request-bob', from: { _id: 'bob', Name: 'Bob', username: 'bob' } }], outgoingRequests: [] });
@@ -1194,16 +1216,16 @@ test('a new incoming request appears before a slow friends-list response complet
   let requests = 0;
   try {
     const page = await context.newPage();
-    await page.route('**/*', async route => {
+    await context.route('**/*', async route => {
       const url = route.request().url();
       if (url.startsWith(base)) return route.continue();
       if (!['fetch', 'xhr'].includes(route.request().resourceType())) return route.abort();
-      if (url.endsWith('/users/friends')) { await stalled; return route.fulfill({ json: { friends: [] } }).catch(() => {}); }
+      if (url.endsWith('/users/friends')) { await stalled; return fulfillPrayerFixture(route, { json: { friends: [] } }).catch(() => {}); }
       if (url.endsWith('/users/friend-requests')) {
         requests++;
-        return route.fulfill({ json: { incoming: [{ from: { _id: requests === 1 ? 'new-friend' : 'later-friend', Name: 'New Friend', username: 'newfriend' } }], outgoing: [] } });
+        return fulfillPrayerFixture(route, { json: { incoming: [{ from: { _id: requests === 1 ? 'new-friend' : 'later-friend', Name: 'New Friend', username: 'newfriend' } }], outgoing: [] } });
       }
-      return route.fulfill({ json: { user: { username: 'tester' } } });
+      return fulfillPrayerFixture(route, { json: { user: { username: 'tester' } } });
     });
     await seedFriends(page, { friends: [], incomingRequests: [], outgoingRequests: [] });
     // A push received while on another page invalidates this otherwise fresh cache.
@@ -1226,22 +1248,22 @@ test('a late background response cannot restore a request that the user has alre
   const stale = new Promise(resolve => { release = resolve; });
   try {
     const page = await context.newPage();
-    await page.route('**/*', async route => {
+    await context.route('**/*', async route => {
       const url = route.request().url();
       if (url.startsWith(base)) return route.continue();
       if (!['fetch', 'xhr'].includes(route.request().resourceType())) return route.abort();
-      if (url.endsWith('/friend-request/accept/alice')) { accepted = true; return route.fulfill({ json: { success: true } }); }
+      if (url.endsWith('/friend-request/accept/alice')) { accepted = true; return fulfillPrayerFixture(route, { json: { success: true } }); }
       if (url.endsWith('/users/friend-requests')) {
         count++;
         if (count === 1) {
           firstStarted(); await stale;
-          return route.fulfill({ json: { incoming: [{ from: alice }], outgoing: [] } }).catch(() => {});
+          return fulfillPrayerFixture(route, { json: { incoming: [{ from: alice }], outgoing: [] } }).catch(() => {});
         }
         secondStarted();
-        return route.fulfill({ json: { incoming: accepted ? [] : [{ from: alice }], outgoing: [] } });
+        return fulfillPrayerFixture(route, { json: { incoming: accepted ? [] : [{ from: alice }], outgoing: [] } });
       }
-      if (url.endsWith('/users/friends')) return route.fulfill({ json: { friends: accepted ? [alice] : [] } });
-      return route.fulfill({ json: { user: { username: 'tester' } } });
+      if (url.endsWith('/users/friends')) return fulfillPrayerFixture(route, { json: { friends: accepted ? [alice] : [] } });
+      return fulfillPrayerFixture(route, { json: { user: { username: 'tester' } } });
     });
     await seedFriends(page, { friends: [], incomingRequests: [{ from: alice }], outgoingRequests: [] });
     // Ensure this test exercises an in-flight refresh rather than the short
@@ -1271,9 +1293,9 @@ for (const theme of ['light', 'dark']) {
       try {
         const page = await context.newPage();
         const accounts = Array.from({ length: 8 }, (_, index) => ({ email: `long.backup.account.${index}@example.com`, isDefault: index === 0 }));
-        await page.route('**/*', route => {
+        await context.route('**/*', route => {
           if (route.request().url().startsWith(base)) return route.continue();
-          if (route.request().url().includes('/backup/drive-accounts')) return route.fulfill({ json: { accounts } });
+          if (route.request().url().includes('/backup/drive-accounts')) return fulfillPrayerFixture(route, { json: { accounts } });
           return mockPrayerApi(route, base);
         });
         await seed(page, personalPrayers(3));
@@ -1327,7 +1349,7 @@ test('mobile prayer typing keeps the page position through keyboard viewport cha
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/*', route => mockPrayerApi(route, base));
     await seed(page, personalPrayers(3));
     await page.goto(base + '/pray/');
     const input = page.getByRole('textbox').first();
@@ -1354,7 +1376,7 @@ test('2000 prayers stay bounded through a complete forward traversal and restore
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/*', route => mockPrayerApi(route, base));
     await seed(page, [...personalPrayers(2000), received('other-list')]);
     await page.goto(base + '/pray/');
     await page.locator('[data-prayer-id="personal-0"]').waitFor();
@@ -1405,7 +1427,7 @@ test('one focused reply stays mounted offscreen, then restores its draft after r
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/*', route => mockPrayerApi(route, base));
     await seed(page, Array.from({ length: 100 }, (_, i) => ({ ...received(String(i)), date: '2026-10-01T00:00:00Z' })));
     await page.goto(base + '/pray/');
     await page.getByRole('button', { name: /Prayer Circle/ }).click();
@@ -1432,7 +1454,7 @@ test('long Arabic cards remeasure on rotation without overlap and keyboard navig
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => mockPrayerApi(route, base));
+    await context.route('**/*', route => mockPrayerApi(route, base));
     await seed(page, personalPrayers(11).map(entry => ({ ...entry, words: 'يا رب أشكرك على محبتك '.repeat(120) })));
     await page.evaluate(() => localStorage.setItem('app-language', 'ar'));
     await page.goto(base + '/pray/');
@@ -1462,7 +1484,7 @@ test('two browser tabs save concurrently without losing either prayer or existin
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
     const first = await context.newPage(), second = await context.newPage();
-    for (const page of [first, second]) await page.route('**/*', route => mockPrayerApi(route, base));
+    for (const page of [first, second]) await context.route('**/*', route => mockPrayerApi(route, base));
     await seed(first, personalPrayers(1));
     await Promise.all([first.goto(base + '/pray/'), second.goto(base + '/pray/')]);
     await first.getByRole('textbox').first().fill('Prayer saved from first tab');
@@ -1484,7 +1506,7 @@ test('two browser tabs save concurrently without losing either prayer or existin
 test('unavailable prayer storage shows Retry and recovers the existing history', async () => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
-    const page = await context.newPage(); await page.route('**/*', route => mockPrayerApi(route, base));
+    const page = await context.newPage(); await context.route('**/*', route => mockPrayerApi(route, base));
     await seed(page, personalPrayers(2));
     await page.addInitScript(() => {
       window.__failPrayerRead = true; const get = IDBObjectStore.prototype.get;

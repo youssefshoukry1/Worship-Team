@@ -1,4 +1,4 @@
-﻿# Mission 7 — Final performance comparison
+# Mission 7 — Final performance comparison
 
 Completed local comparison and documentation on 17 November 2026. Missions 1-7, including 5B, 6A and 6B, have implementation and local verification evidence. Release validation on physical hardware and deployed services remains separate.
 
@@ -59,3 +59,7 @@ Reproduce the original comparison from frontend after building:
     node scripts/measure-pray-baseline.cjs
 
 Supplemental full traversal uses PRAY_COUNTS=2000 and PRAY_FULL_TRAVERSAL=1 with a separate PRAY_REPORT filename. Optional PRAY_PROFILE=1 writes a CPU profile around repeated navigation. Keep diagnostic outputs separate from the original baseline.
+
+## Delivery format update
+
+At the user's request, the full-inbox/full-reply response and frontend fallback were removed after the original Mission 7 measurements. Inbox and sent-update endpoints now always return protocol-2 pages. The frontend rejects unsupported response formats. Backend and client must be released together; older installed clients expecting full bundles need updating. See pray-format-removal-*.log for the subsequent verification. Original measurements and test counts above describe their recorded runs.
