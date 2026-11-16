@@ -23,6 +23,7 @@
 		F9D80D6EEBB24D38ABFC6558 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 00D8472A78894069923150D0 /* FirebaseMessaging */; };
 		B27C49FCAB424DE4833461A0 /* PrayerBackupPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8CFE415654B47F6BD0E9CEE /* PrayerBackupPlugin.swift */; };
 		D3A6B19EA33B49C8855B23B2 /* PrayerBackupArchive.swift in Sources */ = {isa = PBXBuildFile; fileRef = D866491966AD4D5AB0E23A4C /* PrayerBackupArchive.swift */; };
+		A30000000000000000000001 /* PrayerStoragePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000002 /* PrayerStoragePlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -45,6 +46,7 @@
 		F8539AA3AB774DB68F9539AB /* PrayerNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PrayerNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D8CFE415654B47F6BD0E9CEE /* PrayerBackupPlugin.swift */ = {isa = PBXFileReference; name = "PrayerBackupPlugin.swift"; path = "PrayerBackupPlugin.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; includeInIndex = 0; };
 		D866491966AD4D5AB0E23A4C /* PrayerBackupArchive.swift */ = {isa = PBXFileReference; name = "PrayerBackupArchive.swift"; path = "PrayerBackupArchive.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; includeInIndex = 0; };
+		A30000000000000000000002 /* PrayerStoragePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerStoragePlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -103,6 +105,7 @@
 				BDCE63EE4D144B37863B529B /* App.entitlements */,
 				D8CFE415654B47F6BD0E9CEE /* PrayerBackupPlugin.swift */,
 				D866491966AD4D5AB0E23A4C /* PrayerBackupArchive.swift */,
+				A30000000000000000000002 /* PrayerStoragePlugin.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -242,6 +245,7 @@
 				23E21D88E7FF4A779CA23C1E /* PrayerBridgeViewController.swift in Sources */,
 				B27C49FCAB424DE4833461A0 /* PrayerBackupPlugin.swift in Sources */,
 				D3A6B19EA33B49C8855B23B2 /* PrayerBackupArchive.swift in Sources */,
+				A30000000000000000000001 /* PrayerStoragePlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

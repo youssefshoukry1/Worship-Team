@@ -1,0 +1,55 @@
+'use client';
+
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useSyncExternalStore } from 'react';
+import { UserContext } from '../context/User_Context';
+import { createPrayerSession } from './prayerSession';
+import { createPrayerPlayback } from './prayerPlayback';
+import { usePrayRecorder } from './usePrayRecorder';
+import { subscribeLocalPrayers } from '../utils/prayRecordings';
+
+const Context = createContext(null);
+export function usePrayerSession() {
+    const session = useContext(Context);
+    if (!session) throw new Error('PrayerSessionProvider is required');
+    return session;
+}
+export function usePrayerField(key) {
+    const session = usePrayerSession();
+    const subscribe = useCallback(listener => session.subscribe(key, listener), [session, key]);
+    const read = useCallback(() => session.get(key), [session, key]);
+    const value = useSyncExternalStore(subscribe, read, read);
+    const set = useCallback(update => session.set(key, update), [session, key]);
+    return [value, set];
+}
+
+function RecorderHost({ session }) {
+    const recorder = usePrayRecorder((blockId, recording) => {
+        if (!session.active) { URL.revokeObjectURL(recording.url); return; }
+        const clip = { id: crypto.randomUUID(), ...recording };
+        if (blockId === 'general') session.set('generalRecordings', clips => [...clips, clip]);
+        else session.set('prayBlocks', blocks => blocks.map(block => block.id === blockId ? { ...block, recordings: [...(block.recordings || []), clip] } : block));
+    }, () => session.playback.pause());
+    useLayoutEffect(() => { session.set('recorder', recorder); });
+    return null;
+}
+
+function OwnerSession({ owner, children }) {
+    const session = useMemo(() => Object.assign(createPrayerSession(owner), { playback: createPrayerPlayback() }), [owner]);
+    useEffect(() => {
+        session.mount();
+        let previousRecordings;
+        const unsubscribe = subscribeLocalPrayers(snapshot => {
+            if (snapshot.recordings === previousRecordings) return;
+            previousRecordings = snapshot.recordings;
+            session.playback.retainSaved(snapshot.recordings);
+        });
+        return () => { unsubscribe(); session.unmount(); };
+    }, [session]);
+    return <Context.Provider value={session}><RecorderHost session={session} />{children}</Context.Provider>;
+}
+
+export default function PrayerSessionProvider({ children }) {
+    const { user_id, isLogin } = useContext(UserContext);
+    const owner = isLogin && user_id ? String(user_id) : 'guest';
+    return <OwnerSession key={owner} owner={owner}>{children}</OwnerSession>;
+}

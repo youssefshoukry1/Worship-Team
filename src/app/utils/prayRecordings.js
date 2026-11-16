@@ -6,21 +6,25 @@
  *   my_prays/audio/<recId>.<ext>   → the audio itself
  * Web: the same index + blobs are kept in a dedicated localforage store.
  *
- * Nothing here talks to the backend — audio never leaves the device except
- * inside the "my prays.zip" backup the user uploads to their own Google Drive.
+ * This module does not call the backend — audio never leaves the device except
+ * through backups or the explicitly requested friend-sharing flow.
  */
 import localforage from 'localforage';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
+import { runPrayerArchive, checkArchiveAbort, yieldArchiveWork } from './prayerArchiveTask';
 import { incomingPrayerActivity, isPrayerUnread, seenPrayerChanges, mergeRestoredPrayer, reconcilePrayerEntries, reconcilePrayerRecordings } from './prayerActivity';
 
 const ROOT = 'my_prays';
 const INDEX_PATH = `${ROOT}/index.json`;
 const AUDIO_DIR = `${ROOT}/audio`;
-const BACKUP_JSON = 'prays.json';
 
 const isNative = () => typeof window !== 'undefined' && Capacitor.isNativePlatform();
+// New binaries advertise the bridge. Legacy binaries keep the Filesystem adapter.
+const hasAtomicStorage = () => isNative() && Boolean(Capacitor.isPluginAvailable?.('PrayerStorage'));
+let nativeStorage;
+const atomicStorage = () => nativeStorage ||= registerPlugin('PrayerStorage');
+const indexFingerprints = new WeakMap();
 
 let _webStore = null;
 const webStore = () => {
@@ -28,7 +32,7 @@ const webStore = () => {
     return _webStore;
 };
 
-// guestPrays: prayer text for users who are not logged in (never sent to the server)
+// guestPrays is the legacy key for personal, sent and received prayers in every session.
 const emptyIndex = () => ({ version: 1, recordings: {}, pendingWords: {}, guestPrays: [], revokedPrayerShares: {}, prayerDeletionCursors: {} });
 const normalizeShareId = value => String(value || '').replace(/^received-/, '');
 const entryShareId = entry => normalizeShareId(entry.sharedWith?.shareId || entry.sharedFrom?.shareId || entry.sharedFrom?.originalPrayId || (String(entry._id).startsWith('received-') ? entry._id : ''));
@@ -64,18 +68,68 @@ export const extensionForMime = (mimeType = '') => {
 
 const audioPath = (rec) => `${AUDIO_DIR}/${rec.id}.${rec.ext}`;
 
-// ─── Index (serialized so concurrent writes never clobber each other) ───────
+// ─── Index (runtime serialization; cooperating web tabs also use Web Locks) ───────
 let _indexLock = Promise.resolve();
 
+let storageError = null;
+const errorListeners = new Set();
+export const getPrayerStorageError = () => storageError;
+export function subscribePrayerStorageError(listener) { errorListeners.add(listener); return () => errorListeners.delete(listener); }
+function reportStorageError(error) {
+    storageError = error;
+    for (const listener of errorListeners) listener();
+}
+const recordObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+function validateIndex(value) {
+    if (!recordObject(value) || (value.version !== undefined && value.version !== 1)
+        || (value.guestPrays !== undefined && (!Array.isArray(value.guestPrays) || value.guestPrays.some(entry => !recordObject(entry) || entry._id == null)))
+        || ['recordings', 'pendingWords', 'revokedPrayerShares', 'prayerDeletionCursors'].some(key => value[key] !== undefined && !recordObject(value[key]))
+        || Object.values(value.recordings || {}).some(list => !Array.isArray(list) || list.some(rec => !recordObject(rec) || !rec.id))) {
+        throw new Error('Prayer storage has an invalid or unsupported index. Existing data was not replaced.');
+    }
+    return { ...emptyIndex(), ...value };
+}
 const readIndexFromDisk = async () => {
     try {
-        if (isNative()) {
-            const file = await Filesystem.readFile({ path: INDEX_PATH, directory: Directory.Data, encoding: Encoding.UTF8 });
-            return { ...emptyIndex(), ...JSON.parse(file.data) };
+        let value, fingerprint;
+        if (hasAtomicStorage()) {
+            const stored = await atomicStorage().readIndex();
+            if (typeof stored.fingerprint !== 'string') throw new Error('Invalid native storage response');
+            fingerprint = stored.fingerprint;
+            if (stored.data === null && fingerprint === 'missing' && !snapshot?.prayers.length && !Object.keys(snapshot?.recordings || {}).length) {
+                const index = emptyIndex(); indexFingerprints.set(index, fingerprint);
+                if (storageError) reportStorageError(null);
+                return index;
+            }
+            value = JSON.parse(stored.data);
+        } else if (isNative()) {
+            let file;
+            try { file = await Filesystem.readFile({ path: INDEX_PATH, directory: Directory.Data, encoding: Encoding.UTF8 }); }
+            catch (error) {
+                // Only the installed plugin's explicit missing-file code is a new store.
+                if ((error.code === 'OS-PLUG-FILE-0008' || error.code === 'ENOENT') && !snapshot?.prayers.length && !Object.keys(snapshot?.recordings || {}).length) {
+                    if (storageError) reportStorageError(null);
+                    return emptyIndex();
+                }
+                throw error;
+            }
+            value = JSON.parse(file.data);
+        } else {
+            value = await webStore().getItem('index');
+            if (value === null && !snapshot?.prayers.length && !Object.keys(snapshot?.recordings || {}).length) {
+                if (storageError) reportStorageError(null);
+                return emptyIndex();
+            }
         }
-        return { ...emptyIndex(), ...((await webStore().getItem('index')) || {}) };
-    } catch {
-        return emptyIndex();
+        const index = validateIndex(value);
+        if (fingerprint !== undefined) indexFingerprints.set(index, fingerprint);
+        if (storageError) reportStorageError(null);
+        return index;
+    } catch (cause) {
+        const error = new Error('Could not read saved prayers. Retry when device storage is available; existing history will not be overwritten.', { cause });
+        error.code = 'PRAYER_STORAGE_READ';
+        reportStorageError(error);
+        throw error;
     }
 };
 
@@ -142,28 +196,49 @@ const readIndex = async () => {
 };
 
 const writeIndex = async (index) => {
-    if (isNative()) {
+    if (hasAtomicStorage()) {
+        const result = await atomicStorage().writeIndex({ expectedFingerprint: indexFingerprints.get(index), data: JSON.stringify(index) });
+        indexFingerprints.set(index, result.fingerprint);
+    } else if (isNative()) {
         await Filesystem.writeFile({ path: INDEX_PATH, directory: Directory.Data, encoding: Encoding.UTF8, data: JSON.stringify(index), recursive: true });
     } else {
         await webStore().setItem('index', index);
     }
 };
 
-const updateIndex = (mutator, shouldWrite = () => true) => {
-    const run = _indexLock.then(async () => {
+const updateIndex = (mutator, shouldWrite, yieldWork) => {
+    const transaction = async () => {
+      for (let attempt = 0; attempt < 3; attempt++) {
         // Fresh transactional copy: never mutate a snapshot already held by React,
         // and include changes made by another browser tab before this transaction.
         const index = await readIndexFromDisk();
+        if (yieldWork) await yieldWork();
+        const before = shouldWrite ? null : JSON.stringify(index);
+        if (yieldWork) await yieldWork();
         const result = await mutator(index);
-        if (shouldWrite(result)) {
-            await writeIndex(index);
-            storageChannel?.postMessage('changed');
+        if (yieldWork) await yieldWork();
+        const changed = shouldWrite ? shouldWrite(result) : before !== JSON.stringify(index);
+        if (yieldWork) await yieldWork();
+        if (changed) {
+            try { await writeIndex(index); }
+            catch (error) {
+                if (error.code === 'PRAYER_STORAGE_CONFLICT' && attempt < 2) continue;
+                reportStorageError(error); throw error;
+            }
+            try { storageChannel?.postMessage('changed'); } catch { /* Persistence already succeeded. */ }
         }
         cacheGeneration++;
         loadingIndex = null;
+        if (yieldWork) await yieldWork();
         publishIndex(index);
+        if (storageError) reportStorageError(null);
+        if (result && typeof result === 'object' && !Array.isArray(result) && result.prayers) result.prayers = snapshot.prayers;
         return result;
-    });
+      }
+    };
+    // Web Locks serialize the fresh read + write across cooperating browser tabs.
+    const run = _indexLock.then(() => !isNative() && typeof navigator !== 'undefined' && navigator.locks?.request
+        ? navigator.locks.request('taspe7-prayer-index', transaction) : transaction());
     _indexLock = run.catch(() => {});
     return run;
 };
@@ -209,28 +284,38 @@ export async function getRecordingBase64(rec) {
     }
 }
 
-export async function addExternalRecording(prayId, recInfo, base64OrBytes) {
-    if (!prayId || !recInfo || !base64OrBytes) return null;
-    const bytes = typeof base64OrBytes === 'string' ? base64ToUint8(base64OrBytes) : base64OrBytes;
-    const mimeType = recInfo.mimeType || 'audio/webm';
-    const rec = {
-        id: recInfo.id || `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-        blockType: recInfo.blockType || 'general',
-        sectionIndex: Number.isInteger(recInfo.sectionIndex) ? recInfo.sectionIndex : null,
-        mimeType,
-        ext: recInfo.ext || extensionForMime(mimeType),
-        duration: Math.round(recInfo.duration || 0),
-        size: bytes.length,
-        createdAt: recInfo.createdAt || new Date().toISOString(),
-    };
-    await writeAudio(rec, bytes);
-    const kept = await updateIndex((index) => {
-        if (index.revokedPrayerShares?.[normalizeShareId(prayId)]) return false;
-        index.recordings[prayId] = [...(index.recordings[prayId] || []).filter(r => r.id !== rec.id), rec];
+export async function addExternalRecording(prayId, recInfo, data) {
+    if (!prayId || !recInfo || !data) return null;
+    return (await addExternalRecordings(prayId, [{ ...recInfo, data }]))[0] || null;
+}
+
+export async function addExternalRecordings(prayId, items, shareId = prayId) {
+    if (!prayId || !items.length) return [];
+    const current = await readIndex();
+    const known = new Set((current.recordings[prayId] || []).map(rec => rec.id));
+    const saved = [];
+    for (const info of items) {
+        if (known.has(info.id)) continue;
+        if (!info.data) throw new Error('Prayer audio is incomplete. Delivery will be retried.');
+        const bytes = typeof info.data === 'string' ? base64ToUint8(info.data) : info.data;
+        const mimeType = info.mimeType || 'audio/webm';
+        const rec = { id: info.id || `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+            blockType: info.blockType || 'general', sectionIndex: Number.isInteger(info.sectionIndex) ? info.sectionIndex : null,
+            mimeType, ext: info.ext || extensionForMime(mimeType), duration: Math.round(info.duration || 0), size: bytes.length,
+            createdAt: info.createdAt || new Date().toISOString() };
+        await writeAudio(rec, bytes);
+        saved.push(rec); known.add(rec.id);
+    }
+    if (!saved.length) return [];
+    const kept = await updateIndex(index => {
+        if (index.revokedPrayerShares?.[normalizeShareId(shareId)]) return false;
+        const clips = index.recordings[prayId] || [];
+        const ids = new Set(clips.map(rec => rec.id));
+        index.recordings[prayId] = [...clips, ...saved.filter(rec => !ids.has(rec.id))];
         return true;
-    }, Boolean);
-    if (!kept) { await removeAudio(rec); return null; }
-    return rec;
+    });
+    if (!kept) { for (const rec of saved) await removeAudio(rec); return []; }
+    return saved;
 }
 
 const removeAudio = async (rec) => {
@@ -290,13 +375,17 @@ export async function getGuestPrays() {
 // The action lives beside its prayer, so text and the outbox cannot drift apart.
 // Credentials are supplied by the active session and are never stored here.
 export async function stagePrayerAction(entry) {
+    let changed = false;
     return updateIndex(index => {
+        changed = false;
         if (isRevokedPrayer(index, entry)) return false;
         const current = index.guestPrays.find(item => String(item._id) === String(entry._id));
         const next = { ...current, ...entry };
+        if (current && JSON.stringify(current) === JSON.stringify(next)) return true;
         index.guestPrays = [...index.guestPrays.filter(item => String(item._id) !== String(entry._id)), next];
+        changed = true;
         return true;
-    }, Boolean);
+    }, () => changed);
 }
 
 export async function getPrayerActions(ownerId) {
@@ -307,12 +396,16 @@ export async function getPrayerActions(ownerId) {
 
 // A late acknowledgement must not overwrite a newer action or a revocation.
 export async function settlePrayerAction(id, requestId, change) {
+    let changed = false;
     return updateIndex(index => {
+        changed = false;
         const entry = index.guestPrays.find(item => String(item._id) === String(id));
         if (!entry || entry._sync?.requestId !== requestId || isRevokedPrayer(index, entry)) return false;
+        const before = JSON.stringify(entry);
         Object.assign(entry, typeof change === 'function' ? change(entry) : change);
+        changed = before !== JSON.stringify(entry);
         return true;
-    }, Boolean);
+    }, () => changed);
 }
 
 export async function getPrayerDeletionState(ownerId) {
@@ -340,7 +433,7 @@ export async function applyPrayerRevocations(shareIds, ownerId, cursor) {
         if (cursor && Number.isFinite(Date.parse(cursor)) && index.prayerDeletionCursors[String(ownerId)] !== cursor) {
             index.prayerDeletionCursors[String(ownerId)] = cursor; changed = true;
         }
-        return { changed, audio, prayers: removed ? [...index.guestPrays].sort(byNewest) : null };
+        return { changed, audio, prayers: removed ? index.guestPrays : null };
     }, result => result.changed);
     for (const rec of result.audio) await removeAudio(rec);
     return result;
@@ -360,7 +453,7 @@ export function migratePrayerReadState(ownerId, legacyOpened) {
             changed = true;
             return { ...entry, [field]: { ...entry[field], seenActivityBy } };
         });
-        return { changed, prayers: [...index.guestPrays].sort(byNewest) };
+        return { changed, prayers: index.guestPrays };
     }, result => result.changed).then(() => getGuestPrays()).catch(error => { migratedOwners.delete(owner); throw error; });
     migratedOwners.set(owner, pending);
     return pending;
@@ -368,6 +461,7 @@ export function migratePrayerReadState(ownerId, legacyOpened) {
 
 /** @returns {Promise<object>} the saved entry (with a local `_id`) */
 export async function addGuestPray({ words, prayType, sharedWith, sharedFrom, _id, date, feeling }) {
+    let changed = false;
     const entry = {
         _id: _id || `local-${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         words,
@@ -378,17 +472,62 @@ export async function addGuestPray({ words, prayType, sharedWith, sharedFrom, _i
         ...(sharedFrom ? { sharedFrom } : {}),
     };
     return updateIndex((index) => {
+        changed = false;
         if (isRevokedPrayer(index, entry)) return null;
+        const old = index.guestPrays.find(item => String(item._id) === String(entry._id));
+        if (old && JSON.stringify(old) === JSON.stringify(entry)) return old;
         index.guestPrays = [entry, ...(index.guestPrays || []).filter((e) => String(e._id) !== String(entry._id))];
+        changed = true;
         return entry;
-    }, Boolean);
+    }, () => changed);
 }
 
 export async function updateGuestPray(prayId, changes) {
-    return updateIndex((index) => {
-        index.guestPrays = (index.guestPrays || []).map((entry) => String(entry._id) === String(prayId) ? { ...entry, ...changes } : entry);
-        return [...index.guestPrays].sort(byNewest);
-    });
+    await updateIndex(index => {
+        const position = index.guestPrays.findIndex(entry => String(entry._id) === String(prayId));
+        if (position < 0) return false;
+        const next = { ...index.guestPrays[position], ...changes };
+        if (JSON.stringify(next) === JSON.stringify(index.guestPrays[position])) return false;
+        index.guestPrays[position] = next;
+        return true;
+    }, Boolean);
+    return getGuestPrays();
+}
+
+// Compare encrypted source text inside the transaction; never overwrite a newer reply.
+export async function repairPrayerTexts(changes) {
+    return updateIndex(index => {
+        const positions = new Map(index.guestPrays.map((entry, i) => [String(entry._id), i]));
+        let changed = false;
+        for (const { id, field, text, plain } of changes) {
+            const position = positions.get(String(id));
+            if (position === undefined || !plain || plain === text) continue;
+            const entry = index.guestPrays[position];
+            if (field === 'words' && entry.words === text) { index.guestPrays[position] = { ...entry, words: plain }; changed = true; }
+            const party = field === 'sharedFrom.responseWords' ? 'sharedFrom' : field === 'sharedWith.responseWords' ? 'sharedWith' : null;
+            if (party && entry[party]?.responseWords === text) { index.guestPrays[position] = { ...entry, [party]: { ...entry[party], responseWords: plain } }; changed = true; }
+        }
+        return changed;
+    }, Boolean);
+}
+
+export async function importLegacyPrayers(items) {
+    return updateIndex(index => {
+        const byId = new Map(index.guestPrays.map(entry => [String(entry._id), entry]));
+        let changed = false;
+        for (const item of items) {
+            if (!item?._id || !item.words || isRevokedPrayer(index, item)) continue;
+            const id = String(item._id), old = byId.get(id);
+            if (!old) {
+                byId.set(id, { _id: item._id, words: item.words, prayType: item.prayType || 'general', date: item.date || new Date().toISOString(),
+                    ...(item.sharedWith ? { sharedWith: item.sharedWith } : {}), ...(item.sharedFrom ? { sharedFrom: item.sharedFrom } : {}) });
+                changed = true;
+            }
+            else if (old.words?.startsWith('enc:v1:') && !item.words.startsWith('enc:v1:')) { byId.set(id, { ...old, words: item.words }); changed = true; }
+        }
+        if (changed) index.guestPrays = [...byId.values()];
+        return changed;
+    }, Boolean);
 }
 
 // One index read/write per inbox batch. Retries never replace an already replied/read prayer.
@@ -412,7 +551,7 @@ export function mergeIncomingPrayers(bundles) {
                     status: 'pending', isAnonymous: Boolean(bundle.isAnonymous), seenActivityBy: {} } });
         }
         if (added.length) index.guestPrays = [...added, ...index.guestPrays];
-        return { changed: added.length > 0, prayers: added.length ? [...index.guestPrays].sort(byNewest) : null, prayerIds };
+        return { changed: added.length > 0, prayers: added.length ? index.guestPrays : null, prayerIds };
     }, result => result.changed);
 }
 
@@ -451,7 +590,7 @@ export function applyPrayerReplies(updates) {
             acknowledged.push(update.shareId);
             legacyByRecipient.delete(recipient);
         }
-        return { changed, acknowledged, prayers: changed ? [...index.guestPrays].sort(byNewest) : null };
+        return { changed, acknowledged, prayers: changed ? index.guestPrays : null };
     }, result => result.changed);
 }
 
@@ -469,8 +608,15 @@ export function markPrayerActivitySeen(prayId, ownerId, activity) {
 }
 
 export async function deleteGuestPray(prayId) {
-    await updateIndex((index) => { index.guestPrays = (index.guestPrays || []).filter((entry) => String(entry._id) !== String(prayId)); });
-    await deleteRecordingsForPray(prayId);
+    const result = await updateIndex(index => {
+        const retained = index.guestPrays.filter(entry => String(entry._id) !== String(prayId));
+        const audio = index.recordings[prayId] || [];
+        const changed = retained.length !== index.guestPrays.length || prayId in index.recordings || prayId in index.pendingWords;
+        index.guestPrays = retained;
+        delete index.recordings[prayId]; delete index.pendingWords[prayId];
+        return { audio, changed };
+    }, result => result.changed);
+    for (const rec of result.audio) await removeAudio(rec);
 }
 
 export const getLocalPrays = getGuestPrays;
@@ -544,7 +690,8 @@ export async function reconcileTempRecordings(prayTime = []) {
  * Build "my prays.zip": prays.json (all prayer text + recording list) and audio/<prayId>/<file>.
  * @returns {Promise<Uint8Array>}
  */
-export async function buildMyPraysZip(prayTime = [], onProgress = () => {}) {
+export async function buildMyPraysZip(prayTime = [], onProgress = () => {}, { signal } = {}) {
+    checkArchiveAbort(signal);
     const index = await readIndex();
     const files = {};
     const allRecs = Object.entries(index.recordings).flatMap(([prayId, list]) => list.map((rec) => ({ prayId, rec })));
@@ -565,14 +712,16 @@ export async function buildMyPraysZip(prayTime = [], onProgress = () => {}) {
 
     let done = 0;
     for (const { prayId, rec } of allRecs) {
+        checkArchiveAbort(signal);
         try {
             const bytes = await readAudioBytes(rec);
-            if (bytes) files[zipPathFor(prayId, rec)] = [bytes, { level: 0 }]; // audio is already compressed
+            if (!bytes) throw new Error('Recording unavailable');
+            files[zipPathFor(prayId, rec)] = [bytes, { level: 0 }]; // audio is already compressed
         } catch (err) {
-            console.warn('[MyPrays] Missing audio file, skipped:', rec.id, err);
+            throw new Error('A recording is missing or unreadable. Backup was not created; your previous backup has been kept.', { cause: err });
         }
         done++;
-        onProgress(done / Math.max(1, allRecs.length));
+        onProgress(0.8 * done / Math.max(1, allRecs.length));
     }
 
     const withFile = (prayId) => (index.recordings[prayId] || [])
@@ -601,9 +750,9 @@ export async function buildMyPraysZip(prayTime = [], onProgress = () => {}) {
             .filter((prayId) => !knownIds.has(prayId))
             .map((prayId) => ({ prayId, pendingWords: index.pendingWords?.[prayId], recordings: withFile(prayId) })),
     };
-    files[BACKUP_JSON] = strToU8(JSON.stringify(manifest, null, 2));
-
-    return zipSync(files, { level: 6 });
+    const archive = await runPrayerArchive({ operation: 'pack', files, manifest }, { signal });
+    onProgress(1);
+    return archive;
 }
 
 /**
@@ -611,10 +760,12 @@ export async function buildMyPraysZip(prayTime = [], onProgress = () => {}) {
  * Existing history is merged by prayer/share identity; newer activity always wins.
  * @returns {Promise<{restored: number, prays: number}>}
  */
-export async function restoreMyPraysZip(zipBytes, onProgress = () => {}, { ownerId } = {}) {
-    const files = unzipSync(zipBytes);
-    if (!files[BACKUP_JSON]) throw new Error('This file is not a "my prays" backup.');
-    const manifest = JSON.parse(strFromU8(files[BACKUP_JSON]));
+export async function restoreMyPraysZip(zipBytes, onProgress = () => {}, { ownerId, signal } = {}) {
+    const { files, manifest } = await runPrayerArchive({ operation: 'unpack', bytes: zipBytes }, { signal });
+    // Let the browser paint after receiving/cloning the decoded manifest before
+    // beginning storage reads and reconciliation. The worker owns no live state.
+    await yieldArchiveWork();
+    checkArchiveAbort(signal);
     const manifestPrayers = new Map((manifest.prays || []).map(entry => [String(entry._id), entry]));
 
     const existing = await readIndex();
@@ -626,12 +777,21 @@ export async function restoreMyPraysZip(zipBytes, onProgress = () => {}, { owner
     ].filter((group) => group.recordings.length && !revokedIds.has(group.prayId) && !revokedPrayerShares[normalizeShareId(group.prayId)]);
 
     const existingIds = new Set(Object.values(existing.recordings).flat().map((rec) => rec.id));
+    // Validate the complete archive before writing any audio or prayer metadata.
+    // Even an already-present recording must exist in the archive being restored.
+    for (const group of groups) for (const rec of group.recordings) {
+        if (!rec.id || !rec.ext || [rec.id, rec.ext].some(value => typeof value !== 'string' || value === '.' || value === '..' || /[\\/]/.test(value))
+            || typeof rec.file !== 'string' || !Object.hasOwn(files, rec.file)) {
+            throw new Error('This prayer backup contains an invalid or missing recording. Nothing was restored.');
+        }
+    }
     const total = groups.reduce((sum, group) => sum + group.recordings.length, 0);
     const toAdd = [];
     let done = 0;
 
     for (const group of groups) {
         for (const { file, ...rec } of group.recordings) {
+            checkArchiveAbort(signal);
             if (!existingIds.has(rec.id) && files[file]) {
                 await writeAudio(rec, files[file]);
                 toAdd.push({ prayId: group.prayId, rec, pendingWords: group.pendingWords });
@@ -643,6 +803,8 @@ export async function restoreMyPraysZip(zipBytes, onProgress = () => {}, { owner
 
     const revokedAudio = [];
     await updateIndex((index) => {
+        revokedAudio.length = 0;
+        checkArchiveAbort(signal);
         index.revokedPrayerShares = { ...index.revokedPrayerShares, ...revokedPrayerShares };
         index.prayerDeletionCursors = {}; // A restored backup must reconcile all server removals again.
         index.guestPrays = index.guestPrays.filter(entry => {
@@ -695,7 +857,7 @@ export async function restoreMyPraysZip(zipBytes, onProgress = () => {}, { owner
             if (!clips.some(clip => clip.id === rec.id)) index.recordings[target] = [...clips, rec];
             if (pendingWords) index.pendingWords[target] = pendingWords;
         }
-    });
+    }, undefined, yieldArchiveWork);
 
     for (const rec of revokedAudio) await removeAudio(rec);
     const totalPraysCount = Math.max(

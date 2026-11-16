@@ -1,0 +1,73 @@
+{
+  "environment": "Desktop Chromium, memory-backed adapter, synthetic text-only; timer delay is not a device frame metric",
+  "results": [
+    {
+      "count": 10,
+      "zipBytes": 545,
+      "inboxJsonBytes": 15181,
+      "backup": {
+        "elapsedMs": 5,
+        "timerDelayMs": 6.1
+      },
+      "restore": {
+        "elapsedMs": 3.1,
+        "timerDelayMs": 3.1
+      },
+      "inboxMerge": {
+        "elapsedMs": 1.6,
+        "timerDelayMs": 1.6
+      }
+    },
+    {
+      "count": 100,
+      "zipBytes": 2147,
+      "inboxJsonBytes": 151891,
+      "backup": {
+        "elapsedMs": 7.9,
+        "timerDelayMs": 7.9
+      },
+      "restore": {
+        "elapsedMs": 7.6,
+        "timerDelayMs": 7.6
+      },
+      "inboxMerge": {
+        "elapsedMs": 1.7,
+        "timerDelayMs": 1.7
+      }
+    },
+    {
+      "count": 500,
+      "zipBytes": 9344,
+      "inboxJsonBytes": 759891,
+      "backup": {
+        "elapsedMs": 29.6,
+        "timerDelayMs": 30.5
+      },
+      "restore": {
+        "elapsedMs": 23.8,
+        "timerDelayMs": 25.8
+      },
+      "inboxMerge": {
+        "elapsedMs": 10.1,
+        "timerDelayMs": 11.1
+      }
+    },
+    {
+      "count": 2000,
+      "zipBytes": 35906,
+      "inboxJsonBytes": 3040891,
+      "backup": {
+        "elapsedMs": 105.4,
+        "timerDelayMs": 106
+      },
+      "restore": {
+        "elapsedMs": 92,
+        "timerDelayMs": 100.4
+      },
+      "inboxMerge": {
+        "elapsedMs": 45.3,
+        "timerDelayMs": 51.3
+      }
+    }
+  ]
+}

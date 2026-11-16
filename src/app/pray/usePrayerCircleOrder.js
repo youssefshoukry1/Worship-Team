@@ -2,9 +2,11 @@
 
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { prayerActivityKey } from '../utils/prayerActivity';
+import { usePrayerSession } from './PrayerSessionProvider';
 
 // No scroll handlers, animation loop, or per-card measurements. Check only on data changes.
 export default function usePrayerCircleOrder(items, scope, anchorRef, forceId) {
+    const session = usePrayerSession();
     const [order, setOrder] = useState({ scope: null, ids: [], activity: new Map(), pending: 0 });
     const latest = useRef(items);
     useLayoutEffect(() => { latest.current = items; }, [items]);
@@ -16,14 +18,14 @@ export default function usePrayerCircleOrder(items, scope, anchorRef, forceId) {
             for (const [id, key] of activity) if (previous.activity.get(id) !== key) pending++;
             if (!pending) return previous.pending ? { ...previous, pending: 0 } : previous;
             const typing = document.activeElement?.matches('textarea, input, [contenteditable="true"]');
-            const playing = document.querySelector('[data-prayer-playing="true"]');
+            const playing = session.playback.isPlaying();
             const readingBelow = (anchorRef.current?.getBoundingClientRect().top ?? 0) < -80;
             if (typing || playing || readingBelow || document.visibilityState !== 'visible') {
                 return previous.pending === pending ? previous : { ...previous, pending };
             }
             return { scope, forceId, ids: [...activity.keys()], activity, pending: 0 };
         });
-    }, [items, scope, forceId, anchorRef]);
+    }, [items, scope, forceId, anchorRef, session]);
 
     const visibleItems = useMemo(() => {
         if (order.scope !== scope) return items;

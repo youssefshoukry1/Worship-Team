@@ -1,0 +1,179 @@
+{
+  "environment": "Desktop Chromium/WebKit, compiled production worker, memory storage; diagnostic single runs",
+  "results": {
+    "chromium": [
+      {
+        "count": 10,
+        "audioMB": 0,
+        "zipBytes": 545,
+        "backup": {
+          "elapsedMs": 23.7,
+          "maxTimerGapMs": 5.3,
+          "postMessageMs": 0
+        },
+        "restore": {
+          "elapsedMs": 18.7,
+          "maxTimerGapMs": 5.1,
+          "postMessageMs": 0.1
+        },
+        "aliveWorkers": 0
+      },
+      {
+        "count": 100,
+        "audioMB": 0,
+        "zipBytes": 2147,
+        "backup": {
+          "elapsedMs": 38.1,
+          "maxTimerGapMs": 5.5,
+          "postMessageMs": 0.4
+        },
+        "restore": {
+          "elapsedMs": 31.9,
+          "maxTimerGapMs": 5.7,
+          "postMessageMs": 0
+        },
+        "aliveWorkers": 0
+      },
+      {
+        "count": 500,
+        "audioMB": 0,
+        "zipBytes": 9344,
+        "backup": {
+          "elapsedMs": 50,
+          "maxTimerGapMs": 5.5,
+          "postMessageMs": 2.2
+        },
+        "restore": {
+          "elapsedMs": 49.7,
+          "maxTimerGapMs": 9.4,
+          "postMessageMs": 0.1
+        },
+        "aliveWorkers": 0
+      },
+      {
+        "count": 2000,
+        "audioMB": 0,
+        "zipBytes": 35905,
+        "backup": {
+          "elapsedMs": 136.2,
+          "maxTimerGapMs": 9.7,
+          "postMessageMs": 8.5
+        },
+        "restore": {
+          "elapsedMs": 122.9,
+          "maxTimerGapMs": 26.8,
+          "postMessageMs": 0.1
+        },
+        "aliveWorkers": 0
+      },
+      {
+        "count": 2000,
+        "audioMB": 8,
+        "zipBytes": 8424708,
+        "backup": {
+          "elapsedMs": 152,
+          "maxTimerGapMs": 12,
+          "postMessageMs": 7.4
+        },
+        "restore": {
+          "elapsedMs": 123.1,
+          "maxTimerGapMs": 33,
+          "postMessageMs": 0
+        },
+        "freshRestore": {
+          "elapsedMs": 96.7,
+          "maxTimerGapMs": 38.4,
+          "postMessageMs": 0.3
+        },
+        "aliveWorkers": 0
+      }
+    ],
+    "webkit": [
+      {
+        "count": 10,
+        "audioMB": 0,
+        "zipBytes": 544,
+        "backup": {
+          "elapsedMs": 32,
+          "maxTimerGapMs": 15,
+          "postMessageMs": 0
+        },
+        "restore": {
+          "elapsedMs": 141,
+          "maxTimerGapMs": 17,
+          "postMessageMs": 0
+        },
+        "aliveWorkers": 0
+      },
+      {
+        "count": 100,
+        "audioMB": 0,
+        "zipBytes": 2147,
+        "backup": {
+          "elapsedMs": 45,
+          "maxTimerGapMs": 16,
+          "postMessageMs": 0
+        },
+        "restore": {
+          "elapsedMs": 143,
+          "maxTimerGapMs": 17,
+          "postMessageMs": 0
+        },
+        "aliveWorkers": 0
+      },
+      {
+        "count": 500,
+        "audioMB": 0,
+        "zipBytes": 9343,
+        "backup": {
+          "elapsedMs": 73,
+          "maxTimerGapMs": 16,
+          "postMessageMs": 3
+        },
+        "restore": {
+          "elapsedMs": 158,
+          "maxTimerGapMs": 19,
+          "postMessageMs": 0
+        },
+        "aliveWorkers": 0
+      },
+      {
+        "count": 2000,
+        "audioMB": 0,
+        "zipBytes": 35905,
+        "backup": {
+          "elapsedMs": 134,
+          "maxTimerGapMs": 26,
+          "postMessageMs": 13
+        },
+        "restore": {
+          "elapsedMs": 226,
+          "maxTimerGapMs": 35,
+          "postMessageMs": 0
+        },
+        "aliveWorkers": 0
+      },
+      {
+        "count": 2000,
+        "audioMB": 8,
+        "zipBytes": 8424707,
+        "backup": {
+          "elapsedMs": 170,
+          "maxTimerGapMs": 17,
+          "postMessageMs": 11
+        },
+        "restore": {
+          "elapsedMs": 237,
+          "maxTimerGapMs": 35,
+          "postMessageMs": 0
+        },
+        "freshRestore": {
+          "elapsedMs": 247,
+          "maxTimerGapMs": 35,
+          "postMessageMs": 0
+        },
+        "aliveWorkers": 0
+      }
+    ]
+  }
+}

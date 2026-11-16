@@ -8,7 +8,8 @@ import {
     DriveNotLinkedError, downloadDriveFile, ensureDriveFolder, findDriveFile, getDriveAccessToken, getDriveAccounts, getDriveAuthUrl, setDefaultDriveAccount, disconnectDriveAccount, uploadDriveFile,
 } from '../utils/googleDriveClient';
 import { showToast } from '../components/ToastContainer';
-import { openVoiceInput } from '../utils/voiceProcessing';
+import { useTabPageActive } from '../components/TabPageActivity';
+import { usePrayerSession } from './PrayerSessionProvider';
 import React, { useEffect, useRef, useState, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 import backupStyles from './PrayerBackup.module.css';
@@ -49,141 +50,6 @@ const VOICE_TONES = {
 };
 
 export const getVoiceTone = (type) => VOICE_TONES[(type || 'general').toLowerCase()] || VOICE_TONES.general;
-
-const pickMimeType = () => {
-    if (typeof MediaRecorder === 'undefined') return '';
-    return ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac'].find((type) => MediaRecorder.isTypeSupported?.(type)) || '';
-};
-
-const VOICE_BITRATE = 128000;
-
-// Only one clip plays at a time across the whole page
-let activePlayer = null;
-
-/**
- * One recorder shared by the general box and all section blocks — only one can record at a time.
- * onFinish(blockId, { blob, url, duration, mimeType }) is called when a recording is kept.
- */
-export function usePrayRecorder(onFinish) {
-    const [recordingBlockId, setRecordingBlockId] = useState(null);
-    const [seconds, setSeconds] = useState(0);
-    const [isPaused, setIsPaused] = useState(false);
-    const [stream, setStream] = useState(null);
-    const recorderRef = useRef(null);
-    const streamRef = useRef(null);
-    const voiceRef = useRef(null);
-    const chunksRef = useRef([]);
-    const timerRef = useRef(null);
-    const cancelRef = useRef(false);
-    const elapsedMsRef = useRef(0);
-    const resumedAtRef = useRef(0);
-    const onFinishRef = useRef(onFinish);
-
-    useEffect(() => {
-        onFinishRef.current = onFinish;
-    }, [onFinish]);
-
-    const elapsedMs = () => elapsedMsRef.current + (resumedAtRef.current ? Date.now() - resumedAtRef.current : 0);
-
-    const cleanup = useCallback(() => {
-        if (timerRef.current) clearInterval(timerRef.current);
-        timerRef.current = null;
-        streamRef.current?.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        voiceRef.current?.close();
-        voiceRef.current = null;
-        recorderRef.current = null;
-        elapsedMsRef.current = 0;
-        resumedAtRef.current = 0;
-        setStream(null);
-        setRecordingBlockId(null);
-        setIsPaused(false);
-        setSeconds(0);
-    }, []);
-
-    const start = async (blockId) => {
-        if (recorderRef.current) return;
-        try {
-            const voice = await openVoiceInput();
-            voiceRef.current = voice;
-            streamRef.current = voice.stream;
-            const mimeType = pickMimeType();
-            const options = { audioBitsPerSecond: VOICE_BITRATE, ...(mimeType && { mimeType }) };
-            const recorder = new MediaRecorder(voice.stream, options);
-            recorderRef.current = recorder;
-            chunksRef.current = [];
-            cancelRef.current = false;
-            activePlayer?.pause();
-
-            recorder.ondataavailable = (event) => { if (event.data.size > 0) chunksRef.current.push(event.data); };
-            recorder.onstop = () => {
-                const type = recorder.mimeType || mimeType || 'audio/webm';
-                const blob = new Blob(chunksRef.current, { type });
-                const duration = elapsedMs() / 1000;
-                chunksRef.current = [];
-                if (!cancelRef.current && blob.size > 0) {
-                    onFinishRef.current?.(blockId, { blob, url: URL.createObjectURL(blob), duration, mimeType: type });
-                }
-                cleanup();
-            };
-
-            elapsedMsRef.current = 0;
-            resumedAtRef.current = Date.now();
-            recorder.start();
-            setStream(voice.stream);
-            setRecordingBlockId(blockId);
-            setIsPaused(false);
-            setSeconds(0);
-            timerRef.current = setInterval(() => setSeconds(elapsedMs() / 1000), 250);
-        } catch (err) {
-            console.error('Microphone error:', err);
-            cleanup();
-            alert('Could not access microphone.');
-        }
-    };
-
-    const pause = () => {
-        const recorder = recorderRef.current;
-        if (recorder?.state !== 'recording' || typeof recorder.pause !== 'function') return;
-        recorder.pause();
-        elapsedMsRef.current = elapsedMs();
-        resumedAtRef.current = 0;
-        setIsPaused(true);
-    };
-
-    const resume = () => {
-        const recorder = recorderRef.current;
-        if (recorder?.state !== 'paused') return;
-        recorder.resume();
-        resumedAtRef.current = Date.now();
-        setIsPaused(false);
-    };
-
-    const stop = () => {
-        const recorder = recorderRef.current;
-        if (!recorder || recorder.state === 'inactive') return;
-        elapsedMsRef.current = elapsedMs();
-        resumedAtRef.current = 0;
-        recorder.stop();
-    };
-    const cancel = () => { cancelRef.current = true; stop(); };
-
-    // Stop the mic if the component unmounts mid-recording
-    useEffect(() => () => {
-        cancelRef.current = true;
-        if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop();
-        streamRef.current?.getTracks().forEach((track) => track.stop());
-        voiceRef.current?.close();
-        if (timerRef.current) clearInterval(timerRef.current);
-    }, []);
-
-    return {
-        recordingBlockId, seconds, isPaused, stream,
-        canPause: typeof MediaRecorder !== 'undefined' && typeof MediaRecorder.prototype.pause === 'function',
-        start, pause, resume, stop, cancel,
-        isRecording: Boolean(recordingBlockId),
-    };
-}
 
 /** Live recording bar with a scrolling microphone waveform. */
 function LiveRecordingBar({ recorder, tone }) {
@@ -250,7 +116,9 @@ function LiveRecordingBar({ recorder, tone }) {
 }
 
 /** A voice clip with a wavesurfer waveform, play/pause and seek. */
-export function VoiceClip({ url, fallbackDuration = 0, tone, label, onDelete }) {
+export function VoiceClip({ url, savedRec, fallbackDuration = 0, tone, label, onDelete }) {
+    const session = usePrayerSession();
+    const playbackKey = savedRec ? `saved:${savedRec.id}` : `draft:${url}`;
     const waveRef = useRef(null);
     const wavesurferRef = useRef(null);
     const [isReady, setIsReady] = useState(false);
@@ -260,56 +128,51 @@ export function VoiceClip({ url, fallbackDuration = 0, tone, label, onDelete }) 
     const [currentTime, setCurrentTime] = useState(0);
 
     useEffect(() => {
-        if (!waveRef.current || !url) return;
-        let active = true;
-        let wavesurfer;
-        import('wavesurfer.js').then(({ default: WaveSurfer }) => {
-            if (!active || !waveRef.current) return;
-            setIsReady(false);
-            setFailed(false);
-            setIsPlaying(false);
-            wavesurfer = WaveSurfer.create({
-                container: waveRef.current,
-                waveColor: 'rgba(148, 163, 184, 0.35)',
-                progressColor: tone.hex,
-                cursorWidth: 0,
-                height: 32,
-                barWidth: 3,
-                barGap: 2,
-                barRadius: 3,
-                normalize: true,
-                dragToSeek: true,
-                url,
-            });
-            wavesurferRef.current = wavesurfer;
-            wavesurfer.on('ready', (seconds) => {
-                if (!active) return;
-                setIsReady(true);
-                if (seconds && Number.isFinite(seconds)) setDuration(seconds);
-            });
-            wavesurfer.on('timeupdate', (seconds) => { if (active) setCurrentTime(seconds); });
-            wavesurfer.on('play', () => {
-                if (activePlayer && activePlayer !== wavesurfer) activePlayer.pause();
-                activePlayer = wavesurfer;
-                if (active) setIsPlaying(true);
-            });
-            wavesurfer.on('pause', () => { if (active) setIsPlaying(false); });
-            wavesurfer.on('finish', () => {
-                if (active) {
-                    setIsPlaying(false);
-                    wavesurfer.seekTo(0);
-                    setCurrentTime(0);
-                }
-            });
-            wavesurfer.on('error', () => { if (active) setFailed(true); });
-        }).catch(() => { if (active) setFailed(true); });
+        if (!waveRef.current || (!url && !savedRec)) return;
+        let attached = true, lease;
+        const unsubscribe = [];
+        session.playback.acquire(playbackKey, async () => {
+            const source = savedRec ? await getRecordingUrl(savedRec) : { url, revoke: false };
+            if (!source.url) throw new Error('Recording unavailable');
+            let player;
+            // Keep the media element outside the row's DOM. Removing a DOM-owned
+            // <audio> can pause it even when the WaveSurfer instance is retained.
+            const media = new Audio();
+            const clearMedia = () => { media.pause(); media.removeAttribute('src'); media.load(); };
+            const container = document.createElement('div');
+            try {
+                const { default: WaveSurfer } = await import('wavesurfer.js');
+                player = WaveSurfer.create({ container, media, waveColor: 'rgba(148, 163, 184, 0.35)', progressColor: tone.hex,
+                    cursorWidth: 0, height: 32, barWidth: 3, barGap: 2, barRadius: 3, normalize: true, dragToSeek: true, url: source.url });
+                const resource = { player, container, ready: false, failed: false,
+                    destroy() { player.destroy(); clearMedia(); container.remove(); if (source.revoke) URL.revokeObjectURL(source.url); } };
+                player.on('ready', () => { resource.ready = true; });
+                player.on('error', () => { resource.failed = true; });
+                player.on('finish', () => player.seekTo(0));
+                return resource;
+            } catch (error) { player?.destroy(); clearMedia(); if (source.revoke) URL.revokeObjectURL(source.url); throw error; }
+        }).then(value => {
+            lease = value;
+            if (!attached) { lease.release(); return; }
+            const { player, container } = lease.resource;
+            waveRef.current?.appendChild(container);
+            wavesurferRef.current = player;
+            const refresh = () => {
+                if (!attached) return;
+                setIsReady(lease.resource.ready); setFailed(lease.resource.failed);
+                setIsPlaying(player.isPlaying()); setCurrentTime(player.getCurrentTime());
+                setDuration(player.getDuration() || fallbackDuration);
+            };
+            for (const event of ['ready', 'play', 'pause', 'finish', 'timeupdate', 'error']) unsubscribe.push(player.on(event, refresh));
+            refresh();
+        }).catch(() => { if (attached) setFailed(true); });
         return () => {
-            active = false;
-            if (activePlayer === wavesurfer) activePlayer = null;
-            wavesurfer?.destroy();
+            attached = false;
+            unsubscribe.forEach(off => off());
             wavesurferRef.current = null;
+            lease?.release();
         };
-    }, [url, tone.hex]);
+    }, [url, savedRec, tone.hex, session, playbackKey, fallbackDuration]);
 
     const showTime = isPlaying || currentTime > 0 ? currentTime : duration;
 
@@ -332,7 +195,7 @@ export function VoiceClip({ url, fallbackDuration = 0, tone, label, onDelete }) 
             </div>
             <span className="text-[11px] font-semibold text-slate-400 tabular-nums shrink-0 w-9 text-right">{formatSeconds(showTime)}</span>
             {onDelete && (
-                <button type="button" onClick={onDelete} className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-slate-500 hover:text-red-400 hover:bg-red-500/15 transition-all" title="Delete recording">
+                <button type="button" onClick={async () => { if (await onDelete() !== false) session.playback.stop(playbackKey); }} className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-slate-500 hover:text-red-400 hover:bg-red-500/15 transition-all" title="Delete recording">
                     <Trash2 className="w-4 h-4" />
                 </button>
             )}
@@ -373,11 +236,8 @@ export function VoiceRecorderPanel({ blockId, recorder, recordings = [], onRemov
 }
 
 function SavedVoiceClip({ rec, label, onDelete }) {
-    const { t } = useLanguage();
     const containerRef = useRef(null);
     const [nearViewport, setNearViewport] = useState(() => typeof IntersectionObserver === 'undefined');
-    const [url, setUrl] = useState(null);
-    const [missing, setMissing] = useState(false);
     useEffect(() => {
         if (nearViewport) return;
         if (typeof IntersectionObserver === 'undefined') return;
@@ -387,29 +247,9 @@ function SavedVoiceClip({ rec, label, onDelete }) {
         observer.observe(containerRef.current);
         return () => observer.disconnect();
     }, [nearViewport]);
-    useEffect(() => {
-        if (!nearViewport) return;
-        let active = true;
-        let revokeUrl = null;
-        getRecordingUrl(rec).then(({ url: resolved, revoke }) => {
-            if (revoke) revokeUrl = resolved;
-            if (!active) { if (revoke && resolved) URL.revokeObjectURL(resolved); return; }
-            setUrl(resolved);
-            setMissing(!resolved);
-        }).catch(() => { if (active) setMissing(true); });
-        return () => { active = false; if (revokeUrl) URL.revokeObjectURL(revokeUrl); };
-    }, [rec, nearViewport]);
     const tone = getVoiceTone(rec.blockType);
-    if (missing) {
-        return (
-            <div className={`flex items-center justify-between gap-2 rounded-2xl border ${tone.frame} bg-white/[0.02] px-3 py-2 text-[11px] text-slate-500`}>
-                {t('recordingUnavailableOnDevice')}
-                <button type="button" onClick={onDelete} className="p-1 rounded-full hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
-            </div>
-        );
-    }
     return <div ref={containerRef} onFocusCapture={() => setNearViewport(true)}>
-        <VoiceClip url={url} fallbackDuration={rec.duration} tone={tone} label={label} onDelete={onDelete} />
+        <VoiceClip savedRec={nearViewport ? rec : null} fallbackDuration={rec.duration} tone={tone} label={label} onDelete={onDelete} />
     </div>;
 }
 
@@ -418,7 +258,7 @@ export function SavedPrayRecordings({ prayId, recordings, getBlockLabel, onChang
     const { t } = useLanguage();
     if (!recordings?.length) return null;
     const handleDelete = async (recId) => {
-        if (!window.confirm(t('deleteVoiceRecordingConfirm'))) return;
+        if (!window.confirm(t('deleteVoiceRecordingConfirm'))) return false;
         await deleteRecording(prayId, recId);
         onChanged?.();
     };
@@ -433,6 +273,7 @@ export function SavedPrayRecordings({ prayId, recordings, getBlockLabel, onChang
 
 /** Backup / restore settings dropdown menu with multi-account support. */
 export function MyPraysBackup({ prayTime, token, userId, onRestored, privacySettings }) {
+    const pageActive = useTabPageActive();
     const { t, language } = useLanguage();
     const lastBackupKey = `my_prays_last_backup_${userId}`;
     const [isOpen, setIsOpen] = useState(false);
@@ -520,7 +361,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored, privacySett
     }, [savingSchedule]);
 
     useEffect(() => {
-        if (!nativeBackup || !token || !userId) return;
+        if (!pageActive || !isOpen || !nativeBackup || !token || !userId) return;
         let cancelled = false;
         const refresh = async () => {
             try {
@@ -539,9 +380,9 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored, privacySett
             } catch { /* Older app builds keep the existing manual backup flow. */ }
         };
         refresh();
-        const timer = setInterval(refresh, isOpen || busy === 'backup' ? 1500 : 15000);
+        const timer = setInterval(refresh, 1500);
         return () => { cancelled = true; clearInterval(timer); };
-    }, [nativeBackup, token, userId, isOpen, busy, labels.complete, labels.queued, labels.running]);
+    }, [pageActive, nativeBackup, token, userId, isOpen, busy, labels.complete, labels.queued, labels.running]);
 
     const loadAccounts = useCallback(async () => {
         if (!token) return;

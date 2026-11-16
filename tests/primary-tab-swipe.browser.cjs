@@ -209,10 +209,23 @@ for (const engine of ['webkit', 'chromium']) {
 test('trusted mobile drag follows the finger before navigating to the next tab', async t => {
   const { page, context, errors } = await setup(t, 'chromium', { href: '/friends/' });
   await panel(page, '/friends').locator('[data-page-skeleton]').waitFor({ state: 'detached' });
+  await panel(page, '/normal_UserProfile').getByText('iOS Tester', { exact: true }).waitFor({ state: 'attached' });
   const cdp = await context.newCDPSession(page);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 280, y: 180 }] });
-  for (const x of [260, 230, 190, 140]) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: 180 }] });
+  // Let Chromium present each trusted move before dispatching the next one.
+  // A burst of CDP moves can be coalesced after the assertion/touchEnd.
+  for (const x of [260, 230, 190, 140]) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: 180 }] });
+    await frame(page);
+  }
   await frame(page);
+  // CDP completion/rAF do not guarantee the compositor has presented the final
+  // trusted move. Observe the held position before releasing the finger.
+  await page.waitForFunction(() => {
+    const node = document.querySelector('[data-tab-panel="/normal_UserProfile"]');
+    const left = node?.getBoundingClientRect().left;
+    return left > 180 && left < 310;
+  }, null, { timeout: 2000 });
   const left = await panel(page, '/normal_UserProfile').evaluate(node => node.getBoundingClientRect().left);
   assert.ok(left > 180 && left < 310, `neighbor follows held finger at ${left}`);
   assert.equal(new URL(page.url()).pathname, '/friends/');
@@ -267,7 +280,7 @@ test('interior swipes traverse every bottom tab in both directions', async t => 
     await page.waitForURL(base + href + '/');
     await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
     assert.equal(await panel(page, href).getAttribute('data-tab-active'), 'true');
-    assert.ok(await page.locator('[data-tab-panel]').count() <= 4, 'only neighbors plus the retained Prayer page may be mounted');
+    assert.ok(await page.locator('[data-tab-panel]').count() <= 3, 'only the active page and neighbors may be mounted');
   }
   for (const href of hrefs.slice(0, -1).reverse()) {
     await drag(page, 90, 310);

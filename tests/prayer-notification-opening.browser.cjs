@@ -40,7 +40,17 @@ const mockPrayerApi = (route, base) => route.request().url().startsWith(base) ? 
   : route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } });
 const personalPrayers = count => Array.from({ length: count }, (_, i) => ({ _id: 'personal-' + i, words: 'Personal prayer ' + i, date: '2026-10-01T00:00:00.000Z' }));
 
-test('local prayer cache skips reload reads and retains card DOM across journal and app tabs', async () => {
+async function reachPrayer(page, id) {
+  for (let batch = 0; batch < 220; batch++) {
+    if (await page.locator(`[data-prayer-id="${id}"]`).count()) return;
+    const before = await page.locator('[data-prayer-list]').getAttribute('data-loaded-prayers');
+    await page.mouse.wheel(0, 100000);
+    await page.waitForFunction(({ before, id }) => document.querySelector(`[data-prayer-id="${id}"]`) || document.querySelector('[data-prayer-list]')?.dataset.loadedPrayers !== before, { before, id });
+  }
+  throw new Error('Prayer was not reachable: ' + id);
+}
+
+test('local prayer cache skips reload reads and restores cards across journal and app tabs', async () => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   try {
     const page = await context.newPage();
@@ -61,13 +71,14 @@ test('local prayer cache skips reload reads and retains card DOM across journal 
     await page.locator('[data-prayer-id="received-cache-test"]').waitFor();
     await page.evaluate(() => { window.__retainedShared = document.querySelector('[data-prayer-id="received-cache-test"]'); });
     await page.getByRole('button', { name: /My Journal/ }).click();
-    assert.equal(await page.evaluate(() => window.__retainedPrayer === document.querySelector('[data-prayer-id="personal-0"]') && window.__retainedShared.isConnected), true);
+    await page.locator('[data-prayer-id="personal-0"]').waitFor();
+    assert.equal(await page.evaluate(() => window.__retainedShared.isConnected), false);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.getByRole('link', { name: 'Friends', exact: true }).click();
     await page.waitForURL(/\/friends\/?$/);
     await page.getByRole('link', { name: 'Pray', exact: true }).click();
     await page.waitForURL(/\/pray\/?$/);
-    assert.equal(await page.evaluate(() => window.__retainedPrayer === document.querySelector('[data-prayer-id="personal-0"]')), true);
+    await page.locator('[data-prayer-id="personal-0"]').waitFor();
     const reads = await page.evaluate(() => window.__prayerReads);
     await page.evaluate(() => { for (let i = 0; i < 20; i++) window.dispatchEvent(new Event('taspe7:prayer-sync')); });
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
@@ -82,7 +93,7 @@ test('local prayer cache skips reload reads and retains card DOM across journal 
       channel.postMessage('changed'); channel.close();
     });
     await page.locator('[data-prayer-id="external-cache"]').waitFor();
-    assert.equal(await page.evaluate(() => window.__retainedPrayer === document.querySelector('[data-prayer-id="personal-0"]')), true);
+    await page.locator('[data-prayer-id="personal-0"]').waitFor();
   } finally { await context.close(); }
 });
 
@@ -395,9 +406,12 @@ test('large prayer lists defer offscreen controls while keyboard access, saving 
     await seed(page, personalPrayers(200)); await page.goto(base + '/pray/');
     const first = page.locator('[data-prayer-id="personal-0"]');
     await first.getByText('Personal prayer 0', { exact: true }).waitFor();
-    assert.equal(await page.locator('[data-prayer-row]').count(), 200);
+    assert.equal(await page.locator('[data-prayer-list]').getAttribute('data-loaded-prayers'), '10');
     assert.ok(await page.locator('[data-prayer-id]').count() < 30);
-    await page.locator('[data-prayer-placeholder="personal-199"]').focus();
+    await page.getByRole('button', { name: 'Load 10 more', exact: true }).focus();
+    await page.keyboard.press('Enter');
+    await page.locator('[data-prayer-row="personal-10"]:focus').waitFor();
+    await reachPrayer(page, 'personal-199');
     await page.locator('[data-prayer-id="personal-199"]').getByText('Personal prayer 199', { exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Edit Note', exact: true }).count(), 0);
     await page.getByRole('textbox').first().fill('New prayer from the latest draft');
@@ -535,7 +549,8 @@ test('deep notification targets render immediately in a long list even while the
     });
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('taspe7:open-prayer', { detail: { href: '/pray/?notificationType=PRAY_SHARED&shareId=150' }, cancelable: true })));
     await page.locator('[data-prayer-id="received-150"]').getByText('Prayer 150', { exact: true }).waitFor();
-    assert.equal(await card.count(), 1, 'Previously opened cards stay mounted after a new notification target');
+    await card.waitFor({ state: 'detached' });
+    assert.ok(await page.locator('[data-prayer-id]').count() < 30);
   } finally { release(); await context.close(); }
 });
 
@@ -570,8 +585,8 @@ test('large prayer lists remain accessible when IntersectionObserver is unavaila
     await page.route('**/*', route => mockPrayerApi(route, base));
     await page.addInitScript(() => { window.IntersectionObserver = undefined; });
     await seed(page, personalPrayers(40)); await page.goto(base + '/pray/');
-    await page.waitForFunction(() => document.querySelectorAll('[data-prayer-id]').length === 40);
-    await page.locator('[data-prayer-id="personal-39"]').scrollIntoViewIfNeeded();
+    await page.locator('[data-prayer-id="personal-0"]').waitFor();
+    await reachPrayer(page, 'personal-39');
     await page.locator('[data-prayer-id="personal-39"]').getByText('Personal prayer 39', { exact: true }).waitFor();
   } finally { await context.close(); }
 });
@@ -642,7 +657,7 @@ test('a live microphone recording survives composer updates and offscreen-card l
     await page.getByRole('textbox').first().fill('Draft written while recording');
     // A trusted user scroll remains allowed while typing; the app intentionally
     // blocks programmatic scroll jumps while the prayer input is focused.
-    await page.mouse.wheel(0, 100000);
+    await reachPrayer(page, 'personal-199');
     await page.locator('[data-prayer-id="personal-199"]').getByText('Personal prayer 199', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.__prayerRecorder.state), 'recording');
     await page.getByRole('button', { name: 'Pause recording', exact: true }).click();
@@ -684,11 +699,14 @@ test('long prayer lists retain audio playback while offscreen and while the comp
     await page.locator('[data-prayer-row="personal-0"]').scrollIntoViewIfNeeded();
     await first.getByRole('button', { name: 'Play', exact: true }).click();
     await first.getByRole('button', { name: 'Pause', exact: true }).waitFor();
-    await page.evaluate(() => { window.__firstPrayerCard = document.querySelector('[data-prayer-id="personal-0"]'); window.scrollTo(0, document.documentElement.scrollHeight); });
+    await page.evaluate(() => { window.__firstPrayerCard = document.querySelector('[data-prayer-id="personal-0"]'); document.activeElement.blur(); });
+    await reachPrayer(page, 'personal-199');
     await page.locator('[data-prayer-id="personal-199"]').getByText('Personal prayer 199', { exact: true }).waitFor();
-    assert.equal(await page.evaluate(() => window.__firstPrayerCard.isConnected && !window.__playingPrayerAudio.paused), true);
+    assert.equal(await page.evaluate(() => !window.__firstPrayerCard.isConnected && !window.__playingPrayerAudio.paused), true);
     await page.getByRole('textbox').first().fill('Composer draft stays separate');
-    assert.equal(await page.evaluate(() => window.__firstPrayerCard === document.querySelector('[data-prayer-id="personal-0"]') && !window.__playingPrayerAudio.paused), true);
+    assert.equal(await page.evaluate(() => !window.__playingPrayerAudio.paused), true);
+    await page.evaluate(() => document.activeElement.blur());
+    await page.mouse.wheel(0, -100000);
     await first.scrollIntoViewIfNeeded();
     await first.getByRole('button', { name: 'Pause', exact: true }).click();
     await page.waitForFunction(() => window.__playingPrayerAudio.paused);
@@ -747,7 +765,7 @@ test('prayer circle defers new activity while typing on a throttled CPU and keep
     await session.send('Emulation.setCPUThrottlingRate', { rate: 6 });
     await page.goto(base + '/pray/');
     await page.getByRole('button', { name: /^Prayer Circle/ }).click();
-    assert.equal(await page.locator('[data-prayer-row]').count(), 300);
+    assert.equal(await page.locator('[data-prayer-list]').getAttribute('data-loaded-prayers'), '10');
     t.diagnostic(`300 prayers at 6× CPU throttling: ${await page.locator('[data-prayer-id]').count()} mounted cards initially`);
     assert.ok(await page.locator('[data-prayer-id]').count() < 30);
     const first = page.locator('[data-prayer-id="received-0"]');
@@ -851,7 +869,7 @@ test('prayer circle retains playing audio when updates are revealed and cards re
     await page.locator('[data-prayer-id="received-newer"]').waitFor();
     await page.locator('[data-prayer-id="received-newer"]').getByText('@mary', { exact: true }).click();
     await page.locator('[data-prayer-id="received-newer"]').getByRole('button', { name: 'Play', exact: true }).waitFor();
-    assert.equal(await page.evaluate(() => !window.__circleAudio.paused && window.__audioCard === document.querySelector('[data-prayer-id="received-audio"]')), true);
+    assert.equal(await page.evaluate(() => !window.__circleAudio.paused), true, 'playback survives even if the reordered card leaves the buffer');
     assert.equal(await page.locator('[data-prayer-row]').first().getAttribute('data-prayer-row'), 'received-newer');
   } finally { await context.close(); }
 });
@@ -915,9 +933,16 @@ test('native backup settings save intervals and manual progress continues after 
       window.backupCalls = [];
       window.backupStatus = { state: 'idle', progress: 0, intervalDays: 0 };
       window.CapacitorCustomPlatform = { name: 'ios' };
+      const files = new Map();
       window.Capacitor = {
-        PluginHeaders: [{ name: 'PrayerBackup', methods: ['configure', 'getStatus', 'runNow', 'suspend', 'setOwner'].map(name => ({ name, rtype: 'promise' })) }],
+        PluginHeaders: [{ name: 'PrayerBackup', methods: ['configure', 'getStatus', 'runNow', 'suspend', 'setOwner'].map(name => ({ name, rtype: 'promise' })) },
+          { name: 'Filesystem', methods: ['readFile', 'writeFile'].map(name => ({ name, rtype: 'promise' })) }],
         nativePromise: async (plugin, method, options) => {
+          if (plugin === 'Filesystem') {
+            if (method === 'writeFile') { files.set(options.path, options.data); return {}; }
+            if (!files.has(options.path)) throw Object.assign(new Error('File does not exist'), { code: 'OS-PLUG-FILE-0008' });
+            return { data: files.get(options.path) };
+          }
           window.backupCalls.push({ method, options });
           if (method === 'configure') window.backupStatus = { ...window.backupStatus, ...options, nextBackupAt: Date.now() + options.intervalDays * 86400000 };
           if (method === 'runNow') window.backupStatus = { ...window.backupStatus, state: 'running', progress: 57 };
@@ -935,7 +960,8 @@ test('native backup settings save intervals and manual progress continues after 
     const schedule = page.getByRole('group', { name: 'Automatic backup' });
     await schedule.waitFor(); await page.getByText('drive@test', { exact: true }).waitFor();
     for (const days of [7, 14, 30]) {
-      await schedule.getByRole('radio', { name: `Every ${days} days`, exact: true }).check();
+      await schedule.getByRole('button', { name: /^Automatic backup:/ }).click();
+      await schedule.getByRole('menuitemradio', { name: `Every ${days} days`, exact: true }).click();
       await page.waitForFunction(days => JSON.parse(localStorage.getItem('my_prays_schedule_tester') || '{}').intervalDays === days, days);
     }
     const wifi = page.getByRole('switch', { name: 'Wi-Fi only' });
@@ -946,10 +972,18 @@ test('native backup settings save intervals and manual progress continues after 
     await page.getByRole('button', { name: 'Backup', exact: true }).click();
     await page.waitForFunction(() => window.backupCalls.some(call => call.method === 'runNow'));
     await page.getByText('57%', { exact: true }).waitFor();
-    await page.getByRole('button', { name: 'close', exact: true }).click();
+    await page.keyboard.press('Escape');
     await schedule.waitFor({ state: 'hidden' });
     assert.equal(await page.evaluate(() => window.backupStatus.state), 'running');
+    await page.getByRole('link', { name: 'Friends', exact: true }).click();
+    await page.waitForURL(/\/friends\/?$/);
+    assert.equal(await page.evaluate(() => window.backupStatus.state), 'running', 'route teardown does not cancel native backup');
+    const statusCalls = await page.evaluate(() => window.backupCalls.filter(call => call.method === 'getStatus').length);
+    await page.waitForTimeout(1700);
+    assert.equal(await page.evaluate(() => window.backupCalls.filter(call => call.method === 'getStatus').length), statusCalls, 'closed settings do not poll native status');
     await page.evaluate(() => { window.backupStatus = { ...window.backupStatus, state: 'complete', progress: 100, lastSuccess: Date.now() }; });
+    await page.getByRole('link', { name: 'Pray', exact: true }).click();
+    await page.waitForURL(/\/pray\/?$/);
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     await page.getByText('Backup completed', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('my_prays_schedule_tester')).email), 'drive@test');
@@ -1022,6 +1056,40 @@ test('uncached prayers and replies appear before acknowledgement requests finish
     })));
     await page.locator('[data-prayer-id="sent-789"]').getByText('New reply', { exact: true }).last().waitFor({ state: 'visible', timeout: 5000 });
   } finally { release(); await context.close(); }
+});
+
+test('failed delivery acknowledgements replay after reload without duplicate text or audio', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let acknowledgements = 0;
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => {
+      const url = route.request().url();
+      if (url.startsWith(base)) return route.continue();
+      if (url.endsWith('/pray-time/ack')) { acknowledgements++; return route.fulfill({ status: 503, json: { success: false } }); }
+      const inbox = [{ shareId: 'retry-audio', words: 'Durable before acknowledgement', senderUsername: 'friend', recordings: [{ id: 'retry-clip', ext: 'webm', mimeType: 'audio/webm', data: btoa('fixture-audio') }] }];
+      return route.fulfill({ json: { user: { username: 'tester', prayTime: [] }, inbox, updates: [], friends: [] } });
+    });
+    await seed(page, []); await page.goto(base + '/pray/?notificationType=PRAY_SHARED&shareId=retry-audio');
+    const persisted = () => page.evaluate(async () => {
+      const db = await new Promise(resolve => { const request = indexedDB.open('my_prays', 2); request.onsuccess = () => resolve(request.result); });
+      const result = await new Promise(resolve => { const request = db.transaction('keyvaluepairs').objectStore('keyvaluepairs').get('index'); request.onsuccess = () => resolve(request.result); });
+      db.close(); return result;
+    });
+    for (let round = 0; round < 2; round++) {
+      await page.locator('[data-prayer-id="received-retry-audio"]').waitFor();
+      await page.waitForFunction(async () => {
+        const db = await new Promise(resolve => { const r = indexedDB.open('my_prays', 2); r.onsuccess = () => resolve(r.result); });
+        const clips = await new Promise(resolve => { const r = db.transaction('keyvaluepairs').objectStore('keyvaluepairs').get('index'); r.onsuccess = () => resolve(r.result?.recordings?.['received-retry-audio']); });
+        db.close(); return clips?.length === 1;
+      });
+      const index = await persisted();
+      assert.equal(index.guestPrays.filter(p => p._id === 'received-retry-audio').length, 1);
+      assert.equal(index.recordings['received-retry-audio'].length, 1);
+      if (round === 0) { await page.waitForTimeout(100); await page.reload(); }
+    }
+    await page.waitForTimeout(100); assert.ok(acknowledgements >= 2);
+  } finally { await context.close(); }
 });
 
 async function seedFriends(page, cache) {
@@ -1174,8 +1242,9 @@ for (const theme of ['light', 'dark']) {
         assert.equal(await page.evaluate(() => document.body.style.overflow), 'hidden');
         const schedule = dialog.getByRole('group', { name: 'Automatic backup' });
         assert.equal(await schedule.count(), 1);
-        assert.equal(await schedule.getByRole('radio').count(), 4);
-        for (const option of await schedule.getByRole('radio').all()) assert.equal(await option.isDisabled(), true);
+        const frequency = schedule.getByRole('button', { name: 'Automatic backup: Off', exact: true });
+        assert.equal(await frequency.isDisabled(), true);
+        assert.equal(await frequency.getAttribute('aria-haspopup'), 'menu');
         assert.equal(await dialog.getByRole('switch', { name: 'Wi-Fi only' }).count(), 1);
         assert.equal(await dialog.getByRole('switch', { name: 'Wi-Fi only' }).isChecked(), true);
         const background = await dialog.evaluate(el => getComputedStyle(el).backgroundColor);
@@ -1231,5 +1300,159 @@ test('mobile prayer typing keeps the page position through keyboard viewport cha
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(100);
     assert.equal(await page.evaluate(() => scrollY), baseline);
+  } finally { await context.close(); }
+});
+
+
+test('2000 prayers stay bounded through a complete forward traversal and restore the reading anchor', async t => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    await seed(page, [...personalPrayers(2000), received('other-list')]);
+    await page.goto(base + '/pray/');
+    await page.locator('[data-prayer-id="personal-0"]').waitFor();
+    const result = await page.evaluate(async () => {
+      const seen = new Set(); let maximum = 0;
+      const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+      for (let step = 0; step < 2000; step++) {
+        await frame(); await frame(); await frame();
+        const cards = [...document.querySelectorAll('[data-prayer-id]')];
+        maximum = Math.max(maximum, cards.length);
+        const ids = cards.map(card => card.dataset.prayerId);
+        if (new Set(ids).size !== ids.length) throw new Error('Duplicate cards');
+        ids.forEach(id => seen.add(id));
+        if (seen.size === 2000) break;
+        window.scrollBy(0, 550);
+      }
+      return { seen: seen.size, maximum, loaded: document.querySelector('[data-prayer-list]').dataset.loadedPrayers };
+    });
+    assert.equal(result.seen, 2000); assert.equal(result.loaded, '2000'); assert.ok(result.maximum < 25, JSON.stringify(result));
+    t.diagnostic(JSON.stringify(result));
+    await page.mouse.wheel(0, -4000);
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const anchor = await page.locator('[data-prayer-row]').evaluateAll(rows => {
+      const row = rows.find(row => row.getBoundingClientRect().bottom > 0);
+      return { id: row.dataset.prayerRow, top: row.getBoundingClientRect().top };
+    });
+    // Dispatch a tab action without scrolling to its offscreen button first.
+    await page.getByRole('button', { name: /Prayer Circle/ }).evaluate(button => button.click());
+    await page.locator('[data-prayer-id="received-other-list"]').waitFor();
+    await page.getByRole('button', { name: /My Journal/ }).evaluate(button => button.click());
+    await page.waitForFunction(anchor => {
+      const row = document.querySelector(`[data-prayer-row="${anchor.id}"]`);
+      return row && Math.abs(row.getBoundingClientRect().top - anchor.top) < 3;
+    }, anchor);
+    assert.ok(await page.locator('[data-prayer-id]').count() < 25);
+    await page.getByRole('link', { name: 'Friends', exact: true }).evaluate(link => link.click());
+    await page.waitForURL(/\/friends\/?$/);
+    await page.getByRole('link', { name: 'Pray', exact: true }).evaluate(link => link.click());
+    await page.waitForURL(/\/pray\/?$/);
+    await page.waitForFunction(anchor => {
+      const row = document.querySelector(`[data-prayer-row="${anchor.id}"]`);
+      return row && Math.abs(row.getBoundingClientRect().top - anchor.top) < 3;
+    }, anchor);
+  } finally { await context.close(); }
+});
+
+test('one focused reply stays mounted offscreen, then restores its draft after release and filter changes', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    await seed(page, Array.from({ length: 100 }, (_, i) => ({ ...received(String(i)), date: '2026-10-01T00:00:00Z' })));
+    await page.goto(base + '/pray/');
+    await page.getByRole('button', { name: /Prayer Circle/ }).click();
+    const first = page.locator('[data-prayer-id="received-0"]');
+    await first.getByText('@friend', { exact: true }).click();
+    await first.getByRole('textbox').fill('A reply that must survive windowing');
+    await page.evaluate(() => { window.__replyEditor = document.activeElement; });
+    await reachPrayer(page, 'received-99');
+    assert.equal(await page.evaluate(() => window.__replyEditor === document.activeElement && window.__replyEditor.isConnected), true);
+    assert.ok(await page.locator('[data-prayer-id]').count() < 25);
+    await page.evaluate(() => document.activeElement.blur());
+    await first.waitFor({ state: 'detached' });
+    await page.mouse.wheel(0, -100000);
+    await first.getByRole('textbox').waitFor();
+    assert.equal(await first.getByRole('textbox').inputValue(), 'A reply that must survive windowing');
+    const filters = page.getByRole('group', { name: 'Prayer Circle' });
+    await filters.getByRole('button', { name: /^Sent/ }).click();
+    await filters.getByRole('button', { name: /^All/ }).click();
+    assert.equal(await first.getByRole('textbox').inputValue(), 'A reply that must survive windowing');
+  } finally { await context.close(); }
+});
+
+test('long Arabic cards remeasure on rotation without overlap and keyboard navigation crosses batches', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await page.route('**/*', route => mockPrayerApi(route, base));
+    await seed(page, personalPrayers(11).map(entry => ({ ...entry, words: 'يا رب أشكرك على محبتك '.repeat(120) })));
+    await page.evaluate(() => localStorage.setItem('app-language', 'ar'));
+    await page.goto(base + '/pray/');
+    const first = page.locator('[data-prayer-row="personal-0"]');
+    await first.waitFor(); await first.focus();
+    for (let i = 1; i < 11; i++) {
+      await page.keyboard.press('ArrowDown');
+      await page.locator(`[data-prayer-row="personal-${i}"]:focus`).waitFor();
+    }
+    await page.setViewportSize({ width: 844, height: 390 });
+    await page.waitForFunction(() => {
+      const row = document.querySelector('[data-prayer-row="personal-10"]');
+      return row && Math.abs(row.getBoundingClientRect().top) < 3;
+    });
+    await page.keyboard.press('ArrowUp');
+    await page.locator('[data-prayer-row="personal-9"]:focus').waitFor();
+    await page.waitForFunction(() => {
+      const rows = [...document.querySelectorAll('[data-prayer-row]')].map(row => row.getBoundingClientRect()).sort((a, b) => a.top - b.top);
+      return rows.every((row, i) => !i || row.top >= rows[i - 1].bottom - 1);
+    });
+    assert.equal(await page.locator('[data-prayer-list]').getAttribute('data-loaded-prayers'), '11');
+  } finally { await context.close(); }
+});
+
+
+test('two browser tabs save concurrently without losing either prayer or existing history', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const first = await context.newPage(), second = await context.newPage();
+    for (const page of [first, second]) await page.route('**/*', route => mockPrayerApi(route, base));
+    await seed(first, personalPrayers(1));
+    await Promise.all([first.goto(base + '/pray/'), second.goto(base + '/pray/')]);
+    await first.getByRole('textbox').first().fill('Prayer saved from first tab');
+    await second.getByRole('textbox').first().fill('Prayer saved from second tab');
+    await Promise.all([first.getByRole('button', { name: 'Save Note', exact: true }).click(), second.getByRole('button', { name: 'Save Note', exact: true }).click()]);
+    await first.waitForFunction(async () => {
+      const db = await new Promise(resolve => { const r = indexedDB.open('my_prays', 2); r.onsuccess = () => resolve(r.result); });
+      const value = await new Promise(resolve => { const r = db.transaction('keyvaluepairs').objectStore('keyvaluepairs').get('index'); r.onsuccess = () => resolve(r.result); }); db.close();
+      const words = new Set(value.guestPrays.map(entry => entry.words));
+      return words.has('Personal prayer 0') && words.has('Prayer saved from first tab') && words.has('Prayer saved from second tab') && value.guestPrays.every(entry => !entry._sync);
+    });
+    for (const page of [first, second]) {
+      await page.getByText('Prayer saved from first tab', { exact: true }).waitFor();
+      await page.getByText('Prayer saved from second tab', { exact: true }).waitFor();
+    }
+  } finally { await context.close(); }
+});
+
+test('unavailable prayer storage shows Retry and recovers the existing history', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage(); await page.route('**/*', route => mockPrayerApi(route, base));
+    await seed(page, personalPrayers(2));
+    await page.addInitScript(() => {
+      window.__failPrayerRead = true; const get = IDBObjectStore.prototype.get;
+      IDBObjectStore.prototype.get = function(key) {
+        if (window.__failPrayerRead && this.transaction.db.name === 'my_prays' && key === 'index') throw new Error('Storage temporarily unavailable');
+        return get.call(this, key);
+      };
+    });
+    await page.goto(base + '/pray/');
+    await page.getByRole('alert').filter({ hasText: 'Saved prayers could not be accessed' }).waitFor();
+    await page.evaluate(() => { window.__failPrayerRead = false; });
+    await page.getByRole('button', { name: 'Retry storage', exact: true }).click();
+    await page.getByText('Personal prayer 0', { exact: true }).waitFor();
+    await page.getByText('Personal prayer 1', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Retry storage', exact: true }).waitFor({ state: 'detached' });
   } finally { await context.close(); }
 });

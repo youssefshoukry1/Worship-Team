@@ -20,8 +20,7 @@ enum PrayerBackupArchive {
     static func build(root: URL, output: URL, userId: String, progress: (Int) throws -> Void) throws {
         let snapshot = try read(root.appendingPathComponent("backup-prayers.json"))
         guard snapshot["userId"] as? String == userId else { throw PrayerBackupError.message("Open your prayer page before backing up this account") }
-        let indexURL = root.appendingPathComponent("index.json")
-        let index = try read(indexURL)
+        let index = try PrayerIndexStorage.readObject(root)
         let recordings = index["recordings"] as? [String: [[String: Any]]] ?? [:]
         var prayers: [String: [String: Any]] = [:]
         for p in index["guestPrays"] as? [[String: Any]] ?? [] {

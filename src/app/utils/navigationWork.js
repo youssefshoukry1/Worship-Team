@@ -1,6 +1,7 @@
 // Data parsing and publishing wait while a finger owns the page transition.
 let releaseWaiters = null;
 let pending = null;
+export function isNavigationBusy() { return pending !== null; }
 export function holdNavigationWork() {
   if (!pending) pending = new Promise(resolve => { releaseWaiters = resolve; });
 }

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "guestPrays": [
+    {"_id":"legacy-local","words":"صلاة محفوظة","date":"2026-10-01","sharedFrom":{"shareId":"share-1","status":"confirmed","responseWords":"Amen","respondedAt":"2026-10-02","seenActivityBy":{"alice":"prayer:share-1"}}},
+    {"_id":"queued","words":"Send later","date":"2026-10-03","sharedWith":{"userId":"bob","isAnonymous":true},"_sync":{"kind":"send","ownerId":"alice","requestId":"request-1","state":"pending","audioCount":0}}
+  ],
+  "recordings":{"legacy-local":[{"id":"clip-a","ext":"m4a","mimeType":"audio/mp4","duration":2},{"id":"clip-b","ext":"ogg","mimeType":"audio/ogg","duration":3}],"orphan":[{"id":"clip-c","ext":"wav","mimeType":"audio/wav"}]},
+  "pendingWords":{"orphan":"Pending words"},
+  "revokedPrayerShares":{"removed-share":true},
+  "prayerDeletionCursors":{"alice":"old-cursor"}
+}

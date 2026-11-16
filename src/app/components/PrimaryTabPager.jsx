@@ -29,8 +29,6 @@ export default function PrimaryTabPager({ index }) {
   const indexRef = useRef(index);
   const cancelRef = useRef(null);
   const [prepared, setPrepared] = useState([index]);
-  const [prayerVisited, setPrayerVisited] = useState(index === 0);
-  if (index === 0 && !prayerVisited) setPrayerVisited(true);
 
   useLayoutEffect(() => {
     indexRef.current = index;
@@ -106,9 +104,10 @@ export default function PrimaryTabPager({ index }) {
       timer = setTimeout(async () => {
         if (!completed) { clear(); return; }
         try {
+          clearTimeout(deadline);
+          deadline = setTimeout(clear, 5000);
           const ready = await ensureNavigationServiceWorker();
           if (disposed || session.current !== active) return;
-          deadline = setTimeout(clear, 5000);
           if (ready) router.push(routes[active.target], { scroll: true });
           else navigateDocumentFallback(routes[active.target]);
         } catch { clear(); }
@@ -130,6 +129,8 @@ export default function PrimaryTabPager({ index }) {
         const viewportHeight = incoming.clientHeight;
         holdNavigationWork();
         session.current = { direction, target, source, incoming, width };
+        // A lost touchend must not leave deferred UI work blocked indefinitely.
+        deadline = setTimeout(clear, 30000);
         // Leave a spacer equal to the active document's height. Cropping a
         // long source to the visible screen must never clamp window.scrollY.
         root.style.height = `${rootBox.height}px`;
@@ -148,14 +149,13 @@ export default function PrimaryTabPager({ index }) {
     return () => { disposed = true; remove(); clear(); cancelRef.current = null; window.removeEventListener('resize', clear); };
   }, [enabled, router]);
 
-  // Retain the visited Prayer page so returning preserves cards, drafts and players.
-  // Other pages still use the bounded neighbor policy.
-  const visible = [...new Set([...(enabled ? [index - 1, index, index + 1].filter(i => pages[i]) : [index]), ...(prayerVisited ? [0] : [])])];
+  // Drafts and active audio belong to the session, not a retained route tree.
+  const visible = enabled ? [index - 1, index, index + 1].filter(i => pages[i]) : [index];
   return <div ref={rootRef} className="primary-tab-pager" data-tab-pager>
     {visible.map(pageIndex => {
       const Page = pages[pageIndex];
       const active = pageIndex === index;
-      const ready = active || prepared.includes(pageIndex) || (pageIndex === 0 && prayerVisited);
+      const ready = active || prepared.includes(pageIndex);
       return <div key={routes[pageIndex]} data-tab-panel={routes[pageIndex]} data-tab-index={pageIndex} data-tab-ready={ready ? 'true' : 'false'} data-tab-active={active ? 'true' : 'false'}
         className="primary-tab-panel" aria-hidden={active ? undefined : true} inert={active ? undefined : true}
         style={{ transform: active ? undefined : `translate3d(${pageIndex < index ? -100 : 100}%,0,0)` }}>

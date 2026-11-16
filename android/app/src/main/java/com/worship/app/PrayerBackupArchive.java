@@ -23,7 +23,7 @@ final class PrayerBackupArchive {
     static File build(File root, File output, String userId, Progress progress) throws Exception {
         JSONObject snapshot = read(new File(root, "backup-prayers.json"));
         if (!userId.equals(snapshot.optString("userId"))) throw new IOException("Open your prayer page before backing up this account");
-        JSONObject index = read(new File(root, "index.json"));
+        JSONObject index = PrayerIndexStorage.readObject(root);
         JSONObject recordings = index.optJSONObject("recordings"); if (recordings == null) recordings = new JSONObject();
         Map<String, JSONObject> prayers = new LinkedHashMap<>();
         for (JSONArray list : new JSONArray[]{ index.optJSONArray("guestPrays") }) {

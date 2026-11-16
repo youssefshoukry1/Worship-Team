@@ -1,0 +1,63 @@
+{
+  "measuredAt": "2026-11-16T22:10:55.694Z",
+  "baselineRevision": "b058331",
+  "method": "Same 2000-prayer fixture and VM adapters for both revisions; compares the original sequential repair flow with batched repair. No physical disk, Capacitor bridge, browser-frame or native crash-safety claims.",
+  "results": [
+    {
+      "name": "mission1",
+      "adapter": "mock structured-clone web",
+      "history": 2000,
+      "repaired": 100,
+      "ms": 987.7472999999999,
+      "reads": 100,
+      "writes": 100,
+      "publications": 100,
+      "warm": {
+        "ms": 0.1676000000000073,
+        "reads": 0
+      }
+    },
+    {
+      "name": "mission5",
+      "adapter": "mock structured-clone web",
+      "history": 2000,
+      "repaired": 100,
+      "ms": 10.154899999999998,
+      "reads": 1,
+      "writes": 1,
+      "publications": 1,
+      "warm": {
+        "ms": 0.16419999999993706,
+        "reads": 0
+      }
+    },
+    {
+      "name": "mission1",
+      "adapter": "mock native JSON",
+      "history": 2000,
+      "repaired": 100,
+      "ms": 1081.4285,
+      "reads": 100,
+      "writes": 100,
+      "publications": 100,
+      "warm": {
+        "ms": 0.06979999999998654,
+        "reads": 0
+      }
+    },
+    {
+      "name": "mission5",
+      "adapter": "mock native JSON",
+      "history": 2000,
+      "repaired": 100,
+      "ms": 10.453500000000076,
+      "reads": 1,
+      "writes": 1,
+      "publications": 1,
+      "warm": {
+        "ms": 0.06309999999984939,
+        "reads": 0
+      }
+    }
+  ]
+}

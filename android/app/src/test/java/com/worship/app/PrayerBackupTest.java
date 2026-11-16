@@ -25,6 +25,15 @@ public class PrayerBackupTest {
         write("backup-prayers.json", "{\"userId\":\"alice\",\"prayers\":[{\"_id\":\"p1\",\"words\":\"صلاة\",\"prayType\":\"general\"}]}");
     }
     private void write(String name, String value) throws Exception { File file = new File(root, name); file.getParentFile().mkdirs(); Files.write(file.toPath(), value.getBytes(StandardCharsets.UTF_8)); }
+    @Test public void exportCrossPlatformArchiveForJavascriptImporter() throws Exception {
+        File fixture = new File("../../tests/fixtures/prayer-archive-index.json");
+        write("index.json", new String(Files.readAllBytes(fixture.toPath()), StandardCharsets.UTF_8));
+        for (String name : new String[]{"clip-a.m4a", "clip-b.ogg", "clip-c.wav"}) write("audio/" + name, "bytes:" + name);
+        File output = new File("build/outputs/prayer-fixtures/android.zip");
+        output.getParentFile().mkdirs();
+        PrayerBackupArchive.build(root, output, "alice", p -> {});
+        assertTrue(output.length() > 0);
+    }
     @Test public void archiveRestoresPrayerTextMetadataAndExactRecordingBytes() throws Exception {
         write("index.json", "{\"guestPrays\":[{\"_id\":\"p1\",\"words\":\"صلاة\"}],\"recordings\":{\"p1\":[{\"id\":\"clip\",\"ext\":\"m4a\",\"duration\":8}],\"orphan\":[{\"id\":\"other\",\"ext\":\"ogg\"}]},\"pendingWords\":{\"orphan\":\"draft words\"}}");
         write("audio/clip.m4a", "actual-audio-bytes"); write("audio/other.ogg", "orphan-audio");

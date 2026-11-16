@@ -17,7 +17,7 @@ function fixture(prayers = []) {
         setItem: async (key, value) => { if (key === 'index') { index = structuredClone(value); writes++; } else audio.set(key, value); },
         removeItem: async key => { removedAudio.push(key); audio.delete(key); },
     };
-    const context = { ...require('fflate'), console, Blob, window: {}, Capacitor: { isNativePlatform: () => false }, localforage: { createInstance: () => storage } };
+    const context = { ...require('./helpers/archive-codec.cjs'), ...require('fflate'), console, Blob, window: {}, Capacitor: { isNativePlatform: () => false }, localforage: { createInstance: () => storage } };
     vm.createContext(context);
     const source = ['utils/prayerActivity.js', 'utils/prayRecordings.js'].map(file => fs.readFileSync(path.join(__dirname, '../src/app', file), 'utf8')
         .replace(/^import .*;\r?\n/gm, '').replaceAll('export ', '')).join('\n');

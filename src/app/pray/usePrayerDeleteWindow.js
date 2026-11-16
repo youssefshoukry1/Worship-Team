@@ -1,6 +1,7 @@
 'use client';
 
 import { useLayoutEffect, useState } from 'react';
+import { isNavigationBusy, waitForNavigationIdle } from '../utils/navigationWork';
 
 export function prayerDeleteAvailable(date, now = Date.now()) {
     const savedAt = Date.parse(date || '');
@@ -8,12 +9,21 @@ export function prayerDeleteAvailable(date, now = Date.now()) {
 }
 
 // One timer for all owned prayers, scheduled at the next expiry. No countdowns or per-card timers.
-export default function usePrayerDeleteWindow(prayers) {
+export default function usePrayerDeleteWindow(prayers, active = true) {
     const [availableIds, setAvailableIds] = useState(() => new Set());
     useLayoutEffect(() => {
-        let timer;
+        if (!active) return;
+        let timer, cancelled = false, waiting = false;
         const refresh = () => {
             clearTimeout(timer);
+            if (cancelled || document.visibilityState !== 'visible') return;
+            if (isNavigationBusy()) {
+                if (!waiting) {
+                    waiting = true;
+                    void waitForNavigationIdle().then(() => { waiting = false; refresh(); });
+                }
+                return;
+            }
             const now = Date.now();
             const next = new Set();
             let expiresAt = Infinity;
@@ -29,10 +39,11 @@ export default function usePrayerDeleteWindow(prayers) {
         document.addEventListener('visibilitychange', refresh);
         window.addEventListener('focus', refresh);
         return () => {
+            cancelled = true;
             clearTimeout(timer);
             document.removeEventListener('visibilitychange', refresh);
             window.removeEventListener('focus', refresh);
         };
-    }, [prayers]);
+    }, [prayers, active]);
     return availableIds;
 }

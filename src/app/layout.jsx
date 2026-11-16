@@ -13,6 +13,7 @@ import CapgoUpdater from "./CapgoUpdater";
 import WaslaSplashIntro from "./components/WaslaSplashIntro";
 import AppAuthGatekeeper from "./components/AppAuthGatekeeper";
 import PrayerBackupLifecycle from "./components/PrayerBackupLifecycle";
+import PrayerSessionProvider from './pray/PrayerSessionProvider';
 import PrayerSyncLifecycle from "./components/PrayerSyncLifecycle";
 import BillingLifecycle from './components/BillingLifecycle';
 import AndroidBackNavigation from './components/AndroidBackNavigation';
@@ -87,13 +88,13 @@ export default function RootLayout({
                                     <PrayerBackupLifecycle />
                                     <PrayerSyncLifecycle />
                                     <BillingLifecycle />
-                                    <TestimonyFeedProvider><HymnsContextProvider>
+                                    <PrayerSessionProvider><TestimonyFeedProvider><HymnsContextProvider>
                                         <AppAuthGatekeeper>
                                             <main>
                                                 {children}
                                             </main>
                                         </AppAuthGatekeeper>
-                                    </HymnsContextProvider></TestimonyFeedProvider>
+                                    </HymnsContextProvider></TestimonyFeedProvider></PrayerSessionProvider>
                                 </UserContextProvider>
                             </LanguageProvider>
                         </ThemeProvider>

@@ -8,6 +8,7 @@ final class PrayerBridgeViewController: CAPBridgeViewController {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(PrayerNotificationsPlugin())
         bridge?.registerPluginInstance(PrayerBackupPlugin())
+        bridge?.registerPluginInstance(PrayerStoragePlugin())
     }
 }
 

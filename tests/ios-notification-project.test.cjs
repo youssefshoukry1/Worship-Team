@@ -70,6 +70,8 @@ test('automatic backup sources are included in the app and background processing
   const sources = targetFiles(app[1], 'PBXSourcesBuildPhase').map(file => objects.PBXFileReference[file.fileRef]?.path?.replace(/^"|"$/g, ''));
   assert.ok(sources.includes('PrayerBackupPlugin.swift'));
   assert.ok(sources.includes('PrayerBackupArchive.swift'));
+  assert.ok(sources.includes('PrayerStoragePlugin.swift'));
+  assert.match(fs.readFileSync(path.join(root, 'App/PrayerBridgeViewController.swift'), 'utf8'), /registerPluginInstance\(PrayerStoragePlugin\(\)\)/);
   const info = readPlist('App/Info.plist');
   assert.ok(info.UIBackgroundModes.includes('processing'));
   assert.ok(info.BGTaskSchedulerPermittedIdentifiers.includes('com.wasla.wasla.prayerbackup'));

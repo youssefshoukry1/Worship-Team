@@ -75,9 +75,23 @@ async function setup(t, engine, { href = '/', platform = 'ios', authenticated = 
     window.addEventListener('taspe7:home-refresh', () => window.__refreshes++);
     if (platform === 'web') return;
     window.CapacitorCustomPlatform = { name: platform };
+    const files = new Map();
     window.Capacitor = {
-      PluginHeaders: [{ name: 'App', methods: [{ name: 'exitApp', rtype: 'promise' }, { name: 'getLaunchUrl', rtype: 'promise' }] }],
-      async nativePromise(plugin, method) { if (method === 'exitApp') window.__exits++; return {}; },
+      PluginHeaders: [{ name: 'App', methods: [{ name: 'exitApp', rtype: 'promise' }, { name: 'getLaunchUrl', rtype: 'promise' }] },
+        { name: 'Filesystem', methods: ['readFile', 'writeFile', 'deleteFile', 'getUri'].map(name => ({ name, rtype: 'promise' })) }],
+      async nativePromise(plugin, method, options) {
+        if (method === 'exitApp') window.__exits++;
+        if (plugin === 'Filesystem') {
+          if (method === 'readFile') {
+            if (!files.has(options.path)) throw Object.assign(new Error('File does not exist'), { code: 'OS-PLUG-FILE-0008' });
+            return { data: files.get(options.path) };
+          }
+          if (method === 'writeFile') files.set(options.path, options.data);
+          if (method === 'deleteFile') files.delete(options.path);
+          if (method === 'getUri') return { uri: 'file:///' + options.path };
+        }
+        return {};
+      },
     };
   }, platform);
   const initialReads = authenticated && ['/', '/index.html', '/pray/', '/pray/index.html'].includes(href)
