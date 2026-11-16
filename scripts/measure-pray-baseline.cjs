@@ -9,7 +9,7 @@ const { execFileSync } = require('node:child_process');
 const { performance } = require('node:perf_hooks');
 const assert = require('node:assert/strict');
 const { start, stop, setup } = require('../tests/helpers/swipe-browser.cjs');
-const destination = path.resolve(__dirname, '../performance/pray-mission-1-baseline.json');
+const destination = path.resolve(__dirname, '../performance', process.env.PRAY_REPORT || 'pray-mission-1-baseline.json');
 const counts = (process.env.PRAY_COUNTS || '10,100,500,2000').split(',').map(Number);
 const percentile = (values, fraction) => [...values].sort((a, b) => a - b)[Math.max(0, Math.ceil(values.length * fraction) - 1)] || 0;
 function fixture(count) {
@@ -84,10 +84,21 @@ async function traverse(page) {
   for (; steps < 600; steps++) {
     const done = await page.evaluate(() => { window.scrollBy(0, 700); return scrollY + innerHeight >= document.documentElement.scrollHeight - 3; });
     await page.waitForTimeout(25);
-    if (done) break;
+    if (done) {
+      if (process.env.PRAY_FULL_TRAVERSAL) {
+        const more = page.getByRole('button', { name: 'Load 10 more', exact: true });
+        if (await more.count()) { await more.click(); await page.waitForTimeout(50); continue; }
+        // Measured rows can move the true end after the scroll event's snapshot.
+        const reachedEnd = await page.evaluate(() => [...document.querySelectorAll('[data-prayer-row]')].some(row => row.getAttribute('aria-posinset') === row.getAttribute('aria-setsize')));
+        if (!reachedEnd) continue;
+      }
+      break;
+    }
   }
   await page.waitForTimeout(250);
-  return { steps: steps + 1, capped: steps === 600 };
+  const coverage = await page.evaluate(() => ({ loaded: Number(document.querySelector('[data-prayer-list]')?.dataset.loadedPrayers || 0), total: Number(document.querySelector('[data-prayer-row]')?.getAttribute('aria-setsize') || 0), lastMounted: Math.max(0, ...[...document.querySelectorAll('[data-prayer-row]')].map(row => Number(row.getAttribute('aria-posinset')))) }));
+  if (process.env.PRAY_FULL_TRAVERSAL) { assert.equal(coverage.loaded, coverage.total); assert.equal(coverage.lastMounted, coverage.total); }
+  return { steps: steps + 1, capped: steps === 600, ...coverage };
 }
 async function swipe(page, cdp, commit) {
   await page.evaluate(() => scrollTo(0, 0));
@@ -139,12 +150,14 @@ async function swipe(page, cdp, commit) {
         await page.locator('[data-tab-panel="/bible_form"][data-tab-active="true"]').waitFor();
         await page.locator('nav[aria-label="Primary navigation"] a[href^="/friends"]').click(); await page.waitForTimeout(400); scenario.onFriends = await snapshot(page, cdp);
         await page.locator('nav[aria-label="Primary navigation"] a[href^="/pray"]').click(); await page.waitForTimeout(400); scenario.returned = await snapshot(page, cdp);
+        if (process.env.PRAY_PROFILE) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.start'); }
         scenario.phases.repeatedNavigation = await measure(page, async () => {
           for (let i = 0; i < 3; i++) {
             await page.locator('nav[aria-label="Primary navigation"] a[href^="/friends"]').click(); await page.waitForTimeout(250);
             await page.locator('nav[aria-label="Primary navigation"] a[href^="/pray"]').click(); await page.waitForTimeout(250);
           }
         });
+        if (process.env.PRAY_PROFILE) { const { profile } = await cdp.send('Profiler.stop'); fs.writeFileSync(destination.replace(/\.json$/, `-${count}.cpuprofile`), JSON.stringify(profile)); }
         scenario.afterRepeatedNavigation = await snapshot(page, cdp);
         scenario.errors = errors; assert.deepEqual(errors, []);
         scenario.status = 'complete'; console.log(`Measured ${count} prayers: ${scenario.initial.cards} -> ${scenario.afterCircle.cards} mounted cards`);

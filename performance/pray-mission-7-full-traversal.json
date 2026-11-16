@@ -1,0 +1,271 @@
+{
+  "measuredAt": "2026-11-16T23:31:04.890Z",
+  "revision": "c80e82a28fc1f9438ea036ce622d8b7482fc2aef",
+  "environment": {
+    "cpu": "12th Gen Intel(R) Core(TM) i5-12450H",
+    "platform": "win32",
+    "node": "v22.15.1",
+    "cpuThrottle": 4,
+    "browser": "145.0.7632.6"
+  },
+  "method": "Production static export; Chromium iPhone 13 emulation; real IndexedDB; synthetic fixtures and mocked APIs. Scroll is scripted 700px/25ms; horizontal gestures use trusted CDP touch. No physical-device, network, native-bridge, or React-profiler claims. DOM mutation records are not React commits. Heap is sampled without forced GC.",
+  "scenarios": [
+    {
+      "count": 2000,
+      "storage": [
+        {
+          "adapter": "mock localForage structured clone",
+          "coldMs": 16.437599999999975,
+          "warmPairsMs": 0.43499999999994543,
+          "warmReadCount": 0,
+          "updateMedianMs": 19.0462,
+          "updateP95Ms": 30.87519999999995,
+          "reads": 11,
+          "writes": 10,
+          "publications": 11
+        },
+        {
+          "adapter": "mock native JSON filesystem",
+          "coldMs": 15.819599999999923,
+          "warmPairsMs": 0.4230999999999767,
+          "warmReadCount": 0,
+          "updateMedianMs": 32.50949999999989,
+          "updateP95Ms": 38.84609999999998,
+          "reads": 11,
+          "writes": 10,
+          "publications": 11
+        }
+      ],
+      "phases": {
+        "journalScroll": {
+          "durationMs": 13878.40000000596,
+          "frames": 692,
+          "p95FrameGapMs": 33.399999999999636,
+          "p99FrameGapMs": 66.69999999999982,
+          "maxFrameGapMs": 116.59999999999991,
+          "frameGapsOver34ms": 19,
+          "longTasks": [
+            {
+              "start": 3388.2000000029802,
+              "duration": 58
+            },
+            {
+              "start": 4301.70000000298,
+              "duration": 53
+            },
+            {
+              "start": 6501.10000000149,
+              "duration": 53
+            },
+            {
+              "start": 8362.30000000447,
+              "duration": 50
+            },
+            {
+              "start": 8578.70000000298,
+              "duration": 70
+            },
+            {
+              "start": 12738.20000000298,
+              "duration": 71
+            }
+          ],
+          "domMutationRecords": 2085
+        },
+        "returnScroll": {
+          "durationMs": 829.5,
+          "frames": 47,
+          "p95FrameGapMs": 16.80000000000109,
+          "p99FrameGapMs": 33.20000000000073,
+          "maxFrameGapMs": 33.20000000000073,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 148
+        },
+        "circleScroll": {
+          "durationMs": 19155,
+          "frames": 1061,
+          "p95FrameGapMs": 33.29999999999927,
+          "p99FrameGapMs": 33.400000000001455,
+          "maxFrameGapMs": 83.30000000000291,
+          "frameGapsOver34ms": 5,
+          "longTasks": [
+            {
+              "start": 22296.5,
+              "duration": 60
+            },
+            {
+              "start": 22611.5,
+              "duration": 73
+            }
+          ],
+          "domMutationRecords": 2903
+        },
+        "replyTyping": {
+          "durationMs": 1364.3999999985099,
+          "frames": 78,
+          "p95FrameGapMs": 16.80000000000291,
+          "p99FrameGapMs": 33.299999999995634,
+          "maxFrameGapMs": 33.299999999995634,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 25
+        },
+        "externalUpdate": {
+          "durationMs": 437.70000000298023,
+          "frames": 24,
+          "p95FrameGapMs": 16.80000000000291,
+          "p99FrameGapMs": 33.30000000000291,
+          "maxFrameGapMs": 33.30000000000291,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 0
+        },
+        "cancelSwipe": {
+          "durationMs": 1303.2000000029802,
+          "frames": 77,
+          "p95FrameGapMs": 16.799999999995634,
+          "p99FrameGapMs": 16.80000000000291,
+          "maxFrameGapMs": 16.80000000000291,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 0
+        },
+        "commitSwipe": {
+          "durationMs": 1332.7999999970198,
+          "frames": 78,
+          "p95FrameGapMs": 16.799999999995634,
+          "p99FrameGapMs": 33.299999999995634,
+          "maxFrameGapMs": 33.299999999995634,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 14
+        },
+        "repeatedNavigation": {
+          "durationMs": 2086.2000000029802,
+          "frames": 118,
+          "p95FrameGapMs": 16.799999999995634,
+          "p99FrameGapMs": 50,
+          "maxFrameGapMs": 66.59999999999854,
+          "frameGapsOver34ms": 3,
+          "longTasks": [
+            {
+              "start": 42689.30000000447,
+              "duration": 57
+            },
+            {
+              "start": 43377.89999999851,
+              "duration": 59
+            },
+            {
+              "start": 44086.5,
+              "duration": 51
+            }
+          ],
+          "domMutationRecords": 78
+        }
+      },
+      "openToCardMs": 1481.0910999999999,
+      "initial": {
+        "rows": 1,
+        "cards": 1,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 321,
+        "storage": {
+          "indexReads": 2,
+          "indexWrites": 0,
+          "audioReads": 0
+        },
+        "heapUsedBytes": 19516236
+      },
+      "journalTraversal": {
+        "steps": 178,
+        "capped": false,
+        "loaded": 667,
+        "total": 667,
+        "lastMounted": 667
+      },
+      "afterJournal": {
+        "rows": 4,
+        "cards": 4,
+        "audioElements": 0,
+        "waveformCanvases": 4,
+        "panels": 2,
+        "elements": 359,
+        "storage": {
+          "indexReads": 2,
+          "indexWrites": 0,
+          "audioReads": 224
+        },
+        "heapUsedBytes": 20181084
+      },
+      "circleTraversal": {
+        "steps": 82,
+        "capped": false,
+        "loaded": 1333,
+        "total": 1333,
+        "lastMounted": 1333
+      },
+      "afterCircle": {
+        "rows": 8,
+        "cards": 8,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 452,
+        "storage": {
+          "indexReads": 2,
+          "indexWrites": 0,
+          "audioReads": 246
+        },
+        "heapUsedBytes": 19245860
+      },
+      "onFriends": {
+        "rows": 0,
+        "cards": 0,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 3,
+        "elements": 416,
+        "storage": {
+          "indexReads": 5,
+          "indexWrites": 2,
+          "audioReads": 246
+        },
+        "heapUsedBytes": 23047824
+      },
+      "returned": {
+        "rows": 1,
+        "cards": 1,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 396,
+        "storage": {
+          "indexReads": 5,
+          "indexWrites": 2,
+          "audioReads": 246
+        },
+        "heapUsedBytes": 13013044
+      },
+      "afterRepeatedNavigation": {
+        "rows": 1,
+        "cards": 1,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 396,
+        "storage": {
+          "indexReads": 5,
+          "indexWrites": 2,
+          "audioReads": 246
+        },
+        "heapUsedBytes": 16350800
+      },
+      "errors": [],
+      "status": "complete"
+    }
+  ]
+}

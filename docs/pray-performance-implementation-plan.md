@@ -1,12 +1,12 @@
 # Pray performance implementation plan
 
 Date: 16 November 2026  
-Status: Missions 1–4 and 5A complete; 5B implemented. Missions 6 and 6A locally verified with documented platform/service gaps. Paused before Mission 6B (bounded inbox transport/ingestion); final comparison remains Mission 7.  
+Status: Missions 1-7, including 5B/6A/6B, implemented and locally verified. Physical-device, iOS and deployed-service release gates remain external; no deployment performed.
 Reviewed revisions: frontend `b058331`, backend `51ff3af`.
 
 ## Working agreement
 
-The user requested a staged implementation with a pause after one or two steps.
+The user originally requested staged pauses. On 17 November 2026, "make it all to be all finished" authorized the remaining missions without intermediate approval. Historical pause instructions below record the original plan and no longer block completion.
 
 - Each numbered mission below is one implementation step.
 - Complete the mission's verification and update this file before marking it done.
@@ -119,7 +119,7 @@ Anonymity masks sender information in the recipient payload/UI. The backend stil
 
 ### Mission 1 — Establish a reproducible baseline
 
-Status: [x] Complete in the available environment; real-device and React-profiler gaps documented.  
+Status: [x] Complete in the available environment; real-device and React-profiler gaps documented.
 Dependency: user authorized Mission 1 with “make it”.
 
 - Create production-mode scenarios with 10, 100, 500, and 2,000 synthetic prayers: mixed personal/sent/received, long text, multiple sections, unread replies, and recordings.
@@ -136,7 +136,7 @@ Exit: baseline is reproducible and the biggest costs are identified or clearly m
 
 ### Mission 2 — Separate state and resource ownership
 
-Status: [x] Complete  
+Status: [x] Complete
 Dependency: Mission 1.
 
 - Extract composer, share picker, list/card presentation, and settings responsibilities incrementally; keep existing storage APIs and layout.
@@ -151,7 +151,7 @@ Delivered: account-scoped transient session with field subscriptions, persistent
 
 ### Mission 3 — Implement batches of ten with bounded rendering
 
-Status: [x] Complete  
+Status: [x] Complete
 Dependency: Mission 2.
 
 Evidence: [Mission 3 report](../performance/pray-mission-3-report.md). Production build passed; 126/126 combined checks passed. Full traversal reached 2,000 unique prayers with at most 16 mounted cards in the browser fixture. Physical-device profiling remains outstanding.
@@ -168,7 +168,7 @@ Exit: mounted cards remain bounded after traversing 2,000 items; no skipped/dupl
 
 ### Mission 4 — Release hidden UI and coordinate navigation work
 
-Status: [x] Complete  
+Status: [x] Complete
 Dependencies: Missions 2–3.
 
 Evidence: [Mission 4 report](../performance/pray-mission-4-report.md). Production build and lint passed. Combined checks passed 132/133; the remaining fixture failed during clock setup, was corrected, and its two-test lifecycle suite passed. Pager retention, hidden settings work and navigation-time view publication are now bounded.
@@ -183,7 +183,7 @@ Exit: mounted views/resources return to a stable bound after repeated navigation
 
 ### Mission 5 — Make storage updates safer and cheaper
 
-Status: [ ] Implementation complete (5A + 5B); native platform validation remains partial.  
+Status: [x] Implementation complete (5A + 5B); native platform validation remains partial.
 Dependency: baseline evidence; may run before Mission 4 if storage is the dominant measured cost, after updating this plan.
 
 Mission 5A evidence: [report](../performance/pray-mission-5-report.md), build/lint passed, **145/145 checks passed**. Batched repair of 100 entries in a 2,000-prayer fixture reduced index reads/writes/publications from 100 each to 1 each. Warm reads remain cached. Native partial-write fault injection confirms the remaining disk-corruption risk; no native atomicity claim is made.
@@ -201,7 +201,7 @@ Exit: both adapter suites prove failed reads/writes cannot erase history or publ
 
 ### Mission 6 — Verify delivery, restore, and native compatibility
 
-Status: [x] Available local verification completed; iOS/device and live-service validation remain open.  
+Status: [x] Available local verification completed; iOS/device and live-service validation remain open.
 Dependencies: Missions 3–5.
 
 Evidence: [Mission 6 report](../performance/pray-mission-6-report.md). Web build/lint passed, Android 15/15, backend mocked checks 31/31, combined frontend 164/165 with a separately corrected/rechecked trusted-touch timing test. Actual Android archive imported and round-tripped through JavaScript; iOS STORE fixture is synthetic only. Fixed silent missing-audio omission in web backup/restore. No live-service or physical-device compatibility claim.
@@ -217,18 +217,18 @@ Exit: results distinguish unit mocks, browser integration, backend integration, 
 
 ### Proposed Missions 6A / 6B — Bound remaining transfer work
 
-Status: [x] 6A implemented and locally verified. [ ] 6B awaits user continuation.
+Status: [x] 6A and [x] 6B implemented and locally verified. See [Mission 6B evidence](../performance/pray-mission-6b-report.md).
 
 See the [focused follow-up plan](pray-transfer-follow-up-plan.md). At 2,000 synthetic entries, isolated desktop Chromium backup/restore work delayed a timer by 106/100.4 ms and inbox merge by 51.3 ms. These are diagnostic timings, not mobile measurements.
 
 - **6A:** complete locally: worker-based web ZIP/manifest processing, compatibility/failure/cancellation tests and cooperative restore transactions. [Report](../performance/pray-mission-6a-report.md): build/lint passed, 173/173 combined checks and final targeted restore recheck; Chromium/WebKit actual-worker diagnostics passed. Device validation remains open.
-- **6B:** backward-compatible bounded inbox transport/ingestion, stable cursors and acknowledgement-safe retries; review the protocol before implementing. Pause afterward.
+- **6B:** complete locally: backward-compatible descriptor pages, stable cursors, streamed payload workers, independent notification targets and acknowledgement-safe retries. Backend 41/41; frontend 181/181 plus the added v2 browser case. See the implemented protocol contract.
 
 Recommend these before Mission 7's final comparison. Carry native-device/iOS/live-service gates forward separately.
 
 ### Mission 7 — Final performance comparison and cleanup
 
-Status: [ ] Not started  
+Status: [x] Local comparison and cleanup completed. See [Mission 7 report](../performance/pray-mission-7-report.md); external release gates remain documented.
 Dependencies: Missions 1–6.
 
 - Repeat the identical production baseline scenarios; report before/after frame distributions, long tasks, DOM/player counts and storage work.
@@ -292,3 +292,6 @@ Reuse `tests/prayer-notification-opening.browser.cjs`, `tests/primary-tab-swipe.
 | 2026-11-17 | Mission 5B | Implemented; platform validation partial | Atomic native bridge, shared backup readers and bounded conflict retries. Web/Android builds and lint passed; 158/158 combined checks and 14/14 Android tests passed. iOS build and physical-device fault/restart tests remain open. Paused for user continuation before Mission 6. |
 | 2026-11-17 | Mission 6 | Available local verification complete; platform/service gaps open | Fixed incomplete web archives; two-client delivery/restore tests; actual Android archive import. Build/lint passed; Android 15/15, backend mocks 31/31, frontend 164/165 plus corrected swipe suite 22/22. Measured ZIP/inbox stalls; proposed 6A/6B follow-ups. Await user continuation for recommended Mission 6A. |
 | 2026-11-17 | Mission 6A | Implemented; desktop verification complete | Archive worker, transferred buffers, bounded lifetime/cancellation, yielded restore phases. Build/lint and 173/173 regression checks passed; final scheduling refinement rechecked in production backup/restore scenarios. Final diagnostic timer gaps under 50 ms for tested text/audio cases; real devices remain open. Paused before Mission 6B. |
+
+| 2026-11-17 | Mission 6B | Implemented and locally verified | Indexed pages of ten; streamed payload workers; notification priority; durable acknowledgement. Build/lint, frontend 181/181 plus v2 browser case, backend 41/41. |
+| 2026-11-17 | Mission 7 | Local comparison and documentation complete | Original 10/100/500/2,000 baseline scenarios repeated; supplemental navigation profile and full traversal. See final report for gains and residual frame spikes. Physical-device/iOS/deployed-service checks remain external release gates. |

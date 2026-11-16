@@ -1,0 +1,862 @@
+{
+  "measuredAt": "2026-11-16T23:25:53.987Z",
+  "revision": "c80e82a28fc1f9438ea036ce622d8b7482fc2aef",
+  "environment": {
+    "cpu": "12th Gen Intel(R) Core(TM) i5-12450H",
+    "platform": "win32",
+    "node": "v22.15.1",
+    "cpuThrottle": 4,
+    "browser": "145.0.7632.6"
+  },
+  "method": "Production static export; Chromium iPhone 13 emulation; real IndexedDB; synthetic fixtures and mocked APIs. Scroll is scripted 700px/25ms; horizontal gestures use trusted CDP touch. No physical-device, network, native-bridge, or React-profiler claims. DOM mutation records are not React commits. Heap is sampled without forced GC.",
+  "scenarios": [
+    {
+      "count": 10,
+      "storage": [
+        {
+          "adapter": "mock localForage structured clone",
+          "coldMs": 1.4536999999999125,
+          "warmPairsMs": 0.6937999999998965,
+          "warmReadCount": 0,
+          "updateMedianMs": 0.3692999999999529,
+          "updateP95Ms": 1.0588999999999942,
+          "reads": 11,
+          "writes": 10,
+          "publications": 11
+        },
+        {
+          "adapter": "mock native JSON filesystem",
+          "coldMs": 0.7604000000000042,
+          "warmPairsMs": 0.8292999999999893,
+          "warmReadCount": 0,
+          "updateMedianMs": 0.3342999999999847,
+          "updateP95Ms": 0.8479999999999563,
+          "reads": 11,
+          "writes": 10,
+          "publications": 11
+        }
+      ],
+      "phases": {
+        "journalScroll": {
+          "durationMs": 446.20000000298023,
+          "frames": 8,
+          "p95FrameGapMs": 33.40000000000009,
+          "p99FrameGapMs": 33.40000000000009,
+          "maxFrameGapMs": 33.40000000000009,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 5
+        },
+        "returnScroll": {
+          "durationMs": 649,
+          "frames": 38,
+          "p95FrameGapMs": 16.700000000000273,
+          "p99FrameGapMs": 16.800000000000182,
+          "maxFrameGapMs": 16.800000000000182,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 3
+        },
+        "circleScroll": {
+          "durationMs": 329.59999999403954,
+          "frames": 20,
+          "p95FrameGapMs": 16.700000000000273,
+          "p99FrameGapMs": 16.799999999999727,
+          "maxFrameGapMs": 16.799999999999727,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 3
+        },
+        "replyTyping": {
+          "durationMs": 1277,
+          "frames": 76,
+          "p95FrameGapMs": 16.700000000000728,
+          "p99FrameGapMs": 16.800000000000182,
+          "maxFrameGapMs": 16.800000000000182,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 25
+        },
+        "externalUpdate": {
+          "durationMs": 421.30000000447035,
+          "frames": 25,
+          "p95FrameGapMs": 16.700000000000728,
+          "p99FrameGapMs": 16.800000000000182,
+          "maxFrameGapMs": 16.800000000000182,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 0
+        },
+        "cancelSwipe": {
+          "durationMs": 1315.1000000014901,
+          "frames": 78,
+          "p95FrameGapMs": 16.700000000000728,
+          "p99FrameGapMs": 16.800000000000182,
+          "maxFrameGapMs": 16.800000000000182,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 0
+        },
+        "commitSwipe": {
+          "durationMs": 1313.2000000029802,
+          "frames": 77,
+          "p95FrameGapMs": 16.799999999999272,
+          "p99FrameGapMs": 33.29999999999927,
+          "maxFrameGapMs": 33.29999999999927,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 14
+        },
+        "repeatedNavigation": {
+          "durationMs": 2052.10000000149,
+          "frames": 116,
+          "p95FrameGapMs": 16.80000000000109,
+          "p99FrameGapMs": 50,
+          "maxFrameGapMs": 50,
+          "frameGapsOver34ms": 2,
+          "longTasks": [
+            {
+              "start": 10093.20000000298,
+              "duration": 57
+            },
+            {
+              "start": 10787.90000000596,
+              "duration": 52
+            }
+          ],
+          "domMutationRecords": 72
+        }
+      },
+      "openToCardMs": 1394.6806000000001,
+      "initial": {
+        "rows": 1,
+        "cards": 1,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 321,
+        "storage": {
+          "indexReads": 2,
+          "indexWrites": 0,
+          "audioReads": 0
+        },
+        "heapUsedBytes": 8349820
+      },
+      "journalTraversal": {
+        "steps": 3,
+        "capped": false
+      },
+      "afterJournal": {
+        "rows": 4,
+        "cards": 4,
+        "audioElements": 0,
+        "waveformCanvases": 4,
+        "panels": 2,
+        "elements": 359,
+        "storage": {
+          "indexReads": 2,
+          "indexWrites": 0,
+          "audioReads": 2
+        },
+        "heapUsedBytes": 9449256
+      },
+      "circleTraversal": {
+        "steps": 2,
+        "capped": false
+      },
+      "afterCircle": {
+        "rows": 6,
+        "cards": 6,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 416,
+        "storage": {
+          "indexReads": 2,
+          "indexWrites": 0,
+          "audioReads": 2
+        },
+        "heapUsedBytes": 9419880
+      },
+      "onFriends": {
+        "rows": 0,
+        "cards": 0,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 3,
+        "elements": 419,
+        "storage": {
+          "indexReads": 5,
+          "indexWrites": 2,
+          "audioReads": 2
+        },
+        "heapUsedBytes": 9745596
+      },
+      "returned": {
+        "rows": 1,
+        "cards": 1,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 396,
+        "storage": {
+          "indexReads": 5,
+          "indexWrites": 2,
+          "audioReads": 2
+        },
+        "heapUsedBytes": 10652392
+      },
+      "afterRepeatedNavigation": {
+        "rows": 1,
+        "cards": 1,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 396,
+        "storage": {
+          "indexReads": 5,
+          "indexWrites": 2,
+          "audioReads": 2
+        },
+        "heapUsedBytes": 11593168
+      },
+      "errors": [],
+      "status": "complete"
+    },
+    {
+      "count": 100,
+      "storage": [
+        {
+          "adapter": "mock localForage structured clone",
+          "coldMs": 0.8014000000002852,
+          "warmPairsMs": 0.12550000000010186,
+          "warmReadCount": 0,
+          "updateMedianMs": 0.9012999999995372,
+          "updateP95Ms": 1.6898000000001048,
+          "reads": 11,
+          "writes": 10,
+          "publications": 11
+        },
+        {
+          "adapter": "mock native JSON filesystem",
+          "coldMs": 0.9498999999996158,
+          "warmPairsMs": 0.11180000000058499,
+          "warmReadCount": 0,
+          "updateMedianMs": 1.5650000000005093,
+          "updateP95Ms": 3.7679000000007363,
+          "reads": 11,
+          "writes": 10,
+          "publications": 11
+        }
+      ],
+      "phases": {
+        "journalScroll": {
+          "durationMs": 1163.6000000014901,
+          "frames": 59,
+          "p95FrameGapMs": 33.30000000000018,
+          "p99FrameGapMs": 50,
+          "maxFrameGapMs": 50,
+          "frameGapsOver34ms": 1,
+          "longTasks": [],
+          "domMutationRecords": 130
+        },
+        "returnScroll": {
+          "durationMs": 851.8999999985099,
+          "frames": 45,
+          "p95FrameGapMs": 33.29999999999973,
+          "p99FrameGapMs": 50,
+          "maxFrameGapMs": 50,
+          "frameGapsOver34ms": 1,
+          "longTasks": [],
+          "domMutationRecords": 109
+        },
+        "circleScroll": {
+          "durationMs": 594.2000000029802,
+          "frames": 32,
+          "p95FrameGapMs": 33.30000000000018,
+          "p99FrameGapMs": 33.399999999999636,
+          "maxFrameGapMs": 33.399999999999636,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 60
+        },
+        "replyTyping": {
+          "durationMs": 1249,
+          "frames": 74,
+          "p95FrameGapMs": 16.699999999999818,
+          "p99FrameGapMs": 16.700000000000728,
+          "maxFrameGapMs": 16.700000000000728,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 25
+        },
+        "externalUpdate": {
+          "durationMs": 424.6000000014901,
+          "frames": 25,
+          "p95FrameGapMs": 16.700000000000728,
+          "p99FrameGapMs": 16.800000000000182,
+          "maxFrameGapMs": 16.800000000000182,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 0
+        },
+        "cancelSwipe": {
+          "durationMs": 1319.5,
+          "frames": 78,
+          "p95FrameGapMs": 16.700000000000728,
+          "p99FrameGapMs": 16.800000000000182,
+          "maxFrameGapMs": 16.800000000000182,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 0
+        },
+        "commitSwipe": {
+          "durationMs": 1291.5,
+          "frames": 75,
+          "p95FrameGapMs": 16.80000000000109,
+          "p99FrameGapMs": 33.30000000000109,
+          "maxFrameGapMs": 33.30000000000109,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 14
+        },
+        "repeatedNavigation": {
+          "durationMs": 2082.3000000044703,
+          "frames": 118,
+          "p95FrameGapMs": 16.799999999999272,
+          "p99FrameGapMs": 50,
+          "maxFrameGapMs": 50,
+          "frameGapsOver34ms": 3,
+          "longTasks": [
+            {
+              "start": 12568.69999999553,
+              "duration": 50
+            }
+          ],
+          "domMutationRecords": 78
+        }
+      },
+      "openToCardMs": 1475.7410999999993,
+      "initial": {
+        "rows": 1,
+        "cards": 1,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 321,
+        "storage": {
+          "indexReads": 2,
+          "indexWrites": 0,
+          "audioReads": 0
+        },
+        "heapUsedBytes": 9135324
+      },
+      "journalTraversal": {
+        "steps": 20,
+        "capped": false
+      },
+      "afterJournal": {
+        "rows": 4,
+        "cards": 4,
+        "audioElements": 0,
+        "waveformCanvases": 4,
+        "panels": 2,
+        "elements": 359,
+        "storage": {
+          "indexReads": 2,
+          "indexWrites": 0,
+          "audioReads": 18
+        },
+        "heapUsedBytes": 12274476
+      },
+      "circleTraversal": {
+        "steps": 8,
+        "capped": false
+      },
+      "afterCircle": {
+        "rows": 13,
+        "cards": 13,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 541,
+        "storage": {
+          "indexReads": 2,
+          "indexWrites": 0,
+          "audioReads": 32
+        },
+        "heapUsedBytes": 10802516
+      },
+      "onFriends": {
+        "rows": 0,
+        "cards": 0,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 3,
+        "elements": 416,
+        "storage": {
+          "indexReads": 5,
+          "indexWrites": 2,
+          "audioReads": 32
+        },
+        "heapUsedBytes": 10149084
+      },
+      "returned": {
+        "rows": 1,
+        "cards": 1,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 396,
+        "storage": {
+          "indexReads": 5,
+          "indexWrites": 2,
+          "audioReads": 32
+        },
+        "heapUsedBytes": 10233492
+      },
+      "afterRepeatedNavigation": {
+        "rows": 1,
+        "cards": 1,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 396,
+        "storage": {
+          "indexReads": 5,
+          "indexWrites": 2,
+          "audioReads": 32
+        },
+        "heapUsedBytes": 11442600
+      },
+      "errors": [],
+      "status": "complete"
+    },
+    {
+      "count": 500,
+      "storage": [
+        {
+          "adapter": "mock localForage structured clone",
+          "coldMs": 3.021199999999226,
+          "warmPairsMs": 0.08519999999771244,
+          "warmReadCount": 0,
+          "updateMedianMs": 5.271199999999226,
+          "updateP95Ms": 6.9452000000019325,
+          "reads": 11,
+          "writes": 10,
+          "publications": 11
+        },
+        {
+          "adapter": "mock native JSON filesystem",
+          "coldMs": 4.280900000001566,
+          "warmPairsMs": 0.08489999999801512,
+          "warmReadCount": 0,
+          "updateMedianMs": 7.7642999999989115,
+          "updateP95Ms": 10.15280000000348,
+          "reads": 11,
+          "writes": 10,
+          "publications": 11
+        }
+      ],
+      "phases": {
+        "journalScroll": {
+          "durationMs": 1455.3000000044703,
+          "frames": 49,
+          "p95FrameGapMs": 50,
+          "p99FrameGapMs": 66.59999999999991,
+          "maxFrameGapMs": 66.59999999999991,
+          "frameGapsOver34ms": 4,
+          "longTasks": [],
+          "domMutationRecords": 132
+        },
+        "returnScroll": {
+          "durationMs": 928.8999999985099,
+          "frames": 43,
+          "p95FrameGapMs": 33.40000000000009,
+          "p99FrameGapMs": 50,
+          "maxFrameGapMs": 50,
+          "frameGapsOver34ms": 1,
+          "longTasks": [],
+          "domMutationRecords": 125
+        },
+        "circleScroll": {
+          "durationMs": 487.8999999985099,
+          "frames": 27,
+          "p95FrameGapMs": 33.399999999999636,
+          "p99FrameGapMs": 33.399999999999636,
+          "maxFrameGapMs": 33.399999999999636,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 46
+        },
+        "replyTyping": {
+          "durationMs": 1259.6999999955297,
+          "frames": 75,
+          "p95FrameGapMs": 16.800000000000182,
+          "p99FrameGapMs": 16.800000000000182,
+          "maxFrameGapMs": 16.800000000000182,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 25
+        },
+        "externalUpdate": {
+          "durationMs": 435.70000000298023,
+          "frames": 25,
+          "p95FrameGapMs": 16.700000000000728,
+          "p99FrameGapMs": 16.700000000000728,
+          "maxFrameGapMs": 16.700000000000728,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 0
+        },
+        "cancelSwipe": {
+          "durationMs": 1271.1999999955297,
+          "frames": 76,
+          "p95FrameGapMs": 16.800000000000182,
+          "p99FrameGapMs": 16.800000000000182,
+          "maxFrameGapMs": 16.800000000000182,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 0
+        },
+        "commitSwipe": {
+          "durationMs": 1324.0999999940395,
+          "frames": 77,
+          "p95FrameGapMs": 16.80000000000109,
+          "p99FrameGapMs": 33.29999999999927,
+          "maxFrameGapMs": 33.29999999999927,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 14
+        },
+        "repeatedNavigation": {
+          "durationMs": 2055.10000000149,
+          "frames": 116,
+          "p95FrameGapMs": 16.80000000000109,
+          "p99FrameGapMs": 50.100000000000364,
+          "maxFrameGapMs": 66.60000000000036,
+          "frameGapsOver34ms": 2,
+          "longTasks": [
+            {
+              "start": 11452.39999999851,
+              "duration": 56
+            }
+          ],
+          "domMutationRecords": 78
+        }
+      },
+      "openToCardMs": 1390.4795999999988,
+      "initial": {
+        "rows": 1,
+        "cards": 1,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 321,
+        "storage": {
+          "indexReads": 2,
+          "indexWrites": 0,
+          "audioReads": 0
+        },
+        "heapUsedBytes": 10661772
+      },
+      "journalTraversal": {
+        "steps": 23,
+        "capped": false
+      },
+      "afterJournal": {
+        "rows": 6,
+        "cards": 6,
+        "audioElements": 0,
+        "waveformCanvases": 4,
+        "panels": 2,
+        "elements": 381,
+        "storage": {
+          "indexReads": 2,
+          "indexWrites": 0,
+          "audioReads": 20
+        },
+        "heapUsedBytes": 12588932
+      },
+      "circleTraversal": {
+        "steps": 5,
+        "capped": false
+      },
+      "afterCircle": {
+        "rows": 13,
+        "cards": 13,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 541,
+        "storage": {
+          "indexReads": 2,
+          "indexWrites": 0,
+          "audioReads": 36
+        },
+        "heapUsedBytes": 11603356
+      },
+      "onFriends": {
+        "rows": 0,
+        "cards": 0,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 3,
+        "elements": 416,
+        "storage": {
+          "indexReads": 5,
+          "indexWrites": 2,
+          "audioReads": 36
+        },
+        "heapUsedBytes": 12062856
+      },
+      "returned": {
+        "rows": 1,
+        "cards": 1,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 396,
+        "storage": {
+          "indexReads": 5,
+          "indexWrites": 2,
+          "audioReads": 36
+        },
+        "heapUsedBytes": 11177188
+      },
+      "afterRepeatedNavigation": {
+        "rows": 1,
+        "cards": 1,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 396,
+        "storage": {
+          "indexReads": 5,
+          "indexWrites": 2,
+          "audioReads": 36
+        },
+        "heapUsedBytes": 12008704
+      },
+      "errors": [],
+      "status": "complete"
+    },
+    {
+      "count": 2000,
+      "storage": [
+        {
+          "adapter": "mock localForage structured clone",
+          "coldMs": 10.146200000002864,
+          "warmPairsMs": 0.08899999999994179,
+          "warmReadCount": 0,
+          "updateMedianMs": 19.180599999999686,
+          "updateP95Ms": 25.259400000002643,
+          "reads": 11,
+          "writes": 10,
+          "publications": 11
+        },
+        {
+          "adapter": "mock native JSON filesystem",
+          "coldMs": 16.889000000002852,
+          "warmPairsMs": 0.0852999999988242,
+          "warmReadCount": 0,
+          "updateMedianMs": 28.909299999999348,
+          "updateP95Ms": 38.607300000003306,
+          "reads": 11,
+          "writes": 10,
+          "publications": 11
+        }
+      ],
+      "phases": {
+        "journalScroll": {
+          "durationMs": 1381.9000000059605,
+          "frames": 62,
+          "p95FrameGapMs": 50,
+          "p99FrameGapMs": 183.30000000000018,
+          "maxFrameGapMs": 183.30000000000018,
+          "frameGapsOver34ms": 4,
+          "longTasks": [],
+          "domMutationRecords": 154
+        },
+        "returnScroll": {
+          "durationMs": 829.6000000014901,
+          "frames": 49,
+          "p95FrameGapMs": 16.700000000000273,
+          "p99FrameGapMs": 16.799999999999727,
+          "maxFrameGapMs": 16.799999999999727,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 134
+        },
+        "circleScroll": {
+          "durationMs": 549.6000000014901,
+          "frames": 28,
+          "p95FrameGapMs": 33.30000000000018,
+          "p99FrameGapMs": 33.399999999999636,
+          "maxFrameGapMs": 33.399999999999636,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 49
+        },
+        "replyTyping": {
+          "durationMs": 1307.3999999985099,
+          "frames": 76,
+          "p95FrameGapMs": 16.800000000000182,
+          "p99FrameGapMs": 50,
+          "maxFrameGapMs": 50,
+          "frameGapsOver34ms": 1,
+          "longTasks": [],
+          "domMutationRecords": 25
+        },
+        "externalUpdate": {
+          "durationMs": 452,
+          "frames": 26,
+          "p95FrameGapMs": 16.800000000000182,
+          "p99FrameGapMs": 33.30000000000018,
+          "maxFrameGapMs": 33.30000000000018,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 0
+        },
+        "cancelSwipe": {
+          "durationMs": 1338.7999999970198,
+          "frames": 79,
+          "p95FrameGapMs": 16.799999999999272,
+          "p99FrameGapMs": 16.800000000000182,
+          "maxFrameGapMs": 16.800000000000182,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 0
+        },
+        "commitSwipe": {
+          "durationMs": 1304.5999999940395,
+          "frames": 75,
+          "p95FrameGapMs": 16.799999999999272,
+          "p99FrameGapMs": 33.29999999999927,
+          "maxFrameGapMs": 33.29999999999927,
+          "frameGapsOver34ms": 0,
+          "longTasks": [],
+          "domMutationRecords": 14
+        },
+        "repeatedNavigation": {
+          "durationMs": 2076.5,
+          "frames": 115,
+          "p95FrameGapMs": 33.30000000000109,
+          "p99FrameGapMs": 50,
+          "maxFrameGapMs": 66.70000000000073,
+          "frameGapsOver34ms": 3,
+          "longTasks": [
+            {
+              "start": 11690.29999999702,
+              "duration": 61
+            },
+            {
+              "start": 12373.89999999851,
+              "duration": 57
+            },
+            {
+              "start": 13053.19999999553,
+              "duration": 60
+            }
+          ],
+          "domMutationRecords": 78
+        }
+      },
+      "openToCardMs": 1639.2551000000021,
+      "initial": {
+        "rows": 1,
+        "cards": 1,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 321,
+        "storage": {
+          "indexReads": 2,
+          "indexWrites": 0,
+          "audioReads": 0
+        },
+        "heapUsedBytes": 19468676
+      },
+      "journalTraversal": {
+        "steps": 22,
+        "capped": false
+      },
+      "afterJournal": {
+        "rows": 5,
+        "cards": 5,
+        "audioElements": 0,
+        "waveformCanvases": 4,
+        "panels": 2,
+        "elements": 402,
+        "storage": {
+          "indexReads": 2,
+          "indexWrites": 0,
+          "audioReads": 20
+        },
+        "heapUsedBytes": 19998560
+      },
+      "circleTraversal": {
+        "steps": 6,
+        "capped": false
+      },
+      "afterCircle": {
+        "rows": 12,
+        "cards": 12,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 524,
+        "storage": {
+          "indexReads": 2,
+          "indexWrites": 0,
+          "audioReads": 38
+        },
+        "heapUsedBytes": 17275312
+      },
+      "onFriends": {
+        "rows": 0,
+        "cards": 0,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 3,
+        "elements": 416,
+        "storage": {
+          "indexReads": 5,
+          "indexWrites": 2,
+          "audioReads": 38
+        },
+        "heapUsedBytes": 29077100
+      },
+      "returned": {
+        "rows": 1,
+        "cards": 1,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 396,
+        "storage": {
+          "indexReads": 5,
+          "indexWrites": 2,
+          "audioReads": 38
+        },
+        "heapUsedBytes": 32156204
+      },
+      "afterRepeatedNavigation": {
+        "rows": 1,
+        "cards": 1,
+        "audioElements": 0,
+        "waveformCanvases": 0,
+        "panels": 2,
+        "elements": 396,
+        "storage": {
+          "indexReads": 5,
+          "indexWrites": 2,
+          "audioReads": 38
+        },
+        "heapUsedBytes": 33016092
+      },
+      "errors": [],
+      "status": "complete"
+    }
+  ]
+}

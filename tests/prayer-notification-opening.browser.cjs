@@ -759,7 +759,7 @@ test('prayer circle defers new activity while typing on a throttled CPU and keep
   let inbox = [];
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => route.request().url().endsWith('/pray-time/inbox') ? route.fulfill({ json: { inbox } }) : mockPrayerApi(route, base));
+    await page.route('**/*', route => new URL(route.request().url()).pathname.endsWith('/pray-time/inbox') ? route.fulfill({ json: { inbox } }) : mockPrayerApi(route, base));
     await seed(page, Array.from({ length: 300 }, (_, i) => ({ ...received(String(i)), date: '2026-10-01T10:00:00Z' })));
     const session = await context.newCDPSession(page);
     await session.send('Emulation.setCPUThrottlingRate', { rate: 6 });
@@ -806,7 +806,7 @@ test('prayer circle reply notification waits for its payload before opening the 
   try {
     const page = await context.newPage();
     await page.route('**/*', async route => {
-      if (route.request().url().endsWith('/pray-time/sent-updates') && waitForReply) {
+      if (new URL(route.request().url()).pathname.endsWith('/pray-time/sent-updates') && waitForReply) {
         requested(); await payload;
         return route.fulfill({ json: { updates: [{ shareId: '789', recipientId: 'friend', responseWords: 'Delayed reply', respondedAt: '2026-10-23T10:00:00Z' }] } });
       }
@@ -832,7 +832,7 @@ test('prayer circle retains playing audio when updates are revealed and cards re
   let inbox = [];
   try {
     const page = await context.newPage();
-    await page.route('**/*', route => route.request().url().endsWith('/pray-time/inbox') ? route.fulfill({ json: { inbox } }) : mockPrayerApi(route, base));
+    await page.route('**/*', route => new URL(route.request().url()).pathname.endsWith('/pray-time/inbox') ? route.fulfill({ json: { inbox } }) : mockPrayerApi(route, base));
     await seed(page, [{ ...received('audio'), date: '2026-10-01T10:00:00Z' }]);
     await page.evaluate(async () => {
       const bytes = new ArrayBuffer(44 + 8000 * 60 * 2), view = new DataView(bytes);
@@ -1089,6 +1089,52 @@ test('failed delivery acknowledgements replay after reload without duplicate tex
       if (round === 0) { await page.waitForTimeout(100); await page.reload(); }
     }
     await page.waitForTimeout(100); assert.ok(acknowledgements >= 2);
+  } finally { await context.close(); }
+});
+
+test('versioned inbox pages use real workers and open a deep notification before the ordinary queue', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const acknowledgements = [], requests = [];
+  try {
+    await context.addInitScript(() => {
+      const Original = Worker; window.deliveryWorkers = { live: 0, maximum: 0 };
+      window.Worker = class extends Original {
+        constructor(...args) { super(...args); window.deliveryWorkers.live++; window.deliveryWorkers.maximum = Math.max(window.deliveryWorkers.maximum, window.deliveryWorkers.live); }
+        terminate() { window.deliveryWorkers.live--; return super.terminate(); }
+      };
+    });
+    await context.route('**/*', route => {
+      const url = new URL(route.request().url());
+      if (url.origin === base) return route.continue();
+      const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Authorization,Content-Type', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS' };
+      if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+      let json;
+      if (url.pathname.endsWith('/pray-time/inbox')) {
+        requests.push(Object.fromEntries(url.searchParams));
+        if (url.searchParams.get('kind') === 'deletions') json = { protocol: 2, items: [], nextCursor: null };
+        else if (url.searchParams.get('target')) json = { protocol: 2, items: [{ shareId: 'paged-20', isAnonymous: true }], nextCursor: null };
+        else { const start = Number(url.searchParams.get('cursor') || 0); json = { protocol: 2, items: Array.from({ length: Math.min(10, 21 - start) }, (_, i) => ({ shareId: 'paged-' + (start + i), isAnonymous: true })), nextCursor: start + 10 < 21 ? String(start + 10) : null }; }
+      } else if (url.pathname.includes('/inbox/payload/')) {
+        const shareId = url.pathname.split('/').pop();
+        json = { shareId, words: 'Paged prayer ' + shareId, senderUsername: 'private sender', recordings: [{ id: 'clip-' + shareId, ext: 'webm', data: btoa('recorded bytes') }] };
+      } else if (url.pathname.endsWith('/pray-time/sent-updates')) json = { protocol: 2, items: [], nextCursor: null };
+      else if (url.pathname.endsWith('/pray-time/ack')) { acknowledgements.push(route.request().postDataJSON().shareId); json = { success: true }; }
+      else json = { user: { username: 'tester', prayTime: [] }, friends: [], inbox: [], updates: [] };
+      return route.fulfill({ headers, json });
+    });
+    const page = await context.newPage(); await seed(page, []);
+    await page.goto(base + '/pray/?notificationType=PRAY_SHARED&shareId=paged-20');
+    await page.locator('[data-prayer-id="received-paged-20"]').waitFor({ state: 'attached' });
+    await page.waitForFunction(async () => {
+      const db = await new Promise(resolve => { const r = indexedDB.open('my_prays', 2); r.onsuccess = () => resolve(r.result); });
+      const count = await new Promise(resolve => { const r = db.transaction('keyvaluepairs').objectStore('keyvaluepairs').get('index'); r.onsuccess = () => resolve(Object.keys(r.result?.recordings || {}).length); });
+      db.close(); return count === 21 && window.deliveryWorkers.live === 0;
+    }, null, { timeout: 15000 });
+    for (let attempt = 0; attempt < 100 && !requests.some(request => request.cursor === '20'); attempt++) await page.waitForTimeout(50);
+    assert.ok(requests.some(request => request.cursor === '20'));
+    assert.ok(acknowledgements.indexOf('paged-20') < acknowledgements.indexOf('paged-19'));
+    assert.ok(await page.evaluate(() => window.deliveryWorkers.maximum <= 2));
+    assert.equal(await page.getByText('@private sender', { exact: true }).count(), 0);
   } finally { await context.close(); }
 });
 

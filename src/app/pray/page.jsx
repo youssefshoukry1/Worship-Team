@@ -1,5 +1,7 @@
 'use client';
 
+// Before changing this page or its dependencies, read ./README.md.
+
 import { useSyncExternalStore, useMemo, useCallback, useEffect, useLayoutEffect, useState, useContext, useRef } from 'react';
 import { UserContext } from '../context/User_Context';
 import { Heart, Users, Send, Inbox, Lock, Layers } from 'lucide-react';
@@ -10,6 +12,8 @@ import {
     mergeIncomingPrayers, applyPrayerReplies, markPrayerActivitySeen, migratePrayerReadState, getPrayerDeletionState, applyPrayerRevocations
 } from '../utils/prayRecordings';
 import PrayerComposer from './PrayerComposer';
+import { syncPrayerPages } from '../services/prayerInbox';
+import { downloadPrayerPayload } from '../utils/prayerPayload';
 import useNavigationState from './useNavigationState';
 import PrayerSettings from './PrayerSettings';
 import { PrayerCard, ListPanel, isReceivedPrayer, isSentPrayer, isPersonalPrayer } from './PrayerCards';
@@ -414,82 +418,70 @@ export default function PrayPage() {
         }).catch(() => {});
     }, [pageActive, profile?.prayTime, setGuestPrays]);
 
-    // Check for incoming shared prayers from Cloudflare R2
-    const checkIncomingSharedPrayers = useCallback(async (force = false) => {
+    const [deliveryError, setDeliveryError] = useNavigationState(false, pageActive);
+    const syncDeliveries = useCallback(async (kind, force, targetOnly = false) => {
         if (!token || !userId) return;
-        await runSessionTask(tabReadKey(`${API_URL}/users/pray-time/inbox`, token), async () => {
+        const endpoint = `${API_URL}/users/pray-time/${kind === 'replies' ? 'sent-updates' : 'inbox'}`;
+        const selectedTarget = notificationTargetRef.current;
+        await runSessionTask(tabReadKey(targetOnly ? `${endpoint}:target:${selectedTarget?.shareId}` : endpoint, token), async () => {
+            const active = () => session.active && session.owner === String(userId) && (!targetOnly || notificationTargetRef.current?.shareId === selectedTarget?.shareId);
             try {
+                if (!active()) return;
                 if (deletionSyncRef.current?.owner !== userId) deletionSyncRef.current = { owner: userId, ...(await getPrayerDeletionState(userId)) };
                 const sync = deletionSyncRef.current;
-                const query = sync.cursor ? `?deletedSince=${encodeURIComponent(sync.cursor)}` : '';
-                const { inbox, deletedShareIds = [], deletionCursor } = await readTabJson(`${API_URL}/users/pray-time/inbox${query}`, token, { maxAge: 0 });
-                const unseenDeletions = deletedShareIds.filter(id => !sync.seen.has(String(id)));
-                if (unseenDeletions.length || (deletionCursor && deletionCursor !== sync.cursor)) {
-                    const removed = await applyPrayerRevocations(unseenDeletions, userId, deletionCursor);
-                    for (const id of deletedShareIds) sync.seen.add(String(id));
-                    if (deletionCursor) sync.cursor = deletionCursor;
-                    if (removed.prayers && mountedRef.current) { setGuestPrays(removed.prayers); refreshRecordings(); }
-                }
-                const liveInbox = Array.isArray(inbox) ? inbox.filter(bundle => !sync.seen.has(String(bundle.shareId))) : [];
-                if (!liveInbox.length) return;
-
+                const remove = async (ids, cursor) => {
+                    if (!active()) return;
+                    const unseen = ids.filter(id => !sync.seen.has(String(id)));
+                    if (!unseen.length && (!cursor || cursor === sync.cursor)) return;
+                    const result = await applyPrayerRevocations(unseen, userId, cursor);
+                    ids.forEach(id => sync.seen.add(String(id))); if (cursor) sync.cursor = cursor;
+                    if (result.prayers && mountedRef.current) { setGuestPrays(result.prayers); refreshRecordings(); }
+                };
                 const target = notificationTargetRef.current;
-                const prioritizedInbox = target?.type === 'PRAY_SHARED'
-                    ? [...liveInbox].sort((a, b) => Number(String(b.shareId) === target.shareId) - Number(String(a.shareId) === target.shareId))
-                    : liveInbox;
-                const result = await mergeIncomingPrayers(prioritizedInbox);
-                // The task can belong to a page that has since unmounted.
-                // Notify the current page only after the imported text is durable.
-                if (result.prayers) window.dispatchEvent(new Event(PRAYER_SYNC_EVENT));
-                if (result.prayers && mountedRef.current) setGuestPrays(result.prayers);
-                let audioChanged = false;
-                // Save text first, then audio, then acknowledge durable delivery.
-                for (const bundle of prioritizedInbox) {
-                    const localId = result.prayerIds?.[String(bundle.shareId).replace(/^received-/, '')] || `received-${bundle.shareId}`;
-                    const imported = await addExternalRecordings(localId, bundle.recordings || [], bundle.shareId);
-                    if (imported.length) audioChanged = true;
-                    void fetch(`${API_URL}/users/pray-time/ack`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                        body: JSON.stringify({ shareId: bundle.shareId })
-                    }).catch(() => {});
-                }
-                if (audioChanged && mountedRef.current) refreshRecordings();
-            } catch (err) {
-                console.warn('Inbox check error:', err);
+                const result = await syncPrayerPages({ kind, active, targetOnly, deletedSince: sync.cursor,
+                    target: target?.type === (kind === 'replies' ? 'PRAY_CONFIRMED' : 'PRAY_SHARED') ? target.shareId : null,
+                    read: params => readTabJson(`${endpoint}?${new URLSearchParams(params)}`, token, { maxAge: 0 }),
+                    download: (item, reply) => downloadPrayerPayload({ url: `${API_URL}/users/pray-time/inbox/payload/${encodeURIComponent(item.shareId)}${reply ? '?kind=reply' : ''}`,
+                        token, shareId: item.shareId, isAnonymous: item.isAnonymous, reply }, active),
+                    remove, saveDeletionCursor: cursor => remove([], cursor),
+                    acknowledge: async (shareId, reply) => {
+                        if (!active()) return { ok: false };
+                        const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 10000);
+                        try { return await fetch(`${API_URL}/users/pray-time/${reply ? 'sent-ack' : 'ack'}`, {
+                            method: 'POST', signal: controller.signal,
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ shareId }),
+                        }); } finally { clearTimeout(timer); }
+                    },
+                    consume: async bundle => {
+                        if (!active() || sync.seen.has(String(bundle.shareId))) return false;
+                        if (kind === 'replies') {
+                            const result = await applyPrayerReplies([bundle]);
+                            if (result.prayers && mountedRef.current) setGuestPrays(result.prayers);
+                            return result.acknowledged.includes(bundle.shareId);
+                        }
+                        const result = await mergeIncomingPrayers([bundle]);
+                        if (!active()) return false;
+                        if (result.prayers) window.dispatchEvent(new Event(PRAYER_SYNC_EVENT));
+                        if (result.prayers && mountedRef.current) setGuestPrays(result.prayers);
+                        const localId = result.prayerIds[String(bundle.shareId).replace(/^received-/, '')] || `received-${bundle.shareId}`;
+                        const imported = await addExternalRecordings(localId, bundle.recordings || [], bundle.shareId);
+                        if (imported.length && mountedRef.current) refreshRecordings();
+                        return active();
+                    },
+                });
+                if (active()) setDeliveryError(previous => ({ ...previous, [kind]: result.failures > 0 }));
+            } catch (error) {
+                if (error.name !== 'AbortError' && active()) setDeliveryError(previous => ({ ...previous, [kind]: true }));
             }
         }, { force });
-    }, [token, userId, refreshRecordings, setGuestPrays]);
-
-    // Check for confirmations of prayers sent to others
-    const checkSentPrayUpdates = useCallback(async (force = false) => {
-        if (!token || !userId) return;
-        await runSessionTask(tabReadKey(`${API_URL}/users/pray-time/sent-updates`, token), async () => {
-            try {
-                const { updates } = await readTabJson(`${API_URL}/users/pray-time/sent-updates`, token, { maxAge: 0 });
-                if (!Array.isArray(updates) || !updates.length) return;
-
-                const result = await applyPrayerReplies(updates);
-                if (result.prayers && mountedRef.current) setGuestPrays(result.prayers);
-                for (const shareId of result.acknowledged) {
-                    void fetch(`${API_URL}/users/pray-time/sent-ack`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                        body: JSON.stringify({ shareId })
-                    }).catch(() => {});
-                }
-
-            } catch (err) {
-                console.warn('Sent updates check error:', err);
-            }
-        }, { force });
-    }, [token, userId, setGuestPrays]);
+    }, [token, userId, session, refreshRecordings, setGuestPrays, setDeliveryError]);
+    const checkIncomingSharedPrayers = useCallback((force = false) => syncDeliveries('inbox', force), [syncDeliveries]);
+    const checkSentPrayUpdates = useCallback((force = false) => syncDeliveries('replies', force), [syncDeliveries]);
 
     useEffect(() => {
         if (!notificationTarget) return;
-        checkIncomingSharedPrayers(true);
-        checkSentPrayUpdates(true);
-    }, [notificationTarget, checkIncomingSharedPrayers, checkSentPrayUpdates]);
+        void syncDeliveries(notificationTarget.type === 'PRAY_CONFIRMED' ? 'replies' : 'inbox', true, true);
+    }, [notificationTarget, syncDeliveries]);
 
     useEffect(() => {
         if (!pageActive) return;
@@ -560,6 +552,10 @@ export default function PrayPage() {
             {storageError && <div role="alert" className="mb-4 rounded-xl bg-red-950/30 p-3 text-sm text-red-200">
                 <p>{language === 'ar' ? 'تعذر الوصول إلى الصلوات المحفوظة. حاول مرة أخرى.' : language === 'de' ? 'Gespeicherte Gebete sind nicht erreichbar. Bitte erneut versuchen.' : 'Saved prayers could not be accessed. Please try again.'}</p>
                 <button type="button" className="mt-2 underline" onClick={() => { void refreshLocalPrayerCache().catch(() => {}); }}>{language === 'ar' ? 'إعادة المحاولة' : language === 'de' ? 'Erneut versuchen' : 'Retry storage'}</button>
+            </div>}
+            {Object.values(deliveryError || {}).some(Boolean) && <div role="status" className="mb-4 rounded-xl bg-slate-800/40 p-3 text-sm text-slate-300">
+                <p>{language === 'ar' ? '??? ??????? ?? ????? ???????? ???.' : language === 'de' ? 'Einige Gebete konnten noch nicht synchronisiert werden.' : 'Some prayers have not finished syncing yet.'}</p>
+                <button type="button" className="mt-2 underline" onClick={() => { checkIncomingSharedPrayers(true); checkSentPrayUpdates(true); }}>{language === 'ar' ? '????? ????????' : language === 'de' ? 'Erneut versuchen' : 'Retry sync'}</button>
             </div>}
             <div className="max-w-5xl mx-auto">
                 <div className="grid grid-cols-1 gap-5 sm:gap-6">

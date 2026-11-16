@@ -1,6 +1,6 @@
 # Focused transfer-performance follow-ups
 
-Created after Mission 6 measurements on 17 November 2026. Mission 6A was authorized and implemented; Mission 6B awaits continuation. Pause after each mission, per the user's working agreement.
+Created after Mission 6 measurements on 17 November 2026. Missions 6A and 6B are implemented and locally verified. The user authorized completion without further mission pauses on 17 November 2026.
 
 ## Mission 6A — Move web archive processing off the UI thread
 
@@ -15,7 +15,9 @@ Evidence: the isolated desktop Chromium fixture with 2,000 prayers took 105.4 ms
 
 ## Mission 6B — Bound inbox transport and local ingestion
 
-Evidence: 2,000 synthetic inbox entries produced 3,040,891 JSON bytes, a 45.3 ms merge and 51.3 ms timer delay on desktop. The controller currently retrieves all pending transit entries and loads their object-store bundles sequentially before returning; audio can increase response size substantially. These figures exclude HTTP, database, object-storage and decoding costs.
+Status: completed locally. The [implemented contract](pray-inbox-protocol-review.md) and [Mission 6B report](../performance/pray-mission-6b-report.md) record descriptor pages, bounded streamed payloads, worker decoding, retries and integration evidence. Payload cap: 64 MiB; oversized historical objects remain pending rather than truncated.
+
+Evidence: 2,000 synthetic inbox entries produced 3,040,891 JSON bytes, a 45.3 ms merge and 51.3 ms timer delay on desktop. Before Mission 6B, the controller retrieved all pending transit entries and loads their object-store bundles sequentially before returning; audio can increase response size substantially. These figures exclude HTTP, database, object-storage and decoding costs.
 
 1. Define a backward-compatible paginated protocol and explicit client capability/version handling. Keep existing clients functional. Use a stable server cursor, never offset pagination over a queue whose entries disappear after acknowledgement.
 2. Keep delivery cursor and deletion cursor separate. Persist all expected audio and text before acknowledging each share; retain unacknowledged bundles across reload/retry. Recheck revocations after slow reads. Do not advance in a way that permanently skips a failed item.
@@ -23,4 +25,4 @@ Evidence: 2,000 synthetic inbox entries produced 3,040,891 JSON bytes, a 45.3 ms
 4. Batch local transactions and yield between bounded batches. Test two clients, lost/duplicate acknowledgements, crash/restart, newer arrivals, concurrent deletion, anonymous sharing, and old/new client compatibility using a test database/object store.
 5. Measure HTTP bytes, end-to-end latency, UI long tasks and ordering under realistic queue sizes. Exit: bounded payload/work with no skipped or resurrected prayer. Pause before Mission 7.
 
-These follow-ups should precede the final performance comparison if approved. They do not replace the open iOS build and physical-device save/restart/backup verification gates.
+Both follow-ups and the [final performance comparison](../performance/pray-mission-7-report.md) are complete locally. The numbered steps above are the original scope; results and deviations are in the reports. They do not replace the open iOS build and physical-device save/restart/backup verification gates.
