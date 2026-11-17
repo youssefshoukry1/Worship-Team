@@ -53,12 +53,13 @@ export const getVoiceTone = (type) => VOICE_TONES[(type || 'general').toLowerCas
 
 /** Live recording bar with a scrolling microphone waveform. */
 function LiveRecordingBar({ recorder, tone }) {
+    const pageActive = useTabPageActive();
     const waveRef = useRef(null);
     const pluginRef = useRef(null);
     const pausedRef = useRef(recorder.isPaused);
 
     useEffect(() => {
-        if (!waveRef.current || !recorder.stream) return;
+        if (!pageActive || !waveRef.current || !recorder.stream) return;
         let active = true, wavesurfer, micView;
         // Recording already owns the microphone; only its visual waveform waits
         // for these modules, so loading never delays permission or captures.
@@ -86,7 +87,7 @@ function LiveRecordingBar({ recorder, tone }) {
             pluginRef.current = null;
             wavesurfer?.destroy();
         };
-    }, [recorder.stream, tone.hex]);
+    }, [pageActive, recorder.stream, tone.hex]);
 
     useEffect(() => {
         pausedRef.current = recorder.isPaused;
@@ -571,7 +572,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored, privacySett
                 <MoreVertical className="w-4 h-4" />
             </button>
 
-            {isOpen && createPortal(
+            {pageActive && isOpen && createPortal(
                 <dialog ref={dialogRef} style={panelPosition} className={backupStyles.panel}
                     aria-label={t('myPraysBackupTitle')} aria-modal="true"
                     onCancel={event => { event.preventDefault(); closePanel(); }}

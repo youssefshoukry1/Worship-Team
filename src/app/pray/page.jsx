@@ -565,7 +565,7 @@ export default function PrayPage() {
                                 <Heart className="w-5 h-5 text-sky-300" />
                                 <h3 className="text-base sm:text-lg font-bold text-white">{t('prayTime')}</h3>
                             </div>
-                            {pageActive && <PrayerSettings pageRef={pageRef} prayList={prayList} token={isGuest ? null : token} userId={userId}
+                            {<PrayerSettings pageRef={pageRef} prayList={prayList} token={isGuest ? null : token} userId={userId}
                                 onRestored={async () => {
                                     repairCompletedRef.current = null;
                                     deletionSyncRef.current = null;
@@ -575,7 +575,7 @@ export default function PrayPage() {
                                     setLocalActivityId(`restore-${crypto.randomUUID()}`);
                                 }} />}
                         </div>
-                        {pageActive && <PrayerComposer friends={friends} loadingFriends={loadingFriends} onSaved={handlePrayerSaved} />}
+                        {<PrayerComposer friends={friends} loadingFriends={loadingFriends} onSaved={handlePrayerSaved} />}
                     </div>
 
                     {/* Primary Space Tabs: My Journal vs Prayer Circle */}
@@ -643,7 +643,7 @@ export default function PrayPage() {
                     <span className="sr-only" role="status">{unreadPrayCount} {circleText.unread}</span>
                     <div hidden={activePrayTab !== 'personal'}>
                         <ListPanel title={t('myPrayTimeNotes')} icon={Heart} items={personalPrayList}
-                            emptyText={t('noPrayerNotesYet')} active={pageActive && activePrayTab === 'personal'} scope="personal"
+                            emptyText={t('noPrayerNotesYet')} active={activePrayTab === 'personal'} scope="personal"
                             targetId={listTarget?.scope === 'personal' ? listTarget.id : null} targetKey={listTarget?.key} renderItem={renderPrayer} />
                     </div>
                     {sharedTabVisited && <div hidden={activePrayTab !== 'shared'}>
@@ -683,7 +683,7 @@ export default function PrayPage() {
                                         ? 'No prayers sent to friends yet'
                                         : 'No shared prayers in your Prayer Circle yet'
                         }
-                        active={pageActive && activePrayTab === 'shared'} scope={`shared:${circleFilter}`}
+                        active={activePrayTab === 'shared'} scope={`shared:${circleFilter}`}
                         targetId={listTarget?.scope === `shared:${circleFilter}` ? listTarget.id : circleFilter === 'all' ? notificationPrayerId : null}
                         targetKey={listTarget?.scope === `shared:${circleFilter}` ? listTarget.key : `notification:${notificationKey}`}
                         renderItem={renderPrayer}

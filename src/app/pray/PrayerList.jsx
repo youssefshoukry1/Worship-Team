@@ -2,6 +2,7 @@
 
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { usePrayerSession } from './PrayerSessionProvider';
+import { useTabPageActive } from '../components/TabPageActivity';
 import { useLanguage } from '../context/LanguageContext';
 import { isNavigationBusy, waitForNavigationIdle } from '../utils/navigationWork';
 import { PRAYER_BATCH, prayerBatchFor, prayerListLayout, prayerWindow } from './prayerListLayout';
@@ -16,9 +17,10 @@ const PrayerRow = memo(function PrayerRow({ entry, index, count, top, register, 
     </div>;
 });
 
-// Mount only in the active list of the active page: hidden/transformed pager
-// panels must never provide measurements to a window-scrolling list.
+// Keep the bounded visible rows ready for a return swipe. Only the active
+// page may measure, scroll, observe resizes or advance its loaded batch.
 export default function PrayerList({ items, renderItem, scope, targetId, targetKey }) {
+    const active = useTabPageActive();
     const session = usePrayerSession();
     const { language } = useLanguage();
     const stateKey = `list:${scope}`;
@@ -35,7 +37,7 @@ export default function PrayerList({ items, renderItem, scope, targetId, targetK
     const restoring = useRef(true);
     const [limit, setLimit] = useState(() => Math.max(PRAYER_BATCH, saved.limit || 0));
     const [revision, setRevision] = useState(0);
-    const [viewport, setViewport] = useState({ top: 0, height: 800 });
+    const [viewport, setViewport] = useState(() => saved.viewport || { top: 0, height: 800 });
     const [focusedId, setFocusedId] = useState(null);
     const visibleItems = useMemo(() => items.slice(0, limit), [items, limit]);
     // revision invalidates offsets after ResizeObserver batches update the height map.
@@ -45,7 +47,7 @@ export default function PrayerList({ items, renderItem, scope, targetId, targetK
     useLayoutEffect(() => { latest.current = { items, layout, limit, focusedId, viewport }; });
 
     const measureViewport = useCallback(() => {
-        if (!root.current || root.current.closest('[data-swipe-moving]')) return;
+        if (!active || !root.current || root.current.closest('[data-swipe-moving]')) return;
         const { top, width: nextWidth } = root.current.getBoundingClientRect();
         if (width.current && Math.abs(width.current - nextWidth) > 1) {
             // Rotation may clamp the browser scroll before its resize event.
@@ -69,7 +71,7 @@ export default function PrayerList({ items, renderItem, scope, targetId, targetK
                 id: String(current.items[index]?._id || ''), index, offset: -top - current.layout.offsets[index],
             };
         }
-    }, []);
+    }, [active]);
     const scheduleViewport = useCallback(() => {
         if (frame.current !== null) return;
         frame.current = requestAnimationFrame(() => { frame.current = null; measureViewport(); });
@@ -87,6 +89,9 @@ export default function PrayerList({ items, renderItem, scope, targetId, targetK
     }, []);
 
     useEffect(() => {
+        if (!active) return;
+        restoring.current = true;
+        const resumeAnchor = lastAnchor.current;
         let cancelled = false;
         const measuredHeights = heights.current;
         const measurements = new Map();
@@ -116,8 +121,8 @@ export default function PrayerList({ items, renderItem, scope, targetId, targetK
             await waitForNavigationIdle();
             if (cancelled) return;
             measureViewport();
-            if (targetId && saved.consumedTarget !== targetKey && items.some(entry => String(entry._id) === String(targetId))) return;
-            const anchor = saved.anchor;
+            if (targetId && consumedTarget.current !== targetKey && items.some(entry => String(entry._id) === String(targetId))) return;
+            const anchor = resumeAnchor;
             if (anchor?.id) {
                 const exists = items.some(entry => String(entry._id) === anchor.id);
                 const id = exists ? anchor.id : String(items[Math.min(anchor.index || 0, items.length - 1)]?._id || '');
@@ -132,24 +137,24 @@ export default function PrayerList({ items, renderItem, scope, targetId, targetK
             window.removeEventListener('scroll', scheduleViewport); window.removeEventListener('resize', scheduleViewport);
             if (frame.current !== null) cancelAnimationFrame(frame.current);
             frame.current = null;
-            session.set(stateKey, { limit: latest.current?.limit || PRAYER_BATCH, anchor: lastAnchor.current, width: width.current, heights: [...measuredHeights], consumedTarget: consumedTarget.current });
+            session.set(stateKey, { limit: latest.current?.limit || PRAYER_BATCH, anchor: lastAnchor.current, viewport: latest.current?.viewport, width: width.current, heights: [...measuredHeights], consumedTarget: consumedTarget.current });
         };
         // Initial restoration is mount-scoped. Subsequent targets use the effect below.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [session, stateKey, measureViewport, scheduleViewport, jumpTo]);
+    }, [active, session, stateKey, measureViewport, scheduleViewport, jumpTo]);
 
     useEffect(() => {
-        if (!targetId || consumedTarget.current === targetKey) return;
+        if (!active || !targetId || consumedTarget.current === targetKey) return;
         let cancelled = false;
         void waitForNavigationIdle().then(() => {
             if (!cancelled && jumpTo(String(targetId))) consumedTarget.current = targetKey;
         });
         return () => { cancelled = true; };
-    }, [targetId, targetKey, items, jumpTo]);
+    }, [active, targetId, targetKey, items, jumpTo]);
 
     useLayoutEffect(() => {
         const element = root.current;
-        if (!element || element.closest('[data-swipe-moving]')) return;
+        if (!active || !element || element.closest('[data-swipe-moving]')) return;
         const jump = pendingJump.current;
         const anchor = jump || (!restoring.current && lastAnchor.current?.id ? lastAnchor.current : null);
         if (anchor) {
@@ -168,7 +173,7 @@ export default function PrayerList({ items, renderItem, scope, targetId, targetK
             }
         }
         measureViewport();
-    }, [layout, revision, viewport.top, visibleItems.length, measureViewport]);
+    }, [active, layout, revision, viewport.top, visibleItems.length, measureViewport]);
 
     const indices = prayerWindow(layout, viewport.top, viewport.height, visibleItems.length, focusedId);
     const loadMore = useCallback((focus = false) => {
@@ -178,8 +183,8 @@ export default function PrayerList({ items, renderItem, scope, targetId, targetK
         else setLimit(previous => Math.min(current.items.length, previous + PRAYER_BATCH));
     }, [jumpTo]);
     useEffect(() => {
-        if (!restoring.current && viewport.top > 0 && layout.total - viewport.top - viewport.height < 200) loadMore();
-    }, [viewport, layout.total, loadMore]);
+        if (active && !restoring.current && viewport.top > 0 && layout.total - viewport.top - viewport.height < 200) loadMore();
+    }, [active, viewport, layout.total, loadMore]);
 
     const onFocus = event => setFocusedId(event.target.closest('[data-prayer-row]')?.dataset.prayerRow || null);
     const onBlur = () => queueMicrotask(() => setFocusedId(root.current?.contains(document.activeElement) ? document.activeElement.closest('[data-prayer-row]')?.dataset.prayerRow || null : null));

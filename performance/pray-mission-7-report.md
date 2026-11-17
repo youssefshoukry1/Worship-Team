@@ -63,3 +63,9 @@ Supplemental full traversal uses PRAY_COUNTS=2000 and PRAY_FULL_TRAVERSAL=1 with
 ## Delivery format update
 
 At the user's request, the full-inbox/full-reply response and frontend fallback were removed after the original Mission 7 measurements. Inbox and sent-update endpoints now always return protocol-2 pages. The frontend rejects unsupported response formats. Backend and client must be released together; older installed clients expecting full bundles need updating. See pray-format-removal-*.log for the subsequent verification. Original measurements and test counts above describe their recorded runs.
+
+## Return-to-Pray layout correction
+
+The user video exposed a visual regression missed by the original performance checks: the inactive neighbor had no composer and a blank list placeholder, so a return swipe revealed a collapsed page. The composer and selected list now retain their bounded view while adjacent. Inactive lists suspend measurement, resize observation, scrolling and batch loading; microphone waveform work pauses. Leaving the neighbor range still releases the route. This supersedes the earlier hidden-UI teardown rule. Production build and source lint passed; targeted navigation/anchor tests are recorded in pray-return-tests.log. The fix has not been verified on physical hardware here.
+
+Return-layout verification: production build and changed-source lint passed. Four list/cache/anchor cases passed, including complete 2,000-prayer traversal. The new pre-activation layout test initially identified a smaller height shift from the settings trigger; retaining that trigger fixed it and its rerun passed. Seven additional navigation/session checks passed, including draft/microphone/playback survival, privacy persistence and swipe-deferred updates. Evidence: pray-return-tests.log, pray-return-recheck.log and pray-return-session.log.

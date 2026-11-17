@@ -1,6 +1,7 @@
 'use client';
 import { useContext, useState } from 'react';
 import { Check, EyeOff, Share2, SlidersHorizontal, X } from 'lucide-react';
+import { useTabPageActive } from '../components/TabPageActivity';
 import { UserContext } from '../context/User_Context';
 import { useLanguage } from '../context/LanguageContext';
 import { newPrayerAction, preparePrayerAction } from '../services/prayerSync';
@@ -13,6 +14,7 @@ const idleRecorder = { isRecording: false, start() {} };
 export default function PrayerComposer({ friends, loadingFriends, onSaved }) {
     const { user_id: userId } = useContext(UserContext);
     const { t } = useLanguage();
+    const pageActive = useTabPageActive();
     const session = usePrayerSession();
     const [recorder] = usePrayerField('recorder');
     const getPrayTypeLabel = (value) => {
@@ -219,7 +221,7 @@ export default function PrayerComposer({ friends, loadingFriends, onSaved }) {
                                 </button>
                             </div>
                         </div>
-        <PrayerSharePicker isShareOpen={isShareOpen} onClose={() => setIsShareOpen(false)} onSelect={handleSelectShareUser}
+        <PrayerSharePicker isShareOpen={pageActive && isShareOpen} onClose={() => setIsShareOpen(false)} onSelect={handleSelectShareUser}
             selectedShareUser={selectedShareUser} friends={friends} loadingFriends={loadingFriends} />
     </>;
 }

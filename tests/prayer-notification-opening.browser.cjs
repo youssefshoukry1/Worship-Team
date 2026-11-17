@@ -1524,3 +1524,25 @@ test('unavailable prayer storage shows Retry and recovers the existing history',
     await page.getByRole('button', { name: 'Retry storage', exact: true }).waitFor({ state: 'detached' });
   } finally { await context.close(); }
 });
+
+test('returning from Bible preserves the composer and bounded rows before activation', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  try {
+    const page = await context.newPage(); await context.route('**/*', route => mockPrayerApi(route, base));
+    await seed(page, personalPrayers(100)); await page.goto(base + '/pray/');
+    const panel = page.locator('[data-tab-panel="/pray"]');
+    await panel.locator('[data-prayer-id="personal-0"]').waitFor();
+    await panel.getByRole('textbox').first().fill('Keep this draft ready');
+    await page.evaluate(() => { const p = document.querySelector('[data-tab-panel="/pray"]'); window.returnPreview = { editor: p.querySelector('textarea'), row: p.querySelector('[data-prayer-id]'), height: p.querySelector('textarea').closest('.app-card').getBoundingClientRect().height }; });
+    for (let i = 0; i < 3; i++) {
+      await page.getByRole('link', { name: 'Bible', exact: true }).click();
+      await page.locator('[data-tab-panel="/bible_form"][data-tab-active="true"]').waitFor();
+      const state = await page.evaluate(() => { const p = document.querySelector('[data-tab-panel="/pray"]'); return { editor: p.querySelector('textarea') === returnPreview.editor, row: returnPreview.row.isConnected, height: p.querySelector('textarea')?.closest('.app-card').getBoundingClientRect().height, cards: p.querySelectorAll('[data-prayer-id]').length }; });
+      assert.equal(state.editor, true); assert.equal(state.row, true); assert.ok(state.cards > 0 && state.cards < 25);
+      assert.ok(Math.abs(state.height - await page.evaluate(() => returnPreview.height)) < 1, JSON.stringify({ state, expected: await page.evaluate(() => returnPreview.height) }));
+      await page.getByRole('link', { name: 'Pray', exact: true }).click();
+      await panel.locator('textarea').first().waitFor();
+      assert.equal(await panel.locator('textarea').first().inputValue(), 'Keep this draft ready');
+    }
+  } finally { await context.close(); }
+});
