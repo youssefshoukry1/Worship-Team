@@ -96,7 +96,7 @@ for (const engine of ['webkit', 'chromium']) {
     await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
     assert.equal(await draft.inputValue(), 'Do not lose this prayer');
     // Slow enough that this is a short drag, not a deliberate flick.
-    await touch(page, 'touchstart', 250); await touch(page, 'touchmove', 225); await frame(page);
+    await touch(page, 'touchstart', 250); await page.waitForTimeout(160); await touch(page, 'touchmove', 225); await frame(page);
     await touch(page, 'touchend', 225);
     await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
     assert.equal(new URL(page.url()).pathname, '/');
@@ -293,3 +293,25 @@ test('interior swipes traverse every bottom tab in both directions', async t => 
   assert.deepEqual(errors, []);
 });
 
+for (const engine of ['chromium', 'webkit']) {
+  test(`${engine}: a short slow drag eases back and a short flick commits`, async t => {
+    const { page, errors } = await setup(t, engine, { href: '/friends/' });
+    await panel(page, '/normal_UserProfile').getByText('iOS Tester', { exact: true }).waitFor({ state: 'attached' });
+    await page.clock.install();
+    await touch(page,'touchstart',280); await page.clock.runFor(200);
+    await touch(page,'touchmove',260); await page.clock.runFor(200);
+    await touch(page,'touchend',244);
+    const duration = await panel(page,'/friends').evaluate(node => parseFloat(getComputedStyle(node).transitionDuration));
+    assert.ok(duration >= 0.24 && duration <= 0.28);
+    await page.clock.runFor(100);
+    const offset = await panel(page,'/friends').evaluate(node => new DOMMatrix(getComputedStyle(node).transform).m41);
+    assert.ok(offset <= 0 && offset >= -36);
+    await page.clock.runFor(350);
+    assert.equal(await panel(page,'/friends').getAttribute('data-tab-active'),'true');
+    await touch(page,'touchstart',280); await page.clock.runFor(20);
+    await touch(page,'touchmove',264); await page.clock.runFor(20);
+    await touch(page,'touchend',244); await page.clock.runFor(500);
+    await page.waitForURL(base + '/normal_UserProfile/');
+    assert.deepEqual(errors,[]);
+  });
+}

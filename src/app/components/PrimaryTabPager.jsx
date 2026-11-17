@@ -4,7 +4,7 @@ import { lazy, Suspense, startTransition, useEffect, useLayoutEffect, useRef, us
 import { useRouter } from 'next/navigation';
 import PageSkeleton from './PageSkeleton';
 import { useSwipePreference } from '../utils/swipePreferences';
-import { installInteriorSwipe } from '../utils/interiorSwipe';
+import { installInteriorSwipe, swipeSettleDuration } from '../utils/interiorSwipe';
 import { ensureNavigationServiceWorker, navigateDocumentFallback } from '../utils/appNavigation';
 import { holdNavigationWork, releaseNavigationWork } from '../utils/navigationWork';
 import { TabPageActivity } from './TabPageActivity';
@@ -90,16 +90,17 @@ export default function PrimaryTabPager({ index }) {
       if (!active) return;
       // Only two compositor properties change: no inherited CSS variables,
       // React renders, or layout reads in the finger-movement path.
+      active.amount = amount;
       const offset = -active.direction * amount;
       active.source.style.transform = `translate3d(${offset}px,0,0)`;
       active.incoming.style.transform = `translate3d(${active.direction * active.width + offset}px,0,0)`;
     };
-    const settle = completed => {
+    const settle = (completed, { velocity = 0 } = {}) => {
       const active = session.current;
       if (!active) return;
-      const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 160;
+      const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : swipeSettleDuration(completed, active.amount || 0, active.width, velocity);
       root.setAttribute('data-settling', 'true');
-      for (const panel of [active.source, active.incoming]) panel.style.transition = `transform ${duration}ms cubic-bezier(.2,.7,.2,1)`;
+      for (const panel of [active.source, active.incoming]) panel.style.transition = `transform ${duration}ms cubic-bezier(.22,1,.36,1)`;
       move(completed ? active.width : 0);
       timer = setTimeout(async () => {
         if (!completed) { clear(); return; }

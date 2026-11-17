@@ -1,3 +1,21 @@
+// Recent movement determines intent; a pause or reversal cancels stale momentum.
+export function swipeRelease(samples, amount, width, now) {
+  const recent = samples.filter(sample => now - sample.time <= 120);
+  const first = recent[0], last = recent.at(-1);
+  const velocity = first && last && now - last.time < 80 && last.time - first.time >= 8
+    ? Math.max(-3, Math.min(3, (last.amount - first.amount) / (last.time - first.time))) : 0;
+  const completed = amount >= 24 && velocity > 0.65 || amount >= width * 0.28 && velocity > -0.45;
+  return { completed, velocity };
+}
+
+export function swipeSettleDuration(completed, amount, width, velocity = 0) {
+  const remaining = Math.abs((completed ? width : 0) - amount);
+  if (remaining < 1) return 0;
+  // A gentle return has a soft tail; a deliberate flick completes more quickly.
+  if (!completed) return Math.round(240 + 80 * Math.min(1, remaining / width));
+  return Math.round(Math.max(160, Math.min(320, remaining / Math.max(1.2, velocity))));
+}
+
 // The outer 24px belong to the existing iOS/Android edge gestures.
 export function installInteriorSwipe({ element, begin, update, finish, cancel, win = window }) {
   const doc = win.document;
@@ -36,6 +54,9 @@ export function installInteriorSwipe({ element, begin, update, finish, cancel, w
     if (event.cancelable) event.preventDefault();
     distance = Math.max(0, Math.min(win.innerWidth, -dx * touch.direction));
     touch.distance = distance;
+    const now = win.performance.now();
+    touch.samples.push({ time: now, amount: distance });
+    touch.samples = touch.samples.filter(sample => now - sample.time <= 120).slice(-12);
     if (frame === null) frame = win.requestAnimationFrame(() => { frame = null; update(distance); });
   }
   function end(event) {
@@ -46,11 +67,12 @@ export function installInteriorSwipe({ element, begin, update, finish, cancel, w
       suppressClickUntil = win.performance.now() + 500;
       if (event.cancelable) event.preventDefault();
       const amount = Math.max(0, -(point.clientX - current.x) * current.direction);
-      const elapsed = Math.max(1, win.performance.now() - current.started);
-      const completed = amount >= win.innerWidth * 0.28 || (amount >= 55 && amount / elapsed > 0.55);
+      const now = win.performance.now();
+      if (amount !== current.samples.at(-1)?.amount) current.samples.push({ time: now, amount });
+      const { completed, velocity } = swipeRelease(current.samples, amount, win.innerWidth, now);
       update(Math.min(win.innerWidth, amount));
       reset();
-      finish(completed);
+      finish(completed, { velocity });
     } else abort();
   }
   const start = event => {
@@ -72,7 +94,7 @@ export function installInteriorSwipe({ element, begin, update, finish, cancel, w
     for (let node = target; node && node !== element; node = node.parentElement) {
       if (node.scrollWidth > node.clientWidth + 1 && /^(auto|scroll)$/.test(win.getComputedStyle(node).overflowX)) return;
     }
-    touch = { id: point.identifier, x: point.clientX, y: point.clientY, started: win.performance.now(), locked: false };
+    touch = { id: point.identifier, x: point.clientX, y: point.clientY, samples: [{ time: win.performance.now(), amount: 0 }], locked: false };
     doc.addEventListener('touchmove', move, { capture: true, passive: false });
     doc.addEventListener('touchend', end, { capture: true, passive: false });
     doc.addEventListener('touchcancel', abort, { capture: true, passive: true });
