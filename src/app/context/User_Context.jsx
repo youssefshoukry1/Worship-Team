@@ -10,6 +10,8 @@ import { getApiBaseUrl } from '../utils/apiBase';
 import { recordLocalAppActivity } from '../utils/aiPersonalization';
 import { showToast } from '../components/ToastContainer';
 
+import { clearFeedNotes } from '../components/testimonies/feedNotesStorage';
+
 export const UserContext = createContext();
 
 const API_URL = "https://waslaapi.duckdns.org/api";
@@ -125,6 +127,8 @@ export default function UserContextProvider({ children }) {
   const [vocalsMode, setVocalsMode] = useState(true);
 
   const logout = () => {
+    window.dispatchEvent(new Event('taspe7:logout'));
+    void clearFeedNotes(user_id).catch(() => {});
     for (const key of ['Token', 'GlobalRole', 'SubRole', 'Role', 'ID', 'ChurchId', 'HymnIds', 'Status', 'Username', 'Teams', 'ProfilePhoto', 'Email']) {
       localStorage.removeItem(`user_Taspe7_${key}`);
     }

@@ -1,11 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import OfflineAvatar from '../OfflineAvatar';
 import TestimonyDialog from '../testimonies/TestimonyDialog';
-import { profileHref, testimonyRequest } from '../testimonies/testimonyApi';
+import { profileHref } from '../testimonies/testimonyApi';
 import { changeFriendship, invalidateFriendship } from '../../utils/friendshipActions';
+import usePeoplePage from '../../utils/usePeoplePage';
+import useLocalFriends from '../../utils/friendDirectory/useLocalFriends';
+import FriendDirectoryStatus from '../FriendDirectoryStatus';
+import PeoplePager from '../PeoplePager';
 import styles from './profileFriends.module.css';
 
 function Person({ person, token, userId, onClose }) {
@@ -40,36 +44,16 @@ function Person({ person, token, userId, onClose }) {
 }
 
 function PeopleList({ kind, query, profileUserId, token, userId, onClose }) {
-  const [items, setItems] = useState([]);
-  const [cursor, setCursor] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const controller = useRef(null);
-  const load = useCallback(async (next = null) => {
-    controller.current?.abort();
-    const request = new AbortController(); controller.current = request;
-    setLoading(true); setError('');
-    try {
-      const params = new URLSearchParams({ kind, q: query });
-      if (next) params.set('cursor', next);
-      const data = await testimonyRequest(token, `/profile/${profileUserId}/friends?${params}`, { signal: request.signal });
-      if (!request.signal.aborted) {
-        setItems(previous => next ? [...previous, ...data.items.filter(person => !previous.some(item => item._id === person._id))] : data.items);
-        setCursor(data.nextCursor);
-      }
-    } catch (error) { if (!request.signal.aborted) setError(error.message); }
-    finally { if (!request.signal.aborted) setLoading(false); }
-  }, [kind, query, profileUserId, token]);
-  useEffect(() => {
-    const timer = setTimeout(() => load(), 200);
-    return () => { clearTimeout(timer); controller.current?.abort(); };
-  }, [load]);
-  return <div className={styles.results} aria-busy={loading}>
-    <ul className={styles.people}>{items.map(person => <Person key={person._id} person={person} token={token} userId={userId} onClose={onClose} />)}</ul>
-    {loading && <p role="status" className={styles.message}>Loading friends…</p>}
-    {error && <div role="alert" className={styles.message}><p>{error}</p><button type="button" className={styles.action} onClick={() => load(items.length ? cursor : null)}>Try again</button></div>}
-    {!loading && !error && !items.length && <p className={styles.message}>{query ? 'No matching friends.' : kind === 'mutual' ? 'No mutual friends yet.' : 'No friends to show yet.'}</p>}
-    {cursor && !error && <button type="button" className={styles.more} disabled={loading} onClick={() => load(cursor)}>Show more</button>}
+  const [ready, setReady] = useState(false);
+  useEffect(() => { const timer = setTimeout(() => setReady(true), 200); return () => clearTimeout(timer); }, []);
+  const remote = usePeoplePage(`testimonies/profile/${profileUserId}/friends?kind=${kind}&q=${encodeURIComponent(query)}`, token, userId, ready && String(profileUserId) !== String(userId), false);
+  const local = useLocalFriends(token, userId, query, ready && String(profileUserId) === String(userId));
+  const page = String(profileUserId) === String(userId) ? { ...local, items: local.items.map(person => ({ ...person, relationship: 'friends' })) } : remote;
+  return <div className={styles.results} aria-busy={page.loading}>
+    <ul className={styles.people}>{page.items.map(person => <Person key={`${person._id}:${person.relationship}`} person={person} token={token} userId={userId} onClose={onClose} />)}</ul>
+    {!page.loading && page.ready && !page.error && !page.items.length && <p className={styles.message}>{query ? 'No matching friends.' : kind === 'mutual' ? 'No mutual friends yet.' : 'No friends to show yet.'}</p>}
+    {String(profileUserId) === String(userId) && <FriendDirectoryStatus page={local} />}
+    <PeoplePager page={page} active={ready} />
   </div>;
 }
 

@@ -1,3 +1,5 @@
+import { optimisticFriendRemoval } from './friendDirectory/useLocalFriends';
+import { invalidatePeoplePages } from './usePeoplePage';
 import { getApiBaseUrl } from './apiBase';
 import { markFriendsCacheDirty } from './friendsCache';
 import { invalidateTabRead, tabReadKey } from './tabRequests';
@@ -14,15 +16,9 @@ export async function readFriendship(token, targetId, { signal } = {}) {
     return data;
   };
   const target = idOf(targetId);
-  // Match the existing Friends page and friend-request API, independently of profile metadata.
-  const people = await request('friends');
-  if (!Array.isArray(people.friends)) throw new Error('Could not check friendship. Please try again.');
-  if (people.friends.some(friend => idOf(friend) === target)) return 'friends';
-  const requests = await request('friend-requests');
-  if (!Array.isArray(requests.incoming) || !Array.isArray(requests.outgoing)) throw new Error('Could not check friend requests. Please try again.');
-  if (requests.incoming.some(request => idOf(request.from) === target)) return 'incoming';
-  if (requests.outgoing.some(request => idOf(request.to) === target)) return 'outgoing';
-  return 'none';
+  const result = await request(`friendship/${target}`);
+  if (!['self', 'friends', 'incoming', 'outgoing', 'none'].includes(result.relationship)) throw new Error('Could not check friendship. Please try again.');
+  return result.relationship;
 }
 
 export async function changeFriendship(token, targetId, action) {
@@ -35,6 +31,8 @@ export async function changeFriendship(token, targetId, action) {
   };
   const route = routes[action];
   if (!route) throw new Error('Invalid friendship action.');
+  const settle = action === 'remove' ? optimisticFriendRemoval(token, targetId) : () => {};
+  try {
   const response = await fetch(`${getApiBaseUrl()}/users/${route[1]}`, {
     method: route[0], headers: { Authorization: `Bearer ${token}` }, cache: 'no-store',
   });
@@ -45,10 +43,13 @@ export async function changeFriendship(token, targetId, action) {
     if (data.code === 'ALREADY_FRIENDS' || data.relationship === 'friends' || /^already friends\b/i.test(error.message)) error.relationship = 'friends';
     throw error;
   }
+  settle(true);
   return data;
+  } catch (error) { settle(false); throw error; }
 }
 
 export function invalidateFriendship(token, userId) {
+  invalidatePeoplePages(token);
   markFriendsCacheDirty(userId);
   const base = getApiBaseUrl();
   for (const path of ['friends', 'friend-requests']) invalidateTabRead(tabReadKey(`${base}/users/${path}`, token));

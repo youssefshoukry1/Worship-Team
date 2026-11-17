@@ -1,3 +1,5 @@
+> Current friend directory and request architecture: [Friends system report](../../../public/reports_informations/friends-system.md). Own-friend search now uses the local directory; online discovery and other users' friend lists remain server-paginated. This supersedes older own-friend API search descriptions below.
+
 # Pray page — read before editing
 
 Updated: 17 November 2026, after Missions 6B and 7. This is the entry guide for agents changing `page.jsx` or its dependencies. Read the affected source before editing, keep this guide current, and consult the [implementation plan](../../../docs/pray-performance-implementation-plan.md) for detailed evidence and unfinished work.
@@ -60,3 +62,8 @@ The supplied Recording_20261117_021357.mp4 showed a collapsed Pray header and bl
 ## Shared tab swipe behavior
 
 The shared navigator uses recent movement speed (120 ms sample window), with a 18 px minimum and 0.4 px/ms threshold for a short flick. Slow drags commit at 18% of the viewport; a pause expires momentum and a quick reversal can cancel. Short failed drags ease back over approximately 240-320 ms, and committed flicks settle over 160-320 ms. Reduced motion uses zero duration. Logic lives in utils/interiorSwipe.js and components/PrimaryTabPager.jsx. Preserve vertical-scroll, selection, slider, modal and native-edge exclusions.
+
+
+## Friend picker pagination (17 November 2026)
+
+`PrayerSharePicker.jsx` now owns paginated friend/search reads through `usePeoplePage` and `PeoplePager`. It requests 10 people at a time only while opened; server-side friend/name search reaches friends beyond the downloaded pages. Authenticated `people-search` supplies relationship labels for other username results. `PrayerComposer` no longer receives an eagerly downloaded full friends array. The Pray page reuses downloaded friend metadata for optional enrichment and otherwise uses each prayer participant's saved metadata. Do not restore a full-list fetch just to populate the picker. See `../friends/README.md` for the endpoint, cache, migration and coordinated backend/OTA rollout contracts.

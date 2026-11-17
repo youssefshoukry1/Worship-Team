@@ -8,10 +8,10 @@ const context = { AbortController, setTimeout, clearTimeout };
 vm.runInNewContext(source + ';globalThis.createStore = createTestimonyFeedStore;', context);
 const A = 'aaaaaaaaaaaaaaaaaaaaaaaa', B = 'bbbbbbbbbbbbbbbbbbbbbbbb', ID = '111111111111111111111111';
 const note = (id = ID, author = B) => ({ _id: id, author: { _id: author }, title: 'A shared note', body: 'Shared testimony text', createdAt: new Date(1000).toISOString(), feedExpiresAt: new Date(10000).toISOString() });
-function fixture(storageMap = new Map(), userId = A) {
+function fixture(storageMap = new Map(), userId = A, cache = null) {
   let time = 2000;
   const requests = [], timers = [];
-  const store = context.createStore({ userId, now: () => time, storage: { getItem: key => storageMap.get(key), setItem: (key, value) => storageMap.set(key, value) },
+  const store = context.createStore({ userId, cache, now: () => time, storage: { getItem: key => storageMap.get(key), setItem: (key, value) => storageMap.set(key, value) },
     schedule: (fn, delay) => { const timer = { fn, delay }; timers.push(timer); return timer; }, cancel: timer => { if (timer) timer.cancelled = true; },
     request: (path, options) => new Promise((resolve, reject) => {
       requests.push({ path, options, resolve, reject });
@@ -150,8 +150,8 @@ test('only active owner notes block publishing; deletion and expiry unlock witho
   assert.equal(removed.publishing.canPublish, false, 'another active owner note still blocks sharing');
   const unlocked = await f.store.changed({ id: ownId, authorId: A, action: 'deleted' });
   assert.equal(unlocked.publishing.canPublish, true);
-  const created = f.store.changed({ id: ID, authorId: A, action: 'created' });
-  f.requests[1].resolve({ item: note(ID, A), publishing: { canPublish: false, unlimited: false } }); await created;
+  const created = f.store.changed({ id: '333333333333333333333333', authorId: A, action: 'created' });
+  f.requests[1].resolve({ item: note('333333333333333333333333', A), publishing: { canPublish: false, unlimited: false } }); await created;
   assert.equal(f.store.getSnapshot().publishing.canPublish, false);
   f.time(10000); f.store.tick();
   assert.equal(f.store.getSnapshot().publishing.canPublish, true, 'unlock at the exact expiry boundary');
@@ -165,5 +165,103 @@ test('an active owner note beyond the first feed page still blocks sharing', asy
     publishing: { canPublish: false, unlimited: false } });
   await sync;
   assert.equal(f.store.getSnapshot().publishing.canPublish, false);
+  f.store.dispose();
+});
+
+function memoryCache(value = null) {
+  return { value, writes: 0, async get() { return this.value; }, async set(next) { this.value = JSON.parse(JSON.stringify(next)); this.writes++; } };
+}
+
+test('downloaded bodies survive offline restart, without storing publishing permission', async () => {
+  const cache = memoryCache(), f = fixture(new Map(), A, cache);
+  await f.store.hydrate();
+  const sync = f.store.sync(); f.finish(0, [note()]); await sync; f.store.dispose();
+  const restarted = fixture(new Map(), A, cache);
+  await restarted.store.hydrate();
+  assert.equal(restarted.store.getSnapshot().items[0].body, note().body);
+  assert.equal(restarted.store.getSnapshot().publishing, null);
+  const offline = restarted.store.sync(); restarted.requests[0].reject(new Error('Offline')); await offline;
+  assert.equal(restarted.store.getSnapshot().items.length, 1);
+  const update = restarted.store.changed({ action: 'updated', id: ID });
+  restarted.requests[1].reject(new Error('Offline')); await update;
+  assert.equal(restarted.store.getSnapshot().items.length, 1);
+  const writes = cache.writes;
+  restarted.store.markSeen(ID); restarted.store.tick(); restarted.store.setFeedVisible(true);
+  assert.equal(cache.writes, writes, 'time/seen/visibility changes do not rewrite note bodies');
+  restarted.time(10000); restarted.store.tick();
+  assert.equal(restarted.store.getSnapshot().items.length, 0);
+  assert.equal(cache.value.items.length, 0, 'original expiry removes disk content too');
+  restarted.store.dispose();
+});
+
+test('reconnect reconciles the full index, retaining valid downloaded later pages only', async () => {
+  const older = note('222222222222222222222222'), removed = note('333333333333333333333333');
+  const cache = memoryCache({ version: 1, items: [note(), older, removed] });
+  const f = fixture(new Map(), A, cache); await f.store.hydrate();
+  const sync = f.store.sync();
+  f.finish(0, [note()], { activeNotes: [note(), older].map(item => ({ _id: item._id, authorId: B, feedExpiresAt: item.feedExpiresAt })) }); await sync;
+  assert.equal(f.store.getSnapshot().items.length, 2);
+  assert.equal(cache.value.items.some(item => item._id === removed._id), false);
+  await f.store.changed({ action: 'deleted', id: older._id });
+  assert.equal(cache.value.items.length, 1);
+  const late = f.store.changed({ action: 'updated', id: older._id });
+  f.requests[1].resolve({ item: older }); await late;
+  assert.equal(cache.value.items.length, 1, 'deleted IDs cannot be resurrected by late events');
+  f.store.dispose();
+});
+
+test('delayed disk reads cannot resurrect deletion, access revocation or logout', async () => {
+  for (const action of ['deleted', 'access', 'logout']) {
+    let resolve;
+    const cache = memoryCache(); cache.get = () => new Promise(done => { resolve = done; });
+    const f = fixture(new Map(), A, cache), loading = f.store.hydrate();
+    if (action === 'logout') f.store.clear();
+    else await f.store.changed({ action, id: ID });
+    resolve({ version: 1, items: [note()] }); await loading;
+    assert.equal(f.store.getSnapshot().items.length, 0, action);
+    f.store.dispose();
+  }
+});
+
+test('cache expiry is checked on restart and a denied feed clears cached content', async () => {
+  const cache = memoryCache({ version: 1, items: [note()] }), expired = fixture(new Map(), A, cache);
+  expired.time(10000); await expired.store.hydrate();
+  assert.equal(cache.value.items.length, 0); expired.store.dispose();
+  cache.value = { version: 1, items: [note()] };
+  const f = fixture(new Map(), A, cache); await f.store.hydrate();
+  const sync = f.store.sync(); f.requests[0].reject(Object.assign(new Error('Denied'), { status: 403 })); await sync;
+  assert.equal(cache.value.items.length, 0); f.store.dispose();
+});
+
+test('persistent feed cache is bounded and storage failures do not break the feed', async () => {
+  const cache = memoryCache(), f = fixture(new Map(), A, cache); await f.store.hydrate();
+  const items = Array.from({ length: 350 }, (_, i) => note(i.toString(16).padStart(24, '0')));
+  const sync = f.store.sync(); f.finish(0, items); await sync;
+  assert.equal(cache.value.items.length, 300);
+  assert.ok(JSON.stringify(cache.value).length * 2 <= 2 * 1024 * 1024);
+  cache.set = async () => { throw new Error('Disk full'); };
+  await f.store.changed({ action: 'deleted', id: items[0]._id }); await flush();
+  assert.equal(f.store.getSnapshot().items.length, 349); f.store.dispose();
+});
+
+test('a StrictMode deactivate/activate during hydration still restores offline notes', async () => {
+  let resolve;
+  const cache = memoryCache({ version: 1, items: [note()] });
+  const originalGet = cache.get.bind(cache);
+  cache.get = () => new Promise(done => { resolve = done; });
+  const f = fixture(new Map(), A, cache); f.store.activate();
+  f.store.dispose(); f.store.activate();
+  cache.get = originalGet; resolve(cache.value); await flush();
+  assert.equal(f.store.getSnapshot().items.length, 1); f.store.dispose();
+});
+
+
+test('reconnect reconciliation rejects an older individual response for a now-missing note', async () => {
+  const f = fixture();
+  const sync = f.store.sync(); f.finish(0, [note()]); await sync;
+  const oldRead = f.store.changed({ action: 'updated', id: ID });
+  const refresh = f.store.sync(); f.finish(2, [], { activeNotes: [] }); await refresh;
+  f.requests[1].resolve({ item: note() }); await oldRead;
+  assert.equal(f.store.getSnapshot().items.length, 0);
   f.store.dispose();
 });

@@ -315,3 +315,30 @@ for (const engine of ['chromium', 'webkit']) {
     assert.deepEqual(errors,[]);
   });
 }
+
+test('cached Profile returns without replacing its ready layout with a skeleton', async t => {
+  const { page, errors } = await setup(t, 'chromium', { href: '/normal_UserProfile/' });
+  const profile = panel(page, '/normal_UserProfile');
+  await profile.getByText('iOS Tester', { exact: true }).waitFor();
+  await page.getByRole('link', { name: 'Pray', exact: true }).click();
+  await profile.waitFor({ state: 'detached' });
+  await page.route('**/users/my-profile', route => route.abort());
+  await page.evaluate(() => {
+    window.profileFlashes = 0;
+    window.profileWatch = new MutationObserver(records => {
+      for (const record of records) for (const node of record.addedNodes) {
+        if (node.nodeType !== 1) continue;
+        const ready = node.closest('[data-tab-panel="/normal_UserProfile"][data-tab-ready="true"]');
+        if (ready && (node.matches('[data-page-skeleton="profile"]') || node.querySelector('[data-page-skeleton="profile"]'))) window.profileFlashes++;
+      }
+    });
+    profileWatch.observe(document.body, { subtree: true, childList: true });
+  });
+  await page.getByRole('link', { name: 'Friends', exact: true }).click();
+  await profile.getByText('iOS Tester', { exact: true }).waitFor({ state: 'attached' });
+  await page.getByRole('link', { name: 'Profile', exact: true }).click();
+  await profile.getByText('iOS Tester', { exact: true }).waitFor();
+  assert.equal(await profile.locator('[data-page-skeleton]').count(), 0);
+  assert.equal(await page.evaluate(() => { profileWatch.disconnect(); return profileFlashes; }), 0);
+  assert.deepEqual(errors, []);
+});

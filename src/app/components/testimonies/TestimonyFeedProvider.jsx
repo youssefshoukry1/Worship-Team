@@ -8,6 +8,8 @@ import { testimonyRequest } from './testimonyApi';
 import { createTestimonyFeedStore } from './testimonyFeedStore';
 import { createNoteReactorsStore } from './noteReactorsStore';
 import { createProfileNotesStore } from './profileNotesStore';
+import { feedNotesStorage } from './feedNotesStorage';
+import { useFriendDirectorySession } from '../../utils/friendDirectory/useLocalFriends';
 import { profileNotesStorage } from './profileNotesStorage';
 
 const FeedContext = createContext(null);
@@ -17,9 +19,10 @@ export const useNoteReactorsStore = () => useContext(StoresContext)?.reactors;
 export const useProfileNotesStore = () => useContext(StoresContext)?.profiles;
 
 function Session({ token, userId, children }) {
+  useFriendDirectorySession(token, userId);
   const pathname = usePathname();
   const isFriendsPage = pathname?.replace(/\/+$/, '') === '/friends';
-  const [store] = useState(() => createTestimonyFeedStore({ userId, request: (path, options) => testimonyRequest(token, path, options), storage: typeof window !== 'undefined' ? window.localStorage : null }));
+  const [store] = useState(() => createTestimonyFeedStore({ userId, cache: feedNotesStorage(userId), request: (path, options) => testimonyRequest(token, path, options), storage: typeof window !== 'undefined' ? window.localStorage : null }));
   const [reactors] = useState(() => createNoteReactorsStore({ userId, request: (path, options) => testimonyRequest(token, path, options), storage: typeof window !== 'undefined' ? window.localStorage : null }));
   const [profiles] = useState(() => createProfileNotesStore({ userId, request: (path, options) => testimonyRequest(token, path, options), storage: profileNotesStorage(userId) }));
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
@@ -36,13 +39,13 @@ function Session({ token, userId, children }) {
       const update = store.changed(event);
       if (event.action === 'access') profiles.accessChanged();
       else void profiles.changed(event, update);
-      if (event.action === 'access') window.dispatchEvent(new CustomEvent('taspe7:friends-push', { detail: { notesHandled: true } }));
+      if (event.action === 'access') window.dispatchEvent(new CustomEvent('taspe7:friends-push', { detail: { notesHandled: true, removedFriendId: event.removedFriendId } }));
       window.dispatchEvent(new CustomEvent('taspe7:testimony-live', { detail: event }));
     };
     import('socket.io-client').then(({ io }) => {
       if (stopped) return;
       socket = io(`${getApiBaseUrl().replace(/\/api\/?$/, '')}/testimonies`, { transports: ['websocket'], auth: { token }, reconnectionDelay: 1000, reconnectionDelayMax: 30000 });
-      socket.on('notes-ready', () => { connected = true; clearTimeout(bootstrap); fallbackStarted = true; void store.sync(true); profiles.resume(); });
+      socket.on('notes-ready', () => { window.dispatchEvent(new Event('taspe7:directory-resume')); connected = true; clearTimeout(bootstrap); fallbackStarted = true; void store.sync(true); profiles.resume(); });
       socket.on('disconnect', () => { connected = false; });
       socket.on('connect_error', initialSync);
       socket.on('note-changed', change);
@@ -67,6 +70,8 @@ function Session({ token, userId, children }) {
         void store.changed({ action: 'reaction', id: event.detail.testimonyId, authorId: userId });
       }
     };
+    const logout = () => store.clear();
+    window.addEventListener('taspe7:logout', logout);
     document.addEventListener('visibilitychange', resume);
     window.addEventListener('online', resume);
     window.addEventListener('pageshow', restore);
@@ -78,6 +83,7 @@ function Session({ token, userId, children }) {
       store.dispose();
       reactors.dispose();
       profiles.dispose();
+      window.removeEventListener('taspe7:logout', logout);
       document.removeEventListener('visibilitychange', resume);
       window.removeEventListener('online', resume);
       window.removeEventListener('pageshow', restore);

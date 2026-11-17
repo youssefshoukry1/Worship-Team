@@ -46,6 +46,7 @@ async function setup(t, { initial = 'none', failure = false, accepted = false } 
       serverRelationship = action !== 'add' ? 'none' : accepted ? 'friends' : 'outgoing';
       return reply({ status: accepted ? 'accepted' : 'pending' });
     }
+    if (path.includes('/friendship/')) return reply({ relationship: serverRelationship });
     if (path.endsWith('/users/friends')) return reply({ friends: serverRelationship === 'friends' ? [{ _id: targetId }] : [] });
     if (path.endsWith('/friend-requests')) return reply({ incoming: [], outgoing: serverRelationship === 'outgoing' ? [{ to: targetId }] : [] });
     if (path.includes('/profile/')) return reply({
@@ -103,7 +104,7 @@ test('rapid add/cancel/add clicks save in order and keep the latest button', asy
   await f.button('Add friend').click();
   await f.button('Cancel request').waitFor();
   assert.deepEqual(f.calls, ['add'], 'later saves wait for the first request');
-  const finalRead = f.page.waitForResponse(r => r.url().includes('/users/friend-requests'));
+  const finalRead = f.page.waitForResponse(r => r.url().includes('/users/friendship/'));
   f.gate.resolve();
   await finalRead;
   assert.deepEqual(f.calls, ['add', 'cancel', 'add']);
@@ -138,7 +139,7 @@ async function confirmRemoval(f) {
 test('removing a friend closes the dialog and updates the profile before saving', async t => {
   const f = await setup(t, { initial: 'friends' });
   await confirmRemoval(f);
-  const finalRead = f.page.waitForResponse(r => r.url().includes('/users/friend-requests'));
+  const finalRead = f.page.waitForResponse(r => r.url().includes('/users/friendship/'));
   f.gate.resolve();
   await finalRead;
   assert.equal(f.serverRelationship(), 'none');
@@ -165,7 +166,7 @@ test('adding again during removal saves both actions in order', async t => {
   await f.button('Add friend').click();
   await f.button('Cancel request').waitFor();
   assert.deepEqual(f.calls, ['remove']);
-  const finalRead = f.page.waitForResponse(r => r.url().includes('/users/friend-requests'));
+  const finalRead = f.page.waitForResponse(r => r.url().includes('/users/friendship/'));
   f.gate.resolve();
   await finalRead;
   assert.deepEqual(f.calls, ['remove', 'add']);

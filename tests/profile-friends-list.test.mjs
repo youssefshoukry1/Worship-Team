@@ -46,6 +46,7 @@ async function setup(t, { initial = 'none', failure = false, accepted = false } 
       serverRelationship = action !== 'add' ? 'none' : accepted ? 'friends' : 'outgoing';
       return reply({ status: accepted ? 'accepted' : 'pending' });
     }
+    if (path.includes('/friendship/')) return reply({ relationship: serverRelationship });
     if (path.endsWith('/users/friends')) return reply({ friends: serverRelationship === 'friends' ? [{ _id: targetId }] : [] });
     if (path.endsWith('/friend-requests')) return reply({ incoming: [], outgoing: serverRelationship === 'outgoing' ? [{ to: targetId }] : [] });
     if (path.endsWith('/friends') && path.includes('/profile/')) {

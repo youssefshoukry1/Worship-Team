@@ -19,7 +19,7 @@ import PrayerSettings from './PrayerSettings';
 import { PrayerCard, ListPanel, isReceivedPrayer, isSentPrayer, isPersonalPrayer } from './PrayerCards';
 import { usePrayerSession, usePrayerField } from './PrayerSessionProvider';
 import { useLanguage } from '../context/LanguageContext';
-import { isFriendsCacheFresh, readFriendsCache, writeFriendsCache } from '../utils/friendsCache';
+import useLocalFriends from '../utils/friendDirectory/useLocalFriends';
 import { findNotificationPrayer, readPrayerNotificationTarget } from '../utils/prayerNotificationNavigation';
 import { readCachedProfile, refreshProfile } from '../utils/profileCache';
 import { readTabJson, tabReadKey } from '../utils/tabRequests';
@@ -65,38 +65,9 @@ export default function PrayPage() {
     const myUsername = profile?.user?.username || contextUsername || (typeof window !== 'undefined' ? localStorage.getItem('user_Taspe7_Username') : null) || 'me';
     const myProfilePhoto = profile?.user?.profilePhoto || contextProfilePhoto || (typeof window !== 'undefined' ? localStorage.getItem('user_Taspe7_ProfilePhoto') : null) || null;
 
-    const [friends, setFriends] = useNavigationState([], pageActive);
-    const [loadingFriends, setLoadingFriends] = useNavigationState(false, pageActive);
-    const fetchFriends = useCallback(async () => {
-        if (!token) return;
-        try {
-            setLoadingFriends(true);
-            const cached = await readFriendsCache(userId);
-            if (cached?.friends) {
-                setFriends(cached.friends);
-                setLoadingFriends(false);
-            }
-            if (isFriendsCacheFresh(cached?.friendsSyncedAt)) return;
-
-            const data = await readTabJson(`${API_URL}/users/friends`, token);
-            const freshFriends = data.friends || [];
-            setFriends(freshFriends);
-            await writeFriendsCache(userId, {
-                ...(cached || {}),
-                friends: freshFriends,
-                friendsSyncedAt: Date.now(),
-                updatedAt: Date.now()
-            });
-        } catch (err) {
-            console.error('Failed to load friends:', err);
-        } finally {
-            setLoadingFriends(false);
-        }
-    }, [token, userId, setFriends, setLoadingFriends]);
-
-    useEffect(() => {
-        if (pageActive) fetchFriends();
-    }, [fetchFriends, pageActive]);
+    // Reuse only already downloaded people for optional profile enrichment.
+    // The picker loads/searches its own pages when opened; prayers carry author metadata.
+    const { items: friends } = useLocalFriends(token, userId, '', false);
 
     const friendLookup = useMemo(() => {
         const byId = new Map(), byUsername = new Map();
@@ -569,7 +540,7 @@ export default function PrayPage() {
                                     setLocalActivityId(`restore-${crypto.randomUUID()}`);
                                 }} />}
                         </div>
-                        {<PrayerComposer friends={friends} loadingFriends={loadingFriends} onSaved={handlePrayerSaved} />}
+                        {<PrayerComposer onSaved={handlePrayerSaved} />}
                     </div>
 
                     {/* Primary Space Tabs: My Journal vs Prayer Circle */}

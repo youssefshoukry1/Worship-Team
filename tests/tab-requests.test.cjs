@@ -95,13 +95,15 @@ test('a failed session job can retry', async () => {
 test('profile refresh shares the response and keeps all offline sections when Prayer and Profile visit', async () => {
   let requests = 0; const disk = new Map();
   const reads = readsApi({ fetch: async () => { requests++; return { ok: true, json: async () => ({ user: { username: 'alice', bibleNotes: [{ note: 'note' }], bibleHighlights: [{ color: 'blue' }], prayTime: [{ words: 'prayer' }] } }) }; } });
-  const api = moduleApi('utils/profileCache.js', ['readCachedProfile', 'refreshProfile', 'writeCachedProfile', 'invalidateProfile'], {
+  const api = moduleApi('utils/profileCache.js', ['getCachedProfileSnapshot', 'readCachedProfile', 'refreshProfile', 'writeCachedProfile', 'invalidateProfile'], {
     ...reads, fetchTabJson: async (url, token, signal) => {
       const data = await reads.readTabJson(url + '/raw', token, { maxAge: 0 }); return data;
     }, localforage: { getItem: async key => disk.get(key) || null, setItem: async (key, value) => disk.set(key, value) },
   });
   const [profile, prayer] = await Promise.all([api.refreshProfile('/api', 'token', 'alice'), api.refreshProfile('/api', 'token', 'alice')]);
   assert.equal(profile, prayer); assert.equal(requests, 1);
+  assert.equal(api.getCachedProfileSnapshot('alice'), profile);
+  assert.equal(api.getCachedProfileSnapshot('another-user'), null);
   assert.equal((await api.readCachedProfile('alice')).bibleNotes[0].note, 'note');
   assert.equal(prayer.bibleHighlights[0].color, 'blue');
   await api.refreshProfile('/api', 'token', 'alice'); assert.equal(requests, 1);

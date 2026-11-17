@@ -1,4 +1,5 @@
 'use client';
+// Before changing Friends notes, read ./README.md for cache and lifecycle rules.
 import PageSkeleton from '../components/PageSkeleton';
 
 import { useState, useEffect, useLayoutEffect, useContext, useCallback, useRef } from 'react';
@@ -20,9 +21,13 @@ import { showToast } from '../components/ToastContainer';
 import OfflineAvatar from '../components/OfflineAvatar';
 import FriendPhotoViewer from '../components/FriendPhotoViewer';
 import { cacheAvatarsInBackground } from '../utils/avatarStorage';
-import { clearFriendsInvalidation, getFriendsCacheKey, isFriendsCacheFresh, readFriendsCache, readFriendsInvalidation, writeFriendsCache } from '../utils/friendsCache';
+import usePeoplePage, { beginPeopleMutation, endPeopleMutation } from '../utils/usePeoplePage';
+import useLocalFriends from '../utils/friendDirectory/useLocalFriends';
+import { changeFriendship } from '../utils/friendshipActions';
+import FriendDirectoryStatus from '../components/FriendDirectoryStatus';
+import PeoplePager from '../components/PeoplePager';
 import { readFriendNotificationTarget } from '../utils/friendNotificationNavigation';
-import { invalidateTabRead, readTabJson, TAB_READ_FRESH_MS, tabReadKey } from '../utils/tabRequests';
+
 import TestimonyBoard from '../components/testimonies/TestimonyBoard';
 import { announceTestimonyChange, profileHref } from '../components/testimonies/testimonyApi';
 
@@ -36,108 +41,45 @@ export default function FriendsPage() {
   const [activeTab, setActiveTab] = useState('requests');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFriendsSearch, setShowFriendsSearch] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
-  const [suggestionsLoading, setSuggestionsLoading] = useState(true);
-  const [suggestionsError, setSuggestionsError] = useState(false);
-  const [suggestionsRetry, setSuggestionsRetry] = useState(0);
-  const [isSearching, setIsSearching] = useState(false);
-
-  const [incomingRequests, setIncomingRequests] = useState([]);
-  const [outgoingRequests, setOutgoingRequests] = useState([]);
-  const [friends, setFriends] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const incomingPage = usePeoplePage('friend-requests?kind=incoming', isLogin, user_id, pageActive && activeTab === 'requests');
+  const outgoingPage = usePeoplePage('friend-requests?kind=outgoing', isLogin, user_id, pageActive && activeTab === 'sent');
+  const friendsPage = useLocalFriends(isLogin, user_id, activeTab === 'friends' ? searchQuery : '', pageActive);
+  const suggestedPage = usePeoplePage('friend-suggestions', isLogin, user_id, pageActive && activeTab === 'requests');
+  const searchPage = usePeoplePage(`people-search?q=${encodeURIComponent(searchTerm)}`, isLogin, user_id, pageActive && activeTab !== 'friends' && searchTerm.length >= 2, false);
+  const { items: incomingRequests, setItems: setIncomingRequests } = incomingPage;
+  const { items: outgoingRequests, setItems: setOutgoingRequests } = outgoingPage;
+  const { items: friends, setItems: setFriends, reveal: revealFriend } = friendsPage;
+  const suggestions = suggestedPage.items, suggestionsLoading = suggestedPage.loading && !suggestedPage.ready;
+  const searchResults = searchTerm === searchQuery.trim().replace(/^@/, '') ? searchPage.items : [];
+  const isSearching = searchPage.loading;
+  const currentPage = activeTab === 'requests' ? incomingPage : activeTab === 'sent' ? outgoingPage : friendsPage;
+  const loading = !currentPage.ready && !currentPage.error;
+  const [totals, setTotals] = useState({});
+  const incomingTotal = totals.incoming ?? incomingPage.total ?? 0;
+  const outgoingTotal = totals.outgoing ?? outgoingPage.total ?? 0;
+  const friendsTotal = friendsPage.complete ? friendsPage.total : (friendsPage.knownTotal || totals.friends || 0);
   const [actionLoading, setActionLoading] = useState({});
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const closePhoto = useCallback(() => setSelectedPhoto(null), []);
 
-  const debounceTimerRef = useRef(null);
-  const cacheReadyRef = useRef(false);
-  const syncTimesRef = useRef({ friendsSyncedAt: 0, requestsSyncedAt: 0 });
-  const friendsCacheKey = getFriendsCacheKey(user_id);
-  const cacheLoadRef = useRef(null);
-  const syncInFlightRef = useRef({ requests: null, friends: null });
-  const syncAgainRef = useRef({ requests: false, friends: false });
-  const actionVersionRef = useRef(0);
-  const pendingActionsRef = useRef(0);
   const [notificationTarget, setNotificationTarget] = useState(null);
   const notificationScrolledRef = useRef(false);
-  const mountedRef = useRef(true);
+  const refreshSummary = useCallback(async (signal) => {
+    try {
+      const response = await fetch(`${API_URL}/users/friends-summary`, { signal, headers: { Authorization: `Bearer ${isLogin}` }, cache: 'no-store' });
+      if (response.ok) { const result = await response.json(); if (!signal?.aborted) setTotals(result); }
+    } catch { /* Keep previous totals while offline. */ }
+  }, [isLogin]);
   useEffect(() => {
-    mountedRef.current = true;
-    return () => { mountedRef.current = false; };
-  }, []);
-
-  // Fetch pending requests and friends list
-  const loadData = useCallback(async (force = false) => {
-    if (!isLogin) return;
-    if (!cacheLoadRef.current) {
-      cacheLoadRef.current = (async () => {
-        try {
-          const cached = await readFriendsCache(user_id);
-          if (!mountedRef.current) return;
-          if (cached) {
-            setIncomingRequests(cached.incomingRequests || []);
-            setOutgoingRequests(cached.outgoingRequests || []);
-            setFriends(cached.friends || []);
-            syncTimesRef.current = {
-              friendsSyncedAt: cached.friendsSyncedAt || 0,
-              requestsSyncedAt: cached.requestsSyncedAt || 0,
-            };
-          }
-        } catch { /* Network refresh still runs if the local cache is unavailable. */ }
-        cacheReadyRef.current = true;
-        setLoading(false);
-      })();
-    }
-    await cacheLoadRef.current;
-    if (!mountedRef.current) return;
-    const invalidation = readFriendsInvalidation(user_id);
-    const refreshAll = force || Boolean(invalidation);
-    // Deduplicate each endpoint separately so a stalled friends list cannot
-    // block later pushes from refreshing incoming requests.
-    const syncPart = (part, fetchAndApply) => {
-      if (syncInFlightRef.current[part]) {
-        if (refreshAll) syncAgainRef.current[part] = true;
-        return syncInFlightRef.current[part];
-      }
-      const run = async () => {
-        let success = false;
-        do {
-          syncAgainRef.current[part] = false;
-          try { success = await fetchAndApply(); } catch { success = false; }
-        } while (mountedRef.current && syncAgainRef.current[part]);
-        return success;
-      };
-      syncInFlightRef.current[part] = run().finally(() => { syncInFlightRef.current[part] = null; });
-      return syncInFlightRef.current[part];
-    };
-    const results = await Promise.allSettled([
-      syncPart('requests', async () => {
-        if (!refreshAll && isFriendsCacheFresh(syncTimesRef.current.requestsSyncedAt) && Date.now() - syncTimesRef.current.requestsSyncedAt < TAB_READ_FRESH_MS) return true;
-        const version = actionVersionRef.current;
-        const data = await readTabJson(`${API_URL}/users/friend-requests`, isLogin, { force: refreshAll });
-        if (!mountedRef.current || version !== actionVersionRef.current || pendingActionsRef.current > 0) return false;
-        syncTimesRef.current.requestsSyncedAt = Date.now();
-        setIncomingRequests(data.incoming || []);
-        setOutgoingRequests(data.outgoing || []);
-        return true;
-      }),
-      syncPart('friends', async () => {
-        if (!refreshAll && isFriendsCacheFresh(syncTimesRef.current.friendsSyncedAt) && Date.now() - syncTimesRef.current.friendsSyncedAt < TAB_READ_FRESH_MS) return true;
-        const version = actionVersionRef.current;
-        const data = await readTabJson(`${API_URL}/users/friends`, isLogin, { force: refreshAll });
-        if (!mountedRef.current || version !== actionVersionRef.current || pendingActionsRef.current > 0) return false;
-        syncTimesRef.current.friendsSyncedAt = Date.now();
-        setFriends(data.friends || []);
-        return true;
-      }),
-    ]);
-    if (results.every(result => result.status === 'fulfilled' && result.value)) {
-      clearFriendsInvalidation(user_id, invalidation);
-    }
-  }, [isLogin, user_id]);
-
+    if (!pageActive || !isLogin) return;
+    const controller = new AbortController();
+    const refresh = () => { if (document.visibilityState === 'visible') void refreshSummary(controller.signal); };
+    refresh();
+    window.addEventListener('taspe7:friends-push', refresh);
+    window.addEventListener('online', refresh);
+    return () => { controller.abort(); window.removeEventListener('taspe7:friends-push', refresh); window.removeEventListener('online', refresh); };
+  }, [pageActive, isLogin, refreshSummary]);
   useLayoutEffect(() => {
     if (!pageActive) return;
     const open = (target) => {
@@ -147,7 +89,7 @@ export default function FriendsPage() {
       setActiveTab(target.tab);
       setSearchQuery('');
       setSelectedPhoto(null);
-      setLoading(false);
+
     };
     open(readFriendNotificationTarget(window.location.search));
     const handleOpen = (event) => {
@@ -157,28 +99,11 @@ export default function FriendsPage() {
       if (!target) return;
       event.preventDefault();
       open(target);
-      void loadData(true);
+      window.dispatchEvent(new CustomEvent('taspe7:friends-push', { detail: { notesHandled: true } }));
     };
     window.addEventListener('taspe7:open-friends', handleOpen);
     return () => window.removeEventListener('taspe7:open-friends', handleOpen);
-  }, [loadData, pageActive]);
-
-  useEffect(() => {
-    // Rapid revisits reuse fresh data; notifications and returning to the page
-    // fetch changes without periodically polling either endpoint.
-    void loadData(Boolean(readFriendNotificationTarget(window.location.search)));
-    const refresh = () => { if (pageActive) void loadData(true); };
-    const whenVisible = () => { if (document.visibilityState === 'visible') refresh(); };
-    const restore = event => { if (event.persisted) whenVisible(); };
-    window.addEventListener('taspe7:friends-push', whenVisible);
-    window.addEventListener('pageshow', restore);
-    document.addEventListener('visibilitychange', whenVisible);
-    return () => {
-      window.removeEventListener('taspe7:friends-push', whenVisible);
-      window.removeEventListener('pageshow', restore);
-      document.removeEventListener('visibilitychange', whenVisible);
-    };
-  }, [loadData, pageActive]);
+  }, [pageActive]);
 
   useLayoutEffect(() => {
     if (!pageActive || !notificationTarget?.actorId || notificationScrolledRef.current || activeTab !== notificationTarget.tab) return;
@@ -190,91 +115,51 @@ export default function FriendsPage() {
     }
   }, [pageActive, notificationTarget, activeTab, incomingRequests, friends, loading]);
 
+  // Notification targets can be outside the downloaded pages. Fetch just that row.
   useEffect(() => {
-    if (!cacheReadyRef.current || !user_id) return;
-    writeFriendsCache(user_id, {
-      incomingRequests,
-      outgoingRequests,
-      friends,
-      friendsSyncedAt: syncTimesRef.current.friendsSyncedAt,
-      requestsSyncedAt: syncTimesRef.current.requestsSyncedAt,
-      updatedAt: Date.now(),
-    }).catch((error) => console.warn('Failed to cache friends data:', error));
-  }, [friends, incomingRequests, outgoingRequests, friendsCacheKey, user_id]);
-
-  useEffect(() => {
-    const users = [
-      ...friends,
-      ...incomingRequests.map((request) => request.from).filter(Boolean),
-      ...outgoingRequests.map((request) => request.to).filter(Boolean),
-    ];
-    cacheAvatarsInBackground(users);
-  }, [friends, incomingRequests, outgoingRequests]);
-
-  useEffect(() => {
-    if (!pageActive || !isLogin) return;
+    const target = notificationTarget?.actorId;
+    if (!pageActive || !target || currentPage.loading || !currentPage.ready || notificationScrolledRef.current) return;
+    const isFriends = notificationTarget.tab === 'friends';
+    const rows = isFriends ? friends : incomingRequests;
+    if (rows.some(row => String(isFriends ? row._id : row.from?._id) === target)) return;
+    if (isFriends && revealFriend(target)) return;
     const controller = new AbortController();
-    fetch(`${API_URL}/users/friend-suggestions`, { headers: { Authorization: `Bearer ${isLogin}` }, signal: controller.signal })
-      .then(response => { if (!response.ok) throw new Error('Suggestions unavailable'); return response.json(); })
-      .then(data => { if (!controller.signal.aborted) { setSuggestions(data.suggestions || []); setSuggestionsError(false); } })
-      .catch(() => { if (!controller.signal.aborted) setSuggestionsError(true); })
-      .finally(() => { if (!controller.signal.aborted) setSuggestionsLoading(false); });
-    return () => controller.abort();
-  }, [pageActive, isLogin, suggestionsRetry]);
-
-  // Debounced search for users by username
-  useEffect(() => {
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-
-    const cleanQuery = searchQuery.trim().replace(/^@/, '');
-    if (cleanQuery.length < 2) {
-      setSearchResults([]);
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
-    const controller = new AbortController();
-    debounceTimerRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`${API_URL}/users/search-username?q=${encodeURIComponent(cleanQuery)}`, { signal: controller.signal });
-        if (res.ok) {
-          const data = await res.json();
-          if (!controller.signal.aborted) setSearchResults(data || []);
+    const path = isFriends ? 'friends' : 'friend-requests?kind=incoming';
+    fetch(`${API_URL}/users/${path}${path.includes('?') ? '&' : '?'}target=${target}`, { signal: controller.signal, headers: { Authorization: `Bearer ${isLogin}` } })
+      .then(response => response.ok ? response.json() : null).then(result => {
+        if (!controller.signal.aborted && result?.items?.length) {
+          const update = isFriends ? setFriends : setIncomingRequests;
+          update(previous => [...previous, ...result.items.filter(item => !previous.some(old => old._id === item._id))]);
         }
-      } catch {
-        if (!controller.signal.aborted) setSearchResults([]);
-      } finally {
-        if (!controller.signal.aborted) setIsSearching(false);
-      }
-    }, 300);
+      }).catch(() => {});
+    return () => controller.abort();
+  }, [pageActive, notificationTarget, currentPage.loading, currentPage.ready, friends, incomingRequests, isLogin, setFriends, setIncomingRequests, revealFriend]);
 
-    return () => { clearTimeout(debounceTimerRef.current); controller.abort(); };
+  useEffect(() => {
+    cacheAvatarsInBackground([...friends, ...incomingRequests.map(request => request.from), ...outgoingRequests.map(request => request.to)].filter(Boolean));
+  }, [friends, incomingRequests, outgoingRequests]);
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchTerm(searchQuery.trim().replace(/^@/, '')), 300);
+    return () => clearTimeout(timer);
   }, [searchQuery]);
 
   // Helper status checker for a target user
   const getUserStatus = (targetId) => {
     if (targetId === user_id) return 'self';
+    const known = searchResults.find(person => person._id === targetId);
+    if (known?.relationship && !actionLoading[targetId]) return ({ friends: 'friend', outgoing: 'requested' })[known.relationship] || known.relationship;
     if (friends.some((f) => (f._id || f) === targetId)) return 'friend';
     if (outgoingRequests.some((r) => (r.to?._id || r.to) === targetId)) return 'requested';
     if (incomingRequests.some((r) => (r.from?._id || r.from) === targetId)) return 'incoming';
-    return 'none';
+    const person = searchResults.find(person => person._id === targetId) || suggestions.find(person => person._id === targetId);
+    return ({ friends: 'friend', outgoing: 'requested' })[person?.relationship] || person?.relationship || 'none';
   };
 
   // Send friend request
-  const beginAction = () => {
-    invalidateTabRead(tabReadKey(`${API_URL}/users/friend-requests`, isLogin));
-    invalidateTabRead(tabReadKey(`${API_URL}/users/friends`, isLogin));
-    actionVersionRef.current++;
-    pendingActionsRef.current++;
-  };
+  const beginAction = () => beginPeopleMutation(isLogin);
   const finishAction = () => {
-    invalidateTabRead(tabReadKey(`${API_URL}/users/friend-requests`, isLogin));
-    invalidateTabRead(tabReadKey(`${API_URL}/users/friends`, isLogin));
-    actionVersionRef.current++;
-    pendingActionsRef.current--;
-    setSuggestionsRetry(value => value + 1);
-    void loadData(true);
+    endPeopleMutation(isLogin);
+    window.dispatchEvent(new CustomEvent('taspe7:friends-push', { detail: { notesHandled: true } }));
     announceTestimonyChange();
   };
 
@@ -381,22 +266,11 @@ export default function FriendsPage() {
     beginAction();
     setActionLoading((prev) => ({ ...prev, [targetId]: true }));
 
-    const prevFriends = [...friends];
-    setFriends((prev) => prev.filter((f) => (f._id || f) !== targetId));
-
     try {
-      const res = await fetch(`${API_URL}/users/friends/${targetId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${isLogin}` }
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.msg || 'Remove failed');
-      }
+      await changeFriendship(isLogin, targetId, 'remove');
       showToast({ message: `Removed @${username} from friends`, type: 'info' });
       announceTestimonyChange();
     } catch (err) {
-      setFriends(prevFriends);
       showToast({ message: err.message, type: 'error' });
     } finally {
       finishAction();
@@ -437,12 +311,12 @@ export default function FriendsPage() {
         </div>
 
         {/* Live Search Results Dropdown / Panel */}
-        {searchQuery.trim().length >= 2 && (
+        {activeTab !== 'friends' && searchQuery.trim().length >= 2 && (
           <div className="absolute top-full right-0 mt-2 w-[min(360px,calc(100vw-32px))] max-h-[60dvh] overflow-y-auto p-2 rounded-2xl bg-app-panel/95 border border-white/10 backdrop-blur-xl shadow-2xl shadow-black/50 space-y-1.5">
             <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400">
               Search Results
             </div>
-            {searchResults.length === 0 && !isSearching ? (
+            {searchResults.length === 0 && !isSearching && !searchPage.error ? (
               <div className="p-4 text-center text-xs text-slate-400">
                 No users found matching &ldquo;{searchQuery}&rdquo;
               </div>
@@ -519,6 +393,7 @@ export default function FriendsPage() {
                 );
               })
             )}
+            <PeoplePager page={searchPage} active={pageActive && searchTerm.length >= 2} />
           </div>
         )}
       </div>)}
@@ -544,9 +419,9 @@ export default function FriendsPage() {
           }`}
         >
           <span>Requests</span>
-          {incomingRequests.length > 0 && (
+          {incomingTotal > 0 && (
             <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#00C2FF] text-[#020817]">
-              {incomingRequests.length}
+              {incomingTotal}
             </span>
           )}
           {activeTab === 'requests' && (
@@ -567,7 +442,7 @@ export default function FriendsPage() {
         </button>
         <button type="button" onClick={() => setActiveTab('sent')}
           className={`relative pb-3 px-3 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 ${activeTab === 'sent' ? 'text-[#00C2FF]' : 'text-slate-400 hover:text-slate-200'}`}>
-          <span>Sent</span>{outgoingRequests.length > 0 && <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-white/10 text-slate-300">{outgoingRequests.length}</span>}
+          <span>Sent</span>{outgoingTotal > 0 && <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-white/10 text-slate-300">{outgoingTotal}</span>}
           {activeTab === 'sent' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00C2FF] rounded-full" />}
         </button>
       </div>
@@ -581,11 +456,11 @@ export default function FriendsPage() {
           <div>
             <div className="flex items-center gap-2 mb-3 px-1">
               <h2 className="text-xs font-semibold text-slate-400">
-                Incoming requests ({incomingRequests.length})
+                Incoming requests ({incomingTotal})
               </h2>
             </div>
 
-            {incomingRequests.length === 0 ? (
+            {incomingRequests.length === 0 && !incomingPage.error ? (
               <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 text-center text-xs text-slate-400">
                 No pending incoming requests
               </div>
@@ -641,11 +516,11 @@ export default function FriendsPage() {
             )}
           </div>
 
+          <PeoplePager page={incomingPage} active={pageActive} />
           <section aria-label="Suggested friends">
             <h2 className="text-xs font-semibold text-slate-400 mb-3 px-1">Suggested friends</h2>
             {suggestionsLoading ? <div role="status" className="p-6 text-center text-xs text-slate-400">Finding people...</div>
-              : suggestionsError ? <div className="p-6 text-center text-xs text-slate-400">Could not load suggestions. <button type="button" className="text-sky-400" onClick={() => { setSuggestionsLoading(true); setSuggestionsRetry(value => value + 1); }}>Retry</button></div>
-              : suggestions.filter(user => getUserStatus(user._id) === 'none').length === 0 ? <p className="p-6 rounded-2xl bg-white/[0.02] text-center text-xs text-slate-400">No mutual-friend suggestions yet. Use search to find people you know.</p>
+              : suggestions.filter(user => getUserStatus(user._id) === 'none').length === 0 && !suggestedPage.error ? <p className="p-6 rounded-2xl bg-white/[0.02] text-center text-xs text-slate-400">No mutual-friend suggestions yet. Use search to find people you know.</p>
               : <div className="space-y-2">{suggestions.filter(user => getUserStatus(user._id) === 'none').map(user => (
                 <div key={user._id} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/[0.04] border border-white/10">
                   <button type="button" onClick={() => router.push(profileHref(user._id))} className="flex items-center gap-3 min-w-0 text-left" aria-label={`Open ${user.Name || user.username} profile`}>
@@ -655,6 +530,7 @@ export default function FriendsPage() {
                   <button type="button" disabled={actionLoading[user._id]} onClick={() => handleSendRequest(user)} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500/10 text-sky-300 text-xs font-semibold disabled:opacity-50"><UserPlus className="w-3.5 h-3.5" />Add</button>
                 </div>
               ))}</div>}
+            <PeoplePager page={suggestedPage} active={pageActive} />
           </section>
         </div>
       ) : activeTab === 'sent' ? (
@@ -662,11 +538,11 @@ export default function FriendsPage() {
           <div>
             <div className="flex items-center gap-2 mb-3 px-1">
               <h2 className="text-xs font-semibold text-slate-400">
-                Sent requests ({outgoingRequests.length})
+                Sent requests ({outgoingTotal})
               </h2>
             </div>
 
-            {outgoingRequests.length === 0 ? (
+            {outgoingRequests.length === 0 && !outgoingPage.error ? (
               <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 text-center text-xs text-slate-400">
                 No pending sent requests
               </div>
@@ -710,15 +586,16 @@ export default function FriendsPage() {
                 })}
               </div>
             )}
-          </div></div>
+          </div><PeoplePager page={outgoingPage} active={pageActive} /></div>
       ) : (
         /* My Friends Tab */
         <div>
-          <p className="mb-3 px-1 text-xs text-slate-400">{friends.length} {friends.length === 1 ? 'friend' : 'friends'}</p>
-          {friends.length === 0 ? (
+          <p className="mb-3 px-1 text-xs text-slate-400">{friendsTotal} {friendsTotal === 1 ? 'friend' : 'friends'}</p>
+          <FriendDirectoryStatus page={friendsPage} />
+          {friends.length === 0 && !friendsPage.error ? (
             <div className="p-10 rounded-2xl bg-white/[0.02] border border-white/5 text-center space-y-2">
               <Users className="w-8 h-8 text-slate-500 mx-auto" />
-              <div className="text-sm font-semibold text-white">No friends yet</div>
+              <div className="text-sm font-semibold text-white">{searchQuery ? 'No matching friends' : friendsPage.complete ? 'No friends yet' : 'No saved friends yet'}</div>
               <p className="text-xs text-slate-400 max-w-xs mx-auto">
                 Search for someone using their @username above to send a friend request!
               </p>
@@ -777,6 +654,7 @@ export default function FriendsPage() {
               })}
             </div>
           )}
+          <PeoplePager page={friendsPage} active={pageActive} />
         </div>
       )}
       </div>

@@ -2,68 +2,31 @@
 import { useContext, useEffect, useState } from 'react';
 import { Search, Loader2, X } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
-import { getApiBaseUrl } from '../utils/apiBase';
+import usePeoplePage from '../utils/usePeoplePage';
+import useLocalFriends from '../utils/friendDirectory/useLocalFriends';
+import FriendDirectoryStatus from '../components/FriendDirectoryStatus';
+import PeoplePager from '../components/PeoplePager';
 import Portal from '../Portal/Portal';
 import { UserAvatar } from './PrayerCards';
-const API_URL = getApiBaseUrl();
-export default function PrayerSharePicker({ isShareOpen, onClose, onSelect, selectedShareUser, friends, loadingFriends }) {
-    const { user_id: userId } = useContext(UserContext);
+export default function PrayerSharePicker({ isShareOpen, onClose, onSelect, selectedShareUser }) {
+    const { user_id: userId, isLogin: token } = useContext(UserContext);
     const [shareSearchQuery, setShareSearchQuery] = useState('');
-    const [systemSearchResults, setSystemSearchResults] = useState([]);
-    const [isSearchingUsers, setIsSearchingUsers] = useState(false);
-
+    const [query, setQuery] = useState('');
+    const [discover, setDiscover] = useState(false);
     useEffect(() => {
-        const clean = shareSearchQuery.trim().replace(/^@/, '');
-        if (clean.length < 2) {
-            setSystemSearchResults([]);
-            setIsSearchingUsers(false);
-            return;
-        }
-        setIsSearchingUsers(true);
-        const controller = new AbortController();
-        const timer = setTimeout(async () => {
-            try {
-                const res = await fetch(`${API_URL}/users/search-username?q=${encodeURIComponent(clean)}`, { signal: controller.signal });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (!controller.signal.aborted) setSystemSearchResults(data || []);
-                }
-            } catch {
-                if (!controller.signal.aborted) setSystemSearchResults([]);
-            } finally {
-                if (!controller.signal.aborted) setIsSearchingUsers(false);
-            }
-        }, 300);
-        return () => { clearTimeout(timer); controller.abort(); };
+        const timer = setTimeout(() => { setQuery(shareSearchQuery.trim().replace(/^@/, '')); setDiscover(false); }, 300);
+        return () => clearTimeout(timer);
     }, [shareSearchQuery]);
-
+    const friendsPage = useLocalFriends(token, userId, shareSearchQuery, isShareOpen);
+    const searchPage = usePeoplePage(`people-search?q=${encodeURIComponent(query)}`, token, userId, isShareOpen && discover && query.length >= 2, false);
+    const isSearchingUsers = query ? friendsPage.syncing || (discover && searchPage.loading) : false;
+    const loadingFriends = friendsPage.loading && !friendsPage.ready;
     const getSortedShareResults = () => {
-        const cleanQuery = shareSearchQuery.trim().replace(/^@/, '').toLowerCase();
-        if (!cleanQuery) {
-            return friends.map((f) => ({ ...f, isFriend: true }));
-        }
-
-        const matchingFriends = friends.filter((f) =>
-            f.username?.toLowerCase().includes(cleanQuery) ||
-            f.Name?.toLowerCase().includes(cleanQuery)
-        ).map((f) => ({ ...f, isFriend: true }));
-
-        const friendIds = new Set(friends.map((f) => (f._id || f).toString()));
-        const nonFriendMatches = systemSearchResults
-            .filter((u) => !friendIds.has(u._id.toString()) && u._id.toString() !== userId?.toString())
-            .map((u) => ({ ...u, isFriend: false }));
-
-        const exactMatchUser = nonFriendMatches.find((u) => u.username?.toLowerCase() === cleanQuery);
-
-        if (exactMatchUser) {
-            return [
-                { ...exactMatchUser, isExact: true },
-                ...matchingFriends,
-                ...nonFriendMatches.filter((u) => u._id.toString() !== exactMatchUser._id.toString())
-            ];
-        }
-
-        return [...matchingFriends, ...nonFriendMatches];
+        const friends = friendsPage.items.map(person => ({ ...person, isFriend: true }));
+        const ids = new Set(friends.map(person => person._id));
+        const others = discover && query.length >= 2 ? searchPage.items.filter(person => person._id !== userId && !ids.has(person._id))
+            .map(person => ({ ...person, isFriend: person.relationship === 'friends', isExact: person.username?.toLowerCase() === query.toLowerCase() })) : [];
+        return [...friends, ...others].sort((a, b) => Number(Boolean(b.isExact)) - Number(Boolean(a.isExact)));
     };
 
     return <>
@@ -166,6 +129,10 @@ export default function PrayerSharePicker({ isShareOpen, onClose, onSelect, sele
                                         </div>
                                     ))
                                 )}
+                                <PeoplePager page={friendsPage} active={isShareOpen} />
+                                <FriendDirectoryStatus page={friendsPage} />
+                                {query.length >= 2 && !discover && <button type="button" className="text-xs text-sky-400 py-2" onClick={() => setDiscover(true)}>Search other people online</button>}
+                                {discover && query.length >= 2 && <PeoplePager page={searchPage} active={isShareOpen} />}
                             </div>
                         </div>
                     </div>

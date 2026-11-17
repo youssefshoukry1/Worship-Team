@@ -176,13 +176,21 @@ async function setup(t, { startPath = '/friends/', mobile = false, failFirstPubl
       else state.relationship = 'outgoing';
       return reply({ success: true, status: state.relationship === 'friends' ? 'accepted' : 'pending' });
     }
-    if (path.endsWith('/friends')) return state.failRelationshipRead ? reply({ message: 'Could not check friendship.' }, 503) : reply({ friends: state.relationship === 'friends' ? [friend] : [] });
-    if (path.endsWith('/friend-requests')) return reply({ incoming: state.relationship === 'incoming' ? [{ from: friend }] : [], outgoing: state.relationship === 'outgoing' ? [{ to: friend }] : [] });
+    if (path.includes('/friendship/')) return state.failRelationshipRead ? reply({ message: 'Could not check friendship.' }, 503) : reply({ relationship: state.relationship });
+    if (path.endsWith('/friends-summary')) return reply({ friends: Number(state.relationship === 'friends'), incoming: Number(state.relationship === 'incoming'), outgoing: Number(state.relationship === 'outgoing') });
+    if (path.endsWith('/friends')) return reply({ items: state.relationship === 'friends' ? [friend] : [], total: Number(state.relationship === 'friends'), nextCursor: null });
+    if (path.endsWith('/friend-requests')) {
+      const kind = url.searchParams.get('kind');
+      const items = state.relationship === kind ? [{ _id: 'request1', [kind === 'incoming' ? 'from' : 'to']: friend }] : [];
+      return reply({ items, total: items.length, nextCursor: null });
+    }
+    if (path.endsWith('/friend-suggestions')) return reply({ items: [], nextCursor: null });
+    if (path.endsWith('/people-search')) return reply({ items: [{ ...friend, relationship: state.relationship }], nextCursor: null });
     if (path.endsWith('/search-username')) return reply([friend]);
     if (path.endsWith('/my-teams')) return reply({ teams: [] });
     return reply({ friends: [], incoming: [], outgoing: [], users: [], data: [] });
   });
-  const initialFriends = startPath === '/friends/' ? Promise.all(['friends', 'friend-requests'].map(name =>
+  const initialFriends = startPath === '/friends/' ? Promise.all(['friends-summary', 'friend-requests'].map(name =>
     page.waitForResponse(response => new URL(response.url()).pathname.endsWith(`/users/${name}`) && response.request().method() === 'GET')
       .then(response => response.finished()))) : Promise.resolve();
   const initialFeed = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/users/testimonies') && response.request().method() === 'GET').then(response => response.finished());
@@ -1356,5 +1364,46 @@ test('reconnecting catches missed notes and friendship revocation clears a prepa
   state.publishNote({ action: 'access' });
   await page.getByRole('button', { name: `Read testimony: ${item.title}`, exact: true }).waitFor({ state: 'hidden' });
   await page.getByTestId('friends-notes-badge').waitFor({ state: 'hidden' });
+  assert.deepEqual(errors, []);
+});
+
+for (const mobile of [false, true]) test(`Friends downloaded notes survive API-offline reload and reconcile deletion (${mobile ? 'Safari' : 'Chromium'})`, async t => {
+  const { page, state, errors } = await setup(t, { mobile });
+  page.setDefaultTimeout(15000);
+  const first = state.posts[0];
+  const button = page.getByRole('button', { name: `Read testimony: ${first.title}`, exact: true });
+  await button.waitFor();
+  const saved = async () => page.evaluate(async userId => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('taspe7_app');
+      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    try {
+      if (!db.objectStoreNames.contains('friends_note_cache')) return null;
+      return await new Promise((resolve, reject) => {
+        const request = db.transaction('friends_note_cache').objectStore('friends_note_cache').get(userId);
+        request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+      });
+    } finally { db.close(); }
+  }, A);
+  for (let i = 0; i < 100 && !(await saved())?.items?.some(item => item._id === first._id); i++) await page.waitForTimeout(50);
+  assert.ok((await saved()).items.some(item => item._id === first._id));
+  // Complete unrelated startup reads before destroying the document in WebKit.
+  await page.waitForLoadState('networkidle');
+  let offline = true;
+  await page.route('**/api/users/testimonies**', route => offline ? route.abort('internetdisconnected') : route.fallback());
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await button.waitFor();
+  await button.click();
+  await page.getByTestId('expanded-testimony-note').waitFor();
+  assert.ok((await page.getByTestId('expanded-testimony-note').textContent()).includes(first.body));
+  // The remote deletion happens while this reader is still offline.
+  state.posts = state.posts.filter(item => item._id !== first._id);
+  offline = false;
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await button.waitFor({ state: 'hidden' });
+  await page.getByTestId('expanded-testimony-note').waitFor({ state: 'hidden' });
+  for (let i = 0; i < 100 && (await saved())?.items?.some(item => item._id === first._id); i++) await page.waitForTimeout(50);
+  assert.equal((await saved()).items.some(item => item._id === first._id), false);
   assert.deepEqual(errors, []);
 });

@@ -11,7 +11,7 @@ import { usePrayerSession, usePrayerField } from './PrayerSessionProvider';
 import PrayerSharePicker from './PrayerSharePicker';
 import privacyStyles from './PrayerBackup.module.css';
 const idleRecorder = { isRecording: false, start() {} };
-export default function PrayerComposer({ friends, loadingFriends, onSaved }) {
+export default function PrayerComposer({ onSaved }) {
     const { user_id: userId } = useContext(UserContext);
     const { t } = useLanguage();
     const pageActive = useTabPageActive();
@@ -222,6 +222,6 @@ export default function PrayerComposer({ friends, loadingFriends, onSaved }) {
                             </div>
                         </div>
         <PrayerSharePicker isShareOpen={pageActive && isShareOpen} onClose={() => setIsShareOpen(false)} onSelect={handleSelectShareUser}
-            selectedShareUser={selectedShareUser} friends={friends} loadingFriends={loadingFriends} />
+            selectedShareUser={selectedShareUser} />
     </>;
 }

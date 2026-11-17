@@ -10,6 +10,7 @@ function fixture(responses) {
   const context = {
     module: { exports: {} },
     getApiBaseUrl: () => 'https://api.example.test/api',
+    optimisticFriendRemoval: () => () => {},
     markFriendsCacheDirty() {}, invalidateTabRead() {}, tabReadKey() {},
     fetch: async (url, options) => {
       calls.push({ url, options });
@@ -24,24 +25,14 @@ function fixture(responses) {
   return { ...context.module.exports, calls };
 }
 
-test('existing accepted friends are recognized from populated or raw IDs, independently of profile metadata', async () => {
-  for (const friend of [B, { _id: B, Name: 'Youssef' }]) {
-    const f = fixture([{ body: { friends: [friend] } }]);
-    assert.equal(await f.readFriendship('token', B), 'friends');
+test('targeted status checks identify relationships without downloading friend/request lists', async () => {
+  for (const relationship of ['friends', 'incoming', 'outgoing', 'none', 'self']) {
+    const f = fixture([{ body: { relationship } }]);
+    assert.equal(await f.readFriendship('token', B), relationship);
     assert.equal(f.calls.length, 1);
+    assert.ok(f.calls[0].url.endsWith(`/friendship/${B}`));
     assert.equal(f.calls[0].options.cache, 'no-store');
     assert.equal(f.calls[0].options.headers.Authorization, 'Bearer token');
-  }
-});
-
-test('pending requests and nonfriends are distinguished using the authenticated requests list', async () => {
-  for (const [pending, expected] of [
-    [{ incoming: [{ from: { _id: B } }], outgoing: [] }, 'incoming'],
-    [{ incoming: [], outgoing: [{ to: B }] }, 'outgoing'],
-    [{ incoming: [], outgoing: [] }, 'none'],
-  ]) {
-    const f = fixture([{ body: { friends: [] } }, { body: pending }]);
-    assert.equal(await f.readFriendship('token', B), expected);
   }
 });
 

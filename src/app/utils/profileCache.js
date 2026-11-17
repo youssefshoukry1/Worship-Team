@@ -7,6 +7,11 @@ const revisions = new Map();
 const scopes = new Map();
 const cacheKey = userId => `profile_data_${userId}`;
 
+// Synchronous account-scoped snapshot for a stable first render on return.
+export function getCachedProfileSnapshot(userId) {
+  return snapshots.get(userId) || null;
+}
+
 export function readCachedProfile(userId) {
   if (snapshots.has(userId)) return Promise.resolve(snapshots.get(userId));
   if (diskLoads.has(userId)) return diskLoads.get(userId);

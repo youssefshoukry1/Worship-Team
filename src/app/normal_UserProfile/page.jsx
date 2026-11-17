@@ -51,7 +51,7 @@ import { useTheme } from '../context/ThemeContext';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { useLanguage } from "../context/LanguageContext";
 import { getGuestPrays } from '../utils/prayRecordings';
-import { invalidateProfile, readCachedProfile, refreshProfile, writeCachedProfile } from '../utils/profileCache';
+import { invalidateProfile, getCachedProfileSnapshot, readCachedProfile, refreshProfile, writeCachedProfile } from '../utils/profileCache';
 
 const BIBLE_TRANSLATIONS = [
     { id: 'AVD', name: 'فانديك (AVD)', desc: 'Arabic Van Dyck' },
@@ -233,11 +233,12 @@ function UserProfile({ profileUserId }) {
     const isOwner = String(profileUserId).toLowerCase() === String(user_id).toLowerCase();
     const router = useRouter();
     const { language, setLanguage } = useLanguage();
-    const [profile, setProfile] = useState(null);
-    const [socialProfile, setSocialProfile] = useState(null);
     const profileNotes = useProfileNotesStore();
+    const [initialSocial] = useState(() => profileNotes.getSnapshot(profileUserId));
+    const [profile, setProfile] = useState(() => isOwner ? getCachedProfileSnapshot(user_id) : initialSocial?.ready && initialSocial.user ? { user: initialSocial.user } : null);
+    const [socialProfile, setSocialProfile] = useState(() => initialSocial?.ready ? initialSocial : null);
     const [refreshingSocial, setRefreshingSocial] = useState(false);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => !profile);
     const [error, setError] = useState(null);
     const { src: cachedProfileAvatarSrc, markFailed: markProfileAvatarFailed } = useOfflineAvatar(profileUserId, isOwner ? profilePhoto : profile?.user?.profilePhoto);
     const profileAvatarSrc = (isOwner && profilePhotoPreview) || cachedProfileAvatarSrc;
@@ -774,14 +775,21 @@ function UserProfile({ profileUserId }) {
 
         loadProfile();
 
+        return () => { ignore = true; };
+    }, [isLogin, user_id, isOwner, profileUserId, handleSocialProfile, profileNotes]);
+
+    // Activity controls focus refreshes without resetting the displayed profile.
+    useEffect(() => {
+        if (!pageActive || !isOwner || !isLogin || !user_id) return;
+        let ignore = false;
         const refresh = () => {
             refreshProfile(API_URL, isLogin, user_id, { force: true }).then(data => {
                 if (!ignore) { setProfile(data); setError(null); }
             }).catch(() => {});
         };
-        if (pageActive) window.addEventListener('focus', refresh);
+        window.addEventListener('focus', refresh);
         return () => { ignore = true; window.removeEventListener('focus', refresh); };
-    }, [isLogin, user_id, isOwner, profileUserId, handleSocialProfile, profileNotes, pageActive]);
+    }, [pageActive, isOwner, isLogin, user_id]);
 
     const handleDeleteBibleNote = async (noteId) => {
         if (!isOwner) return;
