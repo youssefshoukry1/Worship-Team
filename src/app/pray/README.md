@@ -59,4 +59,4 @@ The supplied Recording_20261117_021357.mp4 showed a collapsed Pray header and bl
 
 ## Shared tab swipe behavior
 
-The shared navigator uses recent movement speed (120 ms sample window), with a 24 px minimum and 0.65 px/ms threshold for a short flick. Slow drags commit at 28% of the viewport; a pause expires momentum and a quick reversal can cancel. Short failed drags ease back over approximately 240-320 ms, and committed flicks settle over 160-320 ms. Reduced motion uses zero duration. Logic lives in utils/interiorSwipe.js and components/PrimaryTabPager.jsx. Preserve vertical-scroll, selection, slider, modal and native-edge exclusions.
+The shared navigator uses recent movement speed (120 ms sample window), with a 18 px minimum and 0.4 px/ms threshold for a short flick. Slow drags commit at 18% of the viewport; a pause expires momentum and a quick reversal can cancel. Short failed drags ease back over approximately 240-320 ms, and committed flicks settle over 160-320 ms. Reduced motion uses zero duration. Logic lives in utils/interiorSwipe.js and components/PrimaryTabPager.jsx. Preserve vertical-scroll, selection, slider, modal and native-edge exclusions.

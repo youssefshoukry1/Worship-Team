@@ -73,3 +73,7 @@ Return-layout verification: production build and changed-source lint passed. Fou
 ## Velocity-based navigation refinement
 
 Inspected public/refrence_performance/Recording_20261117_030809.mp4. Added recent-speed flick recognition and a softer decelerating return curve for short slow gestures. Timing is tuned from the reference behavior, not a claim to reproduce Facebook's internal physics exactly. The page still follows the finger through compositor transforms. Pause/reversal rules avoid stale momentum; native edge gestures and reduced-motion behavior remain respected. Production build and lint passed. Gesture/unit run: 25/28 initially; three test assertions were updated for intentional flick behavior and CSS time-unit conversion, and all four affected Chromium/WebKit cases passed their rerun. Evidence: swipe-velocity-build.log, swipe-velocity-lint.log, swipe-velocity-tests.log, swipe-velocity-recheck.log. Physical-phone feel still needs user verification.
+
+## Swipe sensitivity adjustment
+
+Following phone feedback, lowered the flick minimum from 24 to 18 CSS pixels and speed threshold from 0.65 to 0.4 px/ms. Reduced slow-drag commit distance from 28% to 18% of the viewport (about 109 to 70 px at 390 px width). Small accidental movements, stale momentum and reversal checks remain. Return easing is unchanged. The guide now lists these current values. Verification is recorded in swipe-sensitivity-*.log.

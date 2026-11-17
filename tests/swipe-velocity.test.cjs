@@ -24,3 +24,11 @@ test('a long slow drag commits and return settling stays gentle and bounded', ()
   assert.ok(context.swipeSettleDuration(true,36,390,3) < context.swipeSettleDuration(true,36,390,0));
   assert.equal(context.swipeSettleDuration(false,0,390),0);
 });
+
+
+test('lighter flicks and shorter slow drags navigate without accepting tiny movements', () => {
+  assert.equal(release([[0,0],[20,10],[40,20]],20,40).completed,true);
+  assert.equal(release([[0,0],[20,10],[40,17]],17,40).completed,false);
+  assert.equal(release([[0,0],[200,35],[400,72]],72,400).completed,true);
+  assert.equal(release([[0,0],[200,30],[400,60]],60,400).completed,false);
+});

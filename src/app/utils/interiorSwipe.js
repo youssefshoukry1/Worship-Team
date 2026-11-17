@@ -4,7 +4,7 @@ export function swipeRelease(samples, amount, width, now) {
   const first = recent[0], last = recent.at(-1);
   const velocity = first && last && now - last.time < 80 && last.time - first.time >= 8
     ? Math.max(-3, Math.min(3, (last.amount - first.amount) / (last.time - first.time))) : 0;
-  const completed = amount >= 24 && velocity > 0.65 || amount >= width * 0.28 && velocity > -0.45;
+  const completed = amount >= 18 && velocity > 0.4 || amount >= width * 0.18 && velocity > -0.45;
   return { completed, velocity };
 }
 

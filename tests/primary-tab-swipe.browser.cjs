@@ -309,8 +309,8 @@ for (const engine of ['chromium', 'webkit']) {
     await page.clock.runFor(350);
     assert.equal(await panel(page,'/friends').getAttribute('data-tab-active'),'true');
     await touch(page,'touchstart',280); await page.clock.runFor(20);
-    await touch(page,'touchmove',264); await page.clock.runFor(20);
-    await touch(page,'touchend',244); await page.clock.runFor(500);
+    await touch(page,'touchmove',270); await page.clock.runFor(20);
+    await touch(page,'touchend',260); await page.clock.runFor(500);
     await page.waitForURL(base + '/normal_UserProfile/');
     assert.deepEqual(errors,[]);
   });
