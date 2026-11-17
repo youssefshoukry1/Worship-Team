@@ -26,7 +26,7 @@ Authenticated downloads, JSON parsing and base64 decoding run in workers. Transf
 
 Apply deletion pages before additions. Persist the final **last-seen deletion timestamp**, only after local tombstones commit, with inclusive timestamp replay on the next scan. Do not persist the scan's upper watermark: idle polling should not rewrite the history index. Ties replay safely through identity deduplication.
 
-Persist text and all expected audio before acknowledging each share. Up to ten acknowledgements can be outstanding per scan, each with a ten-second timeout; await them before advancing the page. Yield between batches. Failed items do not block unrelated items; show Retry and rescan later. Duplicate delivery preserves existing read/reply state. Fresh mutations check tombstones, including during audio metadata commits and restore.
+Persist text and all expected audio before acknowledging each share. Up to ten acknowledgements can be outstanding per scan, each with a ten-second timeout; await them before advancing the page. Yield between batches. Failed items do not block unrelated items; rescan automatically on polling, reconnect or foreground refresh. The page-wide sync notice and manual Retry sync button are intentionally removed. Duplicate delivery preserves existing read/reply state. Fresh mutations check tombstones, including during audio metadata commits and restore.
 
 Stop new work when account ownership changes. Cancellation cannot undo a storage commit already in progress; retain the existing account/session storage rules. Credentials are transient worker inputs and are not saved with prayers.
 

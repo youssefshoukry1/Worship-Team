@@ -418,7 +418,6 @@ export default function PrayPage() {
         }).catch(() => {});
     }, [pageActive, profile?.prayTime, setGuestPrays]);
 
-    const [deliveryError, setDeliveryError] = useNavigationState(false, pageActive);
     const syncDeliveries = useCallback(async (kind, force, targetOnly = false) => {
         if (!token || !userId) return;
         const endpoint = `${API_URL}/users/pray-time/${kind === 'replies' ? 'sent-updates' : 'inbox'}`;
@@ -438,7 +437,7 @@ export default function PrayPage() {
                     if (result.prayers && mountedRef.current) { setGuestPrays(result.prayers); refreshRecordings(); }
                 };
                 const target = notificationTargetRef.current;
-                const result = await syncPrayerPages({ kind, active, targetOnly, deletedSince: sync.cursor,
+                await syncPrayerPages({ kind, active, targetOnly, deletedSince: sync.cursor,
                     target: target?.type === (kind === 'replies' ? 'PRAY_CONFIRMED' : 'PRAY_SHARED') ? target.shareId : null,
                     read: params => readTabJson(`${endpoint}?${new URLSearchParams(params)}`, token, { maxAge: 0 }),
                     download: (item, reply) => downloadPrayerPayload({ url: `${API_URL}/users/pray-time/inbox/payload/${encodeURIComponent(item.shareId)}${reply ? '?kind=reply' : ''}`,
@@ -469,12 +468,11 @@ export default function PrayPage() {
                         return active();
                     },
                 });
-                if (active()) setDeliveryError(previous => ({ ...previous, [kind]: result.failures > 0 }));
-            } catch (error) {
-                if (error.name !== 'AbortError' && active()) setDeliveryError(previous => ({ ...previous, [kind]: true }));
+            } catch {
+                // Pending deliveries retry on the next poll, reconnect or foreground refresh.
             }
         }, { force });
-    }, [token, userId, session, refreshRecordings, setGuestPrays, setDeliveryError]);
+    }, [token, userId, session, refreshRecordings, setGuestPrays]);
     const checkIncomingSharedPrayers = useCallback((force = false) => syncDeliveries('inbox', force), [syncDeliveries]);
     const checkSentPrayUpdates = useCallback((force = false) => syncDeliveries('replies', force), [syncDeliveries]);
 
@@ -552,10 +550,6 @@ export default function PrayPage() {
             {storageError && <div role="alert" className="mb-4 rounded-xl bg-red-950/30 p-3 text-sm text-red-200">
                 <p>{language === 'ar' ? 'تعذر الوصول إلى الصلوات المحفوظة. حاول مرة أخرى.' : language === 'de' ? 'Gespeicherte Gebete sind nicht erreichbar. Bitte erneut versuchen.' : 'Saved prayers could not be accessed. Please try again.'}</p>
                 <button type="button" className="mt-2 underline" onClick={() => { void refreshLocalPrayerCache().catch(() => {}); }}>{language === 'ar' ? 'إعادة المحاولة' : language === 'de' ? 'Erneut versuchen' : 'Retry storage'}</button>
-            </div>}
-            {Object.values(deliveryError || {}).some(Boolean) && <div role="status" className="mb-4 rounded-xl bg-slate-800/40 p-3 text-sm text-slate-300">
-                <p>{language === 'ar' ? '??? ??????? ?? ????? ???????? ???.' : language === 'de' ? 'Einige Gebete konnten noch nicht synchronisiert werden.' : 'Some prayers have not finished syncing yet.'}</p>
-                <button type="button" className="mt-2 underline" onClick={() => { checkIncomingSharedPrayers(true); checkSentPrayUpdates(true); }}>{language === 'ar' ? '????? ????????' : language === 'de' ? 'Erneut versuchen' : 'Retry sync'}</button>
             </div>}
             <div className="max-w-5xl mx-auto">
                 <div className="grid grid-cols-1 gap-5 sm:gap-6">
