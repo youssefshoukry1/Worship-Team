@@ -254,7 +254,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                                 size="md"
                             />
                             {isConfirmed ? (
-                                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center ring-2 ring-slate-900 shadow-sm" title="Replied">
+                                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center ring-2 ring-slate-900 shadow-sm" title={circleText.replied}>
                                     <Check className="w-2.5 h-2.5 stroke-[3]" />
                                 </span>
                             ) : (
@@ -264,12 +264,12 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                         <div className="flex flex-col min-w-0">
                             <div className="flex items-center gap-2 flex-wrap min-w-0">
                                 <span className="text-xs sm:text-sm font-bold text-white truncate">
-                                    You:
+                                    {t('prayYou')}
                                 </span>
                                 {isAnonSent && (
                                     <span className="bg-indigo-500/15 text-indigo-300 text-[9px] font-semibold px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 inline-flex items-center gap-1">
                                         <EyeOff className="w-2.5 h-2.5" />
-                                        Anonymous
+                                        {t('prayAnonymous')}
                                     </span>
                                 )}
                                 {entry.prayType && entry.prayType !== 'general' && (
@@ -317,7 +317,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                                         size="xs"
                                     />
                                     <span className="text-[11px] text-[#00C2FF] font-semibold flex items-center gap-1.5">
-                                        @{targetUsername} replay:
+                                        @{targetUsername} {t('prayReply')}
                                     </span>
                                 </div>
                                 <p dir="auto" className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
@@ -342,7 +342,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                     <div className="flex items-center gap-3 min-w-0">
                         <div className="relative shrink-0">
                             {isAnonReceived ? (
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0 shadow-sm" title="Anonymous">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0 shadow-sm" title={circleText.anonymous}>
                                     <EyeOff className="w-4 h-4" />
                                 </div>
                             ) : (
@@ -354,7 +354,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                             />
                         )}
                             {isConfirmedReceived ? (
-                                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center ring-2 ring-slate-900 shadow-sm" title="Replied">
+                                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center ring-2 ring-slate-900 shadow-sm" title={circleText.replied}>
                                     <Check className="w-2.5 h-2.5 stroke-[3]" />
                                 </span>
                             ) : isUnread ? (
@@ -368,7 +368,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                                 {isAnonReceived ? (
                                     <span className="bg-indigo-500/15 text-indigo-300 text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 inline-flex items-center gap-1">
                                         <EyeOff className="w-3 h-3" />
-                                        Anonymous
+                                        {t('prayAnonymous')}
                                     </span>
                                 ) : (
                                     <span className={`text-xs sm:text-sm truncate ${isUnread ? 'font-bold text-sky-300' : 'font-semibold text-slate-200'}`}>
@@ -401,7 +401,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                         <div className="flex items-start justify-between gap-3 mb-2.5">
                             <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                 {isAnonReceived ? (
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0 shadow-sm" title="Anonymous">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-950 via-slate-900 to-indigo-900 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0 shadow-sm" title={circleText.anonymous}>
                                         <EyeOff className="w-4 h-4" />
                                     </div>
                                 ) : (
@@ -417,7 +417,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                                         {isAnonReceived ? (
                                             <span className="bg-indigo-500/15 text-indigo-300 text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 inline-flex items-center gap-1">
                                                 <EyeOff className="w-3 h-3" />
-                                                Anonymous
+                                                {t('prayAnonymous')}
                                             </span>
                                         ) : (
                                             <span className="text-xs sm:text-sm font-bold text-[#00C2FF] truncate">
@@ -449,7 +449,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                                             size="xs"
                                         />
                                         <span className="text-[11px] text-[#00C2FF] font-semibold flex items-center gap-1.5">
-                                            You:
+                                            {t('prayYou')}
                                         </span>
                                     </div>
                                     <p dir="auto" className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
@@ -478,7 +478,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                                             rows={3}
                                             value={responseValue}
                                             onChange={(e) => setResponseValue(e.target.value)}
-                                            placeholder={`Write prayer response to ${isAnonReceived ? 'Anonymous Friend' : `@${senderUsername}`}...`}
+                                            placeholder={`${t('prayResponsePlaceholder')} ${isAnonReceived ? t('prayAnonymous') : `@${senderUsername}`}...`}
                                             className="w-full px-3.5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#00C2FF]/60 transition-all resize-none leading-relaxed"
                                         />
                                         <div className="flex justify-end">
@@ -486,7 +486,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                                                 onClick={() => handleConfirmSharedPrayer(entry._id)}
                                                 className="px-4 py-2 text-xs font-bold bg-[#00C2FF] text-[#020817] hover:brightness-110 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-[#00C2FF]/20 disabled:opacity-50"
                                             >
-                                                <span>Send reply</span>
+                                                <span>{t('praySendReply')}</span>
                                                 <ArrowRight className="w-3.5 h-3.5" />
                                             </button>
                                         </div>

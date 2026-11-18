@@ -556,7 +556,7 @@ export default function PrayPage() {
                                         }`}
                                 >
                                     <Lock className="w-3.5 h-3.5" />
-                                    <span>My Journal</span>
+                                    <span>{t('prayMyJournal')}</span>
                                 </button>
                                 <button
                                     type="button"
@@ -643,10 +643,10 @@ export default function PrayPage() {
                                 : circleFilter === 'unread'
                                     ? circleText.noUnread
                                 : circleFilter === 'received'
-                                    ? 'No received prayers from friends yet'
+                                    ? t('noReceivedPrayers')
                                     : circleFilter === 'sent'
-                                        ? 'No prayers sent to friends yet'
-                                        : 'No shared prayers in your Prayer Circle yet'
+                                        ? t('noSentPrayers')
+                                        : t('noSharedPrayers')
                         }
                         active={activePrayTab === 'shared'} scope={`shared:${circleFilter}`}
                         targetId={listTarget?.scope === `shared:${circleFilter}` ? listTarget.id : circleFilter === 'all' ? notificationPrayerId : null}

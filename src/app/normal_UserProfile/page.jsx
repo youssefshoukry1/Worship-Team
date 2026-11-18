@@ -29,15 +29,24 @@ import {
     Book,
     Camera,
     Check,
+    ChevronRight,
+    CreditCard,
     Edit3,
+    GalleryHorizontalEnd,
+    Globe,
     Heart,
+    Highlighter,
+    LifeBuoy,
     List,
     Loader2,
     Mail,
+    NotebookText,
     RotateCcw,
+    Settings,
     Sliders,
     SlidersHorizontal,
     Sparkles,
+    Sun,
     Target,
     Trash2,
     User,
@@ -232,7 +241,7 @@ function UserProfile({ profileUserId }) {
     const { user_id, isLogin, logout, setLogin, setUsername, profilePhoto, setProfilePhoto, profilePhotoPreview, clearProfilePhotoPreview, isUploadingProfilePhoto, uploadProfilePhoto } = useContext(UserContext);
     const isOwner = String(profileUserId).toLowerCase() === String(user_id).toLowerCase();
     const router = useRouter();
-    const { language, setLanguage } = useLanguage();
+    const { t, language, setLanguage } = useLanguage();
     const profileNotes = useProfileNotesStore();
     const [initialSocial] = useState(() => profileNotes.getSnapshot(profileUserId));
     const [profile, setProfile] = useState(() => isOwner ? getCachedProfileSnapshot(user_id) : initialSocial?.ready && initialSocial.user ? { user: initialSocial.user } : null);
@@ -1040,7 +1049,7 @@ function UserProfile({ profileUserId }) {
                                             onClick={() => fileInputRef.current?.click()}
                                             disabled={isUploadingPhoto}
                                             className="absolute bottom-0 right-0 translate-x-1 translate-y-1 w-7 h-7 sm:w-9 sm:h-9 bg-app-panel rounded-full flex items-center justify-center border-2 border-sky-500/30 shadow-lg hover:bg-app-raised transition-colors"
-                                            title="Change Photo"
+                                            title={t('changePhoto')}
                                         >
                                             {isUploadingPhoto ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400 animate-spin" /> : <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400" />}
                                         </button>
@@ -1056,7 +1065,7 @@ function UserProfile({ profileUserId }) {
 
                             }
                             stats={socialProfile?.stats && <ProfileStats stats={socialProfile.stats} isOwner={isOwner}
-                                roleBadge={isOwner && profile?.user?.role && !['USER', 'USERS'].includes(profile.user.role.toUpperCase()) ? <Badge icon={User} label="Role" value={titleCase(profile.user.role)} classes="bg-sky-500/5 text-sky-200 border-sky-500/10" /> : null} profileUserId={profile?.user?._id} token={isLogin} userId={user_id} />}
+                                roleBadge={isOwner && profile?.user?.role && !['USER', 'USERS'].includes(profile.user.role.toUpperCase()) ? <Badge icon={User} label={t('role')} value={profile.user.role.toUpperCase() === 'PROGRAMER' ? t('roleProgrammer') : titleCase(profile.user.role)} classes="bg-sky-500/5 text-sky-200 border-sky-500/10" /> : null} profileUserId={profile?.user?._id} token={isLogin} userId={user_id} />}
                         >
                             {!isOwner && socialProfile?.user && <FriendshipControls profile={socialProfile} token={isLogin} userId={user_id} refreshing={refreshingSocial} onRevoke={revokeFriendship} onRefresh={refreshFriendship} />}
                         </ProfileHeaderCard>
@@ -1069,72 +1078,84 @@ function UserProfile({ profileUserId }) {
                             {/* Bible Group */}
                             <div>
                                 <h3 className="text-xs font-medium text-slate-400 mb-2 px-1">
-                                    Bible
+                                    {t('bible')}
                                 </h3>
                                 <div className="app-card rounded-xl border divide-y divide-white/5 overflow-hidden">
                                     <button
                                         type="button"
                                         onClick={() => navigateToView('highlights')}
-                                        className="w-full flex items-center justify-between min-h-11 px-3 py-2 hover:bg-white/5 transition-colors text-left"
+                                        className="w-full flex items-center justify-between min-h-[52px] px-4 py-2 hover:bg-white/5 transition-colors text-left gap-3"
                                     >
-                                        <div className="flex items-center gap-2.5">
-                                            <span className="text-sm font-medium text-white">Bible Highlights</span>
+                                        <div className="flex items-center gap-3">
+                                            <Highlighter className="w-[18px] h-[18px] text-slate-400 shrink-0" />
+                                            <span className="text-sm font-medium text-white">{t('highlights')}</span>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1.5 shrink-0">
                                             <span className="text-xs text-slate-400 font-medium">
-                                                {groupedBibleHighlights.length} {groupedBibleHighlights.length === 1 ? 'record' : 'records'}
+                                                {groupedBibleHighlights.length} {groupedBibleHighlights.length === 1 ? t('record') : t('records')}
                                             </span>
+                                            <ChevronRight className="w-4 h-4 text-slate-600" />
                                         </div>
                                     </button>
 
                                     <button
                                         type="button"
                                         onClick={() => navigateToView('notes')}
-                                        className="w-full flex items-center justify-between min-h-11 px-3 py-2 hover:bg-white/5 transition-colors text-left"
+                                        className="w-full flex items-center justify-between min-h-[52px] px-4 py-2 hover:bg-white/5 transition-colors text-left gap-3"
                                     >
-                                        <div className="flex items-center gap-2.5">
-                                            <span className="text-sm font-medium text-white">Bible Notes</span>
+                                        <div className="flex items-center gap-3">
+                                            <NotebookText className="w-[18px] h-[18px] text-slate-400 shrink-0" />
+                                            <span className="text-sm font-medium text-white">{t('notes')}</span>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1.5 shrink-0">
                                             <span className="text-xs text-slate-400 font-medium">
-                                                {groupedBibleNotes.length} {groupedBibleNotes.length === 1 ? 'record' : 'records'}
+                                                {groupedBibleNotes.length} {groupedBibleNotes.length === 1 ? t('record') : t('records')}
                                             </span>
+                                            <ChevronRight className="w-4 h-4 text-slate-600" />
                                         </div>
                                     </button>
-
 
                                     <button
                                         type="button"
                                         onClick={() => navigateToView('bible_settings')}
-                                        className="w-full flex items-center justify-between min-h-11 px-3 py-2 hover:bg-white/5 transition-colors text-left"
+                                        className="w-full flex items-center justify-between min-h-[52px] px-4 py-2 hover:bg-white/5 transition-colors text-left gap-3"
                                     >
-                                        <div className="flex items-center gap-2.5">
-                                            <div>
-                                                <span className="text-sm font-medium text-white block">Bible Settings</span>
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <SlidersHorizontal className="w-[18px] h-[18px] text-slate-400 shrink-0" />
+                                            <div className="min-w-0">
+                                                <span className="text-sm font-medium text-white block">{t('settings')}</span>
                                                 <span className="text-xs text-slate-400">
-                                                    {bibleTranslation} • {bibleVerseFontSize}px • {bibleViewMode === 'paragraph' ? 'Continuous' : 'Vertical'}
+                                                    {bibleTranslation} • {bibleVerseFontSize}px • {bibleViewMode === 'paragraph' ? t('continuous') : t('vertical')}
                                                 </span>
                                             </div>
                                         </div>
+                                        <ChevronRight className="w-4 h-4 text-slate-600 shrink-0" />
                                     </button>
                                 </div>
                             </div>
 
                             <div>
                                 <h3 className="text-xs font-medium text-slate-400 mb-2 px-1">
-                                    {language === 'ar' ? 'الخطط والاشتراك' : 'Plans & subscription'}
+                                    {t('plansAndSubscription')}
                                 </h3>
                                 <div className="app-card rounded-xl border divide-y divide-white/5 overflow-hidden">
                                     <button
                                         type="button"
                                         onClick={() => router.push('/plans')}
-                                        className="w-full flex items-center justify-between min-h-11 px-3 py-2 hover:bg-white/5 transition-colors text-left"
+                                        className="w-full flex items-center justify-between min-h-[52px] px-4 py-2 hover:bg-white/5 transition-colors text-left gap-3"
                                     >
-                                        <div className="flex items-center gap-2.5"><span className="text-sm font-medium text-white">{language === 'ar' ? 'الخطط والاشتراك' : 'Plans & subscription'}</span></div>
+                                        <div className="flex items-center gap-3">
+                                            <CreditCard className="w-[18px] h-[18px] text-slate-400 shrink-0" />
+                                            <span className="text-sm font-medium text-white">{t('plansAndSubscription')}</span>
+                                        </div>
+                                        <ChevronRight className="w-4 h-4 text-slate-600 shrink-0" />
                                     </button>
-                                    <button type="button" disabled className="w-full flex items-center justify-between gap-3 min-h-11 px-3 py-2 text-left cursor-not-allowed">
-                                        <span className="text-sm font-medium text-slate-400">{language === 'ar' ? '?????' : 'Support'}</span>
-                                        <span className="rounded-md bg-white/5 px-2 py-1 text-[10px] font-medium text-slate-400">{language === 'ar' ? '??????' : 'Coming soon'}</span>
+                                    <button type="button" disabled className="w-full flex items-center justify-between gap-3 min-h-[52px] px-4 py-2 text-left cursor-not-allowed">
+                                        <div className="flex items-center gap-3">
+                                            <LifeBuoy className="w-[18px] h-[18px] text-slate-600 shrink-0" />
+                                            <span className="text-sm font-medium text-slate-400">{t('support')}</span>
+                                        </div>
+                                        <span className="rounded-md bg-white/5 px-2 py-1 text-[10px] font-medium text-slate-400">{t('comingSoon')}</span>
                                     </button>
                                 </div>
                             </div>
@@ -1142,14 +1163,15 @@ function UserProfile({ profileUserId }) {
                             {/* Appearance Group */}
                             <div>
                                 <h3 className="text-xs font-medium text-slate-400 mb-2 px-1">
-                                    Appearance
+                                    {t('appearance')}
                                 </h3>
                                 <div className="app-card rounded-xl border divide-y divide-white/5 overflow-hidden">
-                                    <div className="flex items-center justify-between min-h-11 px-3 py-2">
-                                        <div className="flex items-center gap-2.5">
+                                    <div className="flex items-center justify-between min-h-[52px] px-4 py-2">
+                                        <div className="flex items-center gap-3">
+                                            <Sun className="w-[18px] h-[18px] text-slate-400 shrink-0" />
                                             <div>
-                                                <p className="text-sm font-medium text-white">Theme</p>
-                                                <p className="text-xs text-slate-400">{isDark ? 'Dark Mode' : 'main'}</p>
+                                                <p className="text-sm font-medium text-white">{t('theme')}</p>
+                                                <p className="text-xs text-slate-400">{isDark ? t('darkMode') : t('lightMode')}</p>
                                             </div>
                                         </div>
                                         <button
@@ -1170,9 +1192,9 @@ function UserProfile({ profileUserId }) {
 
                             {(profile?.user?.global_role || profile?.user?.role) === 'PROGRAMER' && (
                                 <div>
-                                    <h3 className="mb-2 px-1 text-xs font-medium text-slate-400">PROGRAMER</h3>
+                                    <h3 className="mb-2 px-1 text-xs font-medium text-slate-400">{t('roleProgrammer')}</h3>
                                     <button type="button" onClick={() => router.push('/ProgramerDashboard')} className="flex w-full items-center justify-between rounded-xl border border-sky-400/20 bg-sky-400/5 min-h-11 px-3 py-2 text-left hover:bg-sky-400/10">
-                                        <div className="flex items-center gap-2.5"><div><span className="block text-sm font-medium text-white">App control center</span><span className="mt-0.5 block text-xs text-slate-400">OTA, UI animations and AI tokens</span></div></div>
+                                        <div className="flex items-center gap-2.5"><div><span className="block text-sm font-medium text-white">{t('appControlCenter')}</span><span className="mt-0.5 block text-xs text-slate-400">{t('appControlCenterDesc')}</span></div></div>
                                     </button>
                                 </div>
                             )}
@@ -1180,14 +1202,15 @@ function UserProfile({ profileUserId }) {
                             {/* General Settings Group */}
                             <div>
                                 <h3 className="text-xs font-medium text-slate-400 mb-2 px-1">
-                                    General Settings
+                                    {t('generalSettings')}
                                 </h3>
                                 <div className="app-card rounded-xl border divide-y divide-white/5 overflow-hidden">
-                                    <div className="flex items-center justify-between gap-4 min-h-11 px-3 py-2">
-                                        <div className="flex items-center gap-2.5">
+                                    <div className="flex items-center justify-between gap-4 min-h-[52px] px-4 py-2">
+                                        <div className="flex items-center gap-3">
+                                            <GalleryHorizontalEnd className="w-[18px] h-[18px] text-slate-400 shrink-0" />
                                             <div>
-                                                <p id="swipe-setting-label" className="text-sm font-medium text-white">{language === 'ar' ? 'السحب بين الصفحات' : language === 'de' ? 'Zwischen Seiten wischen' : 'Swipe between pages'}</p>
-                                                <p id="swipe-setting-description" className="mt-0.5 text-xs text-slate-400">{language === 'ar' ? 'اسحب داخل الشاشة للتنقل بين علامات التبويب.' : language === 'de' ? 'Im Bildschirm ziehen, um Tabs zu wechseln.' : 'Drag inside the screen to switch tabs.'}</p>
+                                                <p id="swipe-setting-label" className="text-sm font-medium text-white">{t('swipeBetweenPages')}</p>
+                                                <p id="swipe-setting-description" className="mt-0.5 text-xs text-slate-400">{t('swipeBetweenPagesDesc')}</p>
                                             </div>
                                         </div>
                                         <button type="button" role="switch" aria-checked={swipeEnabled} aria-labelledby="swipe-setting-label" aria-describedby="swipe-setting-description"
@@ -1196,11 +1219,12 @@ function UserProfile({ profileUserId }) {
                                             <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${swipeEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                                         </button>
                                     </div>
-                                    <div className="flex items-center justify-between min-h-11 px-3 py-2">
-                                        <div className="flex items-center gap-2.5">
+                                    <div className="flex items-center justify-between min-h-[52px] px-4 py-2">
+                                        <div className="flex items-center gap-3">
+                                            <Settings className="w-[18px] h-[18px] text-slate-400 shrink-0" />
                                             <div>
-                                                <p className="text-sm font-medium text-white">General Preferences</p>
-                                                <p className="text-xs text-slate-400">Configure app and account options</p>
+                                                <p className="text-sm font-medium text-white">{t('generalPreferences')}</p>
+                                                <p className="text-xs text-slate-400">{t('generalPreferencesDesc')}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -1210,13 +1234,14 @@ function UserProfile({ profileUserId }) {
                             {/* Translations Group */}
                             <div>
                                 <h3 className="text-xs font-medium text-slate-400 mb-2 px-1">
-                                    {language === 'ar' ? 'الترجمة واللغة' : 'Translations & Language'}
+                                    {t('translationsAndLanguage')}
                                 </h3>
-                                <div className="app-card rounded-xl border min-h-11 px-3 py-2 flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="app-card rounded-xl border min-h-[52px] px-4 py-2 flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <Globe className="w-[18px] h-[18px] text-slate-400 shrink-0" />
                                         <div>
                                             <p className="text-sm font-medium text-white">
-                                                {language === 'ar' ? 'لغة التطبيق' : 'App Language'}
+                                                {t('appLanguage')}
                                             </p>
                                             <p className="text-xs text-slate-400">
                                                 {language === 'ar' ? 'العربية' : 'English'}
@@ -1257,7 +1282,7 @@ function UserProfile({ profileUserId }) {
                                     onClick={handleLogout}
                                     className="w-full flex items-center justify-center gap-2.5 min-h-11 py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 hover:border-rose-500/30 font-medium text-sm transition-all duration-200 active:scale-[0.99] cursor-pointer"
                                 >
-                                    <span>{language === 'ar' ? 'تسجيل الخروج' : 'Log Out'}</span>
+                                    <span>{t('logout')}</span>
                                 </button>
                             </div>
                         </div>}
@@ -1273,16 +1298,16 @@ function UserProfile({ profileUserId }) {
                                             type="button"
                                             onClick={goBackToMenu}
                                             className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white transition-colors shrink-0"
-                                            title="Back"
+                                            title={t('back')}
                                         >
                                             <ArrowLeft className="w-5 h-5" />
                                         </button>
                                         <div>
                                             <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-                                                Bible Highlights
+                                                {t('bibleHighlights')}
                                             </h1>
                                             <p className="text-xs text-slate-400">
-                                                {groupedBibleHighlights.length} {groupedBibleHighlights.length === 1 ? 'record' : 'records'}
+                                                {groupedBibleHighlights.length} {groupedBibleHighlights.length === 1 ? t('record') : t('records')}
                                             </p>
                                         </div>
                                     </div>
@@ -1297,10 +1322,10 @@ function UserProfile({ profileUserId }) {
                                                     ? 'bg-sky-500 text-white shadow-sm'
                                                     : 'text-slate-400 hover:text-white'
                                             }`}
-                                            title="Vertical View"
+                                            title={t('verticalView')}
                                         >
                                             <List className="w-3.5 h-3.5" />
-                                            <span>Vertical</span>
+                                            <span>{t('vertical')}</span>
                                         </button>
                                         <button
                                             type="button"
@@ -1310,10 +1335,10 @@ function UserProfile({ profileUserId }) {
                                                     ? 'bg-sky-500 text-white shadow-sm'
                                                     : 'text-slate-400 hover:text-white'
                                             }`}
-                                            title="Continuous View"
+                                            title={t('continuousView')}
                                         >
                                             <AlignJustify className="w-3.5 h-3.5" />
-                                            <span>Continuous</span>
+                                            <span>{t('continuous')}</span>
                                         </button>
                                     </div>
                                 </div>
@@ -1322,7 +1347,7 @@ function UserProfile({ profileUserId }) {
                                 {groupedBibleHighlights.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center p-12 text-center text-slate-500 rounded-3xl border border-white/5 bg-white/[0.02]">
                                         <Sparkles className="w-10 h-10 mb-3 opacity-20" />
-                                        <p className="text-xs font-semibold">No bible highlights saved yet</p>
+                                        <p className="text-xs font-semibold">{t('noBibleHighlightsYet')}</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
@@ -1335,7 +1360,7 @@ function UserProfile({ profileUserId }) {
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                                                                 <h4 className="text-base font-bold text-white tracking-tight">{highlight.bookName}</h4>
-                                                                <span className="bg-sky-500/20 text-sky-300 text-[10px] font-black px-2 py-0.5 rounded-md border border-sky-500/20">
+                                                                <span className="text-[10px] text-slate-400 font-bold">
                                                                     {highlight.chapter}:{formatVerseNumbers(highlight.verseNumbers)}
                                                                 </span>
                                                                 <span className="text-[10px] text-slate-500 font-bold ml-auto sm:ml-0">
@@ -1369,7 +1394,7 @@ function UserProfile({ profileUserId }) {
                                                         <button
                                                             onClick={() => handleDeleteBibleHighlight(highlight.verseIds)}
                                                             className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 shrink-0 self-start"
-                                                            title="Delete Highlight"
+                                                            title={t('deleteHighlight')}
                                                         >
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
@@ -1390,16 +1415,16 @@ function UserProfile({ profileUserId }) {
                                             type="button"
                                             onClick={goBackToMenu}
                                             className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white transition-colors shrink-0"
-                                            title="Back"
+                                            title={t('back')}
                                         >
                                             <ArrowLeft className="w-5 h-5" />
                                         </button>
                                         <div>
                                             <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-                                                Bible Notes
+                                                {t('bibleNotes')}
                                             </h1>
                                             <p className="text-xs text-slate-400">
-                                                {groupedBibleNotes.length} {groupedBibleNotes.length === 1 ? 'record' : 'records'}
+                                                {groupedBibleNotes.length} {groupedBibleNotes.length === 1 ? t('record') : t('records')}
                                             </p>
                                         </div>
                                     </div>
@@ -1414,10 +1439,10 @@ function UserProfile({ profileUserId }) {
                                                     ? 'bg-sky-500 text-white shadow-sm'
                                                     : 'text-slate-400 hover:text-white'
                                             }`}
-                                            title="Vertical View"
+                                            title={t('verticalView')}
                                         >
                                             <List className="w-3.5 h-3.5" />
-                                            <span>Vertical</span>
+                                            <span>{t('vertical')}</span>
                                         </button>
                                         <button
                                             type="button"
@@ -1427,10 +1452,10 @@ function UserProfile({ profileUserId }) {
                                                     ? 'bg-sky-500 text-white shadow-sm'
                                                     : 'text-slate-400 hover:text-white'
                                             }`}
-                                            title="Continuous View"
+                                            title={t('continuousView')}
                                         >
                                             <AlignJustify className="w-3.5 h-3.5" />
-                                            <span>Continuous</span>
+                                            <span>{t('continuous')}</span>
                                         </button>
                                     </div>
                                 </div>
@@ -1439,7 +1464,7 @@ function UserProfile({ profileUserId }) {
                                 {groupedBibleNotes.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center p-12 text-center text-slate-500 rounded-3xl border border-white/5 bg-white/[0.02]">
                                         <Book className="w-10 h-10 mb-3 opacity-20" />
-                                        <p className="text-xs font-semibold">No bible notes saved yet</p>
+                                        <p className="text-xs font-semibold">{t('noBibleNotesYet')}</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
@@ -1449,7 +1474,7 @@ function UserProfile({ profileUserId }) {
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 mb-2.5 flex-wrap">
                                                             <h4 className="text-base font-bold text-white tracking-tight">{note.bookName}</h4>
-                                                            <span className="bg-sky-500/20 text-sky-300 text-[10px] font-black px-2 py-0.5 rounded-md border border-sky-500/20">
+                                                            <span className="text-[10px] text-slate-400 font-bold">
                                                                 {note.chapter}:{formatVerseNumbers(note.verseNumbers)}
                                                             </span>
                                                             <span className="text-[10px] text-slate-500 font-bold ml-auto sm:ml-0">
@@ -1460,7 +1485,7 @@ function UserProfile({ profileUserId }) {
                                                         {notesViewMode === 'list' ? (
                                                             <div className="space-y-2 mb-3">
                                                                 {note.verses.map((v) => (
-                                                                    <p key={v.verseId} className="text-xs sm:text-sm text-slate-300 leading-relaxed py-1" dir="rtl">
+                                                                  <p key={v.verseId} className="text-xs sm:text-sm text-slate-300 leading-relaxed py-1" dir="rtl">
                                                                         <span className="text-sky-400 font-bold ml-1.5">[{v.verseNumber}]</span>
                                                                         {v.text}
                                                                     </p>
@@ -1481,7 +1506,7 @@ function UserProfile({ profileUserId }) {
                                                         )}
 
                                                         <div className="flex flex-col gap-1.5 pt-1">
-                                                            <p className="text-[9px] uppercase tracking-widest text-sky-400/70 font-black">My Personal Note</p>
+                                                            <p className="text-[9px] uppercase tracking-widest text-sky-400/70 font-black">{t('myPersonalNote')}</p>
                                                             <p className="text-sm text-slate-200 font-medium leading-relaxed" dir="rtl">
                                                                 {note.note}
                                                             </p>
@@ -1492,14 +1517,14 @@ function UserProfile({ profileUserId }) {
                                                         <button
                                                             onClick={() => handleEditBibleNote(note)}
                                                             className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 transition-all border border-white/5"
-                                                            title="Edit Note"
+                                                            title={t('editNote')}
                                                         >
                                                             <Edit3 className="w-4 h-4" />
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteBibleNote(note.noteIds || note._id)}
                                                             className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5"
-                                                            title="Delete Note"
+                                                            title={t('deleteNote')}
                                                         >
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
@@ -1519,16 +1544,16 @@ function UserProfile({ profileUserId }) {
                                         type="button"
                                         onClick={goBackToMenu}
                                         className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white transition-colors shrink-0"
-                                        title="Back"
+                                        title={t('back')}
                                     >
                                         <ArrowLeft className="w-5 h-5" />
                                     </button>
                                     <div>
                                         <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
                                             <Sliders className="w-5 h-5 text-slate-300" />
-                                            Bible Settings
+                                            {t('bibleSettings')}
                                         </h1>
-                                        <p className="text-xs text-slate-400">Reading, font, layout & AI response preferences</p>
+                                        <p className="text-xs text-slate-400">{t('bibleSettingsDesc')}</p>
                                     </div>
                                 </div>
 
@@ -1537,8 +1562,8 @@ function UserProfile({ profileUserId }) {
 
                                 {/* Translation Group */}
                                 <div>
-                                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
-                                        Translation
+                                    <h3 className="text-xs font-medium text-slate-400 mb-2 px-1">
+                                        {t('translation')}
                                     </h3>
                                     <div className="app-card rounded-2xl border divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
                                         {BIBLE_TRANSLATIONS.map((tr) => {
@@ -1568,17 +1593,16 @@ function UserProfile({ profileUserId }) {
 
                                 {/* Verse Controls Group */}
                                 <div>
-                                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
-                                        Verse Controls
+                                    <h3 className="text-xs font-medium text-slate-400 mb-2 px-1">
+                                        {t('verseControls')}
                                     </h3>
                                     <div className="app-card rounded-2xl border divide-y divide-white/5 overflow-hidden shadow-xl shadow-black/20">
                                         {/* View Mode */}
                                         <div className="flex items-center justify-between p-4">
                                             <div className="flex items-center gap-3.5">
-                                                {bibleViewMode === 'list' ? <List className="w-5 h-5 text-slate-300 shrink-0" /> : <AlignJustify className="w-5 h-5 text-slate-300 shrink-0" />}
                                                 <div>
-                                                    <p className="text-sm sm:text-base font-semibold text-white">Verse Display Mode</p>
-                                                    <p className="text-xs text-slate-400">{bibleViewMode === 'list' ? 'Vertical (Under each other)' : 'Continuous (Beside each other)'}</p>
+                                                    <p className="text-sm sm:text-base font-semibold text-white">{t('verseDisplayMode')}</p>
+                                                    <p className="text-xs text-slate-400">{bibleViewMode === 'list' ? t('verseDisplayVertical') : t('verseDisplayContinuous')}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-1 gap-1">
@@ -1588,7 +1612,7 @@ function UserProfile({ profileUserId }) {
                                                     className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold transition-all ${bibleViewMode === 'list' ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
                                                 >
                                                     <List className="w-3.5 h-3.5" />
-                                                    <span>Vertical</span>
+                                                    <span>{t('vertical')}</span>
                                                 </button>
                                                 <button
                                                     type="button"
@@ -1596,7 +1620,7 @@ function UserProfile({ profileUserId }) {
                                                     className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold transition-all ${bibleViewMode === 'paragraph' ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
                                                 >
                                                     <AlignJustify className="w-3.5 h-3.5" />
-                                                    <span>Continuous</span>
+                                                    <span>{t('continuous')}</span>
                                                 </button>
                                             </div>
                                         </div>
@@ -1604,10 +1628,9 @@ function UserProfile({ profileUserId }) {
                                         {/* Font Size */}
                                         <div className="flex items-center justify-between p-4">
                                             <div className="flex items-center gap-3.5">
-                                                <SlidersHorizontal className="w-5 h-5 text-slate-300 shrink-0" />
                                                 <div>
-                                                    <p className="text-sm sm:text-base font-semibold text-white">Font Size</p>
-                                                    <p className="text-xs text-slate-400">Verse text size</p>
+                                                    <p className="text-sm sm:text-base font-semibold text-white">{t('fontSize')}</p>
+                                                    <p className="text-xs text-slate-400">{t('fontSizeDesc')}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center border border-white/10 rounded-xl overflow-hidden bg-white/5">
@@ -1615,7 +1638,7 @@ function UserProfile({ profileUserId }) {
                                                     type="button"
                                                     onClick={() => handleSetBibleVerseFontSize(Math.max(16, bibleVerseFontSize - 2))}
                                                     className="h-8 px-3 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-xs transition-colors active:bg-white/20"
-                                                    title="Decrease font size"
+                                                    title={t('decreaseFontSize')}
                                                 >
                                                     -A
                                                 </button>
@@ -1626,7 +1649,7 @@ function UserProfile({ profileUserId }) {
                                                     type="button"
                                                     onClick={() => handleSetBibleVerseFontSize(Math.min(44, bibleVerseFontSize + 2))}
                                                     className="h-8 px-3 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-xs transition-colors active:bg-white/20"
-                                                    title="Increase font size"
+                                                    title={t('increaseFontSize')}
                                                 >
                                                     +A
                                                 </button>
@@ -1636,10 +1659,9 @@ function UserProfile({ profileUserId }) {
                                         {/* Verse Spacing */}
                                         <div className="flex items-center justify-between p-4">
                                             <div className="flex items-center gap-3.5">
-                                                <Sliders className="w-5 h-5 text-slate-300 shrink-0" />
                                                 <div>
-                                                    <p className="text-sm sm:text-base font-semibold text-white">Verse Spacing</p>
-                                                    <p className="text-xs text-slate-400">Vertical gap between verses</p>
+                                                    <p className="text-sm sm:text-base font-semibold text-white">{t('verseSpacing')}</p>
+                                                    <p className="text-xs text-slate-400">{t('verseSpacingDesc')}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center border border-white/10 rounded-xl overflow-hidden bg-white/5">
@@ -1647,7 +1669,7 @@ function UserProfile({ profileUserId }) {
                                                     type="button"
                                                     onClick={() => handleSetBibleVerseSpacing(Math.max(2, bibleVerseSpacing - 2))}
                                                     className="h-8 px-3 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-xs transition-colors active:bg-white/20"
-                                                    title="Decrease spacing"
+                                                    title={t('decreaseSpacing')}
                                                 >
                                                     -
                                                 </button>
@@ -1658,7 +1680,7 @@ function UserProfile({ profileUserId }) {
                                                     type="button"
                                                     onClick={() => handleSetBibleVerseSpacing(Math.min(36, bibleVerseSpacing + 2))}
                                                     className="h-8 px-3 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-xs transition-colors active:bg-white/20"
-                                                    title="Increase spacing"
+                                                    title={t('increaseSpacing')}
                                                 >
                                                     +
                                                 </button>
@@ -1669,8 +1691,8 @@ function UserProfile({ profileUserId }) {
 
                                 {/* Live Preview Box */}
                                 <div>
-                                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
-                                        Live Preview
+                                    <h3 className="text-xs font-medium text-slate-400 mb-2 px-1">
+                                        {t('livePreview')}
                                     </h3>
                                     <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-5 shadow-xl shadow-black/20" dir="rtl">
                                         <div className="flex items-center gap-2 mb-3">
@@ -1746,7 +1768,7 @@ function UserProfile({ profileUserId }) {
                                         </div>
                                         <div>
                                             <h3 className="text-sm font-bold text-white">
-                                                Update Bible Note
+                                                {t('updateBibleNote')}
                                             </h3>
                                             <p className="text-[10px] text-sky-400/60 font-mono uppercase tracking-widest mt-0.5">
                                                 {noteModalConfig.data.bookName} {noteModalConfig.data.chapter}:{formatVerseNumbers(noteModalConfig.data.verseNumbers || [noteModalConfig.data.verseNumber])}
@@ -1782,7 +1804,7 @@ function UserProfile({ profileUserId }) {
                                         autoFocus
                                         value={noteText}
                                         onChange={(e) => setNoteText(e.target.value)}
-                                        placeholder="Edit your note here..."
+                                        placeholder={t('editNotePlaceholder')}
                                         rows={4}
                                         className="w-full bg-white/[0.04] border border-white/10 focus:border-sky-500/50 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-sky-500/30 resize-none text-sm leading-relaxed transition-all"
                                         dir="rtl"
@@ -1794,7 +1816,7 @@ function UserProfile({ profileUserId }) {
                                         onClick={() => { setNoteModalConfig(null); setNoteText(''); }}
                                         className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white/40 hover:text-white/70 hover:bg-white/5 transition-all border border-white/10"
                                     >
-                                        Cancel
+                                        {t('cancel')}
                                     </button>
                                     <button
                                         onClick={handleSaveNote}
@@ -1802,7 +1824,7 @@ function UserProfile({ profileUserId }) {
                                         className="flex-[2] py-2.5 rounded-xl text-sm font-bold bg-sky-600 hover:bg-sky-500 text-white transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20"
                                     >
                                         {isSubmittingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                                        Update Note
+                                        {t('updateNoteBtn')}
                                     </button>
                                 </div>
                             </motion.div>
@@ -1906,12 +1928,12 @@ function UserProfile({ profileUserId }) {
                                     onClick={() => setPhotoToCrop(null)}
                                     className="text-sky-500 hover:text-sky-400 font-semibold text-lg transition-colors"
                                 >
-                                    Cancel
+                                    {t('cancel')}
                                 </button>
                                 <button
                                     onClick={() => { if (imgRef.current) onImageLoad({ currentTarget: imgRef.current }); }}
                                     className="p-3 rounded-full text-white hover:bg-white/10 transition-colors"
-                                    title="Reset crop"
+                                    title={t('resetCrop')}
                                 >
                                     <RotateCcw className="w-6 h-6" />
                                 </button>
@@ -1920,7 +1942,7 @@ function UserProfile({ profileUserId }) {
                                     disabled={isUploadingPhoto || !crop}
                                     className="text-sky-500 hover:text-sky-400 font-bold text-lg transition-colors flex items-center gap-2"
                                 >
-                                    {isUploadingPhoto ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Done'}
+                                    {isUploadingPhoto ? <Loader2 className="w-5 h-5 animate-spin" /> : t('done')}
                                 </button>
                             </div>
                         </motion.div>
@@ -1957,7 +1979,7 @@ function UserProfile({ profileUserId }) {
                                             <Edit3 className="w-4 h-4" />
                                         </div>
                                         <h3 className="text-sm font-bold text-white">
-                                            {editModal.type === 'name' ? 'Edit Name' : 'Edit Username'}
+                                            {editModal.type === 'name' ? t('editName') : t('editUsername')}
                                         </h3>
                                     </div>
                                     <button
@@ -1971,7 +1993,7 @@ function UserProfile({ profileUserId }) {
 
                                 <div className="mb-4">
                                     <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                                        {editModal.type === 'name' ? 'Display Name' : 'Username'}
+                                        {editModal.type === 'name' ? t('displayName') : t('username')}
                                     </label>
                                     <div className="relative flex items-center">
                                         {editModal.type === 'username' && (
@@ -1988,7 +2010,7 @@ function UserProfile({ profileUserId }) {
                                                 if (e.key === 'Enter') handleSaveEdit();
                                             }}
                                             maxLength={editModal.type === 'name' ? 50 : 30}
-                                            placeholder={editModal.type === 'name' ? 'Enter your name' : 'username'}
+                                            placeholder={editModal.type === 'name' ? t('enterYourName') : 'username'}
                                             className={`w-full bg-white/5 border rounded-xl py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-colors ${
                                                 editModal.type === 'username' ? 'pl-8 pr-9' : 'px-3.5'
                                             } ${
@@ -2022,7 +2044,7 @@ function UserProfile({ profileUserId }) {
                                                 ? 'text-emerald-400'
                                                 : 'text-rose-400'
                                         }`}>
-                                            {usernameCheck.checking ? 'Checking availability...' : usernameCheck.reason}
+                                            {usernameCheck.checking ? t('checkingAvailability') : usernameCheck.reason}
                                         </p>
                                     )}
                                 </div>
@@ -2034,7 +2056,7 @@ function UserProfile({ profileUserId }) {
                                         disabled={isSavingEdit}
                                         className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
                                     >
-                                        Cancel
+                                        {t('cancel')}
                                     </button>
                                     <button
                                         type="button"
@@ -2048,7 +2070,7 @@ function UserProfile({ profileUserId }) {
                                         className="px-4 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:hover:bg-sky-500"
                                     >
                                         {isSavingEdit && <Loader2 className="w-3 h-3 animate-spin" />}
-                                        Save
+                                        {t('save')}
                                     </button>
                                 </div>
                             </motion.div>

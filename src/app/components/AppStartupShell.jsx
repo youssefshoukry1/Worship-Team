@@ -32,7 +32,7 @@ export default function AppStartupShell({ prayerEntry = false, variant = 'form',
             </div>
             <div className="flex justify-between items-center border-t border-white/5 pt-4 text-[11px] text-slate-400"><span>0 <Label en="total words" ar="كلمات" de="Wörter" /></span><span className="flex items-center gap-2 rounded-lg bg-sky-500/40 px-4 py-2 text-xs text-white/50"><Check className="w-4 h-4" /><Label en="Save Note" ar="حفظ الملاحظة" de="Notiz speichern" /></span></div>
           </div>
-          <div className="flex gap-2 my-5 text-xs font-bold"><span className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/20 px-3.5 py-2"><Lock className="w-3.5 h-3.5" />My Journal</span><span className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/5 px-3.5 py-2 text-slate-400"><Users className="w-3.5 h-3.5" />Prayer Circle</span></div>
+          <div className="flex gap-2 my-5 text-xs font-bold"><span className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/20 px-3.5 py-2"><Lock className="w-3.5 h-3.5" /><Label en="My Journal" ar="صلواتي الخاصة" de="Mein Tagebuch" /></span><span className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/5 px-3.5 py-2 text-slate-400"><Users className="w-3.5 h-3.5" /><Label en="Prayer Circle" ar="دائرة الصلاة" de="Gebetskreis" /></span></div>
           <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-4 space-y-4">
             <div className="h-3 w-32 rounded bg-white/10" />
             <div className="h-3 w-3/4 rounded bg-white/5" />
@@ -40,7 +40,13 @@ export default function AppStartupShell({ prayerEntry = false, variant = 'form',
           </div>
         </div>
         <div className="fixed bottom-0 inset-x-0 h-[58px] flex items-center justify-around border-t border-white/5 app-bottom-nav text-slate-400">
-          {[['Pray', Heart], ['Bible', BookOpen], ['Hymns', Music], ['Friends', Users], ['Profile', User]].map(([label, Icon], index) => <div key={label} className={`flex flex-col items-center gap-1 text-[10px] ${index === 0 ? 'text-[#00C2FF]' : ''}`}><Icon size={21} /><span>{label}</span></div>)}
+          {[
+            { en: 'Pray', ar: 'صلاة', de: 'Gebet', icon: Heart },
+            { en: 'Bible', ar: 'الكتاب', de: 'Bibel', icon: BookOpen },
+            { en: 'Hymns', ar: 'الترانيم', de: 'Loblieder', icon: Music },
+            { en: 'Friends', ar: 'الأصدقاء', de: 'Freunde', icon: Users },
+            { en: 'Profile', ar: 'حسابي', de: 'Profil', icon: User }
+          ].map((item, index) => <div key={item.en} className={`flex flex-col items-center gap-1 text-[10px] ${index === 0 ? 'text-[#00C2FF]' : ''}`}><item.icon size={21} /><Label en={item.en} ar={item.ar} de={item.de} /></div>)}
         </div>
       </div>}
     </div>

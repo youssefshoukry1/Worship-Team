@@ -118,6 +118,7 @@ function LiveRecordingBar({ recorder, tone }) {
 
 /** A voice clip with a wavesurfer waveform, play/pause and seek. */
 export function VoiceClip({ url, savedRec, fallbackDuration = 0, tone, label, onDelete }) {
+    const { t } = useLanguage();
     const session = usePrayerSession();
     const playbackKey = savedRec ? `saved:${savedRec.id}` : `draft:${url}`;
     const waveRef = useRef(null);
@@ -191,7 +192,7 @@ export function VoiceClip({ url, savedRec, fallbackDuration = 0, tone, label, on
             <div className="flex-1 min-w-0">
                 {label && <p className={`text-[9px] font-black uppercase tracking-wider mb-0.5 ${tone.text}`}>{label}</p>}
                 {failed
-                    ? <p className="h-8 flex items-center text-[11px] text-slate-500">Recording unavailable on this device</p>
+                    ? <p className="h-8 flex items-center text-[11px] text-slate-500">{t('recordingUnavailableOnDevice')}</p>
                     : <div ref={waveRef} className="h-8 w-full cursor-pointer" />}
             </div>
             <span className="text-[11px] font-semibold text-slate-400 tabular-nums shrink-0 w-9 text-right">{formatSeconds(showTime)}</span>
@@ -430,7 +431,7 @@ export function MyPraysBackup({ prayTime, token, userId, onRestored, privacySett
                 window.open(authUrl, '_blank');
             }
             setNeedsLink(false);
-            setStatus('Finish connecting, then try again.');
+            setStatus(t('prayFinishConnecting'));
         } catch (err) { fail(err); }
     };
 

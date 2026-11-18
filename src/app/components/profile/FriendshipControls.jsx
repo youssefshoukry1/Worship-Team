@@ -5,8 +5,11 @@ import { Loader2, RefreshCw, UserMinus, UserPlus, X } from 'lucide-react';
 import { changeFriendship, invalidateFriendship, readFriendship } from '../../utils/friendshipActions';
 import TestimonyDialog from '../testimonies/TestimonyDialog';
 import styles from '../testimonies/testimonies.module.css';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function FriendshipControls({ profile, token, userId, refreshing, onRevoke, onRefresh }) {
+  const { language } = useLanguage();
+  const ar = language === 'ar';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -112,21 +115,21 @@ export default function FriendshipControls({ profile, token, userId, refreshing,
   };
   const spinner = busy ? <Loader2 size={15} className={styles.spin} /> : null;
   return <>
-    {relationship === 'friends' && <button type="button" className={styles.profileRemoveFriend} disabled={requestDisabled} onClick={() => { setError(''); setConfirmRemove(true); }}>Remove friend</button>}
+    {relationship === 'friends' && <button type="button" className={styles.profileRemoveFriend} disabled={requestDisabled} onClick={() => { setError(''); setConfirmRemove(true); }}>{ar ? 'إلغاء الصداقة' : 'Remove friend'}</button>}
     <div className={styles.friendshipActions}>
-      {relationship === null ? <span className={styles.pendingBadge} role="status">{checking && <Loader2 size={14} className={styles.spin} />}{checking ? 'Checking friendship…' : 'Friendship unavailable'}</span>
+      {relationship === null ? <span className={styles.pendingBadge} role="status">{checking && <Loader2 size={14} className={styles.spin} />}{checking ? (ar ? 'جاري التحقق من الصداقة…' : 'Checking friendship…') : (ar ? 'الصداقة غير متاحة' : 'Friendship unavailable')}</span>
         : relationship === 'friends' ? null
-        : relationship === 'incoming' ? <><span className={styles.requestHint}>Sent you a friend request</span><button type="button" className={styles.friendPrimary} disabled={disabled} onClick={() => perform('accept')}>{spinner || <UserPlus size={15} />} Accept request</button><button type="button" className={styles.friendSecondary} disabled={disabled} onClick={() => perform('decline')}><X size={14} /> Decline</button></>
-          : relationship === 'outgoing' ? <button type="button" className={styles.friendSecondary} disabled={requestDisabled} onClick={() => performRequest('cancel')}><X size={14} /> Cancel request</button>
-            : <button type="button" className={styles.friendPrimary} disabled={requestDisabled} onClick={() => performRequest('add')}><UserPlus size={15} /> Add friend</button>}
+        : relationship === 'incoming' ? <><span className={styles.requestHint}>{ar ? 'أرسل إليك طلب صداقة' : 'Sent you a friend request'}</span><button type="button" className={styles.friendPrimary} disabled={disabled} onClick={() => perform('accept')}>{spinner || <UserPlus size={15} />} {ar ? 'قبول الطلب' : 'Accept request'}</button><button type="button" className={styles.friendSecondary} disabled={disabled} onClick={() => perform('decline')}><X size={14} /> {ar ? 'رفض' : 'Decline'}</button></>
+          : relationship === 'outgoing' ? <button type="button" className={styles.friendSecondary} disabled={requestDisabled} onClick={() => performRequest('cancel')}><X size={14} /> {ar ? 'إلغاء الطلب' : 'Cancel request'}</button>
+            : <button type="button" className={styles.friendPrimary} disabled={requestDisabled} onClick={() => performRequest('add')}><UserPlus size={15} /> {ar ? 'إضافة صديق' : 'Add friend'}</button>}
     </div>
     {notice && <p className={styles.relationshipNotice} role="status">{notice}</p>}
     {error && !confirmRemove && <p className={styles.relationshipError} role="alert">{error}</p>}
-    {checkError && <div className={styles.boardError} role="alert"><span>{checkError}</span><button type="button" className={styles.retryButton} aria-label="Retry friendship check" disabled={checking} onClick={checkFriendship}><RefreshCw size={13} /></button></div>}
-    {confirmRemove && <TestimonyDialog title="Remove friend?" onClose={() => { if (!inFlight.current) setConfirmRemove(false); }}>
-      <div className={styles.removeFriendDialog}><p>Remove <strong>{person.Name || person.username}</strong> from your friends?</p><p>You can send a new request later. Your shared testimonies will be visible to each other again once you become friends.</p>
+    {checkError && <div className={styles.boardError} role="alert"><span>{checkError}</span><button type="button" className={styles.retryButton} aria-label={ar ? 'إعادة المحاولة' : 'Retry friendship check'} disabled={checking} onClick={checkFriendship}><RefreshCw size={13} /></button></div>}
+    {confirmRemove && <TestimonyDialog title={ar ? 'إلغاء الصداقة؟' : 'Remove friend?'} onClose={() => { if (!inFlight.current) setConfirmRemove(false); }}>
+      <div className={styles.removeFriendDialog}><p>{ar ? `هل تريد إزالة ${person.Name || person.username} من أصدقائك؟` : `Remove ${person.Name || person.username} from your friends?`}</p><p>{ar ? 'يمكنك إرسال طلب جديد لاحقًا. ستظهر اختباراتكم المشتركة لبعضكم بمجرد استعادة الصداقة.' : 'You can send a new request later. Your shared testimonies will be visible to each other again once you become friends.'}</p>
         {error && <p className={styles.error} role="alert">{error}</p>}
-        <div><button type="button" className={styles.friendSecondary} onClick={() => setConfirmRemove(false)}>Keep friend</button><button type="button" className={styles.dangerButton} disabled={requestDisabled} onClick={() => performRequest('remove')}><UserMinus size={14} /> Remove friend</button></div>
+        <div><button type="button" className={styles.friendSecondary} onClick={() => setConfirmRemove(false)}>{ar ? 'إبقاء الصديق' : 'Keep friend'}</button><button type="button" className={styles.dangerButton} disabled={requestDisabled} onClick={() => performRequest('remove')}><UserMinus size={14} /> {ar ? 'إلغاء الصداقة' : 'Remove friend'}</button></div>
       </div>
     </TestimonyDialog>}
   </>;

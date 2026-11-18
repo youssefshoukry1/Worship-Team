@@ -2,6 +2,7 @@
 import { useContext, useEffect, useState } from 'react';
 import { Search, Loader2, X } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
+import { useLanguage } from '../context/LanguageContext';
 import usePeoplePage from '../utils/usePeoplePage';
 import useLocalFriends from '../utils/friendDirectory/useLocalFriends';
 import FriendDirectoryStatus from '../components/FriendDirectoryStatus';
@@ -10,6 +11,7 @@ import Portal from '../Portal/Portal';
 import { UserAvatar } from './PrayerCards';
 export default function PrayerSharePicker({ isShareOpen, onClose, onSelect, selectedShareUser }) {
     const { user_id: userId, isLogin: token } = useContext(UserContext);
+    const { t } = useLanguage();
     const [shareSearchQuery, setShareSearchQuery] = useState('');
     const [query, setQuery] = useState('');
     const [discover, setDiscover] = useState(false);
@@ -43,7 +45,7 @@ export default function PrayerSharePicker({ isShareOpen, onClose, onSelect, sele
                         >
                             <div className="flex items-center justify-between pb-2">
                                 <div className="flex items-center gap-2">
-                                    <h3 className="text-sm sm:text-base font-bold text-white">Share Prayer</h3>
+                                    <h3 className="text-sm sm:text-base font-bold text-white">{t('praySharePrayer')}</h3>
                                 </div>
                                 <button
                                     onClick={() => onClose()}
@@ -60,7 +62,7 @@ export default function PrayerSharePicker({ isShareOpen, onClose, onSelect, sele
                                     type="text"
                                     value={shareSearchQuery}
                                     onChange={(e) => setShareSearchQuery(e.target.value)}
-                                    placeholder="Search by @username..."
+                                    placeholder={t('praySearchUsername')}
                                     className="w-full pl-9 pr-8 py-2.5 bg-white/[0.04] border-0 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-0 transition-all"
                                     autoFocus
                                 />
@@ -81,12 +83,12 @@ export default function PrayerSharePicker({ isShareOpen, onClose, onSelect, sele
                                 {loadingFriends ? (
                                     <div className="flex items-center justify-center py-10 text-slate-400 gap-2">
                                         <Loader2 className="w-5 h-5 text-sky-400 animate-spin" />
-                                        <span className="text-xs">Loading friends...</span>
+                                        <span className="text-xs">{t('prayLoadingFriends')}</span>
                                     </div>
                                 ) : getSortedShareResults().length === 0 ? (
                                     <div className="text-center py-10 text-xs text-slate-400 space-y-1">
-                                        <p>No matching users found.</p>
-                                        <p className="text-[11px] text-slate-500">Search by exact @username to discover users.</p>
+                                        <p>{t('prayNoUsersFound')}</p>
+                                        <p className="text-[11px] text-slate-500">{t('praySearchByUsername')}</p>
                                     </div>
                                 ) : (
                                     getSortedShareResults().map((user) => (
@@ -113,7 +115,7 @@ export default function PrayerSharePicker({ isShareOpen, onClose, onSelect, sele
                                                         )}
                                                         {user.isFriend && (
                                                             <span className="text-[9px] px-1.5 py-0.2 bg-emerald-500/15 text-emerald-400 rounded border border-emerald-500/20 font-medium">
-                                                                Friend
+                                                                {t('prayFriend')}
                                                             </span>
                                                         )}
                                                     </div>
@@ -124,14 +126,14 @@ export default function PrayerSharePicker({ isShareOpen, onClose, onSelect, sele
                                                 onClick={() => onSelect(user)}
                                                 className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all shrink-0 shadow-sm ${selectedShareUser?._id === user._id ? 'bg-emerald-500 text-white' : 'bg-[#00C2FF] text-[#020817] hover:brightness-110'}`}
                                             >
-                                                {selectedShareUser?._id === user._id ? 'Selected' : 'Select'}
+                                                {selectedShareUser?._id === user._id ? t('praySelected') : t('praySelect')}
                                             </button>
                                         </div>
                                     ))
                                 )}
                                 <PeoplePager page={friendsPage} active={isShareOpen} />
                                 <FriendDirectoryStatus page={friendsPage} />
-                                {query.length >= 2 && !discover && <button type="button" className="text-xs text-sky-400 py-2" onClick={() => setDiscover(true)}>Search other people online</button>}
+                                {query.length >= 2 && !discover && <button type="button" className="text-xs text-sky-400 py-2" onClick={() => setDiscover(true)}>{t('praySearchOnline')}</button>}
                                 {discover && query.length >= 2 && <PeoplePager page={searchPage} active={isShareOpen} />}
                             </div>
                         </div>

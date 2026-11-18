@@ -6,15 +6,17 @@ import { Heart, BookOpen, Users, User } from 'lucide-react';
 import { ensureNavigationServiceWorker } from '../utils/appNavigation';
 import useTabNavigation, { normalizeTabPath } from '../hooks/useTabNavigation';
 import { useTestimonyFeed } from './testimonies/TestimonyFeedProvider';
+import { useLanguage } from '../context/LanguageContext';
 
 const NAV_ITEMS = [
-  { label: 'Pray', icon: Heart, href: '/pray' },
-  { label: 'Bible', icon: BookOpen, href: '/bible_form' },
-  { label: 'Friends', icon: Users, href: '/friends' },
-  { label: 'Profile', icon: User, href: '/normal_UserProfile' }
+  { label: 'Pray', translationKey: 'navPray', icon: Heart, href: '/pray' },
+  { label: 'Bible', translationKey: 'navBible', icon: BookOpen, href: '/bible_form' },
+  { label: 'Friends', translationKey: 'navFriends', icon: Users, href: '/friends' },
+  { label: 'Profile', translationKey: 'navProfile', icon: User, href: '/normal_UserProfile' }
 ];
 
 export default function BottomNav() {
+  const { t } = useLanguage();
   const hasNewNotes = useTestimonyFeed()?.state.hasUnseen || false;
   const pathname = usePathname();
   const router = useRouter();
@@ -191,7 +193,7 @@ export default function BottomNav() {
                 {item.label === 'Friends' && hasNewNotes && <span data-testid="friends-notes-badge" aria-hidden="true" className="absolute right-1 top-0.5 z-20 h-1.5 w-1.5 rounded-full bg-[#00C2FF] ring-2 ring-[#060b13]" />}
               </div>
               <span className={`pointer-events-none text-[10px] font-medium leading-none transition-[color,transform] duration-150 ease-out ${isActive ? '-translate-y-px text-[#00C2FF]' : 'translate-y-0 text-slate-400'}`}>
-                {item.label}
+                {t(item.translationKey)}
               </span>
               <span
                 className={`pointer-events-none absolute bottom-0 h-0.5 w-5 rounded-full bg-[#00C2FF] transition-[opacity,transform] duration-200 ease-out ${isActive ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0'

@@ -18,7 +18,7 @@ export default function AiStudyModeSettings({ userId }) {
   ];
 
   return <section aria-labelledby="ai-study-mode-title" dir={ar ? 'rtl' : 'ltr'}>
-    <h3 id="ai-study-mode-title" className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">{ar ? 'نمط إجابات الذكاء الاصطناعي' : 'AI response mode'}</h3>
+    <h3 id="ai-study-mode-title" className="mb-2 px-1 text-xs font-medium text-slate-400">{ar ? 'نمط إجابات الذكاء الاصطناعي' : 'AI response mode'}</h3>
     <fieldset className="app-card overflow-hidden rounded-xl border p-3">
       <legend className="sr-only">{ar ? 'اختر نمط الإجابة' : 'Choose an AI response mode'}</legend>
       <div className="grid grid-cols-2 gap-2">

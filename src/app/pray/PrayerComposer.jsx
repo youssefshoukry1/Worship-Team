@@ -101,12 +101,12 @@ export default function PrayerComposer({ onSaved }) {
                                             username={selectedShareUser.username}
                                             size="xs"
                                         />
-                                        <span>Change recipient (@{selectedShareUser.username})</span>
+                                        <span>{t('prayChangeRecipient')} (@{selectedShareUser.username})</span>
                                     </>
                                 ) : (
                                     <>
                                         <Share2 className="w-3.5 h-3.5" />
-                                        <span>Share with friend...</span>
+                                        <span>{t('prayShareWithFriend')}</span>
                                     </>
                                 )}
                             </button>
@@ -128,7 +128,7 @@ export default function PrayerComposer({ onSaved }) {
                                             </span>
                                             <div className="text-[10px] text-slate-400 flex items-center gap-1">
                                                 <Share2 className="w-3 h-3 text-[#00C2FF]" />
-                                                <span>Will send prayer to friend</span>
+                                                <span>{t('prayWillSendPrayer')}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -137,7 +137,7 @@ export default function PrayerComposer({ onSaved }) {
                                             type="button"
                                             onClick={() => setShowShareSettings((prev) => !prev)}
                                             className={`relative p-1.5 rounded-lg transition-colors ${showShareSettings || isAnonymousShare ? 'bg-indigo-500/20 text-indigo-300' : 'text-slate-400 hover:text-sky-300 hover:bg-white/5'}`}
-                                            title="Hidden settings"
+                                            title={t('prayHiddenSettings')}
                                         >
                                             <SlidersHorizontal className="w-3.5 h-3.5" />
                                             {isAnonymousShare && (
@@ -148,7 +148,7 @@ export default function PrayerComposer({ onSaved }) {
                                             type="button"
                                             onClick={() => { setSelectedShareUser(null); setIsAnonymousShare(false); setShowShareSettings(false); }}
                                             className="p-1.5 rounded-lg text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 transition-colors shrink-0"
-                                            title="Cancel share"
+                                            title={t('prayCancelShare')}
                                         >
                                             <X className="w-4 h-4" />
                                         </button>
@@ -163,16 +163,16 @@ export default function PrayerComposer({ onSaved }) {
                                                 <div className="min-w-0">
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="text-xs font-medium text-slate-200">
-                                                            Send anonymously
+                                                            {t('praySendAnonymously')}
                                                         </span>
                                                         {isAnonymousShare && (
                                                             <span className="text-[9px] px-1.5 py-0.2 bg-indigo-500/20 text-indigo-300 rounded font-semibold border border-indigo-500/30">
-                                                                Hidden Identity
+                                                                {t('prayHiddenIdentity')}
                                                             </span>
                                                         )}
                                                     </div>
                                                     <span className="text-[10px] text-slate-400 block truncate">
-                                                        @{selectedShareUser.username} won&apos;t know who sent this prayer
+                                                        @{selectedShareUser.username} {t('prayWontKnow')}
                                                     </span>
                                                 </div>
                                             </div>
@@ -182,7 +182,7 @@ export default function PrayerComposer({ onSaved }) {
                                                 className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isAnonymousShare ? 'bg-indigo-500' : 'bg-slate-700'}`}
                                                 role="switch"
                                                 aria-checked={isAnonymousShare}
-                                                title={isAnonymousShare ? 'Anonymous mode enabled' : 'Enable anonymous mode'}
+                                                title={isAnonymousShare ? t('prayAnonModeEnabled') : t('prayEnableAnonMode')}
                                             >
                                                 <span
                                                     aria-hidden="true"
@@ -217,7 +217,7 @@ export default function PrayerComposer({ onSaved }) {
                             <p className="text-[11px] text-slate-400">{(prayWords + ' ' + prayBlocks.map((block) => block.words).join(' ')).trim().split(/\s+/).filter(Boolean).length} {t('totalWords')}</p>
                             <div className="flex items-center gap-2">
                                 <button onClick={handleSubmitPrayTime} disabled={recorder?.isRecording || (!prayWords.trim() && !generalRecordings.length && !prayBlocks.some(hasBlockContent))} className={`px-4 py-2 rounded-lg text-xs font-bold ${privacyStyles.saveButton} transition-colors disabled:opacity-40 flex items-center gap-2`}>
-                                    {isAnonymousShare ? <EyeOff className="w-4 h-4" /> : <Check className="w-4 h-4" />}{selectedShareUser ? 'Send' : t('saveNote')}
+                                    {isAnonymousShare ? <EyeOff className="w-4 h-4" /> : <Check className="w-4 h-4" />}{selectedShareUser ? t('praySend') : t('saveNote')}
                                 </button>
                             </div>
                         </div>

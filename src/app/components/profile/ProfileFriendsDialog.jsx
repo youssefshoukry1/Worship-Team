@@ -11,8 +11,11 @@ import useLocalFriends from '../../utils/friendDirectory/useLocalFriends';
 import FriendDirectoryStatus from '../FriendDirectoryStatus';
 import PeoplePager from '../PeoplePager';
 import styles from './profileFriends.module.css';
+import { useLanguage } from '../../context/LanguageContext';
 
 function Person({ person, token, userId, onClose }) {
+  const { t, language } = useLanguage();
+  const ar = language === 'ar';
   const [relationship, setRelationship] = useState(person.relationship);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -36,14 +39,16 @@ function Person({ person, token, userId, onClose }) {
         <OfflineAvatar userKey={person._id} remoteUrl={person.profilePhoto} name={person.Name || person.username} className={styles.avatar} />
         <span className={styles.name}><strong>{person.Name || person.username}</strong><span>@{person.username}</span></span>
       </Link>
-      {relationship === 'self' || relationship === 'friends' ? <span className={styles.status}>{relationship === 'self' ? 'You' : 'Friends'}</span>
-        : <button type="button" className={styles.action} disabled={busy} onClick={act}>{busy ? 'Saving…' : relationship === 'incoming' ? 'Accept request' : relationship === 'outgoing' ? 'Cancel request' : 'Add friend'}</button>}
+      {relationship === 'self' || relationship === 'friends' ? <span className={styles.status}>{relationship === 'self' ? (ar ? 'أنت' : 'You') : t('friendsPlural')}</span>
+        : <button type="button" className={styles.action} disabled={busy} onClick={act}>{busy ? (ar ? 'جاري الحفظ…' : 'Saving…') : relationship === 'incoming' ? (ar ? 'قبول الطلب' : 'Accept request') : relationship === 'outgoing' ? (ar ? 'إلغاء الطلب' : 'Cancel request') : (ar ? 'إضافة صديق' : 'Add friend')}</button>}
     </div>
     {error && <p role="alert" className={styles.error}>{error}</p>}
   </li>;
 }
 
 function PeopleList({ kind, query, profileUserId, token, userId, onClose }) {
+  const { language } = useLanguage();
+  const ar = language === 'ar';
   const [ready, setReady] = useState(false);
   useEffect(() => { const timer = setTimeout(() => setReady(true), 200); return () => clearTimeout(timer); }, []);
   const remote = usePeoplePage(`testimonies/profile/${profileUserId}/friends?kind=${kind}&q=${encodeURIComponent(query)}`, token, userId, ready && String(profileUserId) !== String(userId), false);
@@ -51,19 +56,21 @@ function PeopleList({ kind, query, profileUserId, token, userId, onClose }) {
   const page = String(profileUserId) === String(userId) ? { ...local, items: local.items.map(person => ({ ...person, relationship: 'friends' })) } : remote;
   return <div className={styles.results} aria-busy={page.loading}>
     <ul className={styles.people}>{page.items.map(person => <Person key={`${person._id}:${person.relationship}`} person={person} token={token} userId={userId} onClose={onClose} />)}</ul>
-    {!page.loading && page.ready && !page.error && !page.items.length && <p className={styles.message}>{query ? 'No matching friends.' : kind === 'mutual' ? 'No mutual friends yet.' : 'No friends to show yet.'}</p>}
+    {!page.loading && page.ready && !page.error && !page.items.length && <p className={styles.message}>{query ? (ar ? 'لم يتم العثور على أصدقاء مطابقين.' : 'No matching friends.') : kind === 'mutual' ? (ar ? 'لا يوجد أصدقاء مشتركون بعد.' : 'No mutual friends yet.') : (ar ? 'لا يوجد أصدقاء لعرضهم بعد.' : 'No friends to show yet.')}</p>}
     {String(profileUserId) === String(userId) && <FriendDirectoryStatus page={local} />}
     <PeoplePager page={page} active={ready} />
   </div>;
 }
 
 export default function ProfileFriendsDialog({ initialKind, isOwner, profileUserId, token, userId, onClose }) {
+  const { t, language } = useLanguage();
+  const ar = language === 'ar';
   const [kind, setKind] = useState(initialKind);
   const [query, setQuery] = useState('');
-  return <TestimonyDialog title={kind === 'mutual' ? 'Mutual friends' : 'Friends'} onClose={onClose}>
+  return <TestimonyDialog title={kind === 'mutual' ? t('mutualFriends') : t('friendsPlural')} onClose={onClose}>
     <div className={styles.toolbar}>
-      {!isOwner && <div className={styles.tabs} aria-label="Friend list filter">{['friends', 'mutual'].map(value => <button key={value} type="button" aria-pressed={kind === value} onClick={() => setKind(value)}>{value === 'friends' ? 'All friends' : 'Mutual friends'}</button>)}</div>}
-      <input type="search" aria-label="Search friends" placeholder="Search friends" value={query} maxLength={80} onChange={event => setQuery(event.target.value)} />
+      {!isOwner && <div className={styles.tabs} aria-label="Friend list filter">{['friends', 'mutual'].map(value => <button key={value} type="button" aria-pressed={kind === value} onClick={() => setKind(value)}>{value === 'friends' ? (ar ? 'كل الأصدقاء' : 'All friends') : t('mutualFriends')}</button>)}</div>}
+      <input type="search" aria-label={ar ? 'البحث عن أصدقاء' : 'Search friends'} placeholder={ar ? 'البحث عن أصدقاء' : 'Search friends'} value={query} maxLength={80} onChange={event => setQuery(event.target.value)} />
     </div>
     <PeopleList key={`${kind}:${query}`} kind={kind} query={query} profileUserId={profileUserId} token={token} userId={userId} onClose={onClose} />
   </TestimonyDialog>;

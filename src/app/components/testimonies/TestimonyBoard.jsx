@@ -11,10 +11,12 @@ import { showToast } from '../ToastContainer';
 import styles from './testimonies.module.css';
 import { useTestimonyFeed } from './TestimonyFeedProvider';
 import { useTabPageActive } from '../TabPageActivity';
+import { useLanguage } from '../../context/LanguageContext';
 
 const EMPTY_PROFILE = { items: [], loading: false };
 
 function Board({ token, userId, username, profilePhoto, profileUserId, onProfileLoad, profileAccess, onLoadingChange }) {
+  const { t } = useLanguage();
   const pageActive = useTabPageActive();
   const isFeed = !profileUserId;
   const ownProfile = String(profileUserId) === String(userId);
@@ -130,8 +132,8 @@ function Board({ token, userId, username, profilePhoto, profileUserId, onProfile
     <section className={styles.board} aria-label={isFeed ? 'Friends highlights' : 'Profile testimony highlights'}>
       {restricted ? <div className={styles.lockedTestimonies}><LockKeyhole size={18} /><div><strong>Shared with friends</strong><p>Become friends to read each other’s testimonies.</p></div></div> : <div className={styles.noteRail} data-testid="testimony-cards">
         {(isFeed || ownProfile) && <div className={styles.miniCard}>
-          <button type="button" className={styles.createNote} disabled={loading || !publishing} aria-disabled={!canPublish} onClick={create} aria-label="Share your testimony" title={canPublish ? 'Share your testimony' : publishing?.canPublish === false ? NOTE_ACTIVE_MESSAGE : 'Checking availability…'}><Plus size={24} strokeWidth={1.4} /><span className={styles.noteLines} aria-hidden="true" /></button>
-          <span className={styles.createCaption}>{publishing?.canPublish === false && !canPublish ? 'Note active' : 'Share a note'}</span>
+          <button type="button" className={styles.createNote} disabled={loading || !publishing} aria-disabled={!canPublish} onClick={create} aria-label={t('shareYourTestimony')} title={canPublish ? t('shareYourTestimony') : publishing?.canPublish === false ? NOTE_ACTIVE_MESSAGE : 'Checking availability…'}><Plus size={24} strokeWidth={1.4} /><span className={styles.noteLines} aria-hidden="true" /></button>
+          <span className={styles.createCaption}>{publishing?.canPublish === false && !canPublish ? t('noteActive') : t('shareANote')}</span>
         </div>}
         {loading && !data.items.length ? <div className={styles.loadingNotes} aria-label="Loading testimonies" role="status"><span /><span /></div>
           : visibleItems.map((item, index) => <TestimonyCard key={item._id} item={item} index={index} isFeed={isFeed} now={displayNow} unread={isFeed && String(item.author._id) !== String(userId) && !feedStore?.isSeen(item._id)} hideAuthor={!isFeed && ownProfile} onRead={(item, trigger) => {
