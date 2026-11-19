@@ -6,6 +6,7 @@ import { prayerNotificationHref } from '../utils/prayerNotificationNavigation';
 import { friendNotificationHref } from '../utils/friendNotificationNavigation';
 import { markFriendsCacheDirty } from '../utils/friendsCache';
 import { testimonyNotificationHref } from '../utils/testimonyNotificationNavigation';
+import { waitForNativeLaunch } from '../utils/nativeLaunch';
 
 let isInitialized = false;
 let isInitializing = false;
@@ -20,6 +21,7 @@ const API_URL = getApiBaseUrl();
  */
 export async function syncFcmTokenWithBackend(fcmToken) {
     if (typeof window === 'undefined') return;
+    await waitForNativeLaunch();
     const token = localStorage.getItem('user_Taspe7_Token');
     let tokenToSync = fcmToken || localStorage.getItem('taspe7_fcm_token');
     if (!token) return;
@@ -121,6 +123,7 @@ export async function initPushNotifications() {
             });
         }
 
+        await waitForNativeLaunch();
         // Android high-importance notification channel for prayer & reply banners with avatars
         if (Capacitor.getPlatform() === 'android') {
             await PushNotifications.createChannel({

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-function service(fetch) {
+function service(fetch, waitForNativeLaunch = () => Promise.resolve()) {
   const listeners = {}, calls = [], timers = [], events = [];
   const storage = new Map([['user_Taspe7_Token', 'login'], ['taspe7_fcm_token', 'device']]);
   const context = {
@@ -15,6 +15,7 @@ function service(fetch) {
     CustomEvent: class { constructor(type, options) { this.type = type; Object.assign(this, options); } },
     setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; }, clearTimeout() {},
     getApiBaseUrl: () => 'https://example.test/api',
+    waitForNativeLaunch,
     navigateDocumentFallback: href => calls.push(href),
     markFriendsCacheDirty: () => storage.set('friends-dirty', '1'),
     URLSearchParams,
@@ -60,6 +61,24 @@ test('listeners attach before native registration; concurrent initialization reg
   assert.equal(s.calls.at(-1), 'register'); assert.equal(s.calls.filter(c => c === 'register').length, 1);
   s.listeners.pushNotificationReceived({ data: { type: 'PRAY_SHARED' } });
   assert.deepEqual(s.events, ['taspe7:prayer-push']);
+});
+
+test('launch taps work while registration and cached token sync wait for the first screen', async () => {
+  let finishLaunch, waiting, syncs = 0;
+  const handoff = new Promise(resolve => { finishLaunch = resolve; });
+  const waitingForScreen = new Promise(resolve => { waiting = resolve; });
+  const s = service(async () => { syncs++; return { ok: true }; }, () => { waiting(); return handoff; });
+  const registration = s.api.initPushNotifications();
+  await waitingForScreen;
+  const sync = s.api.syncFcmTokenWithBackend();
+  s.listeners.pushNotificationActionPerformed({ notification: { data: { type: 'PRAY_SHARED', shareId: 'early' } } });
+  assert.ok(s.calls.includes('/pray/?notificationType=PRAY_SHARED&shareId=early'));
+  assert.equal(s.calls.includes('register'), false);
+  assert.equal(syncs, 0);
+  finishLaunch();
+  await Promise.all([registration, sync]);
+  assert.equal(s.calls.filter(name => name === 'register').length, 1);
+  assert.equal(syncs, 1);
 });
 
 test('avatar capability is registered only when the native plugin exists', async () => {

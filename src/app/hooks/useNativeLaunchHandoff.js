@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { finishNativeLaunch } from "../utils/nativeLaunch";
 
 const launch = registerPlugin("WaslaLaunch");
 let signalled = false;
@@ -27,7 +28,7 @@ export default function useNativeLaunchHandoff({ mounted, waitForPrayer, waitFor
           if (!ready()) return;
           observer?.disconnect();
           signalled = true;
-          void launch.ready().catch(() => { /* The native cover has a recovery deadline. */ });
+          void launch.ready().then(finishNativeLaunch).catch(() => { /* Use the recovery deadline. */ });
         });
       });
     };
