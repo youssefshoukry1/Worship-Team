@@ -15,17 +15,17 @@
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" image="LaunchCross" translatesAutoresizingMaskIntoConstraints="NO" id="launch-cross">
-                                <rect key="frame" x="92.5" y="268.5" width="190" height="130"/>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" image="LaunchLogo" translatesAutoresizingMaskIntoConstraints="NO" id="launch-logo">
+                                <rect key="frame" x="43.5" y="189.5" width="288" height="288"/>
                                 <constraints>
-                                    <constraint firstAttribute="width" constant="190" id="logo-width"/>
-                                    <constraint firstAttribute="height" constant="130" id="logo-height"/>
+                                    <constraint firstAttribute="width" constant="288" id="logo-width"/>
+                                    <constraint firstAttribute="height" constant="288" id="logo-height"/>
                                 </constraints>
                             </imageView>
                         </subviews>
                         <constraints>
-                            <constraint firstItem="launch-cross" firstAttribute="centerX" secondItem="snD-IY-ifK" secondAttribute="centerX" id="logo-center-x"/>
-                            <constraint firstItem="launch-cross" firstAttribute="centerY" secondItem="snD-IY-ifK" secondAttribute="centerY" id="logo-center-y"/>
+                            <constraint firstItem="launch-logo" firstAttribute="centerX" secondItem="snD-IY-ifK" secondAttribute="centerX" id="logo-center-x"/>
+                            <constraint firstItem="launch-logo" firstAttribute="centerY" secondItem="snD-IY-ifK" secondAttribute="centerY" id="logo-center-y"/>
                         </constraints>
                         <color key="backgroundColor" red="0.0352941176" green="0.0509803922" blue="0.0980392156" alpha="1.0" colorSpace="custom" customColorSpace="sRGB"/>
                     </view>
@@ -35,5 +35,5 @@
             <point key="canvasLocation" x="53" y="375"/>
         </scene>
     </scenes>
-    <resources><image name="LaunchCross" width="570" height="390"/></resources>
+    <resources><image name="LaunchLogo" width="288" height="288"/></resources>
 </document>

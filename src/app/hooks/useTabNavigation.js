@@ -17,6 +17,7 @@ export default function useTabNavigation() {
   const router = useRouter();
   const latestRequest = useRef(null);
   const [requestedRequest, setRequestedRequest] = useState(null);
+  const [swipeHref, setSwipeHref] = useState(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -26,16 +27,25 @@ export default function useTabNavigation() {
   }, [isPending, requestedRequest]);
 
   useEffect(() => {
-    const cancelPendingTap = () => {
+    const selectSwipe = event => {
       latestRequest.current = null;
       setRequestedRequest(null);
+      setSwipeHref(event.detail?.href ?? null);
     };
-    window.addEventListener('taspe7:swipe-commit', cancelPendingTap);
-    window.addEventListener('popstate', cancelPendingTap);
+    const endSwipe = () => setSwipeHref(null);
+    const onBack = () => {
+      latestRequest.current = null;
+      setRequestedRequest(null);
+      endSwipe();
+    };
+    window.addEventListener('taspe7:swipe-commit', selectSwipe);
+    window.addEventListener('taspe7:swipe-end', endSwipe);
+    window.addEventListener('popstate', onBack);
     return () => {
       latestRequest.current = null;
-      window.removeEventListener('taspe7:swipe-commit', cancelPendingTap);
-      window.removeEventListener('popstate', cancelPendingTap);
+      window.removeEventListener('taspe7:swipe-commit', selectSwipe);
+      window.removeEventListener('taspe7:swipe-end', endSwipe);
+      window.removeEventListener('popstate', onBack);
     };
   }, []);
 
@@ -68,5 +78,5 @@ export default function useTabNavigation() {
     });
   };
 
-  return { navigate, pendingHref: isPending ? requestedRequest?.href : null };
+  return { navigate, pendingHref: swipeHref ?? (isPending ? requestedRequest?.href : null) };
 }

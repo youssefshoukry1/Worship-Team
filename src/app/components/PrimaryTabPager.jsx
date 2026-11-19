@@ -94,6 +94,7 @@ export default function PrimaryTabPager({ index }) {
       const active = session.current;
       active?.observer?.disconnect();
       session.current = null;
+      if (active?.committed) window.dispatchEvent(new Event('taspe7:swipe-end'));
       if (!disposed && active) setOpening(null);
       if (active) for (const panel of [active.source, active.incoming]) {
         if (!panel?.isConnected) continue;
@@ -122,11 +123,45 @@ export default function PrimaryTabPager({ index }) {
       active.source.style.transform = `translate3d(${offset}px,0,0)`;
       active.incoming.style.transform = `translate3d(${active.direction * active.width + offset}px,0,0)`;
     };
+    const prepareLayers = active => {
+      const { source, incoming, target } = active;
+      const top = window.scrollY;
+      const rootBox = root.getBoundingClientRect();
+      const viewportHeight = incoming.clientHeight;
+      // Leave a spacer equal to the active document's height. Cropping a
+      // long source to the visible screen must never clamp window.scrollY.
+      root.style.height = `${rootBox.height}px`;
+      offsets.current.set(indexRef.current, top);
+      incoming.firstElementChild.style.marginTop = `-${offsets.current.get(target) || 0}px`;
+      source.firstElementChild.style.marginTop = `${-top}px`;
+      for (const panel of [source, incoming]) {
+        panel.style.top = `${top}px`;
+        panel.style.height = `${viewportHeight}px`;
+        panel.style.willChange = 'transform';
+        panel.setAttribute('data-swipe-moving', 'true');
+      }
+      active.preview = true;
+    };
+    const whenReady = (active, callback) => {
+      active.observer?.disconnect();
+      const hasContent = () => active.incoming.querySelector('[data-preview-content], [role="alert"]');
+      if (hasContent()) { callback(); return; }
+      const check = () => {
+        if (session.current !== active || !hasContent()) return;
+        active.observer?.disconnect();
+        callback();
+      };
+      active.observer = new MutationObserver(check);
+      active.observer.observe(active.incoming, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-preview-content', 'role'] });
+    };
     const settle = (completed, { velocity = 0 } = {}) => {
       const active = session.current;
       if (!active || active.released) return;
       active.released = true;
-      if (completed) window.dispatchEvent(new Event('taspe7:swipe-commit'));
+      active.committed = completed;
+      if (completed) window.dispatchEvent(new CustomEvent('taspe7:swipe-commit', {
+        detail: { href: routes[active.target] },
+      }));
       const navigate = async () => {
         if (session.current !== active || active.navigating) return;
         active.navigating = true;
@@ -140,29 +175,33 @@ export default function PrimaryTabPager({ index }) {
           active.dispatched = true;
           if (ready) router.push(routes[active.target], { scroll: true });
           else navigateDocumentFallback(routes[active.target]);
-        } catch { clear(); }
+        } catch { if (session.current === active) clear(); }
       };
 
-      if (!active.preview) {
-        if (!completed) { clear(); return; }
-        releaseNavigationWork();
-        // Prepare the confirmed destination behind the current page. Route errors
-        // have their own recovery UI; a slow network must not trap the gesture.
-        const checkContent = () => {
-          if (active.incoming.querySelector('[data-preview-content], [role="alert"]')) void navigate();
-        };
-        active.observer = new MutationObserver(checkContent);
-        active.observer.observe(active.incoming, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-preview-content', 'role'] });
-        setOpening(active.target);
-        timer = setTimeout(navigate, 1200);
-        checkContent();
-        return;
-      }
-      const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : swipeSettleDuration(completed, active.amount || 0, active.width, velocity);
-      root.setAttribute('data-settling', 'true');
-      for (const panel of [active.source, active.incoming]) panel.style.transition = `transform ${duration}ms cubic-bezier(.22,1,.36,1)`;
-      move(completed ? active.width : 0);
-      timer = setTimeout(completed ? navigate : clear, duration);
+      const animate = () => {
+        const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 :
+          swipeSettleDuration(completed, active.amount, active.width, velocity);
+        root.setAttribute('data-settling', 'true');
+        for (const panel of [active.source, active.incoming]) panel.style.transition = `transform ${duration}ms cubic-bezier(.22,1,.36,1)`;
+        move(completed ? active.width : 0);
+        timer = setTimeout(completed ? navigate : clear, duration);
+      };
+      if (active.preview) { animate(); return; }
+      if (!completed) { clear(); return; }
+
+      // The cold panel was never exposed. Slide from its offscreen position
+      // after content arrives, even if the finger has already been lifted.
+      releaseNavigationWork();
+      const reveal = () => {
+        clearTimeout(timer);
+        active.observer?.disconnect();
+        active.amount = 0;
+        prepareLayers(active);
+        animate();
+      };
+      setOpening(active.target);
+      timer = setTimeout(reveal, 1200);
+      whenReady(active, reveal);
     };
     const remove = enabled ? installInteriorSwipe({
       element: root,
@@ -174,29 +213,15 @@ export default function PrimaryTabPager({ index }) {
         const incoming = root.querySelector(`[data-tab-index="${target}"]`);
         if (!source || !incoming) return false;
         const width = root.clientWidth;
-        const top = window.scrollY;
-        const rootBox = root.getBoundingClientRect();
-        // The inactive frame already resolves 100dvh, including browser chrome.
-        const viewportHeight = incoming.clientHeight;
         holdNavigationWork();
-        const preview = Boolean(incoming.querySelector('[data-preview-content]'));
-        session.current = { direction, target, source, incoming, width, preview };
-        // A lost touchend must not leave deferred UI work blocked indefinitely.
+        const active = { direction, target, source, incoming, width, preview: false, amount: 0 };
+        session.current = active;
         deadline = setTimeout(clear, 30000);
         root.setAttribute('data-swiping', 'true');
-        if (!preview) return true;
-        // Leave a spacer equal to the active document's height. Cropping a
-        // long source to the visible screen must never clamp window.scrollY.
-        root.style.height = `${rootBox.height}px`;
-        offsets.current.set(indexRef.current, top);
-        incoming.firstElementChild.style.marginTop = `-${offsets.current.get(target) || 0}px`;
-        source.firstElementChild.style.marginTop = `${-top}px`;
-        for (const panel of [source, incoming]) {
-          panel.style.top = `${top}px`;
-          panel.style.height = `${viewportHeight}px`;
-          panel.style.willChange = 'transform';
-          panel.setAttribute('data-swipe-moving', 'true');
-        }
+        whenReady(active, () => {
+          prepareLayers(active);
+          move(active.amount);
+        });
         return true;
       }, update: move, finish: settle, cancel: () => settle(false),
     }) : () => {};

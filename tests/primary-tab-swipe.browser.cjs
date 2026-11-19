@@ -53,10 +53,44 @@ for (const engine of ['webkit', 'chromium']) {
     assert.ok(await preview.evaluate(node => node.getBoundingClientRect().left >= innerWidth - 1), 'cold placeholder stays offscreen throughout drag');
     const historyLength = await page.evaluate(() => history.length);
     await touch(page, 'touchend', 60);
+    await page.waitForFunction(() => {
+      const incoming = document.querySelector('[data-tab-pager][data-settling] [data-tab-index="3"]');
+      const left = incoming?.getBoundingClientRect().left;
+      return left > 1 && left < innerWidth - 1;
+    });
     await page.waitForURL(base + '/normal_UserProfile/');
     await preview.getByText('iOS Tester', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => history.length), historyLength + 1);
     assert.deepEqual(errors, []);
+  });
+
+  test(`${engine}: readiness arriving during a drag uses the current offset and cancels smoothly`, async t => {
+    const { page, context } = await setup(t, engine, { href: '/friends/' });
+    const preview = panel(page, '/normal_UserProfile');
+    const marker = preview.locator('[data-preview-content]').first();
+    await marker.waitFor({ state: 'attached' });
+    if (engine === 'chromium') {
+      const client = await context.newCDPSession(page);
+      await client.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+    }
+    // Control when the previously mounted destination publishes its readiness.
+    const handle = await marker.elementHandle();
+    const value = await handle.getAttribute('data-preview-content');
+    await handle.evaluate(node => node.removeAttribute('data-preview-content'));
+    await touch(page, 'touchstart', 280);
+    await touch(page, 'touchmove', 190);
+    await frame(page);
+    assert.ok(await preview.evaluate(node => node.getBoundingClientRect().left >= innerWidth - 1));
+    assert.equal(await page.locator('nav a[aria-current="page"]').getAttribute('href'), '/friends/');
+    await handle.evaluate((node, value) => node.setAttribute('data-preview-content', value), value);
+    await frame(page);
+    assert.ok(await preview.evaluate(node => Math.abs(node.getBoundingClientRect().left - (innerWidth - 90)) < 2));
+    const before = await page.evaluate(() => history.length);
+    await touch(page, 'touchcancel', 190, 350, { cancel: true });
+    await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
+    assert.equal(await page.locator('nav a[aria-current="page"]').getAttribute('href'), '/friends/');
+    assert.equal(await page.evaluate(() => history.length), before);
+    assert.equal(new URL(page.url()).pathname, '/friends/');
   });
 
   test(`${engine}: repeated cancellations reuse the prepared page and keep it inactive`, async t => {
@@ -437,6 +471,7 @@ test('tapping the current tab cancels a cold swipe before its delayed route comm
   await page.waitForTimeout(1300);
   assert.equal(new URL(page.url()).pathname, '/friends/');
   assert.equal(await page.evaluate(() => history.length), length);
+  assert.equal(await page.locator('nav a[aria-current="page"]').getAttribute('href'), '/friends/');
   assert.equal(await page.locator('[data-tab-pager][data-swiping]').count(), 0);
 });
 
@@ -455,10 +490,23 @@ test('a released swipe supersedes a bottom tap waiting for worker control', asyn
     return history.length;
   });
   await drag(page, 280, 60);
+  await page.locator('nav a[href^="/normal_UserProfile"][aria-current="page"]').waitFor();
+  assert.equal(new URL(page.url()).pathname, '/friends/', 'the highlight updates before routing is ready');
   await page.evaluate(() => window.releaseTabWorker());
   await page.waitForURL(base + '/normal_UserProfile/');
   assert.equal(await page.locator('nav a[aria-current="page"]').getAttribute('href'), '/normal_UserProfile/');
   assert.equal(await page.evaluate(() => history.length), historyLength + 1);
+});
+
+test('a different bottom tab takes the highlight from an accepted swipe', async t => {
+  const { page } = await setup(t, 'webkit', { href: '/friends/', deferIdle: true });
+  const length = await page.evaluate(() => history.length);
+  await drag(page, 280, 60);
+  await page.locator('nav a[href^="/normal_UserProfile"][aria-current="page"]').waitFor();
+  await page.locator('nav a[href^="/bible_form"]').tap();
+  await page.locator('nav a[href^="/bible_form"][aria-current="page"]').waitFor();
+  await page.waitForURL(base + '/bible_form/');
+  assert.equal(await page.evaluate(() => history.length), length + 1);
 });
 
 test('Back during a committed swipe restores the preceding tab and its draft', async t => {
