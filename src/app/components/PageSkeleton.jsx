@@ -10,6 +10,17 @@ function TextLines({ count = 3 }) {
   return <div className="space-y-3">{Array.from({ length: count }, (_, index) => <Bar key={index} className={`h-3 ${index === count - 1 ? 'w-2/3' : 'w-full'}`} />)}</div>;
 }
 
+export function PrayerCardsSkeleton({ label }) {
+  return <div role="status" aria-label={label} aria-busy="true" data-prayer-cards-loading="">
+    <div aria-hidden="true" className="space-y-2.5 motion-safe:animate-pulse">
+      {[0, 1].map(index => <Card key={index} className="space-y-4">
+        <Bar className="h-3 w-1/3" />
+        <TextLines count={2} />
+      </Card>)}
+    </div>
+  </div>;
+}
+
 export function pageSkeletonVariant(pathname = '') {
   const route = (pathname || '').replace(/\/index\.html\/?$/i, '').replace(/\/$/, '');
   if (/^\/presentation(?:\/|$)/.test(route)) return 'presentation';

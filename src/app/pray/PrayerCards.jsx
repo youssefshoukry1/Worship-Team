@@ -7,6 +7,7 @@ import { incomingPrayerActivity } from '../utils/prayerActivity';
 import { prayerCircleText, formatActivityTime } from './prayerCircleText';
 import { SavedPrayRecordings } from './PrayRecordings';
 import PrayerList from './PrayerList';
+import { PrayerCardsSkeleton } from '../components/PageSkeleton';
 import { usePrayerField } from './PrayerSessionProvider';
 const GENERAL_BLOCK_ID = 'general';
 
@@ -502,19 +503,25 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
 
 });
 
-const ListPanel = memo(function ListPanel({ title, icon: Icon, items, emptyText, renderItem, active, scope, targetId, targetKey }) {
+const ListPanel = memo(function ListPanel({ title, icon: Icon, items, emptyText, renderItem, active, scope, targetId, targetKey, hasSnapshot, storageError, loadingLabel }) {
+    let body;
+    if (items.length) {
+        body = active ? <PrayerList key={scope} scope={scope} items={items} renderItem={renderItem} targetId={targetId} targetKey={targetKey} /> : <div className="min-h-[200px]" />;
+    } else if (!hasSnapshot || storageError) {
+        body = active && !storageError && <PrayerCardsSkeleton label={loadingLabel} />;
+    } else {
+        body = <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 h-[200px]">
+            <Icon className="w-10 h-10 mb-3 opacity-20" />
+            <p className="text-xs font-semibold">{emptyText}</p>
+        </div>;
+    }
     return (
         <div className="flex flex-col app-card rounded-3xl border shadow-xl shadow-black/20">
             <div className="flex items-center gap-3 border-b border-white/5 p-4 sm:p-5 bg-black/20">
                 <h2 className="text-sm sm:text-base font-bold text-white tracking-wide">{title}</h2>
             </div>
             <div className="flex-1 p-3 sm:p-5 space-y-2.5">
-                {items.length > 0 ? (active ? <PrayerList key={scope} scope={scope} items={items} renderItem={renderItem} targetId={targetId} targetKey={targetKey} /> : <div className="min-h-[200px]" />) : (
-                    <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 h-[200px]">
-                        <Icon className="w-10 h-10 mb-3 opacity-20" />
-                        <p className="text-xs font-semibold">{emptyText}</p>
-                    </div>
-                )}
+                {body}
             </div>
         </div>
     );

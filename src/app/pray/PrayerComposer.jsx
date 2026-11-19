@@ -28,7 +28,8 @@ export default function PrayerComposer({ onSaved }) {
             default: return t('generalPrayer');
         }
     };
-    const [isShareOpen, setIsShareOpen] = useState(false);
+    // Mount the directory on first use, then retain its search when dismissed.
+    const [isShareOpen, setIsShareOpen] = useState(null);
     const [prayWords, setPrayWords] = usePrayerField('prayWords');
     const [prayBlocks, setPrayBlocks] = usePrayerField('prayBlocks');
     const [generalRecordings, setGeneralRecordings] = usePrayerField('generalRecordings');
@@ -221,7 +222,7 @@ export default function PrayerComposer({ onSaved }) {
                                 </button>
                             </div>
                         </div>
-        <PrayerSharePicker isShareOpen={pageActive && isShareOpen} onClose={() => setIsShareOpen(false)} onSelect={handleSelectShareUser}
-            selectedShareUser={selectedShareUser} />
+        {isShareOpen !== null && <PrayerSharePicker isShareOpen={pageActive && isShareOpen} onClose={() => setIsShareOpen(false)} onSelect={handleSelectShareUser}
+            selectedShareUser={selectedShareUser} />}
     </>;
 }

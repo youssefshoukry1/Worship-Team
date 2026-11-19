@@ -29,7 +29,7 @@ async function stop() {
   if (server) await new Promise(resolve => server.close(resolve));
 }
 
-async function setup(t, engine, { href = '/', platform = 'ios', authenticated = true, profile = {}, deferIdle = false, beforeNavigate, contextOptions = {} } = {}) {
+async function setup(t, engine, { href = '/', platform = 'ios', authenticated = true, profile = {}, deferIdle = false, waitForPrayReads = true, beforeNavigate, contextOptions = {} } = {}) {
   const context = await browsers[engine].newContext({ ...devices['iPhone 13'], ...contextOptions, serviceWorkers: 'block' });
   t.after(() => context.close());
   const page = await context.newPage();
@@ -91,6 +91,9 @@ async function setup(t, engine, { href = '/', platform = 'ios', authenticated = 
         if (method === 'exitApp') window.__exits++;
         if (plugin === 'Filesystem') {
           if (method === 'readFile') {
+            if (options.path === 'my_prays/index.json' && !files.has(options.path) && window.__readPrayerIndexFixture) {
+              files.set(options.path, await window.__readPrayerIndexFixture());
+            }
             if (!files.has(options.path)) throw Object.assign(new Error('File does not exist'), { code: 'OS-PLUG-FILE-0008' });
             return { data: files.get(options.path) };
           }
@@ -102,7 +105,7 @@ async function setup(t, engine, { href = '/', platform = 'ios', authenticated = 
       },
     };
   }, platform);
-  const initialReads = authenticated && ['/', '/index.html', '/pray/', '/pray/index.html'].includes(href)
+  const initialReads = waitForPrayReads && authenticated && ['/', '/index.html', '/pray/', '/pray/index.html'].includes(href)
     ? Promise.all(['/my-profile', '/pray-time/inbox', '/pray-time/sent-updates'].map(suffix => page.waitForResponse(response => response.request().method() === 'GET' && response.url().includes(suffix))))
     : Promise.resolve();
   await page.goto(base + href, { waitUntil: 'domcontentloaded' });

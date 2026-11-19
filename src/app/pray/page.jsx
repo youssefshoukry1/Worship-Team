@@ -17,6 +17,7 @@ import { downloadPrayerPayload } from '../utils/prayerPayload';
 import useNavigationState from './useNavigationState';
 import PrayerSettings from './PrayerSettings';
 import { PrayerCard, ListPanel, isReceivedPrayer, isSentPrayer, isPersonalPrayer } from './PrayerCards';
+import { waitForNativeLaunch } from '../utils/nativeLaunch';
 import { usePrayerSession, usePrayerField } from './PrayerSessionProvider';
 import { useLanguage } from '../context/LanguageContext';
 import useLocalFriends from '../utils/friendDirectory/useLocalFriends';
@@ -53,6 +54,18 @@ export default function PrayPage() {
         else setActivePrayTab('personal');
     };
     const pageActive = useTabPageActive();
+    const [historyStarted, setHistoryStarted] = usePrayerField('historyStarted');
+    const historyActive = pageActive && Boolean(historyStarted);
+    useEffect(() => {
+        if (!pageActive || historyStarted) return;
+        let cancelled = false;
+        void waitForNativeLaunch().then(() => {
+            if (!cancelled) setHistoryStarted(true);
+        });
+        return () => { cancelled = true; };
+    }, [pageActive, historyStarted, setHistoryStarted]);
+    const [hasSnapshot, setHasSnapshot] = useNavigationState(
+        () => Boolean(historyStarted && getCachedPrayerSnapshot()), pageActive);
     const mountedRef = useRef(true);
     const deletionSyncRef = useRef(null);
     useEffect(() => {
@@ -130,7 +143,7 @@ export default function PrayPage() {
     };
 
     useEffect(() => {
-        if (!pageActive) return;
+        if (!historyActive) return;
         if (!token || !userId) {
             return;
         }
@@ -150,12 +163,12 @@ export default function PrayPage() {
         };
         loadProfile();
         return () => { ignore = true; };
-    }, [token, userId, pageActive, setProfile]);
+    }, [token, userId, historyActive, setProfile]);
 
     useEffect(() => {
         let ignore = false;
         const handleFocus = async () => {
-            if (!pageActive || !token || !userId) return;
+            if (!historyActive || !token || !userId) return;
             try {
                 const newProfileData = await refreshProfile(API_URL, token, userId, { force: true });
                 if (!ignore) setProfile(newProfileData);
@@ -168,14 +181,14 @@ export default function PrayPage() {
             window.removeEventListener('focus', handleFocus);
             window.removeEventListener(HOME_REFRESH_EVENT, handleFocus);
         };
-    }, [token, userId, pageActive, setProfile]);
+    }, [token, userId, historyActive, setProfile]);
 
     const { t, language } = useLanguage();
 
-    const [recordingsIndex, setRecordingsIndex] = useNavigationState(() => getCachedPrayerSnapshot()?.recordings || {}, pageActive);
+    const [recordingsIndex, setRecordingsIndex] = useNavigationState(() => (historyStarted && getCachedPrayerSnapshot()?.recordings) || {}, pageActive);
     // All prayers are stored 100% on this device
     const isGuest = !token || !userId;
-    const [guestPrays, setGuestPrays] = useNavigationState(() => getCachedPrayerSnapshot()?.prayers || [], pageActive, normalizePrayerView);
+    const [guestPrays, setGuestPrays] = useNavigationState(() => (historyStarted && getCachedPrayerSnapshot()?.prayers) || [], pageActive, normalizePrayerView);
     const rawPrayList = guestPrays;
     const prayList = useMemo(() => Array.from(new Map(rawPrayList.map(item => [String(item._id || item.date), item])).values()), [rawPrayList]);
     const { personalPrayList, receivedPrayList, sentPrayList } = useMemo(() => {
@@ -259,7 +272,7 @@ export default function PrayPage() {
     const unreadReceivedCount = receivedPrayList.filter(entry => unreadPrayerIds.has(String(entry._id))).length;
     const circleText = prayerCircleText(language);
     const circleAnchorRef = useRef(null);
-    const { visibleItems: orderedPrayList, pendingUpdates, revealUpdates } = usePrayerCircleOrder(visiblePrayList, `${userId || 'guest'}:${circleFilter}`, circleAnchorRef, `${notificationPrayerId || ''}:${localActivityId}`);
+    const { visibleItems: orderedPrayList, pendingUpdates, revealUpdates } = usePrayerCircleOrder(visiblePrayList, hasSnapshot ? `${userId || 'guest'}:${circleFilter}` : null, circleAnchorRef, `${notificationPrayerId || ''}:${localActivityId}`);
     const seenWrites = useRef(new Set());
     const markSeen = useCallback(async (id, activity) => {
         const key = `${userId || 'guest'}:${id}:${activity}`;
@@ -305,11 +318,12 @@ export default function PrayPage() {
     // Storage publishes stable text/recording references after durable changes.
     // Hidden views unsubscribe; activation consumes the latest cached snapshot.
     useEffect(() => {
-        if (!pageActive) return;
+        if (!historyActive) return;
         let active = true;
         let lastPrayers, lastRecordings;
         const apply = next => {
             if (!active || !next) return;
+            if (!lastPrayers) setHasSnapshot(true);
             if (next.prayers !== lastPrayers) { lastPrayers = next.prayers; setGuestPrays(next.prayers); }
             if (next.recordings !== lastRecordings) { lastRecordings = next.recordings; setRecordingsIndex(next.recordings); }
         };
@@ -328,12 +342,12 @@ export default function PrayPage() {
         };
         window.addEventListener(PRAYER_SYNC_EVENT, syncChanged);
         return () => { active = false; unsubscribe(); window.removeEventListener(PRAYER_SYNC_EVENT, syncChanged); };
-    }, [pageActive, setGuestPrays, setRecordingsIndex]);
+    }, [historyActive, setGuestPrays, setRecordingsIndex, setHasSnapshot]);
 
 
     const repairCompletedRef = useRef(session.get('repairCompleted') || null);
     useEffect(() => {
-        if (!pageActive) return;
+        if (!historyActive) return;
         if (repairCompletedRef.current?.userId === userId && repairCompletedRef.current?.token === token) return;
         let isCancelled = false;
         const loadAndRepairPrays = async () => {
@@ -379,15 +393,15 @@ export default function PrayPage() {
 
         loadAndRepairPrays();
         return () => { isCancelled = true; };
-    }, [pageActive, token, userId, legacyOpenedFriendPrayers, setGuestPrays, session]);
+    }, [historyActive, token, userId, legacyOpenedFriendPrayers, setGuestPrays, session]);
 
     // One-time import for existing users who already had prayers in MongoDB
     useEffect(() => {
-        if (!pageActive || !profile?.prayTime?.length) return;
+        if (!historyActive || !profile?.prayTime?.length) return;
         void importLegacyPrayers(profile.prayTime).then(async changed => {
             if (changed) setGuestPrays(await getGuestPrays());
         }).catch(() => {});
-    }, [pageActive, profile?.prayTime, setGuestPrays]);
+    }, [historyActive, profile?.prayTime, setGuestPrays]);
 
     const syncDeliveries = useCallback(async (kind, force, targetOnly = false) => {
         if (!token || !userId) return;
@@ -453,7 +467,7 @@ export default function PrayPage() {
     }, [notificationTarget, syncDeliveries]);
 
     useEffect(() => {
-        if (!pageActive) return;
+        if (!historyActive) return;
         checkIncomingSharedPrayers();
         checkSentPrayUpdates();
         const refresh = () => {
@@ -476,7 +490,7 @@ export default function PrayPage() {
             window.removeEventListener('online', refresh);
             document.removeEventListener('visibilitychange', refreshWhenVisible);
         };
-    }, [pageActive, checkIncomingSharedPrayers, checkSentPrayUpdates]);
+    }, [historyActive, checkIncomingSharedPrayers, checkSentPrayUpdates]);
 
 
     const handleDeletePrayTime = (prayId) => {
@@ -518,10 +532,6 @@ export default function PrayPage() {
 
     return (
         <section ref={pageRef} className={`${privacyStyles.prayerPage} app-page min-h-screen pb-[100px] pt-8 px-4 text-white transition-colors duration-150`}>
-            {storageError && <div role="alert" className="mb-4 rounded-xl bg-red-950/30 p-3 text-sm text-red-200">
-                <p>{language === 'ar' ? 'تعذر الوصول إلى الصلوات المحفوظة. حاول مرة أخرى.' : language === 'de' ? 'Gespeicherte Gebete sind nicht erreichbar. Bitte erneut versuchen.' : 'Saved prayers could not be accessed. Please try again.'}</p>
-                <button type="button" className="mt-2 underline" onClick={() => { void refreshLocalPrayerCache().catch(() => {}); }}>{language === 'ar' ? 'إعادة المحاولة' : language === 'de' ? 'Erneut versuchen' : 'Retry storage'}</button>
-            </div>}
             <div className="max-w-5xl mx-auto">
                 <div className="grid grid-cols-1 gap-5 sm:gap-6">
                     <div className="app-card rounded-3xl border shadow-xl shadow-black/20 p-4 sm:p-6">
@@ -599,6 +609,10 @@ export default function PrayPage() {
                     </div>
 
                     <div ref={circleAnchorRef} className="scroll-mt-3">
+                    {storageError && <div role="alert" className="mb-4 rounded-xl bg-red-950/30 p-3 text-sm text-red-200">
+                        <p>{language === 'ar' ? 'تعذر الوصول إلى الصلوات المحفوظة. حاول مرة أخرى.' : language === 'de' ? 'Gespeicherte Gebete sind nicht erreichbar. Bitte erneut versuchen.' : 'Saved prayers could not be accessed. Please try again.'}</p>
+                        <button type="button" className="mt-2 underline" onClick={() => { void refreshLocalPrayerCache().catch(() => {}); }}>{language === 'ar' ? 'إعادة المحاولة' : language === 'de' ? 'Erneut versuchen' : 'Retry storage'}</button>
+                    </div>}
                     {activePrayTab === 'shared' && pendingUpdates > 0 && (
                         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-30" role="status">
                             <button type="button" onClick={() => { revealUpdates(); setListTarget({ id: String(visiblePrayList[0]?._id || ''), key: Date.now(), scope: `shared:${circleFilter}` }); }} aria-label={`${circleText.viewUpdates}: ${pendingUpdates}`}
@@ -609,7 +623,8 @@ export default function PrayPage() {
                     <div hidden={activePrayTab !== 'personal'}>
                         <ListPanel title={t('myPrayTimeNotes')} icon={Heart} items={personalPrayList}
                             emptyText={t('noPrayerNotesYet')} active={activePrayTab === 'personal'} scope="personal"
-                            targetId={listTarget?.scope === 'personal' ? listTarget.id : null} targetKey={listTarget?.key} renderItem={renderPrayer} />
+                            targetId={listTarget?.scope === 'personal' ? listTarget.id : null} targetKey={listTarget?.key} renderItem={renderPrayer}
+                            hasSnapshot={hasSnapshot} storageError={storageError} loadingLabel={t('loadingSavedPrayers')} />
                     </div>
                     {sharedTabVisited && <div hidden={activePrayTab !== 'shared'}>
                     <ListPanel
@@ -652,6 +667,7 @@ export default function PrayPage() {
                         targetId={listTarget?.scope === `shared:${circleFilter}` ? listTarget.id : circleFilter === 'all' ? notificationPrayerId : null}
                         targetKey={listTarget?.scope === `shared:${circleFilter}` ? listTarget.key : `notification:${notificationKey}`}
                         renderItem={renderPrayer}
+                        hasSnapshot={hasSnapshot} storageError={storageError} loadingLabel={t('loadingSavedPrayers')}
                     />
                     </div>}
                     </div>

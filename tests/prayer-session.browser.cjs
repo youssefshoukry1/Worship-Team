@@ -28,6 +28,29 @@ async function leavePrayer(page) {
     await page.waitForURL('**/plans/');
     await page.locator('[data-prayer-row]').waitFor({ state: 'detached' });
 }
+
+test('cold launch opens the composer while saved prayer cards wait for device storage', async t => {
+    let release;
+    const index = new Promise(resolve => { release = resolve; });
+    const { page, errors } = await setup(t, 'chromium', {
+        platform: 'android', href: '/pray/', waitForPrayReads: false,
+        beforeNavigate: page => page.exposeFunction('__readPrayerIndexFixture', () => index),
+    });
+    try {
+        await page.waitForFunction(() => window.__launchSignals?.some(signal => signal.header && signal.composer));
+        await page.getByRole('status', { name: 'Loading saved prayers' }).waitFor();
+        const editor = await page.locator('textarea[data-preview-content="pray"]').elementHandle();
+        await editor.fill('Writing while history loads');
+        const saved = { _id: 'cold-prayer', words: 'Prayer from local storage', date: '2026-10-01T00:00:00Z' };
+        release(JSON.stringify({ guestPrays: [saved], recordings: {} }));
+        await page.getByText(saved.words, { exact: true }).waitFor();
+        assert.equal(await page.locator('[data-prayer-cards-loading]').count(), 0);
+        assert.equal(await editor.evaluate(node => node === document.activeElement && node.value === 'Writing while history loads'), true);
+        assert.deepEqual(errors, []);
+    } finally {
+        release(JSON.stringify({ guestPrays: [], recordings: {} }));
+    }
+});
 async function returnToPrayer(page) {
     await page.goBack();
     await page.evaluate(() => scrollTo(0, 0));

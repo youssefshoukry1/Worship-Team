@@ -14,13 +14,15 @@ let browser, server, base;
 
 before(async () => {
   server = http.createServer((req, res) => {
-    const pathname = new URL(req.url, 'http://localhost').pathname;
+    const url = new URL(req.url, 'http://localhost');
+    const pathname = url.pathname;
     if (pathname === '/__seed') { res.setHeader('Content-Type', 'text/html'); return res.end('<html></html>'); }
     let file = path.join(root, decodeURIComponent(pathname));
     if (!file.startsWith(root + path.sep)) { res.writeHead(403); return res.end(); }
-    if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
+    // Match the navigation worker that serves the production static export.
+    if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, url.searchParams.has('_rsc') ? 'index.txt' : 'index.html');
     if (!fs.existsSync(file)) { res.writeHead(404); return res.end(); }
-    res.setHeader('Content-Type', contentTypes[path.extname(file)] || 'application/octet-stream');
+    res.setHeader('Content-Type', file.endsWith('.txt') ? 'text/x-component' : contentTypes[path.extname(file)] || 'application/octet-stream');
     fs.createReadStream(file).pipe(res);
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -188,7 +190,8 @@ test('optimistic sends show a clock before acknowledgement and resume the same a
         bodies.push(route.request().postDataJSON()); await pending;
         return fulfillPrayerFixture(route, { json: { success: true, shareId: 'new-share', date: new Date().toISOString() } }).catch(() => {});
       }
-      if (url.endsWith('/users/friends')) return fulfillPrayerFixture(route, { json: { friends: [{ _id: 'friend', username: 'friend' }] } });
+      if (url.endsWith('/friends-directory/snapshot')) return fulfillPrayerFixture(route, { json: { items: [{ _id: '000000000000000000000001', username: 'friend' }], next: null, cursor: '1' } });
+      if (url.includes('/friends-directory/sync?')) return fulfillPrayerFixture(route, { json: { changes: [], cursor: '1', hasMore: false } });
       return mockPrayerApi(route, base);
     });
     await seed(page, []);
@@ -929,7 +932,10 @@ test('prayer circle labels and cards fit narrow screens in light/dark English an
   } finally { await context.close(); }
 });
 
-async function seed(page, prayers) {
+async function seed(page, prayers, { controlledNavigation = false } = {}) {
+  if (controlledNavigation) await page.addInitScript(() => Object.defineProperty(navigator.serviceWorker, 'controller', {
+    configurable: true, value: { scriptURL: '/sw.js?v=navigation-v2' },
+  }));
   await page.goto(base + '/__seed');
   await page.evaluate(async ({ prayers, version }) => {
     for (const [key, value] of Object.entries({ 'app-language': 'en', user_Taspe7_Token: 'test-token', user_Taspe7_ID: 'tester', user_Taspe7_Username: 'tester', wasla_splash_version: version, wasla_intro_last_time: String(Date.now()) })) localStorage.setItem(key, value);
@@ -977,7 +983,7 @@ test('native backup settings save intervals and manual progress continues after 
       if (route.request().url().includes('/backup/drive-accounts')) return fulfillPrayerFixture(route, { json: { accounts: [{ email: 'drive@test', isDefault: true }] } });
       return fulfillPrayerFixture(route, { json: { user: { username: 'tester', prayTime: [] }, inbox: [], updates: [], friends: [] } });
     });
-    await seed(page, []); await page.goto(base + '/pray/');
+    await seed(page, [], { controlledNavigation: true }); await page.goto(base + '/pray/');
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     const schedule = page.getByRole('group', { name: 'Automatic backup' });
     await schedule.waitFor(); await page.getByText('drive@test', { exact: true }).waitFor();
@@ -1377,7 +1383,7 @@ test('2000 prayers stay bounded through a complete forward traversal and restore
   try {
     const page = await context.newPage();
     await context.route('**/*', route => mockPrayerApi(route, base));
-    await seed(page, [...personalPrayers(2000), received('other-list')]);
+    await seed(page, [...personalPrayers(2000), received('other-list')], { controlledNavigation: true });
     await page.goto(base + '/pray/');
     await page.locator('[data-prayer-id="personal-0"]').waitFor();
     const result = await page.evaluate(async () => {
@@ -1529,7 +1535,7 @@ test('returning from Bible preserves the composer and bounded rows before activa
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   try {
     const page = await context.newPage(); await context.route('**/*', route => mockPrayerApi(route, base));
-    await seed(page, personalPrayers(100)); await page.goto(base + '/pray/');
+    await seed(page, personalPrayers(100), { controlledNavigation: true }); await page.goto(base + '/pray/');
     const panel = page.locator('[data-tab-panel="/pray"]');
     await panel.locator('[data-prayer-id="personal-0"]').waitFor();
     await panel.getByRole('textbox').first().fill('Keep this draft ready');
