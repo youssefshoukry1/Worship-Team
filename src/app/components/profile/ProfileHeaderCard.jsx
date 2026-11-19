@@ -8,7 +8,7 @@ import { useLanguage } from '../../context/LanguageContext';
 export default function ProfileHeaderCard({ user, avatar, badges, stats, onEditName, onEditUsername, children }) {
   const { t } = useLanguage();
   const name = user?.Name || user?.username || 'N/A';
-  return <section data-testid="profile-header-card" className={`${styles.profileHeader} app-card rounded-[2rem] border p-5 sm:p-8 backdrop-blur-2xl mb-6 sm:mb-8 relative overflow-hidden shadow-2xl shadow-black/50`}>
+  return <section data-preview-content={user?._id ? 'profile' : undefined} data-testid="profile-header-card" className={`${styles.profileHeader} app-card rounded-[2rem] border p-5 sm:p-8 backdrop-blur-2xl mb-6 sm:mb-8 relative overflow-hidden shadow-2xl shadow-black/50`}>
     <div className="app-ambient-glow absolute top-1/2 left-0 w-32 h-32 bg-sky-500/10 blur-[100px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2" />
     <div className="relative z-10 flex flex-row items-start justify-between gap-3 sm:gap-6 max-[480px]:flex-col">
       <div className="flex flex-1 flex-row items-center gap-3 sm:gap-6 min-w-0 max-[480px]:w-full">

@@ -63,7 +63,7 @@ for (const engine of ['chromium', 'webkit']) {
       }, { version, sessionKeys });
       await page.goto(base + '/normal_UserProfile/', { waitUntil: 'domcontentloaded' });
       await page.getByRole('heading', { name: 'Logout Tester', exact: true }).waitFor();
-      const button = page.getByRole('button', { name: desktop ? 'Logout' : 'Log Out', exact: true });
+      const button = desktop ? page.getByTitle('Logout', { exact: true }) : page.locator('main button').filter({ hasText: /^Logout$/ });
       await button.scrollIntoViewIfNeeded();
       if (!desktop) assert.ok(await page.evaluate(() => scrollY > 0), 'reproduce logging out from the bottom of profile settings');
       await page.evaluate(() => {

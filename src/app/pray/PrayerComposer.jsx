@@ -193,7 +193,7 @@ export default function PrayerComposer({ onSaved }) {
                                     )}
                                 </div>
                             )}
-                            <textarea dir="auto" value={prayWords} onChange={(event) => setPrayWords(event.target.value)} placeholder={t('writePrayerPlaceholder')} rows={4} className="w-full bg-transparent border-none text-white placeholder-white/20 focus:outline-none focus:ring-0 resize-y min-h-[90px] text-sm leading-relaxed p-0 m-0" />
+                            <textarea data-preview-content="pray" dir="auto" value={prayWords} onChange={(event) => setPrayWords(event.target.value)} placeholder={t('writePrayerPlaceholder')} rows={4} className="w-full bg-transparent border-none text-white placeholder-white/20 focus:outline-none focus:ring-0 resize-y min-h-[90px] text-sm leading-relaxed p-0 m-0" />
                             <VoiceRecorderPanel blockId={GENERAL_BLOCK_ID} recorder={recorder || idleRecorder} recordings={generalRecordings} onRemove={removeGeneralRecording} prayType="general" />
                             {prayBlocks.length > 0 && (
                                 <div className={`flex flex-col gap-3 ${prayWords ? 'pt-3 border-t border-white/10' : ''}`}>

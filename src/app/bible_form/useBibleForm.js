@@ -247,13 +247,6 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   const bibleScrollContainerRef = useRef(null);
   const [isSavingBible, setIsSavingBible] = useState(false);
 
-  // Auto-scroll to top on chapter or book change
-  useEffect(() => {
-    if (bibleScrollContainerRef.current) {
-      bibleScrollContainerRef.current.scrollTop = 0;
-    }
-  }, [bibleModalBook, bibleModalChapter]);
-
   // --- New Spacing, Highlights, and Overlay States ---
   const [bibleVerseSpacing, setBibleVerseSpacing] = useState(() => {
     if (typeof window === 'undefined') return 16;
@@ -342,7 +335,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
 
   useEffect(() => {
     let cancelled = false;
-    if (isOpen) {
+    if (pageActive && isOpen) {
       setBibleHighlights(readLocalBibleHighlights());
       if (user_id) {
         const token = localStorage.getItem("user_Taspe7_Token");
@@ -364,7 +357,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       }
     }
     return () => { cancelled = true; };
-  }, [isOpen, user_id]);
+  }, [isOpen, user_id, pageActive]);
 
   const handleApplyHighlight = async (colorId) => {
     invalidateProfile(API_ROOT, isLogin);
@@ -685,7 +678,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   // ─── Fetch available translations (runs once on first modal open or presentation mode active) ───
   const translationsFetchedRef = React.useRef(false);
   useEffect(() => {
-    if ((!isOpen && !(presentationActive)) || translationsFetchedRef.current) return;
+    if (!pageActive || (!isOpen && !(presentationActive)) || translationsFetchedRef.current) return;
     translationsFetchedRef.current = true;
     readTabJson(`${BIBLE_API}/translations`)
       .then(data => {
@@ -694,10 +687,11 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
         }
       })
       .catch(() => { /* keep the default ['AVD','KEH'] */ });
-  }, [isOpen, presentationActive]);
+  }, [isOpen, presentationActive, pageActive]);
 
   // ─── Load books when modal opens or presentation Bible mode is active ───
   useEffect(() => {
+    if (!pageActive) return;
     if (!isOpen && !(presentationActive)) return;
     setBibleSelectedVerseIds(new Set());
     let cancelled = false;
@@ -726,7 +720,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       }
     })();
     return () => { cancelled = true; };
-  }, [isOpen, presentationActive, setBibleSelectedVerseIds]);
+  }, [isOpen, presentationActive, pageActive, setBibleSelectedVerseIds]);
 
   // Restore last book/chapter after books are loaded
   useEffect(() => {
@@ -745,6 +739,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
 
   // ─── Load chapters when book or translation changes (synced with presentation) ───
   useEffect(() => {
+    if (!pageActive) return;
     if ((!isOpen && !(presentationActive)) || !bibleModalBook?.bookName) {
       setBibleModalChapters([]);
       setBibleSelectedVerseIds(new Set());
@@ -776,10 +771,11 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       }
     })();
     return () => { cancelled = true; };
-  }, [isOpen, presentationActive, bibleModalBook, bibleTranslation, downloadedTranslations, setBibleSelectedVerseIds]);
+  }, [isOpen, presentationActive, pageActive, bibleModalBook, bibleTranslation, downloadedTranslations, setBibleSelectedVerseIds]);
 
   // ─── Load verses when chapter or translation changes (synced with presentation) ───
   useEffect(() => {
+    if (!pageActive) return;
     if ((!isOpen && !(presentationActive)) || !bibleModalBook?.bookName || bibleModalChapter == null) {
       setBibleModalVerses([]);
       setBibleSelectedVerseIds(new Set());
@@ -812,7 +808,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       }
     })();
     return () => { cancelled = true; };
-  }, [isOpen, presentationActive, bibleModalBook?.bookName, bibleModalChapter, bibleTranslation, downloadedTranslations, setBibleSelectedVerseIds]);
+  }, [isOpen, presentationActive, pageActive, bibleModalBook?.bookName, bibleModalChapter, bibleTranslation, downloadedTranslations, setBibleSelectedVerseIds]);
 
 
   // Bible Search Debounce Effect
@@ -999,6 +995,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
 
   // Load user's existing bible notes on login
   useEffect(() => {
+    if (!pageActive) return;
     if ((!isOpen && !presentationActive) || !isLogin || !user_id) return;
     let cancelled = false;
     setVerseNotes(readLocalBibleNotes());
@@ -1022,7 +1019,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
         if (!cancelled) setVerseNotes(readLocalBibleNotes());
       });
     return () => { cancelled = true; };
-  }, [isOpen, presentationActive, isLogin, user_id]);
+  }, [isOpen, presentationActive, pageActive, isLogin, user_id]);
 
   const closeBibleModal = () => {
     onClose();

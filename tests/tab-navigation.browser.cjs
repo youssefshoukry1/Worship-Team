@@ -124,11 +124,11 @@ test('page-shaped placeholders appear before scripts load and hand over without 
 test('latest tap wins, including returning to the current tab, without a document reload', async () => {
   const { context, page } = await setup();
   try {
-    await openHymns(page); await controlled(page);
+    await page.goto(base + '/pray/'); await page.locator('nav[aria-label="Primary navigation"]').waitFor(); await controlled(page);
     const session = await page.evaluate(() => window.__navigationSession);
-    await taps(page, ['/friends', '/hymns']);
+    await taps(page, ['/friends', '/pray']);
     await page.waitForTimeout(500);
-    assert.equal(new URL(page.url()).pathname, '/hymns/');
+    assert.equal(new URL(page.url()).pathname, '/pray/');
     await taps(page, ['/friends', '/bible_form', '/pray', '/normal_UserProfile']);
     await page.waitForURL(base + '/normal_UserProfile/');
     await page.waitForTimeout(300);
@@ -141,16 +141,16 @@ test('tapping back while a route payload is stalled supersedes the dispatched na
   const gate = gateRoute('/friends/');
   const { context, page } = await setup();
   try {
-    await openHymns(page); await controlled(page);
+    await page.goto(base + '/pray/'); await page.locator('nav[aria-label="Primary navigation"]').waitFor(); await controlled(page);
     await taps(page, ['/friends']);
     await gate.seen;
     await page.waitForTimeout(100);
-    assert.equal(new URL(page.url()).pathname, '/hymns/');
-    await taps(page, ['/hymns']);
+    assert.equal(new URL(page.url()).pathname, '/pray/');
+    await taps(page, ['/pray']);
     gate.release();
     await page.waitForTimeout(700);
-    assert.equal(new URL(page.url()).pathname, '/hymns/');
-    assert.equal(await page.locator('nav[aria-label="Primary navigation"] a[aria-current="page"]').getAttribute('href'), '/hymns/');
+    assert.equal(new URL(page.url()).pathname, '/pray/');
+    assert.equal(await page.locator('nav[aria-label="Primary navigation"] a[aria-current="page"]').getAttribute('href'), '/pray/');
   } finally { gate.release(); await context.close(); }
 });
 
@@ -178,8 +178,8 @@ test('cold worker startup routes only the latest selection after control is acqu
 test('a new tap immediately after the URL changes is not cleared by the previous transition', async () => {
   const { context, page } = await setup();
   try {
-    await openHymns(page); await controlled(page);
-    for (const href of ['/friends', '/hymns', '/pray', '/hymns', '/friends', '/hymns']) {
+    await page.goto(base + '/pray/'); await page.locator('nav[aria-label="Primary navigation"]').waitFor(); await controlled(page);
+    for (const href of ['/friends', '/bible_form', '/pray', '/pray', '/friends', '/pray']) {
       await taps(page, [href]);
       await page.waitForURL(base + href + '/', { timeout: 5000 });
     }

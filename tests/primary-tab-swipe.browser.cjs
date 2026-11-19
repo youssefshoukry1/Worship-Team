@@ -36,9 +36,12 @@ for (const engine of ['webkit', 'chromium']) {
     await page.waitForTimeout(400);
     assert.equal(await preview.getAttribute('data-tab-ready'), 'false', 'touch must not mount a cold full page');
     assert.equal(await preview.locator('[data-page-skeleton]').count(), 1);
+    assert.ok(await preview.evaluate(node => node.getBoundingClientRect().left >= innerWidth - 1), 'cold placeholder stays offscreen throughout drag');
+    const historyLength = await page.evaluate(() => history.length);
     await touch(page, 'touchend', 60);
     await page.waitForURL(base + '/normal_UserProfile/');
     await preview.getByText('iOS Tester', { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => history.length), historyLength + 1);
     assert.deepEqual(errors, []);
   });
 
@@ -210,12 +213,16 @@ test('trusted mobile drag follows the finger before navigating to the next tab',
   const { page, context, errors } = await setup(t, 'chromium', { href: '/friends/' });
   await panel(page, '/friends').locator('[data-page-skeleton]').waitFor({ state: 'detached' });
   await panel(page, '/normal_UserProfile').getByText('iOS Tester', { exact: true }).waitFor({ state: 'attached' });
+  // Anchor the finger on the heading. A fixed screen coordinate can land on
+  // the horizontally scrollable notes strip, which owns its own gesture.
+  const heading = await panel(page, '/friends').getByRole('heading', { name: 'Friends activity' }).boundingBox();
+  const y = heading.y + heading.height / 2;
   const cdp = await context.newCDPSession(page);
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 280, y: 180 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 280, y }] });
   // Let Chromium present each trusted move before dispatching the next one.
   // A burst of CDP moves can be coalesced after the assertion/touchEnd.
   for (const x of [260, 230, 190, 140]) {
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: 180 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] });
     await frame(page);
   }
   await frame(page);
@@ -297,7 +304,9 @@ for (const engine of ['chromium', 'webkit']) {
   test(`${engine}: a short slow drag eases back and a short flick commits`, async t => {
     const { page, errors } = await setup(t, engine, { href: '/friends/' });
     await panel(page, '/normal_UserProfile').getByText('iOS Tester', { exact: true }).waitFor({ state: 'attached' });
-    await page.clock.install();
+    // Keep automation round trips out of the velocity samples.
+    await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
+    await page.clock.pauseAt(new Date('2026-01-01T00:01:00Z'));
     await touch(page,'touchstart',280); await page.clock.runFor(200);
     await touch(page,'touchmove',260); await page.clock.runFor(200);
     await touch(page,'touchend',244);
@@ -341,4 +350,146 @@ test('cached Profile returns without replacing its ready layout with a skeleton'
   assert.equal(await profile.locator('[data-page-skeleton]').count(), 0);
   assert.equal(await page.evaluate(() => { profileWatch.disconnect(); return profileFlashes; }), 0);
   assert.deepEqual(errors, []);
+});
+test('evicted tabs restore cached verses, reading offset and Friends section without idle warming', async t => {
+  const { page } = await setup(t, 'chromium', { href: '/pray/', deferIdle: true, beforeNavigate: async page => {
+    await page.evaluate(() => localStorage.setItem('taspe7_bible_translation', 'KEH'));
+    await page.evaluate(() => localStorage.setItem('taspe7_bible_last_verses', JSON.stringify({
+      bookName: 'Test book', translation: 'KEH', chapter: 1,
+      verses: Array.from({ length: 60 }, (_, i) => ({ _id: String(i + 1), verseNumber: i + 1, text: 'Saved verse ' + i })),
+    })));
+  } });
+  const visit = async href => {
+    await page.locator('nav a[href^="' + href + '"]').evaluate(link => link.click());
+    await page.waitForURL(base + href + '/');
+  };
+  await visit('/bible_form');
+  const bible = panel(page, '/bible_form');
+  const reader = bible.locator('[data-preview-content="bible"]');
+  await reader.getByText('Saved verse 30', { exact: true }).waitFor({ state: 'attached' });
+  const scroller = bible.locator('.custom-scrollbar-thin[data-lenis-prevent-wheel]').first();
+  await frame(page); await frame(page);
+  await scroller.evaluate(el => { el.scrollTo({ top: 320, behavior: 'instant' }); el.dispatchEvent(new Event('scroll')); });
+  assert.equal(await scroller.evaluate(el => el.scrollTop), 320);
+  await visit('/friends');
+  await panel(page, '/friends').getByRole('button', { name: 'My Friends', exact: true }).click();
+  await visit('/normal_UserProfile');
+  assert.equal(await bible.count(), 0);
+  await page.route(/\/api\//, route => route.abort('internetdisconnected'));
+  const cdp = await page.context().newCDPSession(page);
+  for (let cycle = 0; cycle < 3; cycle++) {
+    await visit('/friends');
+    await reader.getByText('Saved verse 30', { exact: true }).waitFor({ state: 'attached' });
+    assert.equal(await scroller.evaluate(el => el.scrollTop), 320);
+    const historyLength = await page.evaluate(() => history.length);
+    await touch(page, 'touchstart', 80);
+    await touch(page, 'touchmove', 185);
+    await frame(page);
+    const preview = await bible.evaluate(node => ({
+      left: node.getBoundingClientRect().left,
+      skeletons: node.querySelectorAll('[data-page-skeleton]').length,
+      width: innerWidth,
+    }));
+    assert.ok(preview.left < 0 && preview.left > -preview.width);
+    assert.equal(preview.skeletons, 0);
+    await touch(page, 'touchend', 185, 350, { cancel: true });
+    await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
+    assert.equal(await page.evaluate(() => history.length), historyLength);
+    await visit('/pray');
+    assert.equal(await panel(page, '/friends').count(), 0);
+    await visit('/bible_form');
+    await panel(page, '/friends').locator('button').filter({ hasText: /^My Friends$/ }).locator('div').waitFor({ state: 'attached' });
+    assert.ok(await page.locator('[data-tab-panel]').count() <= 3);
+    assert.equal(await bible.locator('[data-bible-verse]').count(), 60);
+    await cdp.send('HeapProfiler.collectGarbage');
+    const heap = await cdp.send('Runtime.getHeapUsage');
+    t.diagnostic('Cycle ' + (cycle + 1) + ' used JS heap: ' + (heap.usedSize / 1048576).toFixed(1) + ' MiB');
+    await visit('/normal_UserProfile');
+  }
+});
+test('tapping the current tab cancels a cold swipe before its delayed route commit', async t => {
+  const { page } = await setup(t, 'chromium', { href: '/friends/', deferIdle: true });
+  const length = await page.evaluate(() => history.length);
+  await touch(page, 'touchstart', 280);
+  await touch(page, 'touchmove', 100);
+  await frame(page);
+  await page.evaluate(() => {
+    const target = window.__dragTarget;
+    const end = new Event('touchend', { bubbles: true, cancelable: true });
+    Object.defineProperties(end, { touches: { value: [] }, changedTouches: { value: [{ identifier: 10, clientX: 60, clientY: 350, target }] } });
+    target.dispatchEvent(end);
+    document.querySelector('nav a[href^="/friends"]').click();
+  });
+  await page.waitForTimeout(1300);
+  assert.equal(new URL(page.url()).pathname, '/friends/');
+  assert.equal(await page.evaluate(() => history.length), length);
+  assert.equal(await page.locator('[data-tab-pager][data-swiping]').count(), 0);
+});
+
+test('a released swipe supersedes a bottom tap waiting for worker control', async t => {
+  const { page } = await setup(t, 'chromium', { href: '/friends/', deferIdle: true });
+  const historyLength = await page.evaluate(() => {
+    const worker = navigator.serviceWorker;
+    const controller = worker.controller;
+    Object.defineProperty(worker, 'controller', { configurable: true, value: null });
+    worker.register = () => new Promise(() => {});
+    window.releaseTabWorker = () => {
+      Object.defineProperty(worker, 'controller', { configurable: true, value: controller });
+      worker.dispatchEvent(new Event('controllerchange'));
+    };
+    document.querySelector('nav a[href^="/pray"]').click();
+    return history.length;
+  });
+  await drag(page, 280, 60);
+  await page.evaluate(() => window.releaseTabWorker());
+  await page.waitForURL(base + '/normal_UserProfile/');
+  assert.equal(await page.locator('nav a[aria-current="page"]').getAttribute('href'), '/normal_UserProfile/');
+  assert.equal(await page.evaluate(() => history.length), historyLength + 1);
+});
+
+test('Back during a committed swipe restores the preceding tab and its draft', async t => {
+  const { page } = await setup(t, 'chromium');
+  await page.locator('textarea').first().fill('Before Back');
+  await page.locator('textarea').first().blur();
+  await page.locator('nav a[href^="/friends"]').click();
+  await page.waitForURL(base + '/friends/');
+  await panel(page, '/normal_UserProfile').locator('[data-preview-content]').waitFor({ state: 'attached' });
+  await drag(page, 280, 60);
+  await page.evaluate(() => history.back());
+  await page.waitForURL(base + '/');
+  await page.waitForTimeout(400);
+  assert.equal(new URL(page.url()).pathname, '/');
+  assert.equal(await panel(page, '/pray').locator('textarea').first().inputValue(), 'Before Back');
+  assert.equal(await page.locator('[data-swiping]').count(), 0);
+  assert.equal(await page.locator('nav a[aria-current="page"]').getAttribute('href'), '/pray/');
+});
+test('packaged Pray opens with APIs unavailable and a swipe round trip preserves its draft', async t => {
+  const { page } = await setup(t, 'chromium', { href: '/pray/', beforeNavigate: async p => {
+    await p.route(/\/api\//, route => route.fulfill({ status: 503, json: { message: 'Offline' } }));
+  } });
+  const draft = panel(page, '/pray').locator('textarea').first();
+  await draft.fill('Offline draft'); await draft.blur();
+  await drag(page, 280, 60); await page.waitForURL(base + '/bible_form/');
+  await page.waitForSelector('[data-swiping]', { state: 'detached' });
+  await drag(page, 70, 300); await page.waitForURL(base + '/pray/');
+  assert.equal(await draft.inputValue(), 'Offline draft');
+  assert.equal(await page.locator('nav a[aria-current="page"]').getAttribute('href'), '/pray/');
+  assert.equal(await page.evaluate(() => !!document.activeElement.closest('[inert]')), false);
+});
+
+test('a second signed-in account starts with its own Friends view and Profile identity', async t => {
+  const { page } = await setup(t, 'chromium', { href: '/friends/' });
+  await page.getByRole('button', { name: 'Sent', exact: true }).click();
+  await page.locator('nav a[href^="/normal_UserProfile"]').click();
+  await panel(page, '/normal_UserProfile').getByText('iOS Tester', { exact: true }).waitFor();
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('taspe7:logout'));
+    for (const [key, value] of Object.entries({ Token: 'second-token', ID: 'second', Username: 'second' })) localStorage.setItem('user_Taspe7_' + key, value);
+  });
+  await page.route('**/users/my-profile', route => route.fulfill({ json: { user: { _id: 'second', Name: 'Second tester', username: 'second' } } }));
+  await page.goto(base + '/friends/');
+  await page.getByText(/Incoming requests \(/).first().waitFor();
+  await page.locator('nav a[href^="/normal_UserProfile"]').click();
+  await panel(page, '/normal_UserProfile').getByText('Second tester', { exact: true }).waitFor();
+  assert.equal(await panel(page, '/normal_UserProfile').getByText('iOS Tester', { exact: true }).count(), 0);
 });

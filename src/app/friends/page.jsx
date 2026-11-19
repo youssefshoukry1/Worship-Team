@@ -15,7 +15,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
-import { useTabPageActive } from '../components/TabPageActivity';
+import { useTabPageActive, useTabViewMemory } from '../components/TabPageActivity';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { showToast } from '../components/ToastContainer';
 import OfflineAvatar from '../components/OfflineAvatar';
@@ -38,7 +38,9 @@ export default function FriendsPage() {
   const router = useRouter();
   const { isLogin, user_id } = useContext(UserContext);
 
-  const [activeTab, setActiveTab] = useState('requests');
+  const view = useTabViewMemory();
+  const [activeTab, setActiveTab] = useState(() => view?.get('friendsTab') || 'requests');
+  useLayoutEffect(() => { view?.set('friendsTab', activeTab); }, [view, activeTab]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFriendsSearch, setShowFriendsSearch] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -282,7 +284,7 @@ export default function FriendsPage() {
     <div className="app-page min-h-screen text-slate-100 pb-28 pt-4 px-4 sm:px-6 max-w-2xl mx-auto transition-colors duration-150">
       {/* Top Header */}
       <div className="flex items-center justify-between gap-3 mb-6 relative z-30">
-        <h1 className={`${showFriendsSearch ? 'hidden sm:block' : ''} text-lg sm:text-xl font-bold tracking-tight text-white`}>Friends activity</h1>
+        <h1 data-preview-content={currentPage.ready ? 'friends' : undefined} className={`${showFriendsSearch ? 'hidden sm:block' : ''} text-lg sm:text-xl font-bold tracking-tight text-white`}>Friends activity</h1>
         <div className="flex items-center justify-end gap-2 sm:gap-3 h-10 flex-1 min-w-0">
           {showFriendsSearch && (
       <div className="relative h-10 flex-1 min-w-0 max-w-[260px] search-fade-in">

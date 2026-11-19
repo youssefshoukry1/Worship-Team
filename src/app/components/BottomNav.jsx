@@ -1,9 +1,8 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Heart, BookOpen, Users, User } from 'lucide-react';
-import { ensureNavigationServiceWorker } from '../utils/appNavigation';
 import useTabNavigation, { normalizeTabPath } from '../hooks/useTabNavigation';
 import { useTestimonyFeed } from './testimonies/TestimonyFeedProvider';
 import { useLanguage } from '../context/LanguageContext';
@@ -19,7 +18,6 @@ export default function BottomNav() {
   const { t } = useLanguage();
   const hasNewNotes = useTestimonyFeed()?.state.hasUnseen || false;
   const pathname = usePathname();
-  const router = useRouter();
   const [isVisible, setIsVisible] = useState(true);
   const [isLockedHidden, setIsLockedHidden] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
@@ -120,18 +118,6 @@ export default function BottomNav() {
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    ensureNavigationServiceWorker().then((workerReady) => {
-      if (!workerReady || cancelled) return;
-      NAV_ITEMS.forEach(({ href }) => router.prefetch(href));
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
 
   useEffect(() => {
     const handleScroll = (e) => {
@@ -174,7 +160,7 @@ export default function BottomNav() {
             <Link
               key={item.label}
               href={item.href}
-              prefetch
+              prefetch={false}
               aria-current={isActive ? 'page' : undefined}
               aria-describedby={item.label === 'Friends' && hasNewNotes ? 'friends-unseen-notes' : undefined}
               onClick={(event) => navigate(event, item.href)}

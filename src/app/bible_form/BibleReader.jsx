@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useContext, useEffect, useRef } from 'react';
+import React, { useState, useContext, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Portal from '../Portal/Portal';
 import { UserContext } from '../context/User_Context';
@@ -11,7 +11,7 @@ import WaslaWaveLogo from '../components/WaslaWaveLogo';
 import PageSkeleton from '../components/PageSkeleton';
 import { useRouter, usePathname } from 'next/navigation';
 import { HIGHLIGHT_COLORS, BIBLE_LAST_POS_KEY } from './bibleShared';
-import { useTabPageActive } from '../components/TabPageActivity';
+import { useTabPageActive, useTabViewMemory } from '../components/TabPageActivity';
 import BibleSettings from './BibleSettings';
 import { aiStudyTextSegments } from '../utils/aiWordStudies';
 import AiJourneyMap from './AiJourneyMap';
@@ -515,6 +515,7 @@ function BibleReaderWrapper({ isPage, onClose, children }) {
 export function BibleForm({ controller, isPage = false }) {
   const router = useRouter();
   const pageActive = useTabPageActive();
+  const view = useTabViewMemory();
   const pathname = usePathname();
   const isStandalonePage = isPage || pathname?.startsWith('/bible_form');
   const [addVersionMenuOpen, setAddVersionMenuOpen] = useState(false);
@@ -611,6 +612,12 @@ export function BibleForm({ controller, isPage = false }) {
     goToChapterFromSearch, goToNextChapter, goToPrevChapter, hasNextChapter, hasPrevChapter,
     bibleScrollContainerRef
   } = controller;
+
+  const chapterKey = JSON.stringify([bibleModalBook?.bookName, bibleModalChapter, bibleTranslation]);
+  useLayoutEffect(() => {
+    const element = bibleScrollContainerRef.current;
+    if (element && isOpen) element.scrollTo({ top: view?.get('chapter')?.key === chapterKey ? view.get('chapter').offset : 0, behavior: 'instant' });
+  }, [view, chapterKey, isOpen, bibleScrollContainerRef]);
 
   const actionCardRef = useRef(null);
   useEffect(() => {
@@ -803,6 +810,10 @@ export function BibleForm({ controller, isPage = false }) {
               dir="rtl"
               data-lenis-prevent-wheel
               onScroll={(e) => {
+                if (!pageActive) return;
+                if (view && isPage) {
+                  view.set('chapter', { key: chapterKey, offset: e.currentTarget.scrollTop });
+                }
                 window.dispatchEvent(new CustomEvent('internalScroll', { detail: { scrollY: e.currentTarget.scrollTop } }));
               }}
             >
@@ -1028,7 +1039,7 @@ export function BibleForm({ controller, isPage = false }) {
                     </div>
 
                     {/* The Reading Experience - Optimized for performance */}
-                    <div className="space-y-6 pb-20">
+                    <div data-preview-content={bibleModalVerses.length || (!isCheckingOffline && !bibleModalBrowseLoading) ? 'bible' : undefined} className="space-y-6 pb-20">
                       {/* Verses Display */}
                       {isCheckingOffline && bibleModalVerses.length === 0 ? (
                         <PageSkeleton variant="bible" compact />

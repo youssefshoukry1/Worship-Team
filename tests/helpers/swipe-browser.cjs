@@ -71,7 +71,7 @@ async function setup(t, engine, { href = '/', platform = 'ios', authenticated = 
   if (beforeNavigate) await beforeNavigate(page);
   await page.addInitScript(platform => {
     window.__documentId = Math.random(); window.__refreshes = 0; window.__exits = 0;
-    Object.defineProperty(navigator.serviceWorker, 'controller', { value: { scriptURL: '/sw.js?v=navigation-v2' } });
+    Object.defineProperty(navigator.serviceWorker, 'controller', { configurable: true, value: { scriptURL: '/sw.js?v=navigation-v2' } });
     window.addEventListener('taspe7:home-refresh', () => window.__refreshes++);
     if (platform === 'web') return;
     window.CapacitorCustomPlatform = { name: platform };

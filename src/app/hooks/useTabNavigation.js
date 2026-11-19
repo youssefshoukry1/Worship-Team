@@ -25,16 +25,29 @@ export default function useTabNavigation() {
     if (!isPending && latestRequest.current === requestedRequest) latestRequest.current = null;
   }, [isPending, requestedRequest]);
 
-  useEffect(() => () => { latestRequest.current = null; }, []);
+  useEffect(() => {
+    const cancelPendingTap = () => {
+      latestRequest.current = null;
+      setRequestedRequest(null);
+    };
+    window.addEventListener('taspe7:swipe-commit', cancelPendingTap);
+    window.addEventListener('popstate', cancelPendingTap);
+    return () => {
+      latestRequest.current = null;
+      window.removeEventListener('taspe7:swipe-commit', cancelPendingTap);
+      window.removeEventListener('popstate', cancelPendingTap);
+    };
+  }, []);
 
   const navigate = (event, href) => {
     // Preserve normal Link behavior for new-tab/window and modified clicks.
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
+    const supersedingPush = !window.dispatchEvent(new Event('taspe7:tab-tap', { cancelable: true }));
 
     const destination = new URL(href, window.location.origin);
     if (normalizeTabPath(pathname) === normalizeTabPath(destination.pathname)
-      && window.location.search === destination.search && !latestRequest.current) return;
+      && window.location.search === destination.search && !latestRequest.current && !supersedingPush) return;
 
     const request = { href };
     latestRequest.current = request;

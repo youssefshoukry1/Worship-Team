@@ -7,7 +7,7 @@ import { useSwipePreference } from '../utils/swipePreferences';
 import { installInteriorSwipe, swipeSettleDuration } from '../utils/interiorSwipe';
 import { ensureNavigationServiceWorker, navigateDocumentFallback } from '../utils/appNavigation';
 import { holdNavigationWork, releaseNavigationWork } from '../utils/navigationWork';
-import { TabPageActivity } from './TabPageActivity';
+import { TabPageActivity, TabViewMemory } from './TabPageActivity';
 import { createFeatureBoundary } from './DeferredFeature';
 
 const routes = ['/pray', '/bible_form', '/friends', '/normal_UserProfile'];
@@ -21,6 +21,12 @@ export function primaryTabIndex(pathname) {
   return path === '' ? 0 : routes.indexOf(path);
 }
 
+// Mounted inside Suspense so idle warming starts after the active page commits.
+function ActivePageCommit({ index, onCommit }) {
+  useEffect(() => { onCommit(index); }, [index, onCommit]);
+  return null;
+}
+
 export default function PrimaryTabPager({ index }) {
   const router = useRouter();
   const [enabled] = useSwipePreference();
@@ -28,15 +34,28 @@ export default function PrimaryTabPager({ index }) {
   const session = useRef(null);
   const indexRef = useRef(index);
   const cancelRef = useRef(null);
+  const [committedIndex, setCommittedIndex] = useState(null);
+  const [views] = useState(() => routes.map(() => new Map()));
+  const [visited] = useState(() => new Set());
+  const offsets = useRef(new Map());
+  const [opening, setOpening] = useState(null);
   const [prepared, setPrepared] = useState([index]);
 
   useLayoutEffect(() => {
+    const returnOffset = offsets.current.get(index);
+    visited.add(index);
     indexRef.current = index;
     cancelRef.current?.();
-  }, [index]);
+    if (returnOffset) window.scrollTo({ top: returnOffset, behavior: 'instant' });
+    const rememberScroll = () => {
+      if (!session.current) offsets.current.set(index, window.scrollY);
+    };
+    window.addEventListener('scroll', rememberScroll, { passive: true });
+    return () => window.removeEventListener('scroll', rememberScroll);
+  }, [index, visited]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || committedIndex !== index) return;
     let stopped = false, idle, timer;
     const neighbors = [index + 1, index - 1].filter(i => pages[i]);
     const prepare = async () => {
@@ -49,6 +68,11 @@ export default function PrimaryTabPager({ index }) {
         if (stopped) return;
         // A cold page never mounts while the finger is moving.
         if (session.current) { neighbors.unshift(neighbor); timer = setTimeout(schedule, 250); return; }
+        if (navigator.serviceWorker?.controller) {
+          void ensureNavigationServiceWorker().then(ready => {
+            if (ready && !stopped && !session.current) router.prefetch(routes[neighbor]);
+          });
+        }
         startTransition(() => setPrepared(previous => [...new Set([...previous.filter(i => Math.abs(i - index) <= 1), index, neighbor])]));
       } catch { /* The page boundary handles an explicit retry on navigation. */ }
       timer = setTimeout(schedule, 250);
@@ -60,7 +84,7 @@ export default function PrimaryTabPager({ index }) {
     };
     timer = setTimeout(schedule, 200);
     return () => { stopped = true; clearTimeout(timer); if (idle !== undefined) window.cancelIdleCallback?.(idle); };
-  }, [index, enabled]);
+  }, [index, enabled, committedIndex, router]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -68,7 +92,9 @@ export default function PrimaryTabPager({ index }) {
     const clear = () => {
       clearTimeout(timer); clearTimeout(deadline);
       const active = session.current;
+      active?.observer?.disconnect();
       session.current = null;
+      if (!disposed && active) setOpening(null);
       if (active) for (const panel of [active.source, active.incoming]) {
         if (!panel?.isConnected) continue;
         panel.style.removeProperty('transition');
@@ -91,28 +117,52 @@ export default function PrimaryTabPager({ index }) {
       // Only two compositor properties change: no inherited CSS variables,
       // React renders, or layout reads in the finger-movement path.
       active.amount = amount;
+      if (!active.preview) return;
       const offset = -active.direction * amount;
       active.source.style.transform = `translate3d(${offset}px,0,0)`;
       active.incoming.style.transform = `translate3d(${active.direction * active.width + offset}px,0,0)`;
     };
     const settle = (completed, { velocity = 0 } = {}) => {
       const active = session.current;
-      if (!active) return;
+      if (!active || active.released) return;
+      active.released = true;
+      if (completed) window.dispatchEvent(new Event('taspe7:swipe-commit'));
+      const navigate = async () => {
+        if (session.current !== active || active.navigating) return;
+        active.navigating = true;
+        active.observer?.disconnect();
+        clearTimeout(timer);
+        clearTimeout(deadline);
+        deadline = setTimeout(clear, 5000);
+        try {
+          const ready = await ensureNavigationServiceWorker();
+          if (disposed || session.current !== active) return;
+          active.dispatched = true;
+          if (ready) router.push(routes[active.target], { scroll: true });
+          else navigateDocumentFallback(routes[active.target]);
+        } catch { clear(); }
+      };
+
+      if (!active.preview) {
+        if (!completed) { clear(); return; }
+        releaseNavigationWork();
+        // Prepare the confirmed destination behind the current page. Route errors
+        // have their own recovery UI; a slow network must not trap the gesture.
+        const checkContent = () => {
+          if (active.incoming.querySelector('[data-preview-content], [role="alert"]')) void navigate();
+        };
+        active.observer = new MutationObserver(checkContent);
+        active.observer.observe(active.incoming, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-preview-content', 'role'] });
+        setOpening(active.target);
+        timer = setTimeout(navigate, 1200);
+        checkContent();
+        return;
+      }
       const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : swipeSettleDuration(completed, active.amount || 0, active.width, velocity);
       root.setAttribute('data-settling', 'true');
       for (const panel of [active.source, active.incoming]) panel.style.transition = `transform ${duration}ms cubic-bezier(.22,1,.36,1)`;
       move(completed ? active.width : 0);
-      timer = setTimeout(async () => {
-        if (!completed) { clear(); return; }
-        try {
-          clearTimeout(deadline);
-          deadline = setTimeout(clear, 5000);
-          const ready = await ensureNavigationServiceWorker();
-          if (disposed || session.current !== active) return;
-          if (ready) router.push(routes[active.target], { scroll: true });
-          else navigateDocumentFallback(routes[active.target]);
-        } catch { clear(); }
-      }, duration);
+      timer = setTimeout(completed ? navigate : clear, duration);
     };
     const remove = enabled ? installInteriorSwipe({
       element: root,
@@ -129,12 +179,17 @@ export default function PrimaryTabPager({ index }) {
         // The inactive frame already resolves 100dvh, including browser chrome.
         const viewportHeight = incoming.clientHeight;
         holdNavigationWork();
-        session.current = { direction, target, source, incoming, width };
+        const preview = Boolean(incoming.querySelector('[data-preview-content]'));
+        session.current = { direction, target, source, incoming, width, preview };
         // A lost touchend must not leave deferred UI work blocked indefinitely.
         deadline = setTimeout(clear, 30000);
+        root.setAttribute('data-swiping', 'true');
+        if (!preview) return true;
         // Leave a spacer equal to the active document's height. Cropping a
         // long source to the visible screen must never clamp window.scrollY.
         root.style.height = `${rootBox.height}px`;
+        offsets.current.set(indexRef.current, top);
+        incoming.firstElementChild.style.marginTop = `-${offsets.current.get(target) || 0}px`;
         source.firstElementChild.style.marginTop = `${-top}px`;
         for (const panel of [source, incoming]) {
           panel.style.top = `${top}px`;
@@ -142,12 +197,18 @@ export default function PrimaryTabPager({ index }) {
           panel.style.willChange = 'transform';
           panel.setAttribute('data-swipe-moving', 'true');
         }
-        root.setAttribute('data-swiping', 'true');
         return true;
       }, update: move, finish: settle, cancel: () => settle(false),
     }) : () => {};
+    const onTabTap = event => {
+      // A tap on the current tab must supersede even an already dispatched push.
+      if (session.current?.dispatched) event.preventDefault();
+      clear();
+    };
+    window.addEventListener('taspe7:tab-tap', onTabTap);
+    window.addEventListener('popstate', clear);
     window.addEventListener('resize', clear, { passive: true });
-    return () => { disposed = true; remove(); clear(); cancelRef.current = null; window.removeEventListener('resize', clear); };
+    return () => { remove(); clear(); disposed = true; window.removeEventListener('taspe7:tab-tap', onTabTap); window.removeEventListener('popstate', clear); cancelRef.current = null; window.removeEventListener('resize', clear); };
   }, [enabled, router]);
 
   // Drafts and active audio belong to the session, not a retained route tree.
@@ -156,15 +217,16 @@ export default function PrimaryTabPager({ index }) {
     {visible.map(pageIndex => {
       const Page = pages[pageIndex];
       const active = pageIndex === index;
-      const ready = active || prepared.includes(pageIndex);
+      const ready = active || opening === pageIndex || visited.has(pageIndex) || prepared.includes(pageIndex);
       return <div key={routes[pageIndex]} data-tab-panel={routes[pageIndex]} data-tab-index={pageIndex} data-tab-ready={ready ? 'true' : 'false'} data-tab-active={active ? 'true' : 'false'}
         className="primary-tab-panel" aria-hidden={active ? undefined : true} inert={active ? undefined : true}
         style={{ transform: active ? undefined : `translate3d(${pageIndex < index ? -100 : 100}%,0,0)` }}>
-        <div className="primary-tab-content"><TabPageActivity.Provider value={active}>
+        <div className="primary-tab-content"><TabViewMemory.Provider value={views[pageIndex]}><TabPageActivity.Provider value={active || opening === pageIndex}>
           <Suspense fallback={<PageSkeleton variant={variants[pageIndex]} fullPage />}>
+            {active && <ActivePageCommit index={index} onCommit={setCommittedIndex} />}
             {ready ? <Page /> : <PageSkeleton variant={variants[pageIndex]} fullPage />}
           </Suspense>
-        </TabPageActivity.Provider></div>
+        </TabPageActivity.Provider></TabViewMemory.Provider></div>
       </div>;
     })}
   </div>;
