@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { getApiBaseUrl } from '../../utils/apiBase';
 import { aiResetLabel, validAiQuota } from '../../utils/aiUsageDisplay';
+import styles from './AiUsageSettings.module.css';
 
 export default function AiUsageSettings({ userId, token, active = true }) {
   const { language } = useLanguage();
@@ -84,35 +85,44 @@ export default function AiUsageSettings({ userId, token, active = true }) {
   }, [active, userId, token, session, refreshKey]);
 
   const quota = state?.quota;
-  const percent = quota && !quota.unlimited ? quota.remaining / quota.limit * 100 : 0;
-  const format = value => new Intl.NumberFormat(ar ? 'ar-EG' : 'en-GB').format(value);
+  const metered = quota && !quota.unlimited;
+  const fraction = metered ? quota.remaining / quota.limit : 0;
+  const format = new Intl.NumberFormat(ar ? 'ar-EG' : 'en-GB').format;
   const plan = { free: ar ? 'مجاني' : 'Free', plus: 'Plus', pro: 'Pro' }[quota?.plan];
+  const showMessage = quota?.unlimited || state?.error;
 
   return <section data-ai-usage-settings aria-labelledby={titleId} dir={ar ? 'rtl' : 'ltr'}>
     <h3 id={titleId} className="mb-2 px-1 text-xs font-medium text-slate-400">{ar ? 'استخدام الذكاء الاصطناعي' : 'AI usage'}</h3>
-    <div className="app-card rounded-xl border p-4" aria-busy={!!state?.refreshing}>
-      {!quota ? <div className="flex min-h-20 items-center justify-between gap-3 text-xs leading-5 text-slate-400">
-        <p role={state?.error ? 'status' : undefined}>{state?.error
-          ? (ar ? 'تعذّر تحميل الرصيد. حاول مجددًا.' : 'Couldn’t load your balance. Try again.')
-          : (ar ? 'جارٍ تحميل الرصيد…' : 'Loading your balance…')}</p>
-        {state?.error && <button type="button" className="min-h-11 shrink-0 px-2 font-medium text-sky-400" onClick={() => setRefreshKey(value => value + 1)}>{ar ? 'إعادة المحاولة' : 'Retry'}</button>}
-      </div> : quota.unlimited ? <div className="space-y-2">
+    <div className="app-card grid rounded-xl border p-4" aria-busy={!state || !!state.refreshing}>
+      <div className={`col-start-1 row-start-1 min-w-0 ${showMessage ? 'invisible' : ''}`}>
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <p className="min-w-0 text-2xl font-semibold tabular-nums text-white">
+            <span key={quota?.remaining} className={metered ? styles.value : undefined}>{metered ? format(quota.remaining) : '—'}</span>
+            {' '}<span className="text-xs font-normal text-slate-400">{ar ? 'توكن متبقية' : 'tokens left'}</span>
+          </p>
+          {metered && plan && <span className="shrink-0 rounded-full bg-sky-500/10 px-2.5 py-1 text-[11px] font-medium text-sky-400">{plan}</span>}
+        </div>
+        <div role={metered ? 'progressbar' : undefined} aria-label={metered ? (ar ? 'رصيد الذكاء الاصطناعي المتبقي' : 'AI tokens remaining') : undefined}
+          aria-valuemin={metered ? 0 : undefined} aria-valuemax={metered ? quota.limit : undefined} aria-valuenow={metered ? quota.remaining : undefined}
+          aria-valuetext={metered ? (ar ? `${format(quota.remaining)} من ${format(quota.limit)} توكن متبقية` : `${format(quota.remaining)} of ${format(quota.limit)} tokens remaining`) : undefined}
+          className="h-2 overflow-hidden rounded-full bg-slate-500/15">
+          <div style={{ transform: `scaleX(${fraction})`, transformOrigin: ar ? 'right' : 'left' }}
+            className={`h-full rounded-full motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out ${metered && quota.remaining === 0 ? 'bg-rose-400' : metered && fraction < 0.2 ? 'bg-amber-400' : 'bg-sky-400'}`} />
+        </div>
+        <div className="mt-3 text-xs leading-5 text-slate-400">
+          <p>{ar ? 'من أصل' : 'of'} <span key={quota?.limit} className={metered ? styles.value : undefined}>{metered ? format(quota.limit) : '—'}</span> {ar ? 'توكن' : 'tokens'}</p>
+          <p className="min-h-5" data-ai-usage-reset={metered || undefined}>{metered && aiResetLabel(quota.resetsAt, now, language)}</p>
+          <p className={quota?.pending ? 'text-[11px]' : 'invisible text-[11px]'}>{ar ? 'يتحدث الرصيد بعد اكتمال الطلب الجاري.' : 'Your balance updates when the current request finishes.'}</p>
+        </div>
+      </div>
+      {quota?.unlimited && <div className="col-start-1 row-start-1 self-center space-y-2">
         <p className="text-xl font-semibold text-sky-400">{ar ? 'غير محدود' : 'Unlimited'}</p>
         <p className="text-xs leading-5 text-slate-400">{ar ? 'حسابك ليس له حد لاستخدام الذكاء الاصطناعي.' : 'Your account has no AI usage limit.'}</p>
-      </div> : <>
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <p className="text-2xl font-semibold tabular-nums text-white">{format(quota.remaining)} <span className="text-xs font-normal text-slate-400">{ar ? 'توكن متبقية' : 'tokens left'}</span></p>
-            <p className="mt-1 text-xs text-slate-400">{ar ? `من أصل ${format(quota.limit)} توكن` : `of ${format(quota.limit)} tokens`}</p>
-          </div>
-          {plan && <span className="rounded-full bg-sky-500/10 px-2.5 py-1 text-[11px] font-medium text-sky-400">{plan}</span>}
-        </div>
-        <div role="progressbar" aria-label={ar ? 'رصيد الذكاء الاصطناعي المتبقي' : 'AI tokens remaining'} aria-valuemin={0} aria-valuemax={quota.limit} aria-valuenow={quota.remaining} aria-valuetext={ar ? `${format(quota.remaining)} من ${format(quota.limit)} توكن متبقية` : `${format(quota.remaining)} of ${format(quota.limit)} tokens remaining`} className="h-2 overflow-hidden rounded-full bg-slate-500/15">
-          <div style={{ width: `${percent}%` }} className={`h-full rounded-full ${quota.remaining === 0 ? 'bg-rose-400' : percent < 20 ? 'bg-amber-400' : 'bg-sky-400'}`} />
-        </div>
-        <p data-ai-usage-reset className="mt-3 text-xs leading-5 text-slate-400">{aiResetLabel(quota.resetsAt, now, language)}</p>
-        {quota.pending && <p className="mt-1 text-[11px] leading-5 text-slate-400">{ar ? 'يتحدث الرصيد بعد اكتمال الطلب الجاري.' : 'Your balance updates when the current request finishes.'}</p>}
-      </>}
+      </div>}
+      {state?.error && <div className="col-start-1 row-start-1 flex items-center justify-between gap-3 text-xs leading-5 text-slate-400">
+        <p role="status">{ar ? 'تعذّر تحميل الرصيد. حاول مجددًا.' : 'Couldn’t load your balance. Try again.'}</p>
+        <button type="button" className="min-h-11 shrink-0 px-2 font-medium text-sky-400" onClick={() => setRefreshKey(value => value + 1)}>{ar ? 'إعادة المحاولة' : 'Retry'}</button>
+      </div>}
     </div>
   </section>;
 }

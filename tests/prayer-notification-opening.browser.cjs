@@ -1378,6 +1378,28 @@ test('mobile prayer typing keeps the page position through keyboard viewport cha
 });
 
 
+test('the personal journal prepares cards on both sides of the viewport for a fling or reversal', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await context.route('**/*', route => mockPrayerApi(route, base));
+    await seed(page, personalPrayers(120));
+    await page.goto(base + '/pray/');
+    await page.locator('[data-prayer-id="personal-0"]').waitFor();
+    // Move far enough from both list ends for the full buffer to fit.
+    await reachPrayer(page, 'personal-45');
+    for (const distance of [-1100, 700]) {
+      await page.mouse.wheel(0, distance);
+      await page.waitForFunction(() => {
+        const rows = document.querySelectorAll('[data-prayer-row]');
+        const reserve = innerHeight / 2;
+        return rows.length && rows.length < 25 && rows[0].getBoundingClientRect().top <= -reserve &&
+          rows[rows.length - 1].getBoundingClientRect().bottom >= innerHeight + reserve;
+      });
+    }
+  } finally { await context.close(); }
+});
+
 test('2000 prayers stay bounded through a complete forward traversal and restore the reading anchor', async t => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {

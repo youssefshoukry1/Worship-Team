@@ -9,6 +9,52 @@ const headers = { 'access-control-allow-origin': '*', 'access-control-allow-head
 const initial = { unit: 'tokens', plan: 'free', limit: 20000, used: 5000, remaining: 15000, unlimited: false, resetsAt: null };
 
 for (const engine of ['chromium', 'webkit']) {
+  test(`${engine}: the usage card keeps its place while profile and token requests finish`, async t => {
+    let finishProfile, finishBalance;
+    let quota = initial;
+    const profileReady = new Promise(resolve => { finishProfile = resolve; });
+    const balanceReady = new Promise(resolve => { finishBalance = resolve; });
+    const { page } = await setup(t, engine, { href: '/normal_UserProfile/', platform: 'web', beforeNavigate: async page => {
+      await page.route('**/my-profile', async route => { await profileReady; return route.fallback(); });
+      await page.route('**/billing/status', async route => {
+        if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+        await balanceReady;
+        return route.fulfill({ headers, json: { quota } });
+      });
+    } });
+    const section = page.locator('[data-ai-usage-settings]');
+    try {
+      await section.locator('[aria-busy="true"]').waitFor();
+      const bounds = () => section.evaluate(el => {
+        const rect = el.getBoundingClientRect();
+        return [rect.top + scrollY, rect.height, el.nextElementSibling.getBoundingClientRect().top + scrollY];
+      });
+      const original = await section.elementHandle();
+      const before = await bounds();
+      finishProfile();
+      await page.locator('[data-testid="profile-header-card"]').waitFor();
+      finishBalance();
+      const bar = section.getByRole('progressbar');
+      await bar.waitFor();
+      assert.equal(await original.evaluate(el => el === document.querySelector('[data-ai-usage-settings]')), true);
+      assert.deepEqual(await bounds(), before);
+      await page.waitForFunction(() => {
+        const track = document.querySelector('[data-ai-usage-settings] [role="progressbar"]');
+        return track && Math.abs(track.firstElementChild.getBoundingClientRect().width / track.clientWidth - 0.75) < 0.01;
+      });
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      quota = { ...initial, remaining: 1000, pending: true };
+      await page.evaluate(() => window.dispatchEvent(new Event('wasla:subscription-updated')));
+      await section.getByText('1,000', { exact: true }).waitFor();
+      assert.equal(await bar.locator('div').evaluate(el => getComputedStyle(el).transitionDuration), '0s');
+      assert.deepEqual(await bounds(), before);
+      quota = { unit: 'tokens', unlimited: true };
+      await page.evaluate(() => window.dispatchEvent(new Event('wasla:subscription-updated')));
+      await section.getByText('Unlimited', { exact: true }).waitFor();
+      assert.deepEqual(await bounds(), before);
+    } finally { finishProfile(); finishBalance(); }
+  });
+
   for (const language of ['en', 'ar']) test(`${engine}: ${language} Profile usage shows server balance and counts down locally`, async t => {
     let reads = 0;
     const now = Date.now();
@@ -27,7 +73,7 @@ for (const engine of ['chromium', 'webkit']) {
     await bar.waitFor();
     assert.equal(await bar.getAttribute('aria-valuenow'), '15000');
     assert.equal(await bar.getAttribute('aria-valuemax'), '20000');
-    assert.equal(await bar.locator('div').evaluate(el => el.style.width), '75%');
+    assert.equal(await bar.locator('div').evaluate(el => el.style.transform), 'scaleX(0.75)');
     await page.clock.fastForward(61000);
     assert.match(await section.locator('[data-ai-usage-reset]').textContent(), language === 'ar' ? /١ س ٥٩ د/ : /1h 59m/);
     assert.equal(reads, 1, 'Countdown ticks do not request the server');

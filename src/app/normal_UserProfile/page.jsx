@@ -989,7 +989,7 @@ function UserProfile({ profileUserId }) {
     }, [noteModalConfig, isOwner]);
 
 
-    if (loading) {
+    if (loading && !(isLogin && isOwner && currentView === 'menu')) {
         return <PageSkeleton variant="profile" fullPage />;
     }
 
@@ -1014,7 +1014,13 @@ function UserProfile({ profileUserId }) {
                 {!isOwner || currentView === 'menu' ? (
                     <>
                         {/* --- HEADER PROFILE CARD --- */}
-                        <ProfileHeaderCard
+                        {loading ? <div aria-hidden="true" className="app-card mb-6 rounded-[2rem] border p-5 sm:mb-8 sm:p-8">
+                            <div className="flex items-center gap-3 sm:gap-6">
+                                <div className="size-20 shrink-0 rounded-full bg-slate-400/10 sm:size-28" />
+                                <div className="space-y-2"><div className="h-5 w-28 rounded bg-slate-400/10" /><div className="h-3 w-20 rounded bg-slate-400/10" /></div>
+                            </div>
+                            <div className="mt-8 hidden h-11 max-[480px]:block" />
+                        </div> : <ProfileHeaderCard
                             user={profile?.user}
                             onEditName={isOwner ? () => {
                                 setEditValue(profile?.user?.Name || '');
@@ -1064,11 +1070,11 @@ function UserProfile({ profileUserId }) {
                                     </div>
 
                             }
-                            stats={socialProfile?.stats && <ProfileStats stats={socialProfile.stats} isOwner={isOwner}
-                                roleBadge={isOwner && profile?.user?.role && !['USER', 'USERS'].includes(profile.user.role.toUpperCase()) ? <Badge icon={User} label={t('role')} value={profile.user.role.toUpperCase() === 'PROGRAMER' ? t('roleProgrammer') : titleCase(profile.user.role)} classes="bg-sky-500/5 text-sky-200 border-sky-500/10" /> : null} profileUserId={profile?.user?._id} token={isLogin} userId={user_id} />}
+                            stats={socialProfile?.stats ? <ProfileStats stats={socialProfile.stats} isOwner={isOwner}
+                                roleBadge={isOwner && profile?.user?.role && !['USER', 'USERS'].includes(profile.user.role.toUpperCase()) ? <Badge icon={User} label={t('role')} value={profile.user.role.toUpperCase() === 'PROGRAMER' ? t('roleProgrammer') : titleCase(profile.user.role)} classes="bg-sky-500/5 text-sky-200 border-sky-500/10" /> : null} profileUserId={profile?.user?._id} token={isLogin} userId={user_id} /> : isOwner && <div aria-hidden="true" className="h-11 max-[480px]:mt-5" />}
                         >
                             {!isOwner && socialProfile?.user && <FriendshipControls profile={socialProfile} token={isLogin} userId={user_id} refreshing={refreshingSocial} onRevoke={revokeFriendship} onRefresh={refreshFriendship} />}
-                        </ProfileHeaderCard>
+                        </ProfileHeaderCard>}
 
                         <TestimonyBoard profileUserId={profileUserId} onProfileLoad={handleSocialProfile} profileAccess={socialProfile?.canViewTestimonies} onLoadingChange={setRefreshingSocial} />
 
@@ -1092,7 +1098,7 @@ function UserProfile({ profileUserId }) {
                                         </div>
                                         <div className="flex items-center gap-1.5 shrink-0">
                                             <span className="text-xs text-slate-400 font-medium">
-                                                {groupedBibleHighlights.length} {groupedBibleHighlights.length === 1 ? t('record') : t('records')}
+                                                {loading ? '—' : groupedBibleHighlights.length} {groupedBibleHighlights.length === 1 ? t('record') : t('records')}
                                             </span>
                                             <ChevronRight className="w-4 h-4 text-slate-600" />
                                         </div>
@@ -1109,7 +1115,7 @@ function UserProfile({ profileUserId }) {
                                         </div>
                                         <div className="flex items-center gap-1.5 shrink-0">
                                             <span className="text-xs text-slate-400 font-medium">
-                                                {groupedBibleNotes.length} {groupedBibleNotes.length === 1 ? t('record') : t('records')}
+                                                {loading ? '—' : groupedBibleNotes.length} {groupedBibleNotes.length === 1 ? t('record') : t('records')}
                                             </span>
                                             <ChevronRight className="w-4 h-4 text-slate-600" />
                                         </div>

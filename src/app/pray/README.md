@@ -2,7 +2,7 @@
 
 # Pray page — read before editing
 
-Updated: 17 November 2026, after Missions 6B and 7. This is the entry guide for agents changing `page.jsx` or its dependencies. Read the affected source before editing, keep this guide current, and consult the [implementation plan](../../../docs/pray-performance-implementation-plan.md) for detailed evidence and unfinished work.
+Updated 20 November 2026 for My Journal scrolling. This is the entry guide for agents changing `page.jsx` or its dependencies. Read the affected source before editing, keep this guide current, and consult the [implementation plan](../../../docs/pray-performance-implementation-plan.md) for detailed evidence and unfinished work.
 
 ## Features and file map
 
@@ -11,7 +11,8 @@ Updated: 17 November 2026, after Missions 6B and 7. This is the entry guide for 
 | Page composition, local history, friends/profile data, inbox/replies, notification targets | `page.jsx` |
 | Text and prayer-section drafts, voice recording, personal save, friend selection and anonymous sharing | `PrayerComposer.jsx`, `PrayerSharePicker.jsx` |
 | Personal journal and Prayer Circle (all/received/sent), cards, replies, read state, retry/delete actions | `PrayerCards.jsx`, `usePrayerCircleOrder.js`, `usePrayerDeleteWindow.js` |
-| Batches of 10, measured/windowed rows, keyboard focus, deep targets and reading anchors | `PrayerList.jsx`, `prayerListLayout.js` |
+| Personal journal windowing, fling buffer and reading position | `JournalList.jsx` (React Virtuoso) |
+| Prayer Circle windowing, focused reply retention and shared batch helpers | `PrayerList.jsx`, `prayerListLayout.js` |
 | Account-scoped draft/microphone/playback lifetime across tab navigation | `PrayerSessionProvider.jsx`, `prayerSession.js`, `prayerPlayback.js`, `usePrayRecorder.js` |
 | Blur toggle/strength and backup settings | `PrayerSettings.jsx`, `PrayerBackup.module.css`, `BackupFrequency.jsx` |
 | Saved recording controls, manual Drive backup/restore and native backup status | `PrayRecordings.jsx` |
@@ -37,7 +38,9 @@ English/Arabic and RTL behavior use the language context and `prayerCircleText.j
 
 - On a cold native launch the real header and editor signal splash readiness. The Pray view waits for that handoff before processing local history, running repairs and starting ordinary inbox/profile refreshes. An explicit notification can still request its target immediately. `ListPanel` shows card-shaped placeholders until the first local snapshot. The row renderer ships with the page so local cards can appear offline. An empty snapshot shows the empty state, and a storage failure exposes Retry. Warm returns reuse the session and cached rows.
 - Keep the session provider outside disposable pager views. Drafts, recorder and active playback belong to that session; unmounting a row/page must not discard them. Release streams, players, Blob URLs and session resources on their actual completion/discard/account lifecycle.
-- Render only the active list's measured viewport buffer, with the supported focused-row exception. Load in batches of 10; preserve per-scope anchors, measured heights, drafts and deep notification targets. Never restore the old retain-every-card approach. A tested traversal of 2,000 prayers mounted at most 16 cards; this is evidence, not a hard-coded universal row count.
+- My Journal uses React Virtuoso with document scrolling, stable prayer IDs and a buffer of 60% of the viewport above and below. More local entries become available in batches of ten as the reader approaches the end. The keyboard and Load 10 more button can also advance the list. Keep the journal panel free of backdrop blur because its surface grows with the loaded history. Prayer Circle uses its own windowing logic to retain a focused reply editor.
+- Preserve the reading position by prayer ID and offset across list and tab switches. The personal journal keeps its loaded count and row measurements in the account's in-memory session. See the production browser tests in `tests/prayer-notification-opening.browser.cjs` for fling buffer coverage, traversal of 2,000 entries, keyboard navigation, rotation and warm returns.
+- Galaxy A24 check on 20 November 2026, using six fast flicks in both directions. The installed 2.0.7 bundle showed 76 nearly blank central frames out of 213 sampled. The updated journal showed 6 out of 170. Median cold launch to the Pray card was 2.62 s before and 2.58 s after across three launches per build. These are same-phone observations for that journal and gesture sequence.
 - `PrimaryTabPager` retains active/neighbor pages. `useNavigationState` and navigation queues defer/coalesce view changes while dragging. Do not rebuild lists or measure hidden/transformed panels during gestures. Keep the composer and the selected list's bounded visible rows mounted while Pray is a neighboring panel, so return swipes show a complete layout. Inactive lists suspend measurement, ResizeObserver, scroll restoration and batch loading; the microphone waveform suspends visual work. The settings trigger stays in place; its portal and polling are active-page-only. The pager still releases Pray when it is no longer a neighbor.
 - No storage reads, full-history sorting or serialization per keystroke/render/tab tap. Preserve memoized references and batched import/repair/audio metadata commits. Keep deadline scheduling shared rather than one timer per card. Native status polling belongs only to open, active backup settings.
 

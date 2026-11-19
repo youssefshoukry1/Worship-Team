@@ -97,6 +97,13 @@ body {
   box-shadow: var(--app-panel-shadow);
 }
 
+/* This surface grows with the saved journal. Avoid sampling a list-sized
+   backdrop as the WebView compositor scrolls through it. */
+.app-card[data-journal-panel] {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
 .app-header,
 .app-bottom-nav {
   background-color: rgb(var(--app-nav-rgb) / 0.9);
