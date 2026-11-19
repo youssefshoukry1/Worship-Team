@@ -8,10 +8,10 @@ const context = { AbortController, setTimeout, clearTimeout };
 vm.runInNewContext(source + ';globalThis.createStore = createTestimonyFeedStore;', context);
 const A = 'aaaaaaaaaaaaaaaaaaaaaaaa', B = 'bbbbbbbbbbbbbbbbbbbbbbbb', ID = '111111111111111111111111';
 const note = (id = ID, author = B) => ({ _id: id, author: { _id: author }, title: 'A shared note', body: 'Shared testimony text', createdAt: new Date(1000).toISOString(), feedExpiresAt: new Date(10000).toISOString() });
-function fixture(storageMap = new Map(), userId = A, cache = null) {
+function fixture(storageMap = new Map(), userId = A, cache = null, sendSeen) {
   let time = 2000;
   const requests = [], timers = [];
-  const store = context.createStore({ userId, cache, now: () => time, storage: { getItem: key => storageMap.get(key), setItem: (key, value) => storageMap.set(key, value) },
+  const store = context.createStore({ userId, cache, sendSeen, now: () => time, storage: { getItem: key => storageMap.get(key), setItem: (key, value) => storageMap.set(key, value) },
     schedule: (fn, delay) => { const timer = { fn, delay }; timers.push(timer); return timer; }, cancel: timer => { if (timer) timer.cancelled = true; },
     request: (path, options) => new Promise((resolve, reject) => {
       requests.push({ path, options, resolve, reject });
@@ -21,6 +21,25 @@ function fixture(storageMap = new Map(), userId = A, cache = null) {
   return { store, requests, timers, storageMap, finish, time: value => { time = value; } };
 }
 const flush = () => new Promise(resolve => setImmediate(resolve));
+
+test('offline opens upload after sign-in and server receipts clear the first badge on a fresh device', async () => {
+  const storage = new Map(), uploaded = [];
+  const active = seen => [{ _id: ID, authorId: B, feedExpiresAt: note().feedExpiresAt, seen }];
+  const offline = fixture(storage, A, null, async () => { throw Error('offline'); });
+  offline.store.markSeen(ID, note());
+  await offline.timers.find(timer => timer.delay === 300).fn();
+  offline.store.clear();
+  const same = fixture(storage, A, null, async ids => uploaded.push(...ids));
+  const sync = same.store.sync(); same.finish(0, [note()], { activeNotes: active(false) }); await sync;
+  await same.timers.find(timer => timer.delay === 300).fn();
+  assert.deepEqual(uploaded, [ID]);
+  same.store.dispose();
+  const fresh = fixture();
+  const pull = fresh.store.sync(); fresh.finish(0, [note()], { activeNotes: active(true) }); await pull;
+  assert.equal(fresh.store.isSeen(ID), true);
+  assert.equal(fresh.store.getSnapshot().hasUnseen, false);
+  fresh.store.dispose();
+});
 
 test('startup sync prepares notes globally and tracks seen IDs for all active pages without storing note text', async () => {
   const f = fixture(), old = note('222222222222222222222222');

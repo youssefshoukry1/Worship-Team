@@ -22,7 +22,10 @@ function Session({ token, userId, children }) {
   useFriendDirectorySession(token, userId);
   const pathname = usePathname();
   const isFriendsPage = pathname?.replace(/\/+$/, '') === '/friends';
-  const [store] = useState(() => createTestimonyFeedStore({ userId, cache: feedNotesStorage(userId), request: (path, options) => testimonyRequest(token, path, options), storage: typeof window !== 'undefined' ? window.localStorage : null }));
+  const [store] = useState(() => createTestimonyFeedStore({ userId, cache: feedNotesStorage(userId),
+    request: (path, options) => testimonyRequest(token, path, options),
+    sendSeen: (opened, signal, keepalive = false) => testimonyRequest(token, '/seen', { method: 'POST', body: JSON.stringify({ opened }), signal, keepalive }),
+    storage: typeof window !== 'undefined' ? window.localStorage : null }));
   const [reactors] = useState(() => createNoteReactorsStore({ userId, request: (path, options) => testimonyRequest(token, path, options), storage: typeof window !== 'undefined' ? window.localStorage : null }));
   const [profiles] = useState(() => createProfileNotesStore({ userId, request: (path, options) => testimonyRequest(token, path, options), storage: profileNotesStorage(userId) }));
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);

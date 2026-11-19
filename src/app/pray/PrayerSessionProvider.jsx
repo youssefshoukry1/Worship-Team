@@ -6,6 +6,7 @@ import { createPrayerSession } from './prayerSession';
 import { createPrayerPlayback } from './prayerPlayback';
 import { usePrayRecorder } from './usePrayRecorder';
 import { subscribeLocalPrayers } from '../utils/prayRecordings';
+import { watchPrayerReads } from '../services/prayerReadSync';
 
 const Context = createContext(null);
 export function usePrayerSession() {
@@ -33,8 +34,18 @@ function RecorderHost({ session }) {
     return null;
 }
 
-function OwnerSession({ owner, children }) {
+function OwnerSession({ owner, token, children }) {
     const session = useMemo(() => Object.assign(createPrayerSession(owner), { playback: createPrayerPlayback() }), [owner]);
+    useEffect(() => {
+        if (!token || owner === 'guest') return;
+        let stop;
+        const start = () => {
+            if (!stop && session.get('readsReady')) stop = watchPrayerReads(owner, token);
+        };
+        const unsubscribe = session.subscribe('readsReady', start);
+        start();
+        return () => { unsubscribe(); stop?.(); };
+    }, [session, owner, token]);
     useEffect(() => {
         session.mount();
         let previousRecordings;
@@ -51,5 +62,5 @@ function OwnerSession({ owner, children }) {
 export default function PrayerSessionProvider({ children }) {
     const { user_id, isLogin } = useContext(UserContext);
     const owner = isLogin && user_id ? String(user_id) : 'guest';
-    return <OwnerSession key={owner} owner={owner}>{children}</OwnerSession>;
+    return <OwnerSession key={owner} owner={owner} token={isLogin}>{children}</OwnerSession>;
 }

@@ -1,6 +1,6 @@
 // Friends feed cache rules are documented in ../../friends/README.md.
 // Seen markers and downloaded note bodies use separate per-account stores.
-export function createTestimonyFeedStore({ userId, request, storage, cache = null, now = Date.now, schedule = setTimeout, cancel = clearTimeout }) {
+export function createTestimonyFeedStore({ userId, request, sendSeen, storage, cache = null, now = Date.now, schedule = setTimeout, cancel = clearTimeout }) {
   const key = `taspe7_notes_seen_v1:${userId}`;
   let seen = {};
   try { seen = JSON.parse(storage?.getItem(key) || '{}') || {}; } catch { /* Fresh seen state. */ }
@@ -10,6 +10,29 @@ export function createTestimonyFeedStore({ userId, request, storage, cache = nul
   let timer, pendingSync, syncAgain = false, disposed = false, generation = 0, accessGeneration = 0;
   let hydration, hydrated = !cache, cacheSnapshot = '', lastCachedItems = null, cacheInvalidated = false;
   const deleted = new Set();
+  const pendingReads = new Set();
+  let readTimer, readRequest;
+  const queueRead = id => {
+    if (!sendSeen || disposed) return;
+    pendingReads.add(id);
+    if (readTimer || readRequest) return;
+    readTimer = schedule(async () => {
+      readTimer = null;
+      const controller = new AbortController();
+      readRequest = controller;
+      try {
+        while (!disposed && pendingReads.size) {
+          const ids = [];
+          for (const id of pendingReads) { ids.push(id); if (ids.length === 100) break; }
+          const timeout = schedule(() => controller.abort(), 15000);
+          try { await sendSeen(ids, controller.signal); }
+          finally { cancel(timeout); }
+          ids.forEach(id => pendingReads.delete(id));
+        }
+      } catch { /* A later feed refresh reconciles the persisted local opens. */ }
+      finally { readRequest = null; }
+    }, 300);
+  };
   const persistNotes = () => {
     if (!cache || !hydrated || disposed) return;
     if (lastCachedItems?.length === state.items.length && state.items.every((item, index) => item === lastCachedItems[index])) return;
@@ -95,6 +118,15 @@ export function createTestimonyFeedStore({ userId, request, storage, cache = nul
       const activeNotes = result.activeNotes || result.items.map(metadata);
       const allowed = new Map(activeNotes.map(item => [item._id, item]));
       if (result.activeNotes) {
+        let changed = false;
+        for (const note of activeNotes) {
+          if (String(note.authorId) === String(userId)) continue;
+          if (note.seen && !seen[note._id]) {
+            seen[note._id] = new Date(note.feedExpiresAt).getTime();
+            changed = true;
+          } else if (note.seen === false && seen[note._id]) queueRead(note._id);
+        }
+        if (changed) persistSeen();
         for (const id of [...state.items.map(item => item._id), ...revisions.keys()]) {
           if (!allowed.has(id)) revisions.set(id, (revisions.get(id) || 0) + 1);
         }
@@ -177,14 +209,20 @@ export function createTestimonyFeedStore({ userId, request, storage, cache = nul
     },
     markSeen(id, openedNote = null) {
       const item = state.activeNotes.find(note => note._id === id) || (openedNote ? metadata(openedNote) : null);
-      if (!item) return;
+      if (!item || disposed || String(item.authorId) === String(userId) || seen[id] || new Date(item.feedExpiresAt).getTime() <= now()) return;
       seen[id] = new Date(item.feedExpiresAt).getTime();
       persistSeen();
+      queueRead(id);
       emit({});
     },
     updateReaction(id, reaction) { emit({ items: state.items.map(item => item._id === id ? { ...item, ...reaction } : item) }); },
     activate() { disposed = false; void hydrate(); },
-    clear() { cacheInvalidated = true; ++accessGeneration; hydrated = true; emit({ items: [], activeNotes: [], publishing: null }); this.dispose(); },
-    dispose() { disposed = true; ++generation; ++accessGeneration; cancel(timer); for (const controller of requests) controller.abort(); },
+    clear() {
+      if (sendSeen && pendingReads.size) void sendSeen([...pendingReads].slice(0, 100), undefined, true).catch(() => {});
+      cacheInvalidated = true; ++accessGeneration; hydrated = true;
+      emit({ items: [], activeNotes: [], publishing: null });
+      this.dispose();
+    },
+    dispose() { disposed = true; ++generation; ++accessGeneration; cancel(timer); cancel(readTimer); readTimer = null; readRequest?.abort(); for (const controller of requests) controller.abort(); },
   };
 }

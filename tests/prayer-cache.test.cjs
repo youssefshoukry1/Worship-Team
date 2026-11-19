@@ -14,10 +14,34 @@ function fixture(native = false) {
         Directory: { Data: 'DATA' }, Encoding: { UTF8: 'utf8' },
         Filesystem: { readFile: async () => ({ data: JSON.stringify(await storage.getItem('index')) }), writeFile: async ({ data }) => storage.setItem('index', JSON.parse(data)) } });
     const source = ['prayerActivity.js', 'prayRecordings.js'].map(file => fs.readFileSync(path.join(__dirname, '../src/app/utils', file), 'utf8').replace(/^import .*;\r?\n/gm, '').replaceAll('export ', '')).join('\n');
-    vm.runInContext(source + '\nglobalThis.api = { getGuestPrays, getRecordingsIndex, getCachedPrayerSnapshot, subscribeLocalPrayers, refreshLocalPrayerCache, addGuestPray, updateGuestPray, migratePrayerReadState };', context);
+    vm.runInContext(source + '\nglobalThis.api = { getGuestPrays, getRecordingsIndex, getCachedPrayerSnapshot, subscribeLocalPrayers, refreshLocalPrayerCache, addGuestPray, updateGuestPray, migratePrayerReadState, markPrayerActivitySeen, prayerReadSyncInput, savePrayerReadPage, mergeIncomingPrayers, applyPrayerReplies };', context);
     return { api: context.api, get reads() { return reads; }, get writes() { return writes; }, setDisk: value => { disk = structuredClone(value); }, fail: value => { fail = value; }, delay: value => { delay = value; } };
 }
 const prayer = id => ({ _id: id, words: `Prayer ${id}`, date: '2026-11-14T00:00:00Z', prayType: 'general' });
+
+for (const native of [true, false]) test(`${native ? 'native' : 'web'} receipts survive offline opens, delayed delivery and a newer reply`, async () => {
+    const a = fixture(native).api;
+    const shareId = 'test-share', timestamp = '2026-11-20T07:00:00.000Z';
+    await a.savePrayerReadPage('reader', 2, ['prayer:' + shareId, 'reply:' + shareId + ':' + timestamp]);
+    await a.mergeIncomingPrayers([{ shareId, words: 'Local fixture' }]);
+    await a.addGuestPray({ ...prayer('sent'), sharedWith: { shareId, status: 'sent' } });
+    await a.applyPrayerReplies([{ shareId, respondedAt: timestamp }]);
+    let entries = await a.getGuestPrays();
+    assert.equal(entries.find(p => p.sharedFrom).sharedFrom.seenActivityBy.reader, 'prayer:' + shareId);
+    assert.equal(entries.find(p => p.sharedWith).sharedWith.seenActivityBy.reader, 'reply:' + shareId + ':' + timestamp);
+    const newer = '2026-11-21T07:00:00.000Z';
+    await a.applyPrayerReplies([{ shareId, respondedAt: newer }]);
+    const activity = 'reply:' + shareId + ':' + newer;
+    entries = await a.getGuestPrays();
+    assert.notEqual(entries.find(p => p.sharedWith).sharedWith.seenActivityBy.reader, activity);
+    await a.markPrayerActivitySeen('sent', 'reader', activity);
+    await a.refreshLocalPrayerCache();
+    assert.deepEqual(Array.from((await a.prayerReadSyncInput('reader')).opened), [activity]);
+    assert.equal((await a.prayerReadSyncInput('other')).opened.length, 0);
+    await a.savePrayerReadPage('reader', 3, [activity]);
+    assert.equal((await a.prayerReadSyncInput('reader')).opened.length, 0);
+    assert.equal((await a.prayerReadSyncInput('reader')).after, 3);
+});
 
 test('parallel text and recording loads share one read; warm getters perform no reads', async () => {
     const f = fixture();

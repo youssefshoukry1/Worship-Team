@@ -32,6 +32,7 @@ import { newPrayerAction, preparePrayerAction, retryPrayerAction, localPrayerOve
 import usePrayerDeleteWindow, { prayerDeleteAvailable } from './usePrayerDeleteWindow';
 import { HOME_REFRESH_EVENT } from '../utils/androidBack';
 import { useTabPageActive } from '../components/TabPageActivity';
+import { PRAYER_READ_EVENT } from '../services/prayerReadSync';
 
 const API_URL = getApiBaseUrl();
 
@@ -139,7 +140,7 @@ export default function PrayPage() {
         setLocalActivityId(entry._sync.requestId);
         setListTarget({ id: String(entry._id), key: entry._sync.requestId, scope: entry.sharedWith ? 'shared:sent' : entry.sharedFrom ? `shared:${circleFilter}` : 'personal' });
         session.set(`reply:${prayId}`, '');
-        void preparePrayerAction(entry);
+        void preparePrayerAction(entry).then(() => window.dispatchEvent(new Event(PRAYER_READ_EVENT)));
     };
 
     useEffect(() => {
@@ -285,9 +286,14 @@ export default function PrayPage() {
         }));
         try {
             await markPrayerActivitySeen(id, userId, activity);
+            window.dispatchEvent(new CustomEvent(PRAYER_READ_EVENT, { detail: { owner: userId, activity } }));
         } catch (error) { console.warn('Could not save prayer read state:', error); }
         finally { seenWrites.current.delete(key); }
     }, [userId, setGuestPrays]);
+
+    useEffect(() => {
+        if (historyActive && token && userId && hasSnapshot) session.set('readsReady', true);
+    }, [historyActive, token, userId, hasSnapshot, session]);
 
     const toggleFriendPrayerExpand = (id) => {
         setExpandedFriendPrayers((prev) => {

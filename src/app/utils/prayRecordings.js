@@ -380,7 +380,7 @@ export async function stagePrayerAction(entry) {
         changed = false;
         if (isRevokedPrayer(index, entry)) return false;
         const current = index.guestPrays.find(item => String(item._id) === String(entry._id));
-        const next = { ...current, ...entry };
+        const next = withSyncedReads(index, { ...current, ...entry });
         if (current && JSON.stringify(current) === JSON.stringify(next)) return true;
         index.guestPrays = [...index.guestPrays.filter(item => String(item._id) !== String(entry._id)), next];
         changed = true;
@@ -476,7 +476,7 @@ export async function addGuestPray({ words, prayType, sharedWith, sharedFrom, _i
         if (isRevokedPrayer(index, entry)) return null;
         const old = index.guestPrays.find(item => String(item._id) === String(entry._id));
         if (old && JSON.stringify(old) === JSON.stringify(entry)) return old;
-        index.guestPrays = [entry, ...(index.guestPrays || []).filter((e) => String(e._id) !== String(entry._id))];
+        index.guestPrays = [withSyncedReads(index, entry), ...(index.guestPrays || []).filter((e) => String(e._id) !== String(entry._id))];
         changed = true;
         return entry;
     }, () => changed);
@@ -486,7 +486,7 @@ export async function updateGuestPray(prayId, changes) {
     await updateIndex(index => {
         const position = index.guestPrays.findIndex(entry => String(entry._id) === String(prayId));
         if (position < 0) return false;
-        const next = { ...index.guestPrays[position], ...changes };
+        const next = withSyncedReads(index, { ...index.guestPrays[position], ...changes });
         if (JSON.stringify(next) === JSON.stringify(index.guestPrays[position])) return false;
         index.guestPrays[position] = next;
         return true;
@@ -525,7 +525,7 @@ export async function importLegacyPrayers(items) {
             }
             else if (old.words?.startsWith('enc:v1:') && !item.words.startsWith('enc:v1:')) { byId.set(id, { ...old, words: item.words }); changed = true; }
         }
-        if (changed) index.guestPrays = [...byId.values()];
+        if (changed) index.guestPrays = Array.from(byId.values(), entry => withSyncedReads(index, entry));
         return changed;
     }, Boolean);
 }
@@ -550,7 +550,7 @@ export function mergeIncomingPrayers(bundles) {
                     profilePhoto: bundle.senderProfilePhoto || null, shareId: bundle.shareId, originalPrayId: bundle.shareId,
                     status: 'pending', isAnonymous: Boolean(bundle.isAnonymous), seenActivityBy: {} } });
         }
-        if (added.length) index.guestPrays = [...added, ...index.guestPrays];
+        if (added.length) index.guestPrays = [...added.map(entry => withSyncedReads(index, entry)), ...index.guestPrays];
         return { changed: added.length > 0, prayers: added.length ? index.guestPrays : null, prayerIds };
     }, result => result.changed);
 }
@@ -584,7 +584,7 @@ export function applyPrayerReplies(updates) {
             // A newly arriving reply to a legacy sent prayer needs explicit unread tracking.
             if (old.status !== 'confirmed') party.seenActivityBy = old.seenActivityBy || {};
             if (JSON.stringify(old) !== JSON.stringify(party)) {
-                index.guestPrays[position] = { ...entry, sharedWith: party };
+                index.guestPrays[position] = withSyncedReads(index, { ...entry, sharedWith: party });
                 changed = true;
             }
             acknowledged.push(update.shareId);
@@ -604,6 +604,54 @@ export function markPrayerActivitySeen(prayId, ownerId, activity) {
         const changes = seenPrayerChanges(entry, ownerId, activity);
         if (changes) index.guestPrays[position] = { ...entry, ...changes };
         return changes;
+    }, Boolean);
+}
+
+// Existing local receipts are the durable outbox, including opens made offline
+// and on earlier versions. Only shared activities carry a syncable identity.
+export const syncablePrayerRead = activity => typeof activity === 'string' &&
+    /^(?:prayer:[\w-]{1,100}|reply:[\w-]{1,100}:(?:legacy|\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?Z))$/.test(activity);
+
+export async function prayerReadSyncInput(owner, recent = null) {
+    const index = await readIndex();
+    const after = index.prayerReadCursors?.[owner] || 0;
+    if (recent) return { after, opened: recent.filter(key => syncablePrayerRead(key) && !index.prayerReadKeys?.[key]?.includes(owner)) };
+    const opened = new Set();
+    for (const entry of index.guestPrays) {
+        const activity = incomingPrayerActivity(entry);
+        if (!activity || (entry.sharedWith || entry.sharedFrom).seenActivityBy?.[owner] !== activity ||
+            index.prayerReadKeys?.[activity]?.includes(owner)) continue;
+        if (syncablePrayerRead(activity)) opened.add(activity);
+    }
+    return { after, opened: [...opened] };
+}
+
+// A receipt may reach a device before its prayer or a restored archive.
+function withSyncedReads(index, entry) {
+    if (!index.prayerReadKeys || !(entry.sharedFrom || entry.sharedWith)) return entry;
+    const activity = incomingPrayerActivity(entry);
+    for (const owner of index.prayerReadKeys[activity] || []) {
+        const changes = seenPrayerChanges(entry, owner, activity);
+        if (changes) entry = { ...entry, ...changes };
+    }
+    return entry;
+}
+
+export function savePrayerReadPage(owner, after, keys) {
+    return updateIndex(index => {
+        index.prayerReadCursors ||= {};
+        index.prayerReadKeys ||= {};
+        let changed = false;
+        for (const key of keys) {
+            const readers = index.prayerReadKeys[key] ||= [];
+            if (!readers.includes(owner)) { readers.push(owner); changed = true; }
+        }
+        if (changed) index.guestPrays = index.guestPrays.map(entry => withSyncedReads(index, entry));
+        if (after > (index.prayerReadCursors[owner] || 0)) {
+            index.prayerReadCursors[owner] = after;
+            changed = true;
+        }
+        return changed;
     }, Boolean);
 }
 
@@ -824,7 +872,7 @@ export async function restoreMyPraysZip(zipBytes, onProgress = () => {}, { owner
                 const existing = currentMap.get(id);
                 const merged = mergeRestoredPrayer(existing, prayer, fromBackup ? ownerId : undefined);
                 merged._id = id;
-                currentMap.set(id, merged);
+                currentMap.set(id, withSyncedReads(index, merged));
                 if (key) byShare.set(key, id);
                 restoreTargets.set(sourceId, id);
             };
