@@ -13,25 +13,34 @@ test('note previews choose three measured font sizes and truncate only overflowi
     await page.setContent('<style>* { box-sizing: border-box; } body { display: flex; flex-wrap: wrap; }</style>');
     await page.addStyleTag({ content: css });
     await page.addScriptTag({ content: source.replace('export function', 'function') });
-    const result = await page.evaluate(() => {
-      const results = [];
+    const result = await page.evaluate(async () => {
+      const headings = [];
       for (const withAuthor of [false, true]) {
-      for (let count = 1; count <= 80; count++) {
-        const card = document.createElement('div');
-        card.className = withAuthor ? 'miniNote' : 'miniNote withoutAuthor';
-        card.innerHTML = '<button class="noteReadButton"><h3 dir="auto"></h3></button>';
-        const text = card.querySelector('h3');
-        text.textContent = count === 1 ? 'شكرا يارب' : 'في البدء كان الكلمة '.repeat(count);
-        document.body.append(card);
-        fitNotePreview(text);
+        for (let count = 1; count <= 80; count++) {
+          const card = document.createElement('div');
+          card.className = withAuthor ? 'miniNote' : 'miniNote withoutAuthor';
+          card.innerHTML = `<button class="noteReadButton">
+            <h3 dir="auto"></h3>
+            <span class="previewMeasures" aria-hidden="true">
+              <span dir="auto" data-preview-size="10"></span><span dir="auto" data-preview-size="9"></span>
+            </span>
+          </button>`;
+          const text = card.querySelector('h3');
+          text.textContent = count === 1 ? 'شكرا يارب' : 'في البدء كان الكلمة '.repeat(count);
+          document.body.append(card);
+          for (const probe of card.querySelectorAll('[data-preview-size]')) probe.textContent = text.textContent;
+          observeNotePreview(text.parentElement);
+          headings.push(text);
+        }
+      }
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return headings.map(text => {
         const size = parseFloat(text.style.fontSize);
         const clipped = text.scrollHeight > text.clientHeight + 1;
         const buttonStyle = getComputedStyle(text.parentElement);
         const available = text.parentElement.clientHeight - parseFloat(buttonStyle.paddingTop) - parseFloat(buttonStyle.paddingBottom);
-        results.push({ size, clipped, fitsBox: text.clientHeight <= available + 1 });
-      }
-      }
-      return results;
+        return { size, clipped, fitsBox: text.clientHeight <= available + 1 };
+      });
     });
     assert.deepEqual([...new Set(result.map(item => item.size))].sort(), [10, 8, 9]);
     assert.equal(result[0].size, 10);

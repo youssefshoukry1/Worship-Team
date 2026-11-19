@@ -42,24 +42,40 @@ for (const engine of ['webkit', 'chromium']) {
     }
   });
 
-  test(`${engine}: Profile notes wait for selection before fitting and keep their fit on return to Friends`, async t => {
+  test(`${engine}: Friends and Profile keep their fitted note text throughout the swipe`, async t => {
     const { page } = await setup(t, engine, { href: '/friends/', beforeNavigate: async page => {
+      await page.route('**/users/testimonies', route => route.fulfill({
+        headers: { 'access-control-allow-origin': '*' },
+        json: { items: [{ _id: 'feed-note', title: 'Friend note', body: 'A long prayer. '.repeat(30),
+          author: { _id: 'friend', Name: 'Friend' }, createdAt: new Date().toISOString(),
+          feedExpiresAt: new Date(Date.now() + 86400000).toISOString() }] },
+      }));
       await page.route('**/users/testimonies/profile/tester*', route => route.fulfill({
         headers: { 'access-control-allow-origin': '*' },
         json: { notesVersion: 1, user: { _id: 'tester', Name: 'Tester' },
           items: [{ _id: 'sample-note', title: 'Archived note', body: 'A longer note. '.repeat(30) }] },
       }));
     } });
-    const note = panel(page, '/normal_UserProfile').locator('[data-note-surface] h3');
-    await note.waitFor({ state: 'attached' });
+    const noteSize = route => panel(page, route).locator('[data-note-surface] h3')
+      .evaluate(node => getComputedStyle(node).fontSize);
+    await panel(page, '/normal_UserProfile').locator('[data-note-surface] h3').waitFor({ state: 'attached' });
+    await panel(page, '/friends').locator('[data-note-surface] h3').waitFor({ state: 'attached' });
     await frame(page);
-    assert.equal(await note.evaluate(el => el.style.fontSize), '');
-    await page.locator('nav a[href^="/normal_UserProfile"]').click();
-    await page.waitForFunction(() => Number(document.querySelector('[data-tab-active="true"] [data-note-surface] h3')?.style.webkitLineClamp) > 0);
-    const fitted = await note.evaluate(el => el.style.cssText);
-    await page.locator('nav a[href^="/friends"]').click();
-    await page.waitForURL(base + '/friends/');
-    assert.equal(await note.evaluate(el => el.style.cssText), fitted);
+    for (const [from, to, startX, endX] of [
+      ['/friends', '/normal_UserProfile', 280, 140],
+      ['/normal_UserProfile', '/friends', 80, 220],
+    ]) {
+      assert.equal(await noteSize(from), '8px');
+      assert.equal(await noteSize(to), '8px', 'neighbor must already have its final size');
+      await touch(page, 'touchstart', startX);
+      await touch(page, 'touchmove', endX);
+      await frame(page);
+      assert.equal(await noteSize(to), '8px', 'partial swipe exposes the final size');
+      await touch(page, 'touchend', endX);
+      await page.waitForURL(base + to + '/');
+      await frame(page);
+      assert.equal(await noteSize(to), '8px');
+    }
   });
 
   test(`${engine}: cold neighbors stay lightweight during a held gesture and load after navigation`, async t => {

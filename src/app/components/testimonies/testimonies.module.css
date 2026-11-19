@@ -27,7 +27,10 @@
 .noteReadButton { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; width: 100%; height: 100%; padding: 28px 9px 8px; border: 0; border-radius: inherit; background: transparent; color: inherit; text-align: inherit; }
 .pinnedAvatar { display: flex; align-items: center; justify-content: center; flex: 0 0 20px; width: 20px; height: 20px; overflow: hidden; border: 1px solid #8ba3b740; border-radius: 50%; background: #102b39; color: #9cc9db; font-size: 8px; font-weight: 600; line-height: 1; pointer-events: none; }
 .pinnedAvatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.miniNote h3 { flex-shrink: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; font-family: var(--font-ui-latin), var(--font-tajawal), sans-serif; margin: 0; font-size: 10px; font-weight: 500; line-height: 1.45; color: #d5deea; }
+.miniNote h3, .previewMeasures > span { flex-shrink: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; font-family: var(--font-ui-latin), var(--font-tajawal), sans-serif; margin: 0; font-size: 10px; font-weight: 500; line-height: 1.4; color: #d5deea; }
+.previewMeasures { height: 0; flex: none; overflow: hidden; visibility: hidden; }
+.previewMeasures > span { -webkit-line-clamp: 7; }
+.previewMeasures > [data-preview-size="9"] { font-size: 9px; }
 .miniAuthor { position: absolute; z-index: 1; top: 3px; left: 7px; right: 6px; display: flex; align-items: center; gap: 4px; min-width: 0; height: 20px; color: #8b9bb0; font-size: 8px; line-height: 1.2; text-align: start; pointer-events: none; }
 .noteAuthorName { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-width: 0; overflow: hidden; overflow-wrap: anywhere; }
 .createCaption { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 8px; padding: 2px 0; color: #8b9bb0; font-size: 9px; text-align: center; text-decoration: none; }

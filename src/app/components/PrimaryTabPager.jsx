@@ -8,7 +8,7 @@ import { useSwipePreference } from '../utils/swipePreferences';
 import { installInteriorSwipe, swipeSettleDuration } from '../utils/interiorSwipe';
 import { ensureNavigationServiceWorker, navigateDocumentFallback } from '../utils/appNavigation';
 import { holdNavigationWork, releaseNavigationWork } from '../utils/navigationWork';
-import { TabPageActivity, TabPageSelected, TabViewMemory } from './TabPageActivity';
+import { TabPageActivity, TabViewMemory } from './TabPageActivity';
 import { createFeatureBoundary } from './DeferredFeature';
 
 const routes = ['/pray', '/bible_form', '/friends', '/normal_UserProfile'];
@@ -251,12 +251,10 @@ export default function PrimaryTabPager({ index }) {
         className="primary-tab-panel" aria-hidden={active ? undefined : true} inert={active ? undefined : true}
         style={{ transform: active ? undefined : `translate3d(${pageIndex < index ? -100 : 100}%,0,0)` }}>
         <div className="primary-tab-content"><TabViewMemory.Provider value={views[pageIndex]}><TabPageActivity.Provider value={active || opening === pageIndex}>
-          <TabPageSelected.Provider value={active}>
-            <Suspense fallback={<PageSkeleton variant={variants[pageIndex]} fullPage />}>
-              {active && <ActivePageCommit index={index} onCommit={setCommittedIndex} />}
-              {ready ? <Page /> : <PageSkeleton variant={variants[pageIndex]} fullPage />}
-            </Suspense>
-          </TabPageSelected.Provider>
+          <Suspense fallback={<PageSkeleton variant={variants[pageIndex]} fullPage />}>
+            {active && <ActivePageCommit index={index} onCommit={setCommittedIndex} />}
+            {ready ? <Page /> : <PageSkeleton variant={variants[pageIndex]} fullPage />}
+          </Suspense>
         </TabPageActivity.Provider></TabViewMemory.Provider></div>
       </div>;
     })}

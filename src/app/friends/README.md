@@ -15,7 +15,7 @@ Updated: 17 November 2026. Read this before changing notes on Friends or the sha
 | `testimonyFeedStore.js` | Friends feed, pagination, live changes, seen state, expiry, offline restore and reconciliation |
 | `feedNotesStorage.js` | New account-scoped persistent Friends note bodies |
 | `TestimonyBoard.jsx` | Cards, composer/reader selection, paging and retry UI |
-| `TestimonyCard.jsx`, `noteTime.js` | Card presentation, unread pin, relative/date labels |
+| `TestimonyCard.jsx`, `fitNotePreview.js`, `noteTime.js` | Card presentation, preview sizing before paint, unread pin and time labels |
 | `TestimonyComposer.jsx`, `noteContent.js` | Writing, character limit, publication and editing |
 | `TestimonyReader.jsx`, `NoteActionsMenu.jsx` | Expanded note, owner menu, delete confirmation |
 | `NoteLove.jsx`, `noteLoveQueue.js` | Optimistic love/unlove and request ordering |
