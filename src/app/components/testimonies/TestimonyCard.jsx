@@ -1,7 +1,8 @@
 'use client';
 
 import { Pin } from 'lucide-react';
-import { useLayoutEffect, useRef } from 'react';
+import { useContext, useLayoutEffect, useRef } from 'react';
+import { TabPageSelected } from '../TabPageActivity';
 import { fitNotePreview } from './fitNotePreview';
 import { formatNoteTime } from './noteTime';
 import OfflineAvatar from '../OfflineAvatar';
@@ -18,28 +19,42 @@ export default function TestimonyCard({ item, onRead, index = 0, hideAuthor = fa
     ? (body.startsWith(title) ? body : `${title} ${body}`)
     : title;
   const previewRef = useRef(null);
+  const selected = useContext(TabPageSelected);
+  const lastFit = useRef(null);
   useLayoutEffect(() => {
+    if (!selected) return;
     const text = previewRef.current;
-    if (!text) return;
-    let disposed = false;
+    let size;
     let frame;
-    const fit = () => { if (!disposed) fitNotePreview(text); };
-    const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(fit); };
-    fit();
-    const observer = new ResizeObserver(schedule);
+    const fit = () => {
+      frame = undefined;
+      if (!size?.width || !size.height) return;
+      // FontFaceSet issues a new ready promise for each font-loading cycle.
+      const fonts = document.fonts;
+      const previous = lastFit.current;
+      if (previous && previous.preview === preview && previous.hideAuthor === hideAuthor &&
+          previous.width === size.width && previous.height === size.height &&
+          previous.fonts === fonts?.ready && previous.fontStatus === fonts?.status) return;
+      fitNotePreview(text);
+      lastFit.current = { preview, hideAuthor, width: size.width, height: size.height,
+        fonts: fonts?.ready, fontStatus: fonts?.status };
+    };
+    const schedule = () => { if (frame === undefined) frame = requestAnimationFrame(fit); };
+    // The initial resize delivery also handles reactivation at a new size.
+    const observer = new ResizeObserver(([entry]) => {
+      size = entry.contentRect;
+      schedule();
+    });
     observer.observe(text.parentElement);
     document.fonts?.addEventListener('loadingdone', schedule);
-    document.fonts?.ready.then(() => { if (!disposed) schedule(); });
+    document.fonts?.addEventListener('loadingerror', schedule);
     return () => {
-      disposed = true;
-      cancelAnimationFrame(frame);
       observer.disconnect();
+      cancelAnimationFrame(frame);
       document.fonts?.removeEventListener('loadingdone', schedule);
-      text.style.removeProperty('font-size');
-      text.style.removeProperty('line-height');
-      text.style.removeProperty('-webkit-line-clamp');
+      document.fonts?.removeEventListener('loadingerror', schedule);
     };
-  }, [hideAuthor, preview]);
+  }, [selected, hideAuthor, preview]);
   return <article className={styles.miniCard} style={{ '--tilt': `${[-1.5, 1, -.8][index % 3]}deg` }}>
     <div data-note-surface data-unread={unread || undefined} className={`${styles.miniNote} ${hideAuthor ? styles.withoutAuthor : ''} ${styles[item.style] || styles.olive}`}>
       <button type="button" className={styles.noteReadButton} aria-label={`Read testimony: ${item.title}`} onClick={event => onRead(item, event.currentTarget)}><h3 ref={previewRef} dir="auto">{preview}</h3></button>

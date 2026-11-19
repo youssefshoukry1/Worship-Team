@@ -42,6 +42,26 @@ for (const engine of ['webkit', 'chromium']) {
     }
   });
 
+  test(`${engine}: Profile notes wait for selection before fitting and keep their fit on return to Friends`, async t => {
+    const { page } = await setup(t, engine, { href: '/friends/', beforeNavigate: async page => {
+      await page.route('**/users/testimonies/profile/tester*', route => route.fulfill({
+        headers: { 'access-control-allow-origin': '*' },
+        json: { notesVersion: 1, user: { _id: 'tester', Name: 'Tester' },
+          items: [{ _id: 'sample-note', title: 'Archived note', body: 'A longer note. '.repeat(30) }] },
+      }));
+    } });
+    const note = panel(page, '/normal_UserProfile').locator('[data-note-surface] h3');
+    await note.waitFor({ state: 'attached' });
+    await frame(page);
+    assert.equal(await note.evaluate(el => el.style.fontSize), '');
+    await page.locator('nav a[href^="/normal_UserProfile"]').click();
+    await page.waitForFunction(() => Number(document.querySelector('[data-tab-active="true"] [data-note-surface] h3')?.style.webkitLineClamp) > 0);
+    const fitted = await note.evaluate(el => el.style.cssText);
+    await page.locator('nav a[href^="/friends"]').click();
+    await page.waitForURL(base + '/friends/');
+    assert.equal(await note.evaluate(el => el.style.cssText), fitted);
+  });
+
   test(`${engine}: cold neighbors stay lightweight during a held gesture and load after navigation`, async t => {
     const { page, errors } = await setup(t, engine, { href: '/friends/', deferIdle: true });
     const preview = panel(page, '/normal_UserProfile');
