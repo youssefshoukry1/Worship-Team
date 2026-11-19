@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import axios from "axios";
 import { UserContext } from "../context/User_Context";
 import dynamic from 'next/dynamic';
+import useNativeLaunchHandoff from '../hooks/useNativeLaunchHandoff';
 import AppStartupShell from './AppStartupShell';
 import PageSkeleton, { pageSkeletonVariant } from './PageSkeleton';
 import Navbar from "../Navbar/Navbar";
@@ -34,6 +35,13 @@ export default function AppAuthGatekeeper({ children }) {
     const token = localStorage.getItem("user_Taspe7_Token");
     const name = localStorage.getItem("user_Taspe7_Username");
     return Boolean(token && !name);
+  });
+
+  const redirecting = isLogin && ["/login", "/Register"].includes(pathname?.replace(/\/$/, ''));
+  useNativeLaunchHandoff({
+    mounted: isMounted && !isSyncingProfile && !redirecting,
+    waitForPrayer: isPrayerEntry && Boolean(isLogin && username),
+    waitForUsername: Boolean(isLogin && !username) && !PUBLIC_ROUTES.includes(pathname?.replace(/\/$/, '')),
   });
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://waslaapi.duckdns.org/api";

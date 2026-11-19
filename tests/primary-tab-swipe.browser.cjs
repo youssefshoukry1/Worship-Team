@@ -28,6 +28,20 @@ async function drag(page, from, to, { cancel = false } = {}) {
 }
 
 for (const engine of ['webkit', 'chromium']) {
+  test(`${engine}: native cold launch reveals the signed-in composer or sign-in screen`, async t => {
+    for (const authenticated of [true, false]) {
+      const { page } = await setup(t, engine, {
+        authenticated, platform: engine === 'webkit' ? 'ios' : 'android',
+      });
+      await page.waitForFunction(() => window.__launchSignals?.length);
+      const signals = await page.evaluate(() => window.__launchSignals);
+      assert.equal(signals.length, 1);
+      assert.equal(signals[0].header, authenticated);
+      assert.equal(signals[0].composer, authenticated);
+      if (!authenticated) assert.equal(signals[0].signIn, true);
+    }
+  });
+
   test(`${engine}: cold neighbors stay lightweight during a held gesture and load after navigation`, async t => {
     const { page, errors } = await setup(t, engine, { href: '/friends/', deferIdle: true });
     const preview = panel(page, '/normal_UserProfile');

@@ -78,8 +78,16 @@ async function setup(t, engine, { href = '/', platform = 'ios', authenticated = 
     const files = new Map();
     window.Capacitor = {
       PluginHeaders: [{ name: 'App', methods: [{ name: 'exitApp', rtype: 'promise' }, { name: 'getLaunchUrl', rtype: 'promise' }] },
+        { name: 'WaslaLaunch', methods: [{ name: 'ready', rtype: 'promise' }] },
         { name: 'Filesystem', methods: ['readFile', 'writeFile', 'deleteFile', 'getUri'].map(name => ({ name, rtype: 'promise' })) }],
       async nativePromise(plugin, method, options) {
+        if (plugin === 'WaslaLaunch' && method === 'ready') {
+          (window.__launchSignals ||= []).push({
+            header: !!document.querySelector('nav.app-header svg'),
+            composer: !!document.querySelector('[data-tab-active="true"] textarea[data-preview-content="pray"]'),
+            signIn: !!document.querySelector('form'),
+          });
+        }
         if (method === 'exitApp') window.__exits++;
         if (plugin === 'Filesystem') {
           if (method === 'readFile') {

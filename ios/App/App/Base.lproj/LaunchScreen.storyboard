@@ -14,7 +14,20 @@
                     <view key="view" contentMode="scaleToFill" id="snD-IY-ifK">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <color key="backgroundColor" red="0.0431372549" green="0.0588235294" blue="0.0980392156" alpha="1.0" colorSpace="custom" customColorSpace="sRGB"/>
+                        <subviews>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" image="LaunchCross" translatesAutoresizingMaskIntoConstraints="NO" id="launch-cross">
+                                <rect key="frame" x="92.5" y="268.5" width="190" height="130"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="190" id="logo-width"/>
+                                    <constraint firstAttribute="height" constant="130" id="logo-height"/>
+                                </constraints>
+                            </imageView>
+                        </subviews>
+                        <constraints>
+                            <constraint firstItem="launch-cross" firstAttribute="centerX" secondItem="snD-IY-ifK" secondAttribute="centerX" id="logo-center-x"/>
+                            <constraint firstItem="launch-cross" firstAttribute="centerY" secondItem="snD-IY-ifK" secondAttribute="centerY" id="logo-center-y"/>
+                        </constraints>
+                        <color key="backgroundColor" red="0.0352941176" green="0.0509803922" blue="0.0980392156" alpha="1.0" colorSpace="custom" customColorSpace="sRGB"/>
                     </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
@@ -22,4 +35,5 @@
             <point key="canvasLocation" x="53" y="375"/>
         </scene>
     </scenes>
+    <resources><image name="LaunchCross" width="570" height="390"/></resources>
 </document>

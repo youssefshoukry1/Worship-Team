@@ -444,7 +444,7 @@ export default function ClaimUsernameModal({
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form data-launch-username onSubmit={handleSubmit} className="space-y-4">
             {/* Form Header directly above Username input */}
             <div className="text-center pt-1 pb-1">
 

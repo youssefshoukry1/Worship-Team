@@ -17,7 +17,7 @@ export default function AppStartupShell({ prayerEntry = false, variant = 'form',
       {prayerEntry && <div data-startup-prayer aria-hidden="true" inert>
         <div className="h-20 border-b border-white/5 app-header px-4 flex items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/wasla.svg" alt="" width="80" height="80" />
+          <img src="/wasla0.svg" alt="" width="80" height="80" />
         </div>
         <div className="pt-8 px-4 pb-[100px] max-w-5xl mx-auto">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:p-6 shadow-xl shadow-black/20">

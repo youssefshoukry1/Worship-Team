@@ -5,6 +5,7 @@ import android.os.Bundle;
 
 public class MainActivity extends BridgeActivity {
     private static volatile boolean foreground;
+    private LaunchCover launchCover;
 
     static boolean isForeground() {
         return foreground;
@@ -12,10 +13,23 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        androidx.core.splashscreen.SplashScreen.installSplashScreen(this);
+        registerPlugin(LaunchScreenPlugin.class);
         registerPlugin(PrayerNotificationsPlugin.class);
         registerPlugin(PrayerBackupPlugin.class);
         registerPlugin(PrayerStoragePlugin.class);
         super.onCreate(savedInstanceState);
+        if (bridge == null) return;
+        launchCover = new LaunchCover(this);
+        addContentView(launchCover, new android.view.ViewGroup.LayoutParams(-1, -1));
+        // Older OTA bundles and failed WebView loads must still expose their recovery UI.
+        launchCover.postDelayed(this::dismissLaunchCover, 10000);
+    }
+
+    void dismissLaunchCover() {
+        if (launchCover == null) return;
+        ((android.view.ViewGroup) launchCover.getParent()).removeView(launchCover);
+        launchCover = null;
     }
 
     @Override
