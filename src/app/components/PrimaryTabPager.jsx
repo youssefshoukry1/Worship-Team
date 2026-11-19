@@ -1,7 +1,8 @@
 ﻿'use client';
 
-import { lazy, Suspense, startTransition, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { lazy, memo, Suspense, startTransition, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Capacitor } from '@capacitor/core';
 import PageSkeleton from './PageSkeleton';
 import { useSwipePreference } from '../utils/swipePreferences';
 import { installInteriorSwipe, swipeSettleDuration } from '../utils/interiorSwipe';
@@ -14,7 +15,9 @@ const routes = ['/pray', '/bible_form', '/friends', '/normal_UserProfile'];
 const variants = ['cards', 'bible', 'friends', 'profile'];
 const imports = [() => import('../pray/page'), () => import('../bible_form/page'), () => import('../friends/page'), () => import('../normal_UserProfile/page')];
 const loads = imports.map(load => { let pending; return () => pending || (pending = load().catch(error => { pending = null; throw error; })); });
-const pages = loads.map(load => createFeatureBoundary(lazy(load), 'page'));
+// Pager preparation can update several times per route. Mounted pages still
+// receive their activity contexts and data updates directly.
+const pages = loads.map(load => memo(createFeatureBoundary(lazy(load), 'page')));
 
 export function primaryTabIndex(pathname) {
   const path = pathname.replace(/\/index\.html\/?$/i, '').replace(/\/+$/, '');
@@ -88,6 +91,7 @@ export default function PrimaryTabPager({ index }) {
 
   useEffect(() => {
     const root = rootRef.current;
+    root.toggleAttribute('data-android-pager', enabled && Capacitor.getPlatform() === 'android');
     let disposed = false, timer, deadline;
     const clear = () => {
       clearTimeout(timer); clearTimeout(deadline);

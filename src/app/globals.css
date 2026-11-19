@@ -249,6 +249,15 @@ html[data-startup-language="de"] [data-startup-lang="de"] { display: inline; }
 }
 .primary-tab-panel[data-swipe-moving] { background: var(--app-bg); }
 
+/* Android WebView repeatedly samples the backdrop of cards and controls as
+   their panels slide. Prepare the offscreen preview with the same inexpensive
+   surfaces used during the drag, then restore the selected page after settling. */
+[data-android-pager] .primary-tab-panel:is([data-tab-active="false"], [data-swipe-moving])
+  :is(.app-card, .app-reading-surface, [class*="backdrop-blur"]) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
 .app-page-transition {
   animation: app-page-enter 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
   will-change: opacity, transform;

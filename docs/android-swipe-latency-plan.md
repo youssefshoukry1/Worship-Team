@@ -1,6 +1,22 @@
 # Android swipe latency on the Galaxy A24
 
-**Status** — Step 1 device diagnosis complete, 19 November 2026. The hidden Profile note-fitting fix has been verified on the A24. The cause of the broader difference in settling smoothness remains open. Record changes and paired device measurements after each step.
+**Status** — On 19 November 2026, testing on the Galaxy A24 identified backdrop filtering inside the moving pages as a contributor across all four tabs. The shared pager now simplifies those surfaces during Android swipes. The measurements below use the installed 2.0.3 build as the control. Earlier 2.0.2 results are retained for context.
+
+## Same-phone comparison on 2.0.3
+
+Android FrameTimeline captured 12 swipes in phone Chrome, 24 in the installed app and 24 in the final production candidate loaded into the same WebView. Each pass used 240 ms horizontal gestures from Pray to Bible to Friends to Profile and back, twice. Every swipe reached its target. The table counts intervals over 25 ms among all intervals measured in each window. Different counts reflect the frames actually presented.
+
+| Approximate window | Phone Chrome | Installed app | Updated app |
+| --- | ---: | ---: | ---: |
+| Drag, final 200 ms of input | 8 / 85 | 24 / 146 | 3 / 176 |
+| Settle, first 160 ms after input | 14 / 81 | 34 / 158 | 4 / 197 |
+| Handoff, following 240 ms | 20 / 106 | 63 / 191 | 40 / 219 |
+
+In the updated app, the 95th percentile during dragging and settling combined was 22.4–22.6 ms in each of the six directions. The corresponding figures in the installed app were 33.6–33.8 ms. During handoff the overall 95th percentile fell from 67.1 to 56.1 ms, close to Chrome's 55.9 ms. Both app builds had a worst handoff interval of about 101 ms. Once motion finishes, the display can also go longer between presentations while content is static. These late intervals alone do not establish a visible stall.
+
+Reapplying the original styling between experiments brought back the slower frames. The pager now turns off decorative backdrop filters on hidden and moving Android tab panels and restores the active page's styling after a commit or cancellation. This targets background sampling on cards, the reader and controls. Prayer text privacy uses a separate filter. A memoized page boundary also lets pager preparation updates skip rendering a mounted page whose inputs have stayed the same. Activity, selection and page data still propagate to subscribers.
+
+The installed OTA bundle was restored after testing. These figures describe one Galaxy A24 and its current account data.
 
 ## Device evidence
 

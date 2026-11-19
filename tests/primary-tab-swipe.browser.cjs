@@ -277,6 +277,26 @@ for (const engine of ['webkit', 'chromium']) {
   });
 }
 
+test('Android restores card backdrops after a cancelled swipe and phone web keeps them throughout', async t => {
+  for (const platform of ['android', 'web']) {
+    const { page } = await setup(t, 'chromium', { platform, href: '/friends/' });
+    const card = panel(page, '/normal_UserProfile').getByTestId('profile-header-card');
+    await card.getByText('iOS Tester', { exact: true }).waitFor({ state: 'attached' });
+    await page.locator('nav a[href^="/normal_UserProfile"]').click();
+    await page.waitForURL(base + '/normal_UserProfile/');
+    const backdrop = () => card.evaluate(node => getComputedStyle(node).backdropFilter);
+    const atRest = await backdrop();
+    assert.notEqual(atRest, 'none');
+    await touch(page, 'touchstart', 80);
+    await touch(page, 'touchmove', 160);
+    await page.locator('[data-tab-active="true"][data-swipe-moving]').waitFor();
+    assert.equal(await backdrop(), platform === 'android' ? 'none' : atRest);
+    await touch(page, 'touchcancel', 160, 350, { cancel: true });
+    await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
+    assert.equal(await backdrop(), atRest);
+  }
+});
+
 test('trusted mobile drag follows the finger before navigating to the next tab', async t => {
   const { page, context, errors } = await setup(t, 'chromium', { href: '/friends/' });
   await panel(page, '/friends').locator('[data-page-skeleton]').waitFor({ state: 'detached' });
