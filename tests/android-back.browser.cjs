@@ -167,3 +167,16 @@ test('web does not install an Android Back handler', async t => {
   assert.equal(await page.evaluate(() => window.__backRegistrations), 0);
   assert.deepEqual(errors, []);
 });
+
+test('Android Back returns from Profile Notes to its original settings row', async t => {
+  const { page } = await setup(t, { href: '/normal_UserProfile/' });
+  const row = page.getByRole('button', { name: /^Notes .*records/i });
+  await row.evaluate(node => node.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  const y = await page.evaluate(() => scrollY);
+  await row.click();
+  await page.waitForURL('**/#notes');
+  await back(page);
+  await row.waitFor();
+  assert.equal(new URL(page.url()).pathname, '/normal_UserProfile/');
+  assert.equal(await page.evaluate(() => scrollY), y);
+});

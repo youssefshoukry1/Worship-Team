@@ -2,6 +2,7 @@
 
 import { useContext, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { returnFromSettings } from '../utils/profileNavigation';
 import { Capacitor } from '@capacitor/core';
 import { UserContext } from '../context/User_Context';
 import { HOME_REFRESH_EVENT, isHomePath } from '../utils/androidBack';
@@ -24,6 +25,7 @@ export default function IOSBackNavigation() {
       onInteraction: cancelNavigation,
       onBack: async () => {
         if (disposed || !localStorage.getItem('user_Taspe7_Token')) return;
+        if (returnFromSettings()) return;
         if (isHomePath(window.location.pathname)) {
           if ((document.scrollingElement?.scrollTop || window.scrollY) > 8) {
             window.scrollTo({ top: 0, left: 0, behavior: 'instant' });

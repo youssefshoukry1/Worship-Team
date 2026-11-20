@@ -1,7 +1,7 @@
 'use client';
 import PageSkeleton from '../components/PageSkeleton';
 import { useCallback, useContext, useEffect, useState } from 'react';
-import Link from 'next/link';
+import SettingsLink from '../components/profile/SettingsLink';
 import { ArrowLeft, Check, Loader2, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
 import { useLanguage } from '../context/LanguageContext';
@@ -55,7 +55,7 @@ export default function PlansPage() {
   const input = `w-full rounded-xl border px-3 py-3 outline-none focus:ring-2 focus:ring-cyan-400 bg-black/20 border-white/15 text-white`;
   return <div className="app-page min-h-screen px-4 pb-28 pt-24 text-white" dir={ar ? 'rtl' : 'ltr'}>
     <div className="mx-auto max-w-4xl">
-      <Link href="/normal_UserProfile" className={`mb-7 inline-flex items-center gap-2 text-sm ${muted}`}><ArrowLeft size={16} />{text('Back to profile', 'العودة للحساب')}</Link>
+      <SettingsLink href="/normal_UserProfile" className={`mb-7 inline-flex items-center gap-2 text-sm ${muted}`}><ArrowLeft size={16} />{text('Back to profile', 'العودة للحساب')}</SettingsLink>
       <div className="mb-8"><span className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-cyan-500"><Sparkles size={18} />Wasla</span>
         <h1 className="text-3xl font-bold">{text('A little more room to explore.', 'مساحة أكبر للفهم والتأمل.')}</h1>
         <p className={`mt-3 max-w-xl leading-7 ${muted}`}>{text('Choose the AI allowance that fits your reading. Every plan includes explanation, references and practical application.', 'اختر رصيد الذكاء الاصطناعي المناسب لقراءتك. التفسير والمراجع والتطبيق متاحة في كل الخطط.')}</p>
@@ -109,7 +109,7 @@ export default function PlansPage() {
         </div>
         <div className={`mt-6 flex items-start gap-2 text-sm leading-6 ${muted}`}><ShieldCheck className="mt-1 shrink-0" size={17} /><p>{text('Your token allowance resets 24 hours after first use. Longer passages and deeper responses may use more tokens. Unused tokens do not roll over, and failed requests do not consume your allowance.', 'يتجدد رصيد التوكنز بعد ٢٤ ساعة من أول استخدام. قد تستهلك المقاطع الأطول والإجابات الأعمق توكنز أكثر. لا يتراكم الرصيد غير المستخدم، ولا تُخصم الطلبات الفاشلة.')}</p></div>
         <p className={`mt-4 text-sm leading-7 ${muted}`}>{data.platform === 'paymob' ? text('Website payments use Paymob. Card and wallet options depend on availability at checkout. Your pass does not renew automatically.', 'الدفع على الموقع عبر Paymob. تظهر البطاقات والمحافظ المتاحة أثناء الدفع. لا تتجدد الباقة تلقائياً.') : text('Subscriptions are billed by your app store and renew automatically until canceled in store settings. Cancellation keeps access until the paid period ends.', 'يُحصّل متجر التطبيقات قيمة الاشتراك ويتجدد تلقائياً حتى إلغائه من إعدادات المتجر. يظل الوصول متاحاً حتى نهاية الفترة المدفوعة.')}</p>
-        <div className={`mt-5 flex flex-wrap gap-5 text-sm ${muted}`}><Link href="/subscription-terms" className="underline">{text('Subscription terms', 'شروط الاشتراك')}</Link><Link href="/privacy-policy" className="underline">{text('Privacy policy', 'سياسة الخصوصية')}</Link>{data.catalog.supportEmail && <a href={`mailto:${data.catalog.supportEmail}`} className="underline">{text('Contact support', 'تواصل مع الدعم')}</a>}</div>
+        <div className={`mt-5 flex flex-wrap gap-5 text-sm ${muted}`}><SettingsLink href="/subscription-terms" className="underline">{text('Subscription terms', 'شروط الاشتراك')}</SettingsLink><SettingsLink href="/privacy-policy" className="underline">{text('Privacy policy', 'سياسة الخصوصية')}</SettingsLink>{data.catalog.supportEmail && <a href={`mailto:${data.catalog.supportEmail}`} className="underline">{text('Contact support', 'تواصل مع الدعم')}</a>}</div>
       </>}
       {selected && <section className={`mt-8 rounded-2xl border p-6 ${panel}`} aria-label={text('Billing details', 'بيانات الدفع')}>
         <h2 className="text-xl font-semibold">{text(`Subscribe to ${selected.title}`, `الاشتراك في ${selected.title}`)}</h2>

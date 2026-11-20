@@ -2,6 +2,7 @@
 
 import { useContext, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { returnFromSettings } from '../utils/profileNavigation';
 import { Capacitor } from '@capacitor/core';
 import { UserContext } from '../context/User_Context';
 import { createAndroidBackController, HOME_REFRESH_EVENT } from '../utils/androidBack';
@@ -49,7 +50,7 @@ export default function AndroidBackNavigation() {
     document.addEventListener('visibilitychange', reset);
     import('@capacitor/app').then(async ({ App }) => {
       const handle = await App.addListener('backButton', () => {
-        if (!disposed) controller.back();
+        if (!disposed && !returnFromSettings()) controller.back();
       });
       if (disposed) await handle.remove();
       else listener = handle;

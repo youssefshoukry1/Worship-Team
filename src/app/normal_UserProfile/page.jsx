@@ -1,8 +1,9 @@
 'use client';
 
-import { Suspense, useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { Suspense, useContext, useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { isProfilePath, openProfileView, profileScrollPosition, profileView, rememberSettingsRoute, returnFromSettings } from '../utils/profileNavigation';
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -363,57 +364,35 @@ function UserProfile({ profileUserId }) {
         return groupNotes(profile?.bibleNotes || []);
     }, [profile?.bibleNotes]);
 
-    // Handles sub-page navigation with browser history
-    const navigateToView = (view) => {
+    const navigateToView = view => {
         if (!isOwner) return;
+        openProfileView(view);
         setCurrentView(view);
-        if (typeof window !== 'undefined') {
-            window.history.pushState({ profileView: view }, '', `#${view}`);
-            window.scrollTo({ top: 0, behavior: 'instant' });
-        }
+    };
+    const openSettingsRoute = href => {
+        rememberSettingsRoute(href);
+        router.push(href);
     };
 
-    // Returns to main settings menu
-    const goBackToMenu = () => {
-        if (typeof window !== 'undefined' && window.location.hash) {
-            window.history.back();
-        } else {
-            setCurrentView('menu');
-            if (typeof window !== 'undefined') {
-                window.scrollTo({ top: 0, behavior: 'instant' });
-            }
-        }
-    };
-
-    // Synchronizes view state with browser back/forward buttons
-    useEffect(() => {
-        if (!isOwner) return;
-        const handlePopState = (e) => {
-            if (e.state?.profileView) {
-                setCurrentView(e.state.profileView);
-            } else if (typeof window !== 'undefined' && window.location.hash) {
-                const hash = window.location.hash.replace('#', '');
-                if (['highlights', 'notes', 'bible_settings'].includes(hash)) {
-                    setCurrentView(hash);
-                    return;
-                }
-                setCurrentView('menu');
-            } else {
-                setCurrentView('menu');
-            }
+    useLayoutEffect(() => {
+        if (!isOwner || !pageActive) return;
+        const sync = () => setCurrentView(profileView());
+        sync();
+        window.addEventListener('popstate', sync);
+        window.addEventListener('hashchange', sync);
+        return () => {
+            window.removeEventListener('popstate', sync);
+            window.removeEventListener('hashchange', sync);
         };
+    }, [isOwner, pageActive]);
 
-        if (typeof window !== 'undefined' && window.location.hash) {
-            const hash = window.location.hash.replace('#', '');
-            if (['highlights', 'notes', 'bible_settings'].includes(hash)) {
-                setCurrentView(hash);
-            }
-        }
+    useLayoutEffect(() => {
+        if (!isOwner || !pageActive || !isProfilePath(location.pathname)
+            || currentView !== profileView()) return;
+        const top = profileScrollPosition();
+        if (currentView !== 'menu' || top != null) window.scrollTo({ top: top ?? 0, behavior: 'instant' });
+    }, [currentView, isOwner, pageActive]);
 
-        window.addEventListener('popstate', handlePopState);
-        return () => window.removeEventListener('popstate', handlePopState);
-    }, [isOwner]);
-    
     const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
     const isUploadingPhoto = isProcessingPhoto || isUploadingProfilePhoto;
     const fileInputRef = useRef(null);
@@ -1147,7 +1126,7 @@ function UserProfile({ profileUserId }) {
                                 <div className="app-card rounded-xl border divide-y divide-white/5 overflow-hidden">
                                     <button
                                         type="button"
-                                        onClick={() => router.push('/plans')}
+                                        onClick={() => openSettingsRoute('/plans')}
                                         className="w-full flex items-center justify-between min-h-[52px] px-4 py-2 hover:bg-white/5 transition-colors text-left gap-3"
                                     >
                                         <div className="flex items-center gap-3">
@@ -1199,7 +1178,7 @@ function UserProfile({ profileUserId }) {
                             {(profile?.user?.global_role || profile?.user?.role) === 'PROGRAMER' && (
                                 <div>
                                     <h3 className="mb-2 px-1 text-xs font-medium text-slate-400">{t('roleProgrammer')}</h3>
-                                    <button type="button" onClick={() => router.push('/ProgramerDashboard')} className="flex w-full items-center justify-between rounded-xl border border-sky-400/20 bg-sky-400/5 min-h-11 px-3 py-2 text-left hover:bg-sky-400/10">
+                                    <button type="button" onClick={() => openSettingsRoute('/ProgramerDashboard')} className="flex w-full items-center justify-between rounded-xl border border-sky-400/20 bg-sky-400/5 min-h-11 px-3 py-2 text-left hover:bg-sky-400/10">
                                         <div className="flex items-center gap-2.5"><div><span className="block text-sm font-medium text-white">{t('appControlCenter')}</span><span className="mt-0.5 block text-xs text-slate-400">{t('appControlCenterDesc')}</span></div></div>
                                     </button>
                                 </div>
@@ -1302,7 +1281,7 @@ function UserProfile({ profileUserId }) {
                                     <div className="flex items-center gap-3">
                                         <button
                                             type="button"
-                                            onClick={goBackToMenu}
+                                            onClick={returnFromSettings}
                                             className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white transition-colors shrink-0"
                                             title={t('back')}
                                         >
@@ -1419,7 +1398,7 @@ function UserProfile({ profileUserId }) {
                                     <div className="flex items-center gap-3">
                                         <button
                                             type="button"
-                                            onClick={goBackToMenu}
+                                            onClick={returnFromSettings}
                                             className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white transition-colors shrink-0"
                                             title={t('back')}
                                         >
@@ -1548,7 +1527,7 @@ function UserProfile({ profileUserId }) {
                                 <div className="flex items-center gap-3 mb-6">
                                     <button
                                         type="button"
-                                        onClick={goBackToMenu}
+                                        onClick={returnFromSettings}
                                         className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white transition-colors shrink-0"
                                         title={t('back')}
                                     >

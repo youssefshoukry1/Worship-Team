@@ -217,3 +217,12 @@ test('trusted mobile finger drags: edge horizontal triggers Back, vertical and m
   await page.evaluate(() => window.__gestures.dispose());
   await drag(8, 400, 140, 0); assert.equal(await page.evaluate(() => window.__backs), 2);
 });
+
+test('iOS edge Back opens the Profile menu from a bookmarked settings view', async t => {
+  const { page } = await setup(t, 'webkit', { href: '/normal_UserProfile/#highlights' });
+  await page.getByRole('heading', { name: 'Bible Highlights' }).waitFor();
+  await swipe(page, { selector: '[data-tab-active="true"] h1' });
+  await page.getByRole('button', { name: /^Highlights .*records/i }).waitFor();
+  assert.equal(new URL(page.url()).hash, '');
+  assert.equal(new URL(page.url()).pathname, '/normal_UserProfile/');
+});

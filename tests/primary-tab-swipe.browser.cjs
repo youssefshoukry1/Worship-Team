@@ -611,3 +611,46 @@ test('a second signed-in account starts with its own Friends view and Profile id
   await panel(page, '/normal_UserProfile').getByText('Second tester', { exact: true }).waitFor();
   assert.equal(await panel(page, '/normal_UserProfile').getByText('iOS Tester', { exact: true }).count(), 0);
 });
+
+for (const engine of ['webkit', 'chromium']) {
+  test(`${engine}: Profile settings Back restores the same menu position`, async t => {
+    const { page } = await setup(t, engine, { href: '/normal_UserProfile/', beforeNavigate: async page => {
+      await page.route('**/billing/catalog', route => route.fulfill({ json: { plans: [], providers: {} } }));
+    } });
+    const settings = panel(page, '/normal_UserProfile');
+    for (const [label, hash] of [[/^Highlights/i, 'highlights'], [/^Notes/i, 'notes'], [/^settings/i, 'bible_settings']]) {
+      const row = settings.getByRole('button', { name: label }).first();
+      await row.evaluate(node => node.scrollIntoView({ block: 'center', behavior: 'instant' }));
+      const y = await page.evaluate(() => scrollY);
+      assert.ok(y > 50);
+      await row.tap();
+      await page.waitForURL('**/#' + hash);
+      await page.waitForFunction(() => scrollY === 0);
+      if (hash === 'notes') {
+        await settings.getByRole('button', { name: 'Back', exact: true }).tap();
+      } else {
+        await drag(page, 70, 85, { cancel: true });
+        assert.equal(new URL(page.url()).hash, '#' + hash);
+        await drag(page, 70, 255);
+      }
+      await row.waitFor();
+      await page.waitForFunction(top => Math.abs(scrollY - top) <= 2, y);
+      assert.equal(new URL(page.url()).hash, '');
+    }
+    const plans = settings.getByRole('button', { name: /Plans & subscription/i });
+    await plans.evaluate(node => node.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    const y = await page.evaluate(() => scrollY);
+    await plans.tap();
+    await page.getByRole('link', { name: 'Subscription terms' }).click();
+    const terms = page.getByRole('link', { name: 'Back to plans' });
+    await terms.waitFor();
+    for (const [type, x] of [['touchstart', 70], ['touchmove', 230], ['touchend', 230]]) {
+      await touch(page, type, x, 350, { selector: '.app-page-transition' });
+    }
+    await page.waitForURL('**/plans/');
+    await page.getByRole('link', { name: 'Back to profile' }).click();
+    await plans.waitFor();
+    await page.waitForFunction(top => Math.abs(scrollY - top) <= 2, y);
+    assert.equal((await page.locator('nav [aria-current="page"]').innerText()).trim(), 'Profile');
+  });
+}

@@ -2,7 +2,7 @@
 import PageSkeleton from '../../components/PageSkeleton';
 
 import { useContext, useState } from 'react';
-import Link from 'next/link';
+import SettingsLink from '../../components/profile/SettingsLink';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShieldCheck, RefreshCw, Package, Users, Smartphone, FlaskConical, Pause, ArrowUpRight, Check, Loader2, SlidersHorizontal } from 'lucide-react';
 import { UserContext } from '../../context/User_Context';
@@ -84,7 +84,7 @@ export default function OtaControlPage() {
         },
     });
 
-    if (!allowed || [401, 403].includes(query.error?.status)) return <div className="mx-auto max-w-lg px-5 py-24 text-center"><ShieldCheck className="mx-auto mb-4 text-slate-400" size={36} /><h1 className="text-2xl font-bold">Private dashboard</h1><p className="mt-3 text-slate-400">Only PROGRAMER accounts can access these controls.</p><Link href="/normal_UserProfile" className={`${button} mt-6`}>Back to profile</Link></div>;
+    if (!allowed || [401, 403].includes(query.error?.status)) return <div className="mx-auto max-w-lg px-5 py-24 text-center"><ShieldCheck className="mx-auto mb-4 text-slate-400" size={36} /><h1 className="text-2xl font-bold">Private dashboard</h1><p className="mt-3 text-slate-400">Only PROGRAMER accounts can access these controls.</p><SettingsLink href="/normal_UserProfile" className={`${button} mt-6`}>Back to profile</SettingsLink></div>;
 
     const data = query.data;
     const candidate = data?.candidate;
@@ -100,7 +100,7 @@ export default function OtaControlPage() {
 
     return <div className="app-page min-h-screen px-4 pb-28 pt-8 text-slate-200 sm:px-7 sm:pt-12" dir="ltr">
         <div className="mx-auto max-w-6xl">
-            <Link href="/ProgramerDashboard" className="mb-5 inline-block text-sm text-sky-300 hover:text-sky-200">← App control center</Link>
+            <SettingsLink href="/ProgramerDashboard" className="mb-5 inline-block text-sm text-sky-300 hover:text-sky-200">← App control center</SettingsLink>
             <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
                 <div><div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-300"><ShieldCheck size={15} />PROGRAMER</div><h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">App control center</h1><p className="mt-2 text-sm text-slate-400">Test privately. Release when you’re ready.</p></div>
                 <button className={button} disabled={query.isFetching || save.isPending} onClick={() => query.refetch()}><RefreshCw size={16} className={query.isFetching ? 'animate-spin' : ''} />Refresh</button>

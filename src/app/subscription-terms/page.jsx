@@ -1,5 +1,5 @@
 'use client';
-import Link from 'next/link';
+import SettingsLink from '../components/profile/SettingsLink';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function SubscriptionTerms() {
@@ -21,9 +21,9 @@ export default function SubscriptionTerms() {
     'AI is a study aid and can make mistakes. Consult the biblical text and context when assessing answers.'
   ];
   return <article className="app-page min-h-screen px-5 pb-24 pt-24 text-slate-100" dir={ar ? 'rtl' : 'ltr'}><div className="mx-auto max-w-2xl">
-    <Link href="/plans" className="text-sm text-cyan-500">{ar ? 'العودة للخطط' : 'Back to plans'}</Link>
+    <SettingsLink href="/plans" className="text-sm text-cyan-500">{ar ? 'العودة للخطط' : 'Back to plans'}</SettingsLink>
     <h1 className="mb-8 mt-6 text-3xl font-bold">{ar ? 'شروط الاشتراك' : 'Subscription terms'}</h1>
     {paragraphs.map(paragraph => <p key={paragraph} className={`mb-6 text-base leading-8 text-slate-300`}>{paragraph}</p>)}
-    <Link href="/privacy-policy" className="text-cyan-500 underline">{ar ? 'سياسة الخصوصية' : 'Privacy policy'}</Link>
+    <SettingsLink href="/privacy-policy" className="text-cyan-500 underline">{ar ? 'سياسة الخصوصية' : 'Privacy policy'}</SettingsLink>
   </div></article>;
 }

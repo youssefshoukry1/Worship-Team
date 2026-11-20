@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { settingsParent } from '../utils/profileNavigation';
 import { usePathname } from 'next/navigation';
 import { Heart, BookOpen, Users, User } from 'lucide-react';
 import useTabNavigation, { normalizeTabPath } from '../hooks/useTabNavigation';
@@ -25,7 +26,8 @@ export default function BottomNav() {
   const lastScrollY = useRef(0);
   const { navigate, pendingHref } = useTabNavigation();
 
-  const visualPath = normalizeTabPath(pendingHref || pathname);
+  const settingsActive = typeof window !== 'undefined' && settingsParent();
+  const visualPath = normalizeTabPath(pendingHref || (settingsActive ? '/normal_UserProfile' : pathname));
 
   // Hide bottom nav when soft keyboard opens
   useEffect(() => {

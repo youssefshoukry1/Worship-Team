@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Capacitor } from '@capacitor/core';
 import PageSkeleton from './PageSkeleton';
 import { useSwipePreference } from '../utils/swipePreferences';
+import { profileView, returnFromSettings } from '../utils/profileNavigation';
 import { installInteriorSwipe, swipeSettleDuration } from '../utils/interiorSwipe';
 import { ensureNavigationServiceWorker, navigateDocumentFallback } from '../utils/appNavigation';
 import { holdNavigationWork, releaseNavigationWork } from '../utils/navigationWork';
@@ -207,10 +208,16 @@ export default function PrimaryTabPager({ index }) {
       timer = setTimeout(reveal, 1200);
       whenReady(active, reveal);
     };
+    let settingsGesture = false;
     const remove = enabled ? installInteriorSwipe({
       element: root,
       begin: direction => {
+        settingsGesture = false;
         if (session.current) return false;
+        if (indexRef.current === 3 && profileView() !== 'menu') {
+          settingsGesture = direction === -1;
+          return settingsGesture;
+        }
         const target = indexRef.current + direction;
         if (!pages[target]) return false;
         const source = root.querySelector(`[data-tab-index="${indexRef.current}"]`);
@@ -227,7 +234,14 @@ export default function PrimaryTabPager({ index }) {
           move(active.amount);
         });
         return true;
-      }, update: move, finish: settle, cancel: () => settle(false),
+      },
+      update: move,
+      finish: (completed, release) => {
+        if (!settingsGesture) settle(completed, release);
+        else if (completed) returnFromSettings();
+        settingsGesture = false;
+      },
+      cancel: () => { settingsGesture = false; settle(false); },
     }) : () => {};
     const onTabTap = event => {
       // A tap on the current tab must supersede even an already dispatched push.

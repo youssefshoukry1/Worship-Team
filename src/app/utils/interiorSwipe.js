@@ -57,7 +57,7 @@ export function installInteriorSwipe({ element, begin, update, finish, cancel, w
     const now = win.performance.now();
     touch.samples.push({ time: now, amount: distance });
     touch.samples = touch.samples.filter(sample => now - sample.time <= 120).slice(-12);
-    if (frame === null) frame = win.requestAnimationFrame(() => { frame = null; update(distance); });
+    if (update && frame === null) frame = win.requestAnimationFrame(() => { frame = null; update(distance); });
   }
   function end(event) {
     if (!touch) return;
@@ -70,7 +70,7 @@ export function installInteriorSwipe({ element, begin, update, finish, cancel, w
       const now = win.performance.now();
       if (amount !== current.samples.at(-1)?.amount) current.samples.push({ time: now, amount });
       const { completed, velocity } = swipeRelease(current.samples, amount, win.innerWidth, now);
-      update(Math.min(win.innerWidth, amount));
+      update?.(Math.min(win.innerWidth, amount));
       reset();
       finish(completed, { velocity });
     } else abort();
