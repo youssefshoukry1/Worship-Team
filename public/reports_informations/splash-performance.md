@@ -1,6 +1,6 @@
 # Splash performance and cold startup
 
-Reviewed 20 November 2026. On a normal signed-in launch, Wasla keeps a fixed native logo visible until the Pray editor is ready to appear. The Galaxy A24 took about 2.6 seconds to reach that screen. The active launch path has no fixed two-second delay.
+Updated 20 November 2026. On a returning signed-in phone launch, Wasla can reveal the public Pray layout before React attaches the editor. In the latest Galaxy A24 comparison, the median time to remove the native cover was 1.09 seconds. See the final section for the test conditions.
 
 ## From the app icon to Pray
 
@@ -8,7 +8,7 @@ Reviewed 20 November 2026. On a normal signed-in launch, Wasla keeps a fixed nat
 | --- | --- |
 | Android launch | Android displays the launch theme. `MainActivity` starts Capacitor and places a native logo view over the WebView. The installed Galaxy A24 resolved the launcher intent directly to `MainActivity`. [Manifest](../../android/app/src/main/AndroidManifest.xml) · [MainActivity](../../android/app/src/main/java/com/worship/app/MainActivity.java) · [Logo view](../../android/app/src/main/java/com/worship/app/LaunchCover.java) |
 | iOS launch | iOS displays the launch storyboard. The Swift bridge controller then places a matching native view over the web content. This path was verified from source. Physical-device timings below are Android only. [Storyboard](../../ios/App/App/Base.lproj/LaunchScreen.storyboard) · [Bridge controller](../../ios/App/App/PrayerBridgeViewController.swift) |
-| Web screen ready | For a signed-in user with a cached username, the handoff looks for the header logo and the real textarea in the active Pray panel. A rendered error alert can also release the cover. After two animation frames it checks again and calls `WaslaLaunch.ready()`. [Handoff](../../src/app/hooks/useNativeLaunchHandoff.js) |
+| Web screen ready | On phone-width native Pray entry, a cached token and username enable an early handoff from the exported HTML. The live editor replaces the public view once the header and composer have mounted. Other routes, larger layouts, and missing native bridge support use the regular handoff. [Preview](../../src/app/utils/startPrayerPreview.js) ? [Handoff](../../src/app/hooks/useNativeLaunchHandoff.js) |
 | Cover removed | Android waits for the WebView visual-state callback and removes the logo. iOS removes its cover on the main thread. This lets the user go directly from the logo to the first screen. [Android callback](../../android/app/src/main/java/com/worship/app/LaunchScreenPlugin.java) · [iOS callback](../../ios/App/App/PrayerBridgeViewController.swift) |
 
 ## Timers and exceptions
@@ -97,3 +97,46 @@ The updated build reached the handoff **291 ms earlier at the median** and **477
 A separate screen recording per build measured from the first visible launcher transition to the first frame matching the Pray card. It showed **2.444 s before** and **2.175 s after**. These recordings use visual endpoints and do not contribute to the 20-run statistics.
 
 In input spot checks, one automated tap immediately followed by a keystroke failed verification on the updated build. Two immediate reruns retained the character. Three additional cold starts that checked editor focus before issuing the keystroke also passed. The cause of the single miss is unresolved.
+
+### Android release trace on the Galaxy A24
+
+On 20 November 2026, an isolated, non-debuggable, shell-profileable release APK used the production web export, a synthetic cached account, an empty journal, and disabled push registration. It ran with the built-in web bundle on Android 16 and Android System WebView 157.0.8103.38. After one warm-up, the test force-stopped only its own package before each of nine launches. Perfetto identified all nine as cold and captured both the local loading marker and the successful native visual callback in every trace. A screenshot after the final run confirmed the Pray editor was visible. Input latency was outside this measurement.
+
+| Interval | Median | Observed range |
+| --- | ---: | ---: |
+| Android launch start to entry into Capacitor's activity creation | 197 ms | 180–216 ms |
+| Inflate the layout containing the first WebView | 171 ms | 161–199 ms |
+| Register all enabled Capacitor plugins | 28 ms | 26–34 ms |
+| Android launch start to Capacitor's local loading marker | 416 ms | 397–471 ms |
+| Local loading marker to removal of the native cover | 904 ms | 878–964 ms |
+| Android launch start to removal of the native cover | 1,330 ms | 1,275–1,409 ms |
+
+The rows overlap. Within WebView creation, Chromium initialization took a median 115 ms. Within plugin registration, the OTA updater's load hook took 20 ms. WorkManager initialization took 8 ms during application startup. Clearing delivered notifications during resume took less than 1 ms with an empty tray. These measurements favor keeping backup and OTA initialization in their current order. Push-enabled production startup, a full notification tray, and iOS require separate measurements.
+
+The earlier debug benchmark started its clock before the shell launch command. This release trace starts at Android's launch event, uses a different build type, and was collected in a separate session. The difference between their totals cannot be attributed to a code change. To investigate the largest remaining interval, trace local document navigation, JavaScript execution, the active editor commit, the ready call, and the WebView visual callback together in the same release build. The 904 ms includes WebView loading and display work as well as the frontend.
+
+### From local navigation to the visible Pray editor
+
+Nine additional process cold starts used the same A24 release fixture. Test-only markers recorded the first inline script, React's `hydrateRoot` call, attachment of the enabled textarea in the active Pray panel, the JavaScript ready call, and native cover removal. Five WebView clock samples taken after each handoff aligned browser and native time. The fastest round trip in each launch ranged from 1.0 to 4.1 ms.
+
+| Consecutive interval | Median |
+| --- | ---: |
+| Capacitor's local loading marker to document navigation start | 3 ms |
+| Navigation start to the first inline script | 233 ms |
+| First inline script to the start of React hydration | 189 ms |
+| Start of hydration to attachment of the active editor | 198 ms |
+| Editor attachment to JavaScript signaling ready | 81 ms |
+| JavaScript ready signal to native cover removal | 202 ms |
+
+The full interval had a median of **910 ms** and ranged from 893 to 1,015 ms. Each row has its own median. The local HTML response finished 149 ms after navigation began. By the time hydration began, WebView had completed 21 local JavaScript resource loads. The hydration interval includes scheduling and rendering the first screen. These timings do not isolate CPU cost per script.
+
+During the final 202 ms, the Android UI thread spent a median **160 ms** inside frame-drawing `postAndWait` calls. This identifies overlap with rendering, without assigning the wait to a particular effect or view. A focused next experiment is to move one optional dependency out of the initial Pray bundle and compare editor attachment and visible Pray together. Keep the enabled-editor and native visual checks while testing. These measurements describe a returning cached account on Android with push disabled.
+
+
+### Early Pray layout on returning phone launches
+
+The native logo can hand off to the exported Pray layout on viewports up to 767 CSS pixels. It shows the four-tab navigation, header, empty composer and journal card placeholders. The layout reads only the cached session flag, theme and language. It contains no draft or saved journal content. A completed tap inside its text area requests focus on the live editor. The editor applies the saved privacy preference before paint. Native cover removal and release of deferred services are separate events. Journal reads still wait for the live screen. [Public layout](../../src/app/components/AppStartupShell.jsx) ? [Auth gate](../../src/app/components/AppAuthGatekeeper.jsx)
+
+Ten alternating before/after pairs on the Galaxy A24 used isolated release builds with the same cached test account, empty journal, disabled push and local production exports. Each build had one warm-up. Each timed launch started from a stopped process. One foreground-focus check failed and that pair was repeated. Device launch command to native cover removal had a median of **1,438 ms before** and **1,085 ms after** (about 0.35 seconds earlier). The new range was 769?1,473 ms. This measures when the screen is shown. It does not measure time to the first saved note.
+
+The phone recording showed the fixed logo giving way directly to Pray. A single tap near cover removal opened the keyboard and the typed test word appeared. Chromium and WebKit tests also held the JavaScript bundles, tapped the public layout, resumed hydration, and verified editor position, focus, privacy, the first character, and one native ready signal. Physical iPhone timing is outstanding. Compatible installed shells can receive the change through a web-bundle OTA update.

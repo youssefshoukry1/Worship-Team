@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { finishNativeLaunch } from "../utils/nativeLaunch";
 
@@ -8,7 +8,9 @@ const launch = registerPlugin("WaslaLaunch");
 let signalled = false;
 
 export default function useNativeLaunchHandoff({ mounted, waitForPrayer, waitForUsername }) {
+  const [completed, setCompleted] = useState(false);
   useEffect(() => {
+    if (mounted && !waitForPrayer) window.waslaPrayerPreview?.close();
     if (!mounted || signalled || !Capacitor.isPluginAvailable("WaslaLaunch")) return;
     let frame;
     let observer;
@@ -29,7 +31,18 @@ export default function useNativeLaunchHandoff({ mounted, waitForPrayer, waitFor
           observer?.disconnect();
           signalled = true;
           performance.mark("wasla-launch-screen-ready");
-          void launch.ready().then(finishNativeLaunch).catch(() => { /* Use the recovery deadline. */ });
+          const preview = window.waslaPrayerPreview;
+          const focusRequested = preview?.focusRequested;
+          preview?.close();
+          if (preview) setCompleted(true);
+          if (focusRequested) {
+            const editor = document.querySelector('[data-tab-active="true"] textarea[data-preview-content="pray"]') ||
+              document.querySelector('textarea[data-preview-content="pray"]');
+            editor?.focus({ preventScroll: true });
+          }
+          const visible = preview?.visible;
+          const handoff = visible ? visible.then(shown => shown || launch.ready()) : launch.ready();
+          void handoff.then(finishNativeLaunch).catch(() => { /* Use the recovery deadline. */ });
         });
       });
     };
@@ -38,4 +51,5 @@ export default function useNativeLaunchHandoff({ mounted, waitForPrayer, waitFor
     check();
     return () => { cancelAnimationFrame(frame); observer.disconnect(); };
   }, [mounted, waitForPrayer, waitForUsername]);
+  return !completed && typeof window !== 'undefined' && Boolean(window.waslaPrayerPreview);
 }

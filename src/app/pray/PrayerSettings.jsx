@@ -14,10 +14,10 @@ export default function PrayerSettings({ pageRef, prayList, token, userId, onRes
         try { localStorage.setItem('taspe7_prayer_privacy', JSON.stringify(pending.current)); } catch { /* Session preference still works. */ }
         pending.current = null;
     };
-    useEffect(() => {
+    useLayoutEffect(() => {
         try {
             const saved = JSON.parse(localStorage.getItem('taspe7_prayer_privacy') || 'null');
-            // Hydrate browser-only preferences after the server/client default render.
+            // Apply saved privacy before the editor can paint or receive a queued tap.
             // eslint-disable-next-line react-hooks/set-state-in-effect
             if (saved) setPrivacy({ enabled: saved.enabled === true, strength: Math.min(4, Math.max(1, Number(saved.strength) || 2)) });
         } catch { /* Use defaults if storage is unavailable. */ }

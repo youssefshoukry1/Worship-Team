@@ -26,7 +26,7 @@ export default function AppAuthGatekeeper({ children }) {
   const isPrayerEntry = ['/', '/index.html', '/pray', '/pray/', '/pray/index.html'].includes(pathname);
   const router = useRouter();
   const redirecting = isLogin && ["/login", "/Register"].includes(pathname?.replace(/\/$/, ''));
-  useNativeLaunchHandoff({
+  const previewOpen = useNativeLaunchHandoff({
     mounted: isMounted && !redirecting,
     waitForPrayer: isPrayerEntry && Boolean(isLogin && username),
     waitForUsername: Boolean(isLogin && !username) && !PUBLIC_ROUTES.includes(pathname?.replace(/\/$/, '')),
@@ -46,9 +46,9 @@ export default function AppAuthGatekeeper({ children }) {
   }, [isLogin, pathname, router]);
 
   // Static public layout is ready before hydration; private data remains gated.
-  if (!isMounted) {
-    return <AppStartupShell prayerEntry={isPrayerEntry} variant={pageSkeletonVariant(pathname)} publicPage={PUBLIC_ROUTES.includes(pathname.replace(/\/$/, ''))} />;
-  }
+  const shell = (!isMounted || (previewOpen && isPrayerEntry)) &&
+    <AppStartupShell key="launch" prayerEntry={isPrayerEntry} variant={pageSkeletonVariant(pathname)} publicPage={PUBLIC_ROUTES.includes(pathname.replace(/\/$/, ''))} />;
+  if (!isMounted) return <>{shell}</>;
 
   // Allow public routes without authentication
   if (PUBLIC_ROUTES.includes(pathname.replace(/\/$/, ''))) {
@@ -78,6 +78,7 @@ export default function AppAuthGatekeeper({ children }) {
   // Case 3: Fully authenticated with @username -> Full App access
   return (
     <>
+      {shell}
       <Navbar />
       <PageTransition>{children}</PageTransition>
       <BottomNav />

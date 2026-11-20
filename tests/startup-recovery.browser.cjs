@@ -6,6 +6,43 @@ const { start, stop, setup } = require('./helpers/swipe-browser.cjs');
 before(() => start(['chromium', 'webkit']));
 after(stop);
 
+for (const engine of ['chromium', 'webkit']) {
+  test(engine + ': a tap on the first Pray layout focuses the private editor after hydration', async t => {
+    const { page } = await setup(t, engine, { waitForPrayReads: false });
+    await page.evaluate(() => localStorage.setItem('taspe7_prayer_privacy', JSON.stringify({ enabled: true, strength: 3 })));
+    await page.route(url => url.pathname === '/', async route => {
+      const response = await route.fetch();
+      const html = await response.text();
+      const bridge = '<script>Capacitor.Plugins={WaslaLaunch:{ready:()=>Capacitor.nativePromise("WaslaLaunch","ready",{})}}</script>';
+      await route.fulfill({ response, body: html.replace('<head>', '<head>' + bridge) });
+    });
+    let release;
+    const held = new Promise(resolve => { release = resolve; });
+    await page.route('**/_next/static/chunks/*.js', async route => {
+      await held;
+      await route.continue().catch(() => {});
+    });
+    try {
+      await page.reload({ waitUntil: 'commit' });
+      await page.waitForFunction(() => window.__launchSignals?.length === 1);
+      assert.equal(await page.locator('textarea').count(), 0);
+      const field = await page.locator('[data-startup-editor]').boundingBox();
+      await page.touchscreen.tap(field.x + 12, field.y + 12);
+      assert.ok(await page.evaluate(() => window.waslaPrayerPreview.focusRequested));
+      release();
+      const editor = page.locator('[data-tab-active="true"] textarea[data-preview-content="pray"]');
+      await page.waitForFunction(() => document.activeElement?.matches('textarea[data-preview-content="pray"]'));
+      assert.equal(await editor.evaluate(el => getComputedStyle(el).color), 'rgba(0, 0, 0, 0)');
+      const live = await editor.boundingBox();
+      assert.ok(Math.abs(live.y - field.y) <= 2, JSON.stringify({ field, live }));
+      await page.keyboard.type('a');
+      assert.equal(await editor.inputValue(), 'a');
+      assert.equal(await page.locator('[data-startup-shell]').count(), 0);
+      assert.equal(await page.evaluate(() => window.__launchSignals.length), 1);
+    } finally { release(); }
+  });
+}
+
 async function recover(t, engine, respond) {
   const { page } = await setup(t, engine, { href: '/pray/', platform: engine === 'webkit' ? 'ios' : 'android', waitForPrayReads: false });
   await page.evaluate(() => localStorage.removeItem('user_Taspe7_Username'));

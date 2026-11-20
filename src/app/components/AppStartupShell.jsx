@@ -1,54 +1,66 @@
-import { Heart, BookOpen, Music, Users, User, Mic, Share2, Check, Lock, MoreVertical } from 'lucide-react';
-import PageSkeleton from './PageSkeleton';
+import { Heart, BookOpen, Users, User, Mic, Share2, Check, Lock, MoreVertical } from 'lucide-react';
+import PageSkeleton, { PrayerCardsSkeleton } from './PageSkeleton';
+import WaslaLogo from '../Navbar/WaslaLogo';
+import { translations } from '../i18n/translations';
+import { prayerCircleText } from '../pray/prayerCircleText';
+import styles from '../pray/PrayerBackup.module.css';
+import { startPrayerPreview } from '../utils/startPrayerPreview';
 
-function Label({ en, ar, de }) {
-  return <><span data-startup-lang="en">{en}</span><span data-startup-lang="ar">{ar}</span><span data-startup-lang="de">{de}</span></>;
+function Label({ name }) {
+  return ['en', 'ar', 'de'].map(lang => <span key={lang} data-startup-lang={lang}>
+    {name === 'circle' ? prayerCircleText(lang).circle : translations[lang][name] || translations.en[name]}
+  </span>);
 }
 
-// Public, non-interactive HTML: no account data, drafts, or saved prayers. CSS
-// selects the returning-user layout before React or its route chunks execute.
-export default function AppStartupShell({ prayerEntry = false, variant = 'form', publicPage = false }) {
-  return (
-    <div data-startup-shell data-prayer-entry={prayerEntry} aria-busy="true" aria-label="Opening Wasla" className="app-page min-h-screen text-white">
-      <div data-startup-loading className="min-h-screen">
-        <PageSkeleton variant={publicPage ? variant : 'form'} fullPage />
+const tabs = [[Heart, 'navPray'], [BookOpen, 'navBible'], [Users, 'navFriends'], [User, 'navProfile']];
+
+function PrayerPreview() {
+  return <div data-startup-prayer aria-hidden="true" inert>
+    <div className="h-20 border-b app-header px-2 flex items-center"><WaslaLogo className="w-20 sm:w-24 md:w-28 h-auto" /></div>
+    <div className="pt-8 px-4 pb-[100px]">
+      <div className="max-w-5xl mx-auto grid gap-5 sm:gap-6">
+        <div className="app-card rounded-3xl border shadow-xl shadow-black/20 p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2"><Heart className="w-5 h-5 text-sky-300" /><h3 className="text-base sm:text-lg font-bold"><Label name="prayTime" /></h3></div>
+            <span className={styles.trigger}><MoreVertical className="w-4 h-4" /></span>
+          </div>
+          <div className="mb-3.5 flex"><span className={`${styles.matteButton} inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold`}><Share2 className="w-3.5 h-3.5" /><Label name="prayShareWithFriend" /></span></div>
+          <div className="app-input border rounded-2xl p-3 sm:p-4 flex flex-col gap-3.5 mb-4">
+            <div data-startup-editor className="min-h-[90px] text-sm leading-relaxed text-white/20"><Label name="writePrayerPlaceholder" /></div>
+            <span className={`${styles.matteButton} flex items-center justify-center w-9 h-9 rounded-xl`}><Mic className="w-3.5 h-3.5" /></span>
+          </div>
+          <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-4">
+            <span className="text-[11px] text-slate-400">0 <Label name="totalWords" /></span>
+            <span className={`${styles.saveButton} px-4 py-2 rounded-lg text-xs font-bold opacity-40 flex items-center gap-2`}><Check className="w-4 h-4" /><Label name="saveNote" /></span>
+          </div>
+        </div>
+        <div className="flex gap-2 text-xs font-bold">
+          <span className="flex items-center gap-2 rounded-xl px-3.5 py-2 bg-white/20 border border-white/10 shadow-sm"><Lock className="w-3.5 h-3.5" /><Label name="prayMyJournal" /></span>
+          <span className="flex items-center gap-2 rounded-xl px-3.5 py-2 bg-white/5 border border-white/5 text-slate-400"><Users className="w-3.5 h-3.5" /><Label name="circle" /></span>
+        </div>
+        <div className="app-card rounded-3xl border" data-journal-panel>
+          <h2 className="border-b border-white/5 p-4 sm:p-5 bg-black/20 text-sm sm:text-base font-bold tracking-wide"><Label name="myPrayTimeNotes" /></h2>
+          <div className="p-3 sm:p-5"><PrayerCardsSkeleton /></div>
+        </div>
       </div>
-      {!prayerEntry && <div data-startup-content><PageSkeleton variant={variant} fullPage chrome={!publicPage && variant !== 'form' && variant !== 'presentation'} /></div>}
-      {prayerEntry && <div data-startup-prayer aria-hidden="true" inert>
-        <div className="h-20 border-b border-white/5 app-header px-4 flex items-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/wasla0.svg" alt="" width="80" height="80" />
-        </div>
-        <div className="pt-8 px-4 pb-[100px] max-w-5xl mx-auto">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:p-6 shadow-xl shadow-black/20">
-            <div className="flex justify-between items-center mb-2">
-              <div className="flex items-center gap-2"><Heart className="w-5 h-5 text-sky-300" /><h3 className="text-base sm:text-lg font-bold"><Label en="Pray Time" ar="وقت الصلاة" de="Gebetszeit" /></h3></div>
-              <MoreVertical className="w-4 h-4 text-slate-400" />
-            </div>
-            <div className="mb-3.5 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-sky-500/10 border border-sky-500/25 text-xs font-semibold text-sky-300"><Share2 className="w-3.5 h-3.5" />Share with friend...</div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 mb-4">
-              <div className="min-h-[110px] text-sm text-white/20"><Label en="Write your general prayer words here..." ar="اكتب كلمات صلاتك هنا..." de="Schreibe hier dein Gebet..." /></div>
-              <span className="inline-flex items-center gap-2 rounded-xl bg-sky-500/10 px-3 py-1.5 text-xs text-sky-300"><Mic className="w-3.5 h-3.5" /><Label en="Record voice" ar="تسجيل صوتي" de="Sprache aufnehmen" /></span>
-            </div>
-            <div className="flex justify-between items-center border-t border-white/5 pt-4 text-[11px] text-slate-400"><span>0 <Label en="total words" ar="كلمات" de="Wörter" /></span><span className="flex items-center gap-2 rounded-lg bg-sky-500/40 px-4 py-2 text-xs text-white/50"><Check className="w-4 h-4" /><Label en="Save Note" ar="حفظ الملاحظة" de="Notiz speichern" /></span></div>
-          </div>
-          <div className="flex gap-2 my-5 text-xs font-bold"><span className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/20 px-3.5 py-2"><Lock className="w-3.5 h-3.5" /><Label en="My Journal" ar="صلواتي الخاصة" de="Mein Tagebuch" /></span><span className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/5 px-3.5 py-2 text-slate-400"><Users className="w-3.5 h-3.5" /><Label en="Prayer Circle" ar="دائرة الصلاة" de="Gebetskreis" /></span></div>
-          <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-4 space-y-4">
-            <div className="h-3 w-32 rounded bg-white/10" />
-            <div className="h-3 w-3/4 rounded bg-white/5" />
-            <div className="h-3 w-1/2 rounded bg-white/5" />
-          </div>
-        </div>
-        <div className="fixed bottom-0 inset-x-0 h-[58px] flex items-center justify-around border-t border-white/5 app-bottom-nav text-slate-400">
-          {[
-            { en: 'Pray', ar: 'صلاة', de: 'Gebet', icon: Heart },
-            { en: 'Bible', ar: 'الكتاب', de: 'Bibel', icon: BookOpen },
-            { en: 'Hymns', ar: 'الترانيم', de: 'Loblieder', icon: Music },
-            { en: 'Friends', ar: 'الأصدقاء', de: 'Freunde', icon: Users },
-            { en: 'Profile', ar: 'حسابي', de: 'Profil', icon: User }
-          ].map((item, index) => <div key={item.en} className={`flex flex-col items-center gap-1 text-[10px] ${index === 0 ? 'text-[#00C2FF]' : ''}`}><item.icon size={21} /><Label en={item.en} ar={item.ar} de={item.de} /></div>)}
-        </div>
-      </div>}
     </div>
-  );
+    <div className="fixed bottom-0 inset-x-0 border-t app-bottom-nav">
+      <div className="flex justify-around items-center h-[58px] max-w-md mx-auto">
+        {tabs.map(([Icon, label], index) => <div key={label} className={`relative flex h-full w-full flex-col items-center justify-center gap-0.5 ${index ? 'text-slate-400' : 'text-[#00C2FF]'}`}>
+          {!index && <span className="absolute top-[5px] h-8 w-12 rounded-2xl bg-sky-400/12" />}
+          <div className={`relative flex h-8 items-center ${index ? '' : '-translate-y-0.5 scale-105'}`}><Icon size={21} strokeWidth={index ? 2 : 2.5} /></div>
+          <span className="text-[10px] font-medium leading-none"><Label name={label} /></span>
+          {!index && <span className="absolute bottom-0 h-0.5 w-5 rounded-full bg-[#00C2FF]" />}
+        </div>)}
+      </div>
+    </div>
+  </div>;
+}
+
+export default function AppStartupShell({ prayerEntry = false, variant = 'form', publicPage = false }) {
+  return <div data-startup-shell data-prayer-entry={prayerEntry} aria-busy="true" aria-label="Opening Wasla" className="app-page min-h-screen text-white">
+    <div data-startup-loading className="min-h-screen"><PageSkeleton variant={publicPage ? variant : 'form'} fullPage /></div>
+    {prayerEntry ? <><PrayerPreview /><script dangerouslySetInnerHTML={{ __html: startPrayerPreview }} /></>
+      : <div data-startup-content><PageSkeleton variant={variant} fullPage chrome={!publicPage && variant !== 'form' && variant !== 'presentation'} /></div>}
+  </div>;
 }
