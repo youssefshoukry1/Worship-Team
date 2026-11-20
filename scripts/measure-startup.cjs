@@ -50,7 +50,7 @@ const types = { '.js': 'application/javascript', '.css': 'text/css', '.html': 't
               const result = window.__startupTimes;
               const shell = document.querySelector('[data-startup-prayer]');
               if (!result.layout && ((shell && shell.getBoundingClientRect().height > 0) || document.querySelector('nav[aria-label="Primary navigation"]'))) result.layout = performance.now();
-              if (!result.editor && document.querySelector('main textarea:not(:disabled)')) result.editor = performance.now();
+              if (!result.editor && document.querySelector('[data-tab-active="true"] textarea[data-preview-content="pray"]:not(:disabled)')) result.editor = performance.now();
               if (!result.editor) requestAnimationFrame(sample);
             };
             requestAnimationFrame(sample);

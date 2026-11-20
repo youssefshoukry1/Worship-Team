@@ -1,4 +1,5 @@
 import UIKit
+import os.signpost
 import Capacitor
 import GoogleSignIn
 import FirebaseCore
@@ -11,9 +12,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, MessagingDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        let launchLog = OSLog(subsystem: Bundle.main.bundleIdentifier ?? "Wasla", category: .pointsOfInterest)
+        os_signpost(.begin, log: launchLog, name: "Firebase setup")
         if FirebaseApp.app() == nil { FirebaseApp.configure() }
         Messaging.messaging().delegate = self
+        os_signpost(.end, log: launchLog, name: "Firebase setup")
+        os_signpost(.begin, log: launchLog, name: "Register background backup")
         PrayerBackupEngine.shared.register()
+        os_signpost(.end, log: launchLog, name: "Register background backup")
         return true
     }
 

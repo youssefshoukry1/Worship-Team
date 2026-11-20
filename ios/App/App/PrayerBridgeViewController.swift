@@ -1,13 +1,18 @@
 import Capacitor
 import FirebaseMessaging
+import os.signpost
 import UIKit
 import UserNotifications
 
 final class PrayerBridgeViewController: CAPBridgeViewController {
+    private let launchLog = OSLog(subsystem: Bundle.main.bundleIdentifier ?? "Wasla", category: .pointsOfInterest)
     private var launchCover: UIView?
 
     override func viewDidLoad() {
+        os_signpost(.begin, log: launchLog, name: "Bridge setup")
         super.viewDidLoad()
+        os_signpost(.end, log: launchLog, name: "Bridge setup")
+        os_signpost(.begin, log: launchLog, name: "Waiting for web screen")
         let cover = UIView(frame: view.bounds)
         cover.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         cover.backgroundColor = UIColor(red: 9/255, green: 13/255, blue: 25/255, alpha: 1)
@@ -28,7 +33,9 @@ final class PrayerBridgeViewController: CAPBridgeViewController {
     }
 
     fileprivate func dismissLaunchCover() {
-        launchCover?.removeFromSuperview()
+        guard let cover = launchCover else { return }
+        cover.removeFromSuperview()
+        os_signpost(.end, log: launchLog, name: "Waiting for web screen")
         launchCover = nil
     }
 

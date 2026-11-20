@@ -19,20 +19,19 @@ vm.runInNewContext(ts.transpileModule(
 async function launch({ saved, version = '1.0.76', native = false, bundle, fetchError = false, currentError = false, storageError = false, cancel = false, showSplash = true } = {}) {
   const storage = new Map(saved === undefined ? [] : [['wasla_splash_version', saved]]);
   const state = [], timers = [], events = [];
-  let cursor = 0, effect, fetches = 0;
+  let cursor = 0, effect, fetches = 0, animationLoads = 0;
   const react = {
     createElement: (type, props, ...children) => ({ type, props, children }),
     useState(initial) {
       const index = cursor++;
       if (!(index in state)) state[index] = initial;
-      return [state[index], value => { state[index] = value; }];
+      return [state[index], value => { state[index] = typeof value === "function" ? value(state[index]) : value; }];
     },
     useEffect(callback) { effect = callback; },
   };
   const modules = {
     react,
-    'framer-motion': { motion: new Proxy({}, { get: (_, key) => key }), AnimatePresence: 'presence' },
-    '../Navbar/WaslaLogo': 'logo',
+    './ReleaseAnimation': { __esModule: true, default: 'release-animation' },
     '../utils/appVersion': versionExports,
     '../services/otaUpdateService': { shouldShowReleaseSplash: () => showSplash === true },
     '@capacitor/core': { Capacitor: { isNativePlatform: () => native } },
@@ -43,6 +42,7 @@ async function launch({ saved, version = '1.0.76', native = false, bundle, fetch
   };
   const context = {
     exports: {}, require: name => {
+      if (name === "./ReleaseAnimation") animationLoads++;
       assert.ok(name in modules, `Unexpected module: ${name}`);
       return modules[name];
     },
@@ -65,7 +65,7 @@ async function launch({ saved, version = '1.0.76', native = false, bundle, fetch
   const cleanup = effect();
   if (cancel) cleanup();
   await new Promise(resolve => setImmediate(resolve));
-  return { state, storage, events, context, render, timers, fetches };
+  return { state, storage, events, context, render, timers, fetches, animationLoads };
 }
 
 test('first opening records the current version without showing an update', async () => {
@@ -73,6 +73,7 @@ test('first opening records the current version without showing an update', asyn
     const app = await launch({ native });
     assert.equal(app.state[0], false);
     assert.equal(app.storage.get('wasla_splash_version'), '1.0.76');
+    assert.equal(app.animationLoads, 0);
     assert.deepEqual(app.events, ['wasla_splash_done']);
   }
 });
@@ -90,6 +91,7 @@ test('higher versions show the intro, including numeric ordering across digit bo
   for (const native of [false, true]) {
     for (const [saved, version] of [['1.0.75', '1.0.76'], ['1.0.9', '1.0.10'], ['1.9.99', '2.0.0']]) {
       const app = await launch({ saved, version, native });
+      assert.equal(app.animationLoads, 1);
       assert.equal(app.state[0], true);
       assert.equal(app.state[1], version);
       assert.equal(app.context.window.__wasla_splash_active, true);
@@ -127,8 +129,8 @@ test('failed checks, invalid metadata and unavailable storage skip the intro and
 
 test('completed upgrade is remembered and does not show again on reopening', async () => {
   const app = await launch({ saved: '1.0.75' });
-  const findLogo = node => node && typeof node === 'object' && (node.type === 'logo' ? node : node.children?.map(findLogo).find(Boolean));
-  findLogo(app.render()).props.onComplete();
+  assert.equal(app.render().type, 'release-animation');
+  app.render().props.onComplete();
   app.timers.forEach(callback => callback());
   assert.equal(app.state[0], false);
   const saved = app.storage.get('wasla_splash_version');

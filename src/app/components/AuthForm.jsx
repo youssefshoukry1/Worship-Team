@@ -8,7 +8,9 @@ import { Loader2 } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { GoogleSignIn } from "@capawesome/capacitor-google-sign-in";
 import { UserContext } from "../context/User_Context";
-import ClaimUsernameModal from "./ClaimUsernameModal";
+import dynamic from "next/dynamic";
+
+const ClaimUsernameModal = dynamic(() => import("./ClaimUsernameModal"));
 
 export default function AuthForm() {
   const router = useRouter();

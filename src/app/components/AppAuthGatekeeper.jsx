@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useContext, useRef, useState, useEffect, useLayoutEffect, useSyncExternalStore } from "react";
+import React, { useContext, useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import axios from "axios";
+import UsernameRecovery from "./UsernameRecovery";
 import { UserContext } from "../context/User_Context";
-import dynamic from 'next/dynamic';
 import useNativeLaunchHandoff from '../hooks/useNativeLaunchHandoff';
 import AppStartupShell from './AppStartupShell';
 import PageSkeleton, { pageSkeletonVariant } from './PageSkeleton';
@@ -15,8 +14,6 @@ import BottomNav from "./BottomNav";
 import AuthForm from './AuthForm';
 
 const PUBLIC_ROUTES = ["/privacy-policy", "/subscription-terms"];
-const ClaimUsernameModal = dynamic(() => import('./ClaimUsernameModal'), { ssr: false, loading: () => <AppStartupShell /> });
-
 // React 19 recommended hydration check
 const subscribe = () => () => {};
 const getSnapshot = () => true;
@@ -24,27 +21,16 @@ const getServerSnapshot = () => false;
 
 export default function AppAuthGatekeeper({ children }) {
   const isMounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const { isLogin, logout, username, setUsername, profilePhoto, setProfilePhoto } = useContext(UserContext);
+  const { isLogin, username } = useContext(UserContext);
   const pathname = usePathname();
   const isPrayerEntry = ['/', '/index.html', '/pray', '/pray/', '/pray/index.html'].includes(pathname);
   const router = useRouter();
-  const isCheckingRef = useRef(false);
-
-  const [isSyncingProfile, setIsSyncingProfile] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const token = localStorage.getItem("user_Taspe7_Token");
-    const name = localStorage.getItem("user_Taspe7_Username");
-    return Boolean(token && !name);
-  });
-
   const redirecting = isLogin && ["/login", "/Register"].includes(pathname?.replace(/\/$/, ''));
   useNativeLaunchHandoff({
-    mounted: isMounted && !isSyncingProfile && !redirecting,
+    mounted: isMounted && !redirecting,
     waitForPrayer: isPrayerEntry && Boolean(isLogin && username),
     waitForUsername: Boolean(isLogin && !username) && !PUBLIC_ROUTES.includes(pathname?.replace(/\/$/, '')),
   });
-
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || "https://waslaapi.duckdns.org/api";
 
   // Logout can happen at the bottom of a long profile page. Reset before paint
   // so sign-in never inherits that scroll position or jumps into view later.
@@ -58,42 +44,6 @@ export default function AppAuthGatekeeper({ children }) {
       router.replace("/");
     }
   }, [isLogin, pathname, router]);
-
-  // Sync username from backend if missing in context but token exists
-  useEffect(() => {
-    if (isLogin && !username && !isCheckingRef.current) {
-      const storedUsername = localStorage.getItem("user_Taspe7_Username");
-      if (storedUsername) {
-        setUsername(storedUsername);
-        setIsSyncingProfile(false);
-        return;
-      }
-
-      isCheckingRef.current = true;
-      setIsSyncingProfile(true);
-      axios
-        .get(`${apiBase}/users/my-profile`, {
-          headers: { Authorization: `Bearer ${isLogin}` },
-        })
-        .then((res) => {
-          const profileUser = res.data?.user;
-          if (profileUser?.username) {
-            localStorage.setItem("user_Taspe7_Username", profileUser.username);
-            setUsername(profileUser.username);
-          }
-          if (profileUser?.profilePhoto) {
-            localStorage.setItem("user_Taspe7_ProfilePhoto", profileUser.profilePhoto);
-            setProfilePhoto(profileUser.profilePhoto);
-          }
-        })
-        .catch((err) => {
-          console.error("Profile sync error:", err);
-        })
-        .finally(() => {
-          setIsSyncingProfile(false);
-        });
-    }
-  }, [isLogin, username, setUsername, setProfilePhoto, apiBase]);
 
   // Static public layout is ready before hydration; private data remains gated.
   if (!isMounted) {
@@ -123,32 +73,7 @@ export default function AppAuthGatekeeper({ children }) {
     return <PageSkeleton variant="form" fullPage />;
   }
 
-  // In the middle of syncing profile token
-  if (isSyncingProfile) {
-    return <PageSkeleton variant={pageSkeletonVariant(pathname)} fullPage />;
-  }
-
-  // Case 2: Logged in, but has not chosen an @username -> Global Gatekeeper Modal (unclosable, locks app)
-  if (!username) {
-    return (
-      <div className="fixed inset-0 z-[99999] bg-app-page flex items-center justify-center p-4">
-        <ClaimUsernameModal
-          token={isLogin}
-          initialPhoto={profilePhoto}
-          onSuccess={(resData) => {
-            const handle = resData?.username || resData;
-            localStorage.setItem("user_Taspe7_Username", handle);
-            if (resData?.profilePhoto) {
-              localStorage.setItem("user_Taspe7_ProfilePhoto", resData.profilePhoto);
-              setProfilePhoto(resData.profilePhoto);
-            }
-            setUsername(handle);
-          }}
-          onCancel={logout}
-        />
-      </div>
-    );
-  }
+  if (!username) return <UsernameRecovery key={isLogin} token={isLogin} />;
 
   // Case 3: Fully authenticated with @username -> Full App access
   return (

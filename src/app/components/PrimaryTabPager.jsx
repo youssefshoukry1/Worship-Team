@@ -18,7 +18,26 @@ const imports = [() => import('../pray/page'), () => import('../bible_form/page'
 const loads = imports.map(load => { let pending; return () => pending || (pending = load().catch(error => { pending = null; throw error; })); });
 // Pager preparation can update several times per route. Mounted pages still
 // receive their activity contexts and data updates directly.
-const pages = loads.map(load => memo(createFeatureBoundary(lazy(load), 'page')));
+const LazyPrayer = lazy(loads[0]);
+let preparedPrayer;
+
+// Start loading the entry component while React hydrates the auth gate. Other
+// entry routes and guests keep their usual on-demand loading behavior.
+if (typeof window !== 'undefined' && primaryTabIndex(location.pathname) === 0
+    && ('ontouchstart' in window || navigator.maxTouchPoints > 0)) {
+  try {
+    if (localStorage.getItem('user_Taspe7_Token') && localStorage.getItem('user_Taspe7_Username')) {
+      void loads[0]().then(module => { preparedPrayer = module.default; }).catch(() => {});
+    }
+  } catch { /* Storage may be unavailable. Use the normal route loader. */ }
+}
+
+function PrayerEntry() {
+  // Keep the same component type for this mount, including cold-load fallback.
+  const [View] = useState(() => preparedPrayer || LazyPrayer);
+  return <View />;
+}
+const pages = loads.map((load, index) => memo(createFeatureBoundary(index === 0 ? PrayerEntry : lazy(load), 'page')));
 
 export function primaryTabIndex(pathname) {
   const path = pathname.replace(/\/index\.html\/?$/i, '').replace(/\/+$/, '');

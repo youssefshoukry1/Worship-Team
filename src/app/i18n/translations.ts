@@ -1,6 +1,9 @@
 
 export const translations = {
   en: {
+    openingAccount: "Opening your account…",
+    accountRecoveryError: "Couldn’t load your account. Check your connection and try again.",
+    sessionSignInAgain: "Your session has expired. Sign in again.",
     // Navbar
     home: "Home",
     signIn: "Sign In",
@@ -409,6 +412,9 @@ Prayforme: 'prayer for me',
   
   },
   ar: {
+    openingAccount: "جارٍ فتح حسابك…",
+    accountRecoveryError: "تعذّر تحميل حسابك. تحقّق من اتصالك وحاول مجددًا.",
+    sessionSignInAgain: "انتهت صلاحية جلستك. سجّل الدخول مجددًا.",
     // Navbar
     home: "الرئيسية",
     signIn: "تسجيل الدخول",
@@ -819,6 +825,9 @@ Prayforme: 'prayer for me',
     record: "سجل",
   },
   de: {
+    openingAccount: "Dein Konto wird geöffnet…",
+    accountRecoveryError: "Dein Konto konnte nicht geladen werden. Prüfe deine Verbindung und versuche es erneut.",
+    sessionSignInAgain: "Deine Sitzung ist abgelaufen. Melde dich erneut an.",
     // Navbar
     home: "Startseite",
     signIn: "Anmelden",

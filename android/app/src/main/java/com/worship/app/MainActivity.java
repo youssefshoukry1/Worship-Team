@@ -2,6 +2,7 @@ package com.worship.app;
 
 import com.getcapacitor.BridgeActivity;
 import android.os.Bundle;
+import android.os.Trace;
 
 public class MainActivity extends BridgeActivity {
     private static volatile boolean foreground;
@@ -18,7 +19,12 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(PrayerNotificationsPlugin.class);
         registerPlugin(PrayerBackupPlugin.class);
         registerPlugin(PrayerStoragePlugin.class);
-        super.onCreate(savedInstanceState);
+        Trace.beginSection("Wasla.createBridgeActivity");
+        try {
+            super.onCreate(savedInstanceState);
+        } finally {
+            Trace.endSection();
+        }
         if (bridge == null) return;
         launchCover = new LaunchCover(this);
         addContentView(launchCover, new android.view.ViewGroup.LayoutParams(-1, -1));
@@ -37,7 +43,12 @@ public class MainActivity extends BridgeActivity {
         foreground = true;
         super.onResume();
         // Opening normally and returning from the background both clear delivered alerts.
-        PrayerNotificationRenderer.clear(this);
+        Trace.beginSection("Wasla.clearDeliveredNotifications");
+        try {
+            PrayerNotificationRenderer.clear(this);
+        } finally {
+            Trace.endSection();
+        }
     }
 
     @Override

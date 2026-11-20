@@ -14,6 +14,7 @@ public class LaunchScreenPlugin extends Plugin {
             new WebView.VisualStateCallback() {
                 @Override public void onComplete(long id) {
                     ((MainActivity) getActivity()).dismissLaunchCover();
+                    getActivity().reportFullyDrawn();
                     call.resolve();
                 }
             }));

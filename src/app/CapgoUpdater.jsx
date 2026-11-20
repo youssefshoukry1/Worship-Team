@@ -3,7 +3,7 @@
 import { useContext, useEffect, useRef } from 'react';
 import { UserContext } from './context/User_Context';
 import { initPushNotifications } from './services/pushNotificationService';
-import { runControlledOtaUpdate } from './services/otaUpdateService';
+import { waitForNativeLaunch } from './utils/nativeLaunch';
 
 export default function CapgoUpdater() {
     const { isLogin } = useContext(UserContext);
@@ -30,6 +30,10 @@ export default function CapgoUpdater() {
                     appReadyWasNotifiedRef.current = true;
                 }
                 if (!isLogin || !isCurrentSession()) return;
+                await waitForNativeLaunch();
+                if (!isCurrentSession()) return;
+                const { runControlledOtaUpdate } = await import('./services/otaUpdateService');
+                if (!isCurrentSession()) return;
                 await runControlledOtaUpdate({
                     updater: CapacitorUpdater, token: isLogin,
                     platform: Capacitor.getPlatform(), isCurrentSession,

@@ -28,6 +28,7 @@ export default function useNativeLaunchHandoff({ mounted, waitForPrayer, waitFor
           if (!ready()) return;
           observer?.disconnect();
           signalled = true;
+          performance.mark("wasla-launch-screen-ready");
           void launch.ready().then(finishNativeLaunch).catch(() => { /* Use the recovery deadline. */ });
         });
       });
