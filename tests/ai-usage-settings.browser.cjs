@@ -45,7 +45,7 @@ for (const engine of ['chromium', 'webkit']) {
       await page.emulateMedia({ reducedMotion: 'reduce' });
       quota = { ...initial, remaining: 1000, pending: true };
       await page.evaluate(() => window.dispatchEvent(new Event('wasla:subscription-updated')));
-      await section.getByText('1,000', { exact: true }).waitFor();
+      await section.getByText('5%', { exact: true }).waitFor();
       assert.equal(await bar.locator('div').evaluate(el => getComputedStyle(el).transitionDuration), '0s');
       assert.deepEqual(await bounds(), before);
       quota = { unit: 'tokens', unlimited: true };
@@ -55,7 +55,7 @@ for (const engine of ['chromium', 'webkit']) {
     } finally { finishProfile(); finishBalance(); }
   });
 
-  for (const language of ['en', 'ar']) test(`${engine}: ${language} Profile usage shows server balance and counts down locally`, async t => {
+  for (const language of ['en', 'ar']) test(`${engine}: ${language} Profile usage shows a percentage and counts down locally`, async t => {
     let reads = 0;
     const now = Date.now();
     const { page, errors } = await setup(t, engine, { href: '/normal_UserProfile/', platform: 'web', contextOptions: { viewport: { width: 320, height: 844 } }, beforeNavigate: async page => {
@@ -71,8 +71,12 @@ for (const engine of ['chromium', 'webkit']) {
     const section = page.locator('[data-ai-usage-settings]');
     const bar = section.getByRole('progressbar');
     await bar.waitFor();
-    assert.equal(await bar.getAttribute('aria-valuenow'), '15000');
-    assert.equal(await bar.getAttribute('aria-valuemax'), '20000');
+    const expectedPercent = new Intl.NumberFormat(language === 'ar' ? 'ar-EG' : 'en-GB', { style: 'percent' }).format(0.75);
+    await section.getByText(expectedPercent, { exact: true }).waitFor();
+    assert.equal(await bar.getAttribute('aria-valuenow'), '75');
+    assert.equal(await bar.getAttribute('aria-valuemax'), '100');
+    assert.equal(await bar.getAttribute('aria-valuetext'), `${expectedPercent} ${language === 'ar' ? 'متبقٍ' : 'remaining'}`);
+    assert.doesNotMatch(await section.innerText(), /15,000|20,000|١٥٬٠٠٠|٢٠٬٠٠٠|tokens?\b|توكن/i);
     assert.equal(await bar.locator('div').evaluate(el => el.style.transform), 'scaleX(0.75)');
     await page.clock.fastForward(61000);
     assert.match(await section.locator('[data-ai-usage-reset]').textContent(), language === 'ar' ? /١ س ٥٩ د/ : /1h 59m/);
@@ -94,7 +98,8 @@ for (const engine of ['chromium', 'webkit']) {
     quota = { ...initial, plan: 'plus', remaining: 0, limit: 22000, resetsAt: new Date(Date.now() + 3600000).toISOString() };
     await page.evaluate(() => window.dispatchEvent(new Event('wasla:subscription-updated')));
     await page.waitForFunction(() => document.querySelector('[data-ai-usage-settings] [role="progressbar"]')?.getAttribute('aria-valuenow') === '0');
-    assert.equal(await section.getByRole('progressbar').getAttribute('aria-valuemax'), '22000');
+    assert.equal(await section.getByRole('progressbar').getAttribute('aria-valuemax'), '100');
+    assert.equal(await section.getByRole('progressbar').getAttribute('aria-valuetext'), '0% remaining');
     assert.equal(await section.getByText('Plus', { exact: true }).count(), 1);
     quota = { ...initial, unlimited: true, remaining: null, limit: null, resetsAt: null };
     await page.evaluate(() => window.dispatchEvent(new Event('wasla:subscription-updated')));
@@ -120,7 +125,7 @@ for (const engine of ['chromium', 'webkit']) {
     const section = page.locator('[data-ai-usage-settings]');
     await section.getByRole('progressbar').waitFor();
     await page.clock.fastForward(61000);
-    await page.waitForFunction(() => document.querySelector('[data-ai-usage-settings] [role="progressbar"]')?.getAttribute('aria-valuenow') === '14000');
+    await page.waitForFunction(() => document.querySelector('[data-ai-usage-settings] [role="progressbar"]')?.getAttribute('aria-valuenow') === '100');
     await page.clock.fastForward(120000);
     assert.equal(reads, 2, 'One refresh at expiry, no periodic server polling');
     failure = true;
@@ -130,7 +135,7 @@ for (const engine of ['chromium', 'webkit']) {
     failure = false;
     await section.getByRole('button', { name: 'Retry' }).click();
     await section.getByRole('progressbar').waitFor();
-    assert.equal(await section.getByRole('progressbar').getAttribute('aria-valuenow'), '14000');
+    assert.equal(await section.getByRole('progressbar').getAttribute('aria-valuenow'), '100');
     assert.deepEqual(errors, []);
   });
 }

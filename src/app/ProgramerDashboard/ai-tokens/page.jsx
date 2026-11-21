@@ -7,6 +7,7 @@ import { Check, Gauge, Loader2, RefreshCw, Search, ShieldCheck } from 'lucide-re
 import PageSkeleton from '../../components/PageSkeleton';
 import useProgramerAccess from '../useProgramerAccess';
 import { controlApiRequest } from '../../services/controlApi';
+import ModelCapacity from './ModelCapacity';
 
 const button = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40';
 const panel = 'rounded-2xl border border-white/[0.08] bg-[#101725] p-5 sm:p-7';
@@ -19,7 +20,7 @@ export default function AiTokenControlsPage() {
     if (!access.isLogin || [401, 403].includes(access.error?.status)) return <div className="mx-auto max-w-lg px-5 py-24 text-center"><ShieldCheck className="mx-auto mb-4 text-slate-400" size={36} /><h1 className="text-2xl font-bold">Private dashboard</h1><p className="mt-3 text-slate-400">Only PROGRAMER accounts can access these controls.</p><SettingsLink href="/normal_UserProfile" className="mt-6 inline-block text-sky-300">Back to profile</SettingsLink></div>;
     return <div className="app-page min-h-screen px-4 pb-28 pt-8 text-slate-200 sm:px-7 sm:pt-12" dir="ltr"><div className="mx-auto max-w-5xl">
         <SettingsLink href="/ProgramerDashboard" className="mb-6 inline-block text-sm text-sky-300 hover:text-sky-200">← App control center</SettingsLink>
-        <header className="mb-8"><div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300"><Gauge size={15} />PROGRAMER</div><h1 className="text-3xl font-bold text-white sm:text-4xl">AI token controls</h1><p className="mt-3 text-sm leading-6 text-slate-400">Review an account’s usage or manage the shared Free launch offer.</p></header>
+        <header className="mb-8"><div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300"><Gauge size={15} />PROGRAMER</div><h1 className="text-3xl font-bold text-white sm:text-4xl">AI token controls</h1><p className="mt-3 text-sm leading-6 text-slate-400">Review account usage, the Free launch offer, and Gemini capacity.</p>{access.hasAccess && <a href="#gemini-capacity-title" className="mt-3 inline-block text-sm text-sky-300">Jump to Gemini model capacity</a>}</header>
         {access.error && <p role="alert" className="mb-5 rounded-xl bg-rose-400/10 p-4 text-sm text-rose-200">{access.error.message}<button className={`${button} ms-3`} onClick={() => access.refetch()}>Retry access check</button></p>}
         {access.isPending && <PageSkeleton variant="dashboard" compact />}
         {access.hasAccess && <Controls key={access.isLogin} token={access.isLogin} />}
@@ -125,6 +126,7 @@ function Controls({ token }) {
             </>}
         </section>
 
+        <ModelCapacity token={token} />
     </div>;
 }
 

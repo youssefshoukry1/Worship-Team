@@ -87,7 +87,9 @@ export default function AiUsageSettings({ userId, token, active = true }) {
   const quota = state?.quota;
   const metered = quota && !quota.unlimited;
   const fraction = metered ? quota.remaining / quota.limit : 0;
-  const format = new Intl.NumberFormat(ar ? 'ar-EG' : 'en-GB').format;
+  const percent = Math.round(fraction * 100);
+  const percentLabel = new Intl.NumberFormat(ar ? 'ar-EG' : 'en-GB', { style: 'percent' }).format(percent / 100);
+  const remainingLabel = ar ? 'متبقٍ' : 'remaining';
   const plan = { free: ar ? 'مجاني' : 'Free', plus: 'Plus', pro: 'Pro' }[quota?.plan];
   const showMessage = quota?.unlimited || state?.error;
 
@@ -97,20 +99,19 @@ export default function AiUsageSettings({ userId, token, active = true }) {
       <div className={`col-start-1 row-start-1 min-w-0 ${showMessage ? 'invisible' : ''}`}>
         <div className="mb-3 flex items-start justify-between gap-2">
           <p className="min-w-0 text-2xl font-semibold tabular-nums text-white">
-            <span key={quota?.remaining} className={metered ? styles.value : undefined}>{metered ? format(quota.remaining) : '—'}</span>
-            {' '}<span className="text-xs font-normal text-slate-400">{ar ? 'توكن متبقية' : 'tokens left'}</span>
+            <span key={percent} className={metered ? styles.value : undefined}>{metered ? percentLabel : '—'}</span>
+            {' '}<span className="text-xs font-normal text-slate-400">{remainingLabel}</span>
           </p>
           {metered && plan && <span className="shrink-0 rounded-full bg-sky-500/10 px-2.5 py-1 text-[11px] font-medium text-sky-400">{plan}</span>}
         </div>
-        <div role={metered ? 'progressbar' : undefined} aria-label={metered ? (ar ? 'رصيد الذكاء الاصطناعي المتبقي' : 'AI tokens remaining') : undefined}
-          aria-valuemin={metered ? 0 : undefined} aria-valuemax={metered ? quota.limit : undefined} aria-valuenow={metered ? quota.remaining : undefined}
-          aria-valuetext={metered ? (ar ? `${format(quota.remaining)} من ${format(quota.limit)} توكن متبقية` : `${format(quota.remaining)} of ${format(quota.limit)} tokens remaining`) : undefined}
+        <div role={metered ? 'progressbar' : undefined} aria-label={metered ? (ar ? 'رصيد الذكاء الاصطناعي المتبقي' : 'AI usage remaining') : undefined}
+          aria-valuemin={metered ? 0 : undefined} aria-valuemax={metered ? 100 : undefined} aria-valuenow={metered ? percent : undefined}
+          aria-valuetext={metered ? `${percentLabel} ${remainingLabel}` : undefined}
           className="h-2 overflow-hidden rounded-full bg-slate-500/15">
           <div style={{ transform: `scaleX(${fraction})`, transformOrigin: ar ? 'right' : 'left' }}
             className={`h-full rounded-full motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out ${metered && quota.remaining === 0 ? 'bg-rose-400' : metered && fraction < 0.2 ? 'bg-amber-400' : 'bg-sky-400'}`} />
         </div>
         <div className="mt-3 text-xs leading-5 text-slate-400">
-          <p>{ar ? 'من أصل' : 'of'} <span key={quota?.limit} className={metered ? styles.value : undefined}>{metered ? format(quota.limit) : '—'}</span> {ar ? 'توكن' : 'tokens'}</p>
           <p className="min-h-5" data-ai-usage-reset={metered || undefined}>{metered && aiResetLabel(quota.resetsAt, now, language)}</p>
           <p className={quota?.pending ? 'text-[11px]' : 'invisible text-[11px]'}>{ar ? 'يتحدث الرصيد بعد اكتمال الطلب الجاري.' : 'Your balance updates when the current request finishes.'}</p>
         </div>

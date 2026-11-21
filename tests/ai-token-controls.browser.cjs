@@ -4,11 +4,16 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { start, stop, setup } = require('./helpers/swipe-browser.cjs');
 before(() => start()); after(stop);
-const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET, POST, OPTIONS' };
+const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET, POST, PUT, OPTIONS' };
 const targetId = 'bbbbbbbbbbbbbbbbbbbbbbbb';
 
 async function open(t, engine, { role = 'PROGRAMER', width = 390, pending = false, unlimited = false, stale = false, href = '/ProgramerDashboard/ai-tokens/' } = {}) {
-    const state = { posts: [], reads: [], searches: [], account: {
+    const state = { posts: [], reads: [], searches: [], capacity: { measuredAt: new Date().toISOString(), resetsAt: new Date(Date.now() + 3600000).toISOString(), models: [{
+        id: 'gemini-3.1-flash-lite', enabled: true, configured: true, qualityApproved: true, limits: null,
+        today: { attempts: 60, input: 60000, output: 5000, thinking: 12000, unmeasured: 3, rateLimited: 2, unavailable: 1,
+            freeAttempts: 30, freeAnswers: 24, freeTokens: 40000, freeDeepAnswers: 4, freeDeepTokens: 10000 },
+        recent: { attempts: 3, input: 3500, unmeasured: 0 }
+    }] }, account: {
         user: { id: targetId, name: 'Youssef Shoukry', username: 'youssef' }, revision: 'a'.repeat(64), lastAdminResetAt: null,
         quota: { unit: 'tokens', plan: 'free', unlimited, limit: unlimited ? null : 20000, used: 8000,
             remaining: unlimited ? null : 12000, resetsAt: new Date(Date.now() + 3600000).toISOString(), pending }
@@ -22,6 +27,10 @@ async function open(t, engine, { role = 'PROGRAMER', width = 390, pending = fals
             const request = route.request();
             if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
             const url = new URL(request.url());
+            if (request.method() === 'PUT' && url.pathname.includes('/capacity/')) {
+                state.capacity.models[0].limits = request.postDataJSON();
+                return route.fulfill({ headers, json: state.capacity });
+            }
             if (request.method() === 'POST') {
                 const body = request.postDataJSON();
                 state.posts.push({ path: url.pathname, body });
@@ -37,6 +46,7 @@ async function open(t, engine, { role = 'PROGRAMER', width = 390, pending = fals
                 return route.fulfill({ headers, json: state.policy });
             }
             state.reads.push(url.pathname);
+            if (url.pathname.endsWith('/capacity')) return route.fulfill({ headers, json: state.capacity });
             if (url.pathname.endsWith('/policy')) return route.fulfill({ headers, json: state.policy });
             if (url.pathname.endsWith('/users')) {
                 state.searches.push(url.searchParams.get('username'));
@@ -53,6 +63,23 @@ async function findUser(page) {
     await page.getByRole('button', { name: 'Youssef Shoukry @youssef' }).click();
     await page.getByRole('progressbar', { name: 'Account tokens remaining' }).waitFor();
 }
+
+for (const engine of ['chromium', 'webkit']) test(`${engine}: Gemini capacity estimates remaining after saving project quotas`, async t => {
+    const { page, errors } = await open(t, engine, { width: 320 });
+    const card = page.getByRole('article', { name: 'gemini-3.1-flash-lite' });
+    await card.getByText('60 observed · quota unset').waitFor();
+    await card.getByText(/50% of Wasla calls/).waitFor();
+    await card.getByRole('button', { name: 'Enter Google quota' }).click();
+    const editor = page.getByRole('dialog', { name: /Google quota for/ });
+    await editor.getByLabel('Requests per day (RPD)', { exact: true }).fill('500');
+    await editor.getByLabel('Requests per minute (RPM)', { exact: true }).fill('15');
+    await editor.getByLabel('Input tokens per minute (TPM)', { exact: true }).fill('250000');
+    await editor.getByRole('button', { name: 'Save quota estimates' }).click();
+    await card.getByText('60 / 500 · 440 est. left').waitFor();
+    await card.getByText('3,500 / 250,000 · 246,500 est. left').waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    assert.deepEqual(errors, []);
+});
 
 for (const engine of ['chromium', 'webkit']) {
     test(`${engine}: programmer can find usage and confirm an account reset and shared launch`, async t => {
