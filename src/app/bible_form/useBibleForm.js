@@ -434,8 +434,12 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   }, [setBibleSelectedVerseIds]);
 
   const handleVerseNoteClick = React.useCallback((verse, existingNote) => {
-    setViewNoteConfig({ verse, note: existingNote });
-  }, []);
+    setBibleSelectedVerseIds(new Set([verse._id]));
+    setShowAiOptions(false);
+    setShowColorCustomizer(false);
+    setNoteText(existingNote);
+    setNoteModalConfig({ type: 'bible', data: [verse], existingNote, inline: true });
+  }, [setBibleSelectedVerseIds]);
 
   // --- Translation Selector State ---
   const getInitialTranslation = () => {
@@ -660,7 +664,6 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       setNoteModalConfig(current => current?.inline ? null : current);
     }
   }, [bibleSelectedVerseIds]);
-  const [viewNoteConfig, setViewNoteConfig] = useState(null); // { verse, note }
 
   useEffect(() => {
     if (!biblePickerOpen) return;
@@ -1361,7 +1364,6 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     noteModalConfig, setNoteModalConfig,
     noteText, setNoteText,
     isSubmittingNote,
-    viewNoteConfig, setViewNoteConfig,
     handleSaveNote,
     closeBibleModal,
     getSelectedVersesRef,

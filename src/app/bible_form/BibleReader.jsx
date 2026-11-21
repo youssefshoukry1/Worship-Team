@@ -6,7 +6,7 @@ import Portal from '../Portal/Portal';
 import { UserContext } from '../context/User_Context';
 import { useLanguage } from '../context/LanguageContext';
 import { showToast } from '../components/ToastContainer';
-import { X, Check, Search, BookOpen, ChevronLeft, ChevronRight, Loader2, Copy, Lightbulb, Monitor, PlusCircle, Link2, Download, CircleHelp, Plus, Trash2 } from 'lucide-react';
+import { X, Check, Search, ChevronLeft, ChevronRight, Loader2, Copy, Lightbulb, Monitor, PlusCircle, Link2, Download, CircleHelp, Plus, Trash2 } from 'lucide-react';
 import WaslaWaveLogo from '../components/WaslaWaveLogo';
 import PageSkeleton from '../components/PageSkeleton';
 import { useRouter, usePathname } from 'next/navigation';
@@ -606,7 +606,7 @@ export function BibleForm({ controller, isPage = false }) {
     setCompareMobileTab, compareDesktopPage, setCompareDesktopPage, allColumns,
     totalPages, dpSafe, desktopColumns, mtSafe, mobileActiveCode, fetchCompareData,
     openCompare, verseNotes, noteModalConfig, setNoteModalConfig, noteText, setNoteText,
-    isSubmittingNote, viewNoteConfig, setViewNoteConfig, handleSaveNote, closeBibleModal,
+    isSubmittingNote, handleSaveNote, closeBibleModal,
     getSelectedVersesRef, handleCopySelectedVerses, handleOpenImageCard, handleAiAnalysis,
     openBiblePresentation, presentBibleFromSearchHit,
     goToChapterFromSearch, goToNextChapter, goToPrevChapter, hasNextChapter, hasPrevChapter,
@@ -1252,7 +1252,7 @@ export function BibleForm({ controller, isPage = false }) {
                   }
                 }}
                 style={{ willChange: 'transform' }}
-                className={`animate-sheet-slide-up absolute bottom-0 left-0 right-0 z-50 border-t rounded-t-[1.5rem] flex flex-col text-white overflow-hidden transition-colors bg-app-panel border-white/10 shadow-[0_-15px_35px_rgba(0,0,0,0.6)]`}
+                className={`animate-sheet-slide-up absolute -bottom-[2px] pb-[2px] left-0 right-0 z-50 border-t rounded-t-[1.5rem] flex flex-col text-white overflow-hidden transition-colors bg-app-panel border-white/10 shadow-[0_-15px_35px_rgba(0,0,0,0.6)]`}
                 dir="rtl"
               >
                 {/* Pull bar */}
@@ -1774,79 +1774,6 @@ export function BibleForm({ controller, isPage = false }) {
         </Portal>
       )}
 
-      {/* This is the View Note overlay */}
-      {viewNoteConfig && (
-        <Portal>
-          <div
-            className="fixed inset-0 z-[500] flex items-center justify-center p-4 sm:p-8"
-            style={{ isolation: 'isolate' }}
-            onClick={(e) => { e.stopPropagation(); setViewNoteConfig(null); }}
-          >
-            <div className={`app-overlay absolute inset-0 backdrop-blur-xl bg-black/80`} />
-            <div
-              className={`relative w-full max-w-md border rounded-3xl shadow-xl max-h-[90dvh] overflow-y-auto app-popover border-white/10`}
-              role="dialog"
-              aria-modal="true"
-              aria-label={t("Note")}
-              dir={language === "ar" ? "rtl" : "ltr"}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6">
-                {/* Reference tag */}
-                <div className="flex items-center gap-2 mb-5">
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-500/15 border border-sky-500/25">
-                    <BookOpen className="w-3 h-3 text-sky-400" />
-                    <span className="text-[10px] font-bold text-sky-300 uppercase tracking-widest">
-                      Verse {viewNoteConfig.verse.verseNumber}
-                    </span>
-                  </div>
-                </div>
-
-                {/* The verse text */}
-                <div className="mb-5 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-                  <p className="text-white/60 text-sm leading-relaxed" dir="rtl">
-                    {viewNoteConfig.verse.text}
-                  </p>
-                </div>
-
-                {/* Divider with label */}
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="flex-1 h-px bg-sky-500/20" />
-                  <span className="text-[10px] font-bold text-sky-400/60 uppercase tracking-widest">{t('myPersonalNote')}</span>
-                  <div className="flex-1 h-px bg-sky-500/20" />
-                </div>
-
-                {/* The note */}
-                <div className="relative">
-                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-sky-500 to-sky-500/0 rounded-full" />
-                  <p className="pl-4 text-white/90 text-sm whitespace-pre-wrap break-words leading-relaxed" dir="auto">
-                    {viewNoteConfig.note}
-                  </p>
-                </div>
-
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => {
-                      setViewNoteConfig(null);
-                      setNoteText(viewNoteConfig.note);
-                      setNoteModalConfig({ type: 'bible', data: viewNoteConfig.verse, existingNote: viewNoteConfig.note });
-                    }}
-                    className="flex-1 py-2.5 rounded-full text-xs font-bold border border-sky-500/30 text-sky-300 hover:bg-sky-500/10 transition-all"
-                  >
-                    {t('editNote')}
-                  </button>
-                  <button
-                    onClick={() => setViewNoteConfig(null)}
-                    className="flex-1 py-2.5 rounded-full text-xs font-bold bg-sky-600/80 hover:bg-sky-500 text-white transition-all"
-                  >
-                    {t('close')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Portal>
-      )}
     </>
   );
 }
