@@ -68,9 +68,18 @@ for (const engine of ['chromium', 'webkit']) {
     assert.equal(await verse.evaluate(node => parseFloat(getComputedStyle(node).fontSize)), fontBefore + 2);
     await panel.getByTitle('Increase spacing').tap();
     await page.waitForFunction(() => Number(localStorage.getItem('taspe7_bible_verse_spacing')) > 16);
-    await panel.getByRole('button', { name: 'Increase verse gap', exact: true }).tap();
-    const gap = await panel.getByRole('group', { name: 'Verse gap', exact: true }).locator('output').textContent();
-    assert.ok(gap.endsWith('px'));
+    const gap = panel.getByRole('group', { name: 'Verse gap', exact: true });
+    const decrease = gap.getByRole('button', { name: 'Decrease verse gap' });
+    const verseNumber = surface.locator('[data-bible-verse]').nth(1).locator(':scope > span').first();
+    assert.equal(await gap.locator('output').textContent(), '0px');
+    assert.equal(await verseNumber.evaluate(node => getComputedStyle(node).marginInlineStart), '-10px');
+    assert.equal(await decrease.isDisabled(), true);
+    await gap.getByRole('button', { name: 'Increase verse gap' }).tap();
+    assert.equal(await gap.locator('output').textContent(), '2px');
+    assert.equal(await verseNumber.evaluate(node => getComputedStyle(node).marginInlineStart), '-8px');
+    await decrease.tap();
+    assert.equal(await gap.locator('output').textContent(), '0px');
+    assert.equal(await decrease.isDisabled(), true);
     const properties = await surface.locator('[data-bible-verse]').evaluateAll(nodes => nodes.flatMap(node => {
       const transition = element => {
         const style = getComputedStyle(element);

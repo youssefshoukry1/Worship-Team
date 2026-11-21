@@ -262,14 +262,14 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   };
 
   const [bibleVerseGap, setBibleVerseGap] = useState(() => {
-    if (typeof window === 'undefined') return -6;
+    if (typeof window === 'undefined') return -10;
     const stored = localStorage.getItem('taspe7_bible_verse_gap');
-    const saved = stored === null ? -6 : Number(stored);
-    return Number.isFinite(saved) ? Math.min(32, Math.max(-8, saved)) : -6;
+    const saved = stored === null ? -10 : Number(stored);
+    return Number.isFinite(saved) ? Math.min(32, Math.max(-10, saved)) : -10;
   });
 
   const handleSetBibleVerseGap = (val) => {
-    const gap = Math.min(32, Math.max(-8, val));
+    const gap = Math.min(32, Math.max(-10, val));
     setBibleVerseGap(gap);
     if (typeof window !== 'undefined') {
       localStorage.setItem('taspe7_bible_verse_gap', gap.toString());
@@ -655,6 +655,11 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   const [noteModalConfig, setNoteModalConfig] = useState(null); // { type, data, existingNote }
   const [noteText, setNoteText] = useState('');
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
+  useEffect(() => {
+    if (bibleSelectedVerseIds.size === 0) {
+      setNoteModalConfig(current => current?.inline ? null : current);
+    }
+  }, [bibleSelectedVerseIds]);
   const [viewNoteConfig, setViewNoteConfig] = useState(null); // { verse, note }
 
   useEffect(() => {
@@ -879,6 +884,9 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
 
   const handleSaveNote = async () => {
     if (!noteText.trim() || !noteModalConfig) return;
+    const noteData = noteModalConfig.inline
+      ? bibleModalVerses.filter(verse => bibleSelectedVerseIds.has(verse._id))
+      : noteModalConfig.data;
     // Use the correct localStorage keys this app actually uses
     const token = typeof window !== 'undefined' ? localStorage.getItem('user_Taspe7_Token') : null;
     const userid = user_id; // from UserContext, key: user_Taspe7_ID
@@ -892,7 +900,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     setIsSubmittingNote(true);
     try {
       if (noteModalConfig.type === 'bible') {
-        const verseOrVerses = noteModalConfig.data;
+        const verseOrVerses = noteData;
         const verses = Array.isArray(verseOrVerses) ? verseOrVerses : [verseOrVerses];
         await Promise.all(verses.map(async (v) => {
           await postUsersWithFallback('bible-note', {
@@ -931,7 +939,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
 
       if (isNetworkError) {
         if (noteModalConfig?.type === 'bible') {
-          const verseOrVerses = noteModalConfig.data;
+          const verseOrVerses = noteData;
           const verses = Array.isArray(verseOrVerses) ? verseOrVerses : [verseOrVerses];
           for (const v of verses) {
             await queueOfflineAction(`${API_ROOT}/users/bible-note`, 'POST', {
@@ -969,7 +977,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       }
 
       if (err?.response?.status === 404 && noteModalConfig?.type === 'bible') {
-        const verseOrVerses = noteModalConfig.data;
+        const verseOrVerses = noteData;
         const verses = Array.isArray(verseOrVerses) ? verseOrVerses : [verseOrVerses];
         verses.forEach(v => {
           writeLocalBibleNote(v?._id, noteText);

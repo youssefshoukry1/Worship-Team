@@ -6,7 +6,7 @@ import Portal from '../Portal/Portal';
 import { UserContext } from '../context/User_Context';
 import { useLanguage } from '../context/LanguageContext';
 import { showToast } from '../components/ToastContainer';
-import { X, Check, Search, FileText, BookOpen, ChevronLeft, ChevronRight, Loader2, Copy, Lightbulb, Monitor, PlusCircle, Link2, Download, CircleHelp, Plus, Trash2 } from 'lucide-react';
+import { X, Check, Search, BookOpen, ChevronLeft, ChevronRight, Loader2, Copy, Lightbulb, Monitor, PlusCircle, Link2, Download, CircleHelp, Plus, Trash2 } from 'lucide-react';
 import WaslaWaveLogo from '../components/WaslaWaveLogo';
 import PageSkeleton from '../components/PageSkeleton';
 import { useRouter, usePathname } from 'next/navigation';
@@ -639,6 +639,8 @@ export function BibleForm({ controller, isPage = false }) {
   const actionResponseScroller = useRef(null);
 
   const isClosingActionPanel = useRef(false);
+  const hasAiResponse = Boolean(aiAnalysis.loading || aiAnalysis.text || aiAnalysis.error);
+  const showHighlightPalette = !showAiOptions && !hasAiResponse && !noteModalConfig?.inline;
   const selectionPanelOpen = isOpen && bibleSelectedVerseIds.size > 0;
 
   useEffect(() => {
@@ -704,7 +706,7 @@ export function BibleForm({ controller, isPage = false }) {
     const scroller = response?.querySelector('[data-ai-response-scroll]') || null;
     actionResponseScroller.current = scroller;
     // A response gesture may dismiss only if it starts at the top.
-    actionDragEnabled.current = !showColorCustomizer && (!scroller || scroller.scrollTop <= 0);
+    actionDragEnabled.current = !e.target.closest("[data-verse-note-editor]") && !showColorCustomizer && (!scroller || scroller.scrollTop <= 0);
     actionVelocity.current = 0;
     actionPullDistance.current = 0;
     if (!actionDragEnabled.current) return;
@@ -1150,14 +1152,17 @@ export function BibleForm({ controller, isPage = false }) {
                                 onClick={() => onVerseClick(verse._id)}
                                 style={{
                                   backgroundColor: curr.bg,
-                                  border: 'none',
-                                  padding: '2px 5px',
+                                  backgroundClip: curr.isSelected && !curr.hex && !isConnectedLeft ? 'padding-box' : 'border-box',
+                                  borderInlineEnd: '4px solid transparent',
+                                  paddingBlock: '2px',
+                                  paddingInline: '5px 1px',
+                                  WebkitTapHighlightColor: 'transparent',
                                   margin: '0',
                                   borderRadius,
                                   boxDecorationBreak: 'clone',
                                   WebkitBoxDecorationBreak: 'clone',
                                 }}
-                                className={`inline cursor-pointer transition-colors duration-200 ${!curr.hex && !curr.isSelected ? 'hover:bg-white/5' : ''} ${curr.bg !== 'transparent' ? 'text-white' : 'text-white/80 hover:text-white'}`}
+                                className={`inline cursor-pointer ${!curr.hex && !curr.isSelected ? 'hover:bg-white/5' : ''} ${curr.bg !== 'transparent' ? 'text-white' : 'text-white/80 hover:text-white'}`}
                               >
                                 <span
                                   className={`inline-flex items-center justify-center text-[10px] sm:text-xs font-black px-1.5 py-0.5 ml-1 mr-0 select-none transition-colors leading-none ${curr.isSelected
@@ -1297,14 +1302,20 @@ export function BibleForm({ controller, isPage = false }) {
                     )}
 
                     <button
+                      aria-expanded={!!noteModalConfig?.inline}
+                      disabled={isSubmittingNote}
                       onClick={() => {
+                        if (noteModalConfig?.inline) { setNoteModalConfig(null); return; }
+                        setShowColorCustomizer(false);
+                        setShowAiOptions(false);
+                        clearAiAnalysis();
                         const selectedVerses = bibleModalVerses
                           .filter(v => bibleSelectedVerseIds.has(v._id))
                           .sort((a, b) => a.verseNumber - b.verseNumber);
                         if (selectedVerses.length === 0) return;
                         const existing = selectedVerses.map(v => verseNotes[v._id]).find(Boolean) || '';
                         setNoteText(existing);
-                        setNoteModalConfig({ type: 'bible', data: selectedVerses, existingNote: existing });
+                        setNoteModalConfig({ type: 'bible', data: selectedVerses, existingNote: existing, inline: true });
                       }}
                       className="flex-1 min-w-[78px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center active:scale-95"
                     >
@@ -1313,6 +1324,8 @@ export function BibleForm({ controller, isPage = false }) {
 
                     <button
                       onClick={() => {
+                        setNoteModalConfig(null);
+                        setShowColorCustomizer(false);
                         setShowAiOptions(p => !p);
                         clearAiAnalysis();
                       }}
@@ -1323,13 +1336,32 @@ export function BibleForm({ controller, isPage = false }) {
                     </button>
                   </div>
 
+                  {noteModalConfig?.inline && (
+                    <div data-verse-note-editor className="rounded-2xl bg-app-page p-3" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+                      <textarea
+                        autoFocus
+                        aria-label={t('Note')}
+                        placeholder={t('typeHerePlaceholder')}
+                        value={noteText}
+                        onChange={e => setNoteText(e.target.value)}
+                        rows={3}
+                        dir={noteText ? 'auto' : language === 'ar' ? 'rtl' : 'ltr'}
+                        className="block w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+                      />
+                      <div className="mt-2 flex justify-end gap-2">
+                        <button disabled={isSubmittingNote} onClick={() => setNoteModalConfig(null)} className="rounded-full px-4 py-2 text-xs text-white/70">{t('cancel')}</button>
+                        <button disabled={isSubmittingNote || !noteText.trim()} onClick={handleSaveNote} className="rounded-full bg-sky-400 px-4 py-2 text-xs font-bold text-black disabled:opacity-40">{t('saveNote')}</button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* AI Options */}
                   {showAiOptions && (
                     <div className="flex gap-2 shrink-0 animate-in fade-in slide-in-from-bottom-1 duration-150" dir="rtl">
                       {[
-                        { type: 'explain', label: 'تفسير', icon: CircleHelp, color: 'text-sky-400' },
-                        { type: 'cross_reference', label: 'مراجع', icon: Link2, color: 'text-sky-400' },
-                        { type: 'practical', label: 'تطبيق', icon: Lightbulb, color: 'text-sky-400' },
+                        { type: 'explain', label: t('verseExplanation'), icon: CircleHelp, color: 'text-sky-400' },
+                        { type: 'cross_reference', label: t('verseReferences'), icon: Link2, color: 'text-sky-400' },
+                        { type: 'practical', label: t('verseApplication'), icon: Lightbulb, color: 'text-sky-400' },
                       ].map(({ type, label, icon: IconComponent, color }) => (
                         <button
                           key={type}
@@ -1345,7 +1377,7 @@ export function BibleForm({ controller, isPage = false }) {
                   )}
 
                   {/* AI Response — no header bar, floating dismiss pill */}
-                  {(aiAnalysis.loading || aiAnalysis.text || aiAnalysis.error) && (
+                  {hasAiResponse && (
                     <div
                       className={`relative rounded-2xl overflow-hidden bg-app-page`}
                       data-ai-response
@@ -1405,45 +1437,47 @@ export function BibleForm({ controller, isPage = false }) {
                   )}
 
                   {/* Highlights */}
-                  <div data-bible-highlight-palette className="flex items-center gap-2.5 overflow-x-auto py-1 hide-scrollbar">
-                    {highlightColorsList.map(c => {
-                      const isColorActive = Array.from(bibleSelectedVerseIds).every(id => bibleHighlights[id] === c.id);
-                      const isCustom = c.id.startsWith('custom-') || !HIGHLIGHT_COLORS.some(h => h.id === c.id);
-                      return (
-                        <div key={c.id} className="relative group shrink-0">
-                          <button
-                            onClick={() => handleApplyHighlight(c.id)}
-                            className={`w-7 h-7 rounded-full transition-all active:scale-90 flex items-center justify-center border-2
-                    ${isColorActive ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
-                            style={{ backgroundColor: c.hex }}
-                          >
-                            {isColorActive && <Check className="w-4 h-4 text-slate-900 stroke-[3]" />}
-                          </button>
-
-                          {isCustom && (
+                  {showHighlightPalette && (
+                    <div data-bible-highlight-palette className="flex items-center gap-2.5 overflow-x-auto py-1 hide-scrollbar">
+                      {highlightColorsList.map(c => {
+                        const isColorActive = Array.from(bibleSelectedVerseIds).every(id => bibleHighlights[id] === c.id);
+                        const isCustom = c.id.startsWith('custom-') || !HIGHLIGHT_COLORS.some(h => h.id === c.id);
+                        return (
+                          <div key={c.id} className="relative group shrink-0">
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setHighlightColorsList(prev => prev.filter(item => item.id !== c.id));
-                              }}
-                              className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-app-panel border border-white/20 text-white/70 hover:text-red-400 hover:bg-red-500/20 hover:border-red-400/50 flex items-center justify-center transition-all shadow-sm z-10"
-                              title="حذف اللون"
+                              onClick={() => handleApplyHighlight(c.id)}
+                              className={`w-7 h-7 rounded-full transition-all active:scale-90 flex items-center justify-center border-2
+                      ${isColorActive ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
+                              style={{ backgroundColor: c.hex }}
                             >
-                              <X className="w-2.5 h-2.5 stroke-[3]" />
+                              {isColorActive && <Check className="w-4 h-4 text-slate-900 stroke-[3]" />}
                             </button>
-                          )}
-                        </div>
-                      );
-                    })}
 
-                    <button
-                      onClick={() => setShowColorCustomizer(prev => !prev)}
-                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90 border border-white/20 shrink-0
-              ${showColorCustomizer ? 'bg-sky-500/20 text-sky-400 border-sky-500/50' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}`}
-                    >
-                      <PlusCircle className="w-4 h-4" />
-                    </button>
-                  </div>
+                            {isCustom && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setHighlightColorsList(prev => prev.filter(item => item.id !== c.id));
+                                }}
+                                className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-app-panel border border-white/20 text-white/70 hover:text-red-400 hover:bg-red-500/20 hover:border-red-400/50 flex items-center justify-center transition-all shadow-sm z-10"
+                                title="حذف اللون"
+                              >
+                                <X className="w-2.5 h-2.5 stroke-[3]" />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      <button
+                        onClick={() => setShowColorCustomizer(prev => !prev)}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-90 border border-white/20 shrink-0
+                ${showColorCustomizer ? 'bg-sky-500/20 text-sky-400 border-sky-500/50' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}`}
+                      >
+                        <PlusCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
 
                   {/* Color Customizer */}
                   {showColorCustomizer && (
@@ -1634,7 +1668,7 @@ export function BibleForm({ controller, isPage = false }) {
         )}
       </AnimatePresence>
       {/* This is the Add/Edit Note form */}
-      {noteModalConfig && (
+      {noteModalConfig && !noteModalConfig.inline && (
         <Portal>
           <div
             className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center p-0 sm:p-6"
@@ -1646,25 +1680,23 @@ export function BibleForm({ controller, isPage = false }) {
               onClick={(e) => { e.stopPropagation(); setNoteModalConfig(null); setNoteText(''); }}
             />
             <div
-              className={`relative w-full sm:max-w-lg border rounded-t-3xl sm:rounded-3xl shadow-[0_0_60px_-10px_rgba(99,102,241,0.3)] overflow-hidden flex flex-col app-popover border-indigo-500/20`}
+              className={`relative w-full sm:max-w-lg border rounded-t-3xl sm:rounded-3xl shadow-xl max-h-[90dvh] overflow-y-auto flex flex-col app-popover border-white/10`}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t("Note")}
+              dir={language === "ar" ? "rtl" : "ltr"}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Decorative top bar mobile */}
               <div className="sm:hidden w-10 h-1 bg-white/20 rounded-full mx-auto mt-3 mb-1" />
 
-              {/* Glowing header strip */}
-              <div className="h-px bg-gradient-to-r from-transparent via-indigo-500/60 to-transparent" />
-
-              <div className="px-6 py-5 flex items-start justify-between gap-4">
+              <div className="px-4 py-4 flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-                    <FileText className="w-4 h-4 text-indigo-400" />
-                  </div>
                   <div>
                     <h3 className="text-sm font-bold text-white">
                       {noteModalConfig.existingNote ? (language === 'ar' ? 'تعديل الملاحظة' : 'Edit Note') : (language === 'ar' ? 'إضافة ملاحظة' : 'Add Note')}
                     </h3>
-                    <p className="text-[10px] text-indigo-400/60 font-mono uppercase tracking-widest mt-0.5">
+                    <p className="text-xs text-white/60 mt-0.5">
                       {noteModalConfig.type === 'bible'
                         ? Array.isArray(noteModalConfig.data)
                           ? noteModalConfig.data.length > 1
@@ -1677,20 +1709,21 @@ export function BibleForm({ controller, isPage = false }) {
                 </div>
                 <button
                   onClick={() => { setNoteModalConfig(null); setNoteText(''); }}
-                  className="p-1.5 text-white/30 hover:text-white/80 rounded-lg hover:bg-white/10 transition-all shrink-0 mt-0.5"
+                  aria-label={t("close")}
+                  className="p-2 text-white/60 hover:text-white/80 rounded-lg hover:bg-white/10 transition-all shrink-0 mt-0.5"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
               {/* Verse preview */}
-              <div className="mx-6 mb-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] max-h-36 overflow-y-auto">
+              <div className="mx-4 mb-3 px-3 border-s-2 border-sky-400/40 max-h-36 overflow-y-auto">
                 {noteModalConfig.type === 'bible' ? (
                   Array.isArray(noteModalConfig.data) ? (
                     <div className="space-y-1.5" dir="rtl">
                       {noteModalConfig.data.map((v) => (
                         <p key={v._id || v.verseNumber} className="text-sm text-white/50 leading-relaxed">
-                          <span className="text-indigo-400 font-bold ml-1">[{v.verseNumber}]</span>
+                          <span className="text-sky-400 font-bold ml-1">[{v.verseNumber}]</span>
                           {v.text}
                         </p>
                       ))}
@@ -1707,29 +1740,30 @@ export function BibleForm({ controller, isPage = false }) {
                 )}
               </div>
 
-              <div className="px-6 pb-2">
+              <div className="px-4">
                 <textarea
                   autoFocus
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value)}
                   placeholder={language === 'ar' ? 'اكتب ملاحظتك هنا...' : 'Write your note here...'}
-                  rows={4}
-                  className="w-full bg-white/[0.04] border border-white/10 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 resize-none text-sm leading-relaxed transition-all"
-                  dir="rtl"
+                  rows={3}
+                  className="w-full bg-white/[0.04] border border-white/10 focus:border-white/25 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none resize-none text-sm leading-relaxed transition-all"
+                  dir={noteText ? "auto" : language === "ar" ? "rtl" : "ltr"}
+                  aria-label={t("Note")}
                 />
               </div>
 
-              <div className="flex items-center gap-3 px-6 py-5">
+              <div className="flex items-center gap-3 px-4 py-4">
                 <button
                   onClick={() => { setNoteModalConfig(null); setNoteText(''); }}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white/40 hover:text-white/70 hover:bg-white/5 transition-all border border-white/10"
+                  className="flex-1 py-2.5 rounded-full text-sm font-semibold text-white/40 hover:text-white/70 hover:bg-white/5 transition-all border border-white/10"
                 >
                   {language === 'ar' ? 'إلغاء' : 'Cancel'}
                 </button>
                 <button
                   onClick={handleSaveNote}
                   disabled={isSubmittingNote || !noteText.trim()}
-                  className="flex-[2] py-2.5 rounded-xl text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
+                  className="flex-1 py-2.5 rounded-full text-sm font-bold bg-sky-400 hover:bg-sky-300 text-black transition-all disabled:opacity-40 flex items-center justify-center gap-2 disabled:bg-white/10 disabled:text-white/60"
                 >
                   {isSubmittingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   {language === 'ar' ? 'حفظ الملاحظة' : 'Save Note'}
@@ -1750,19 +1784,19 @@ export function BibleForm({ controller, isPage = false }) {
           >
             <div className={`app-overlay absolute inset-0 backdrop-blur-xl bg-black/80`} />
             <div
-              className={`relative w-full max-w-md border rounded-3xl shadow-[0_0_80px_-10px_rgba(99,102,241,0.4)] overflow-hidden app-popover border-indigo-500/30`}
+              className={`relative w-full max-w-md border rounded-3xl shadow-xl max-h-[90dvh] overflow-y-auto app-popover border-white/10`}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t("Note")}
+              dir={language === "ar" ? "rtl" : "ltr"}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Ambient glow */}
-              <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-              <div className="h-px bg-gradient-to-r from-transparent via-indigo-400/50 to-transparent" />
-
               <div className="p-6">
                 {/* Reference tag */}
                 <div className="flex items-center gap-2 mb-5">
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/25">
-                    <BookOpen className="w-3 h-3 text-indigo-400" />
-                    <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-500/15 border border-sky-500/25">
+                    <BookOpen className="w-3 h-3 text-sky-400" />
+                    <span className="text-[10px] font-bold text-sky-300 uppercase tracking-widest">
                       Verse {viewNoteConfig.verse.verseNumber}
                     </span>
                   </div>
@@ -1777,15 +1811,15 @@ export function BibleForm({ controller, isPage = false }) {
 
                 {/* Divider with label */}
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="flex-1 h-px bg-indigo-500/20" />
-                  <span className="text-[10px] font-bold text-indigo-400/60 uppercase tracking-widest">Your Note</span>
-                  <div className="flex-1 h-px bg-indigo-500/20" />
+                  <div className="flex-1 h-px bg-sky-500/20" />
+                  <span className="text-[10px] font-bold text-sky-400/60 uppercase tracking-widest">{t('myPersonalNote')}</span>
+                  <div className="flex-1 h-px bg-sky-500/20" />
                 </div>
 
                 {/* The note */}
                 <div className="relative">
-                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-indigo-500 to-indigo-500/0 rounded-full" />
-                  <p className="pl-4 text-indigo-100 text-sm leading-relaxed" dir="rtl">
+                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-sky-500 to-sky-500/0 rounded-full" />
+                  <p className="pl-4 text-white/90 text-sm whitespace-pre-wrap break-words leading-relaxed" dir="auto">
                     {viewNoteConfig.note}
                   </p>
                 </div>
@@ -1797,15 +1831,15 @@ export function BibleForm({ controller, isPage = false }) {
                       setNoteText(viewNoteConfig.note);
                       setNoteModalConfig({ type: 'bible', data: viewNoteConfig.verse, existingNote: viewNoteConfig.note });
                     }}
-                    className="flex-1 py-2.5 rounded-xl text-xs font-bold border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/10 transition-all"
+                    className="flex-1 py-2.5 rounded-full text-xs font-bold border border-sky-500/30 text-sky-300 hover:bg-sky-500/10 transition-all"
                   >
-                    Edit Note
+                    {t('editNote')}
                   </button>
                   <button
                     onClick={() => setViewNoteConfig(null)}
-                    className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-indigo-600/80 hover:bg-indigo-500 text-white transition-all"
+                    className="flex-1 py-2.5 rounded-full text-xs font-bold bg-sky-600/80 hover:bg-sky-500 text-white transition-all"
                   >
-                    Close
+                    {t('close')}
                   </button>
                 </div>
               </div>

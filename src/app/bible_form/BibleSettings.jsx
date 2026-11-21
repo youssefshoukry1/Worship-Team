@@ -327,13 +327,13 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
                       <div className="flex items-center border border-white/10 rounded-lg overflow-hidden bg-black/20 shrink-0">
                         <button
                           onClick={() => handleSetBibleVerseGap(bibleVerseGap - 2)}
-                          disabled={bibleVerseGap <= -8}
+                          disabled={bibleVerseGap <= -10}
                           className="h-5 px-2 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] transition-colors active:bg-white/20 disabled:opacity-30"
                           aria-label={language === 'ar' ? 'تقليل المسافة بين الآيات' : 'Decrease verse gap'}
                         >
                           -
                         </button>
-                        <output className="font-bold min-w-[22px] px-1 text-center text-[11px] text-sky-400" aria-live="polite">{bibleVerseGap + 6}px</output>
+                        <output className="font-bold min-w-[22px] px-1 text-center text-[11px] text-sky-400" aria-live="polite">{bibleVerseGap + 10}px</output>
                         <button
                           onClick={() => handleSetBibleVerseGap(bibleVerseGap + 2)}
                           disabled={bibleVerseGap >= 32}
