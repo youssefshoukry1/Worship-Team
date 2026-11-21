@@ -17,9 +17,7 @@ async function open(t, engine, { role = 'PROGRAMER', width = 390, pending = fals
         user: { id: targetId, name: 'Youssef Shoukry', username: 'youssef' }, revision: 'a'.repeat(64), lastAdminResetAt: null,
         quota: { unit: 'tokens', plan: 'free', unlimited, limit: unlimited ? null : 20000, used: 8000,
             remaining: unlimited ? null : 12000, resetsAt: new Date(Date.now() + 3600000).toISOString(), pending }
-    }, policy: { revision: 'b'.repeat(64), freeStandardTokenLimit: 14000, freeLaunchTokenLimit: 20000,
-        dailyTokenLimits: { free: 14000, plus: 22000, pro: 50000 },
-        launch: { startsAt: '2026-11-01T12:00:00Z', endsAt: '2027-05-01T12:00:00Z', status: 'active' } } };
+    }, policy: { revision: 'b'.repeat(64), dailyTokenLimits: { free: 20000, plus: 22000, pro: 50000 } } };
     const fixture = await setup(t, engine, { href, platform: 'web', profile: { role }, contextOptions: { viewport: { width, height: 844 } }, beforeNavigate: async page => {
         // A cached role must not override the fresh account access check.
         await page.evaluate(() => localStorage.setItem('user_Taspe7_GlobalRole', 'PROGRAMER'));
@@ -31,7 +29,7 @@ async function open(t, engine, { role = 'PROGRAMER', width = 390, pending = fals
                 state.capacity.models[0].limits = request.postDataJSON();
                 return route.fulfill({ headers, json: state.capacity });
             }
-            if (request.method() === 'POST') {
+            if (['POST', 'PUT'].includes(request.method())) {
                 const body = request.postDataJSON();
                 state.posts.push({ path: url.pathname, body });
                 assert.match(body.requestId, /^[a-f\d-]{36}$/i);
@@ -42,7 +40,13 @@ async function open(t, engine, { role = 'PROGRAMER', width = 390, pending = fals
                     state.account = { ...state.account, revision: 'b'.repeat(64), quota: { ...state.account.quota, used: 0, remaining: 20000 }, lastAdminResetAt: new Date().toISOString() };
                     return route.fulfill({ headers, json: state.account });
                 }
-                state.policy = { ...state.policy, revision: 'a'.repeat(64), launch: { startsAt: new Date().toISOString(), endsAt: '2027-05-08T12:00:00Z', status: 'active' } };
+                assert.equal(request.method(), 'PUT');
+                assert.equal(url.pathname, '/api/ai/admin/policy/free-limit');
+                assert.equal(body.expectedRevision, state.policy.revision);
+                const revision = (state.policy.revision[0] === 'a' ? 'b' : 'a').repeat(64);
+                state.policy = { revision, dailyTokenLimits: { ...state.policy.dailyTokenLimits, free: body.limit } };
+                state.account.quota.limit = body.limit;
+                state.account.quota.remaining = Math.max(0, body.limit - state.account.quota.used);
                 return route.fulfill({ headers, json: state.policy });
             }
             state.reads.push(url.pathname);
@@ -82,9 +86,9 @@ for (const engine of ['chromium', 'webkit']) test(`${engine}: Gemini capacity es
 });
 
 for (const engine of ['chromium', 'webkit']) {
-    test(`${engine}: programmer can find usage and confirm an account reset and shared launch`, async t => {
+    test(`${engine}: programmer can reset an account and change the shared Free allowance`, async t => {
         const { page, state, errors } = await open(t, engine, { width: 320 });
-        await page.getByRole('heading', { name: 'Six-month Free launch offer' }).waitFor();
+        await page.getByRole('heading', { name: 'Free plan allowance' }).waitFor();
         await page.getByLabel('Username', { exact: true }).fill('@Youssef');
         assert.equal(state.searches.length, 0, 'Typing does not make search requests');
         await page.getByRole('button', { name: 'Search', exact: true }).click();
@@ -102,12 +106,26 @@ for (const engine of ['chromium', 'webkit']) {
         await page.waitForFunction(() => document.querySelector('[data-ai-admin-account] [role="progressbar"]')?.getAttribute('aria-valuenow') === '20000');
         assert.equal(state.posts.length, 1);
         assert.equal(state.posts[0].path, `/api/ai/admin/users/${targetId}/reset`);
-        await page.getByRole('button', { name: 'Restart six-month offer', exact: true }).click();
-        assert.equal(state.posts.length, 1);
-        await page.getByRole('button', { name: 'Confirm launch offer', exact: true }).click();
-        await page.getByRole('status').filter({ hasText: 'The six-month Free offer has started.' }).waitFor();
-        assert.equal(state.posts.length, 2);
-        assert.equal(state.posts[1].path, '/api/ai/admin/policy/launch');
+        const field = page.getByLabel('Tokens per 24 hours', { exact: true });
+        const review = page.getByRole('button', { name: 'Review change', exact: true });
+        assert.equal(await field.inputValue(), '20000');
+        await field.fill('0');
+        assert.equal(await review.isDisabled(), true);
+        const windowEnd = state.account.quota.resetsAt;
+        state.account.quota.used = 2500;
+        for (const [value, label, remaining] of [[14000, '14,000', '11500'], [17000, '17,000', '14500']]) {
+            const previousPosts = state.posts.length;
+            await field.fill(String(value));
+            await review.click();
+            assert.equal(state.posts.length, previousPosts);
+            await page.getByRole('button', { name: 'Save Free allowance', exact: true }).click();
+            await page.getByRole('status').filter({ hasText: `Free allowance saved at ${label} tokens per 24 hours.` }).waitFor();
+            assert.equal(state.posts.length, previousPosts + 1);
+            assert.equal(state.posts.at(-1).body.limit, value);
+            await page.waitForFunction(expected => document.querySelector('[data-ai-admin-account] [role="progressbar"]')?.getAttribute('aria-valuenow') === expected, remaining);
+            assert.equal(state.account.quota.used, 2500);
+            assert.equal(state.account.quota.resetsAt, windowEnd);
+        }
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
         assert.deepEqual(errors, []);
         if (process.env.AI_CONTROL_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.AI_CONTROL_SCREENSHOT_DIR, `ai-controls-${engine}.png`), fullPage: true });

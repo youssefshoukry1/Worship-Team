@@ -20,7 +20,7 @@ export default function AiTokenControlsPage() {
     if (!access.isLogin || [401, 403].includes(access.error?.status)) return <div className="mx-auto max-w-lg px-5 py-24 text-center"><ShieldCheck className="mx-auto mb-4 text-slate-400" size={36} /><h1 className="text-2xl font-bold">Private dashboard</h1><p className="mt-3 text-slate-400">Only PROGRAMER accounts can access these controls.</p><SettingsLink href="/normal_UserProfile" className="mt-6 inline-block text-sky-300">Back to profile</SettingsLink></div>;
     return <div className="app-page min-h-screen px-4 pb-28 pt-8 text-slate-200 sm:px-7 sm:pt-12" dir="ltr"><div className="mx-auto max-w-5xl">
         <SettingsLink href="/ProgramerDashboard" className="mb-6 inline-block text-sm text-sky-300 hover:text-sky-200">← App control center</SettingsLink>
-        <header className="mb-8"><div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300"><Gauge size={15} />PROGRAMER</div><h1 className="text-3xl font-bold text-white sm:text-4xl">AI token controls</h1><p className="mt-3 text-sm leading-6 text-slate-400">Review account usage, the Free launch offer, and Gemini capacity.</p>{access.hasAccess && <a href="#gemini-capacity-title" className="mt-3 inline-block text-sm text-sky-300">Jump to Gemini model capacity</a>}</header>
+        <header className="mb-8"><div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300"><Gauge size={15} />PROGRAMER</div><h1 className="text-3xl font-bold text-white sm:text-4xl">AI token controls</h1><p className="mt-3 text-sm leading-6 text-slate-400">Review account usage, the Free plan allowance, and Gemini capacity.</p>{access.hasAccess && <a href="#gemini-capacity-title" className="mt-3 inline-block text-sm text-sky-300">Jump to Gemini model capacity</a>}</header>
         {access.error && <p role="alert" className="mb-5 rounded-xl bg-rose-400/10 p-4 text-sm text-rose-200">{access.error.message}<button className={`${button} ms-3`} onClick={() => access.refetch()}>Retry access check</button></p>}
         {access.isPending && <PageSkeleton variant="dashboard" compact />}
         {access.hasAccess && <Controls key={access.isLogin} token={access.isLogin} />}
@@ -32,6 +32,7 @@ function Controls({ token }) {
     const [input, setInput] = useState('');
     const [search, setSearch] = useState('');
     const [selectedId, setSelectedId] = useState('');
+    const [freeLimitDraft, setFreeLimitDraft] = useState(null);
     const [confirmation, setConfirmation] = useState(null);
     const [notice, setNotice] = useState('');
     const policyKey = ['ai-token-policy', token];
@@ -42,23 +43,27 @@ function Controls({ token }) {
     const account = useQuery({ queryKey: accountKey(selectedId), enabled: !!selectedId,
         queryFn: () => request(token, `/users/${selectedId}`), retry: false, refetchOnWindowFocus: false });
     const action = useMutation({
-        mutationFn: command => request(token, command.kind === 'reset' ? `/users/${command.userId}/reset` : '/policy/launch', {
-            method: 'POST', body: JSON.stringify({ requestId: command.requestId, expectedRevision: command.revision })
-        }),
+        mutationFn: command => {
+            const body = { requestId: command.requestId, expectedRevision: command.revision };
+            if (command.kind === 'reset') return request(token, `/users/${command.userId}/reset`, { method: 'POST', body: JSON.stringify(body) });
+            return request(token, '/policy/free-limit', { method: 'PUT', body: JSON.stringify({ ...body, limit: command.limit }) });
+        },
         onSuccess: (result, command) => {
             if (command.kind === 'reset') {
                 client.setQueryData(accountKey(command.userId), result);
                 setNotice(`AI allowance reset for @${result.user.username}. Their new 24-hour window has started.`);
             } else {
                 client.setQueryData(policyKey, result);
+                setFreeLimitDraft(null);
                 client.invalidateQueries({ queryKey: ['ai-token-account', token] });
-                setNotice(`The six-month Free offer has started. It ends ${date(result.launch.endsAt)}.`);
+                setNotice(`Free allowance saved at ${format(result.dailyTokenLimits.free)} tokens per 24 hours.`);
             }
             setConfirmation(null);
         },
-        onError: error => {
+        onError: (error, command) => {
             if (error.status === 409) {
                 setConfirmation(null);
+                if (command.kind === 'free-limit') setFreeLimitDraft(null);
                 if (selectedId) account.refetch();
                 policy.refetch();
             }
@@ -67,18 +72,20 @@ function Controls({ token }) {
     const busy = action.isPending;
     const target = account.data;
     const quota = target?.quota;
-    const offer = policy.data;
-    const active = offer?.launch.status === 'active';
+    const currentFreeLimit = policy.data?.dailyTokenLimits.free;
+    const freeLimitInput = freeLimitDraft ?? String(currentFreeLimit ?? '');
+    const newFreeLimit = Number(freeLimitInput);
+    const canSaveFreeLimit = /^\d+$/.test(freeLimitInput) && Number.isSafeInteger(newFreeLimit) && newFreeLimit > 0 && newFreeLimit !== currentFreeLimit;
     const error = (!confirmation && action.error) || account.error || users.error || policy.error;
 
     function confirm(kind) {
         action.reset(); setNotice('');
         setConfirmation({ kind, requestId: crypto.randomUUID(),
-            revision: kind === 'reset' ? target.revision : offer.revision,
-            ...(kind === 'reset' ? { userId: selectedId, username: target.user.username } : {}) });
+            ...(kind === 'reset' ? { revision: target.revision, userId: selectedId, username: target.user.username }
+                : { revision: policy.data.revision, limit: newFreeLimit, previousLimit: currentFreeLimit }) });
     }
 
-    const confirmationPanel = confirmation && <ConfirmAction confirmation={confirmation} active={active} offer={offer} action={action} onCancel={() => { setConfirmation(null); action.reset(); }} />;
+    const confirmationPanel = confirmation && <ConfirmAction confirmation={confirmation} action={action} onCancel={() => { setConfirmation(null); action.reset(); }} />;
 
     return <div className="space-y-6">
         {error && <p role="alert" className="rounded-xl border border-rose-400/20 bg-rose-400/10 p-4 text-sm text-rose-200">{error.message}</p>}
@@ -114,15 +121,23 @@ function Controls({ token }) {
             </div>}
         </section>
 
-        <section className={panel} aria-labelledby="launch-offer-title">
-            <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 id="launch-offer-title" className="text-xl font-semibold text-white">Six-month Free launch offer</h2><p className="mt-2 text-sm leading-6 text-slate-400">One shared offer for all Free accounts. Plus, Pro and unlimited accounts keep their current limits.</p></div><button type="button" className={button} disabled={busy || policy.isFetching} onClick={() => { setConfirmation(null); action.reset(); policy.refetch(); }}><RefreshCw size={16} />Refresh offer</button></div>
-            {policy.isPending && <p className="mt-5 text-sm text-slate-400" role="status">Loading launch offer…</p>}
-            {offer && !policy.isError && <>
-                <p className="mt-5 text-3xl font-semibold tabular-nums text-emerald-300">{format(offer.freeLaunchTokenLimit)} <span className="text-sm font-normal text-slate-400">tokens / 24 hours</span></p>
-                <p className="mt-2 text-sm text-slate-400">After the offer: {format(offer.freeStandardTokenLimit)} tokens / 24 hours.</p>
-                <dl className="mt-5 space-y-2 text-sm"><div className="flex flex-wrap gap-x-3"><dt className="text-slate-400">Status</dt><dd className={active ? 'text-emerald-300' : 'text-slate-200'}>{active ? 'Active' : offer.launch.status === 'scheduled' ? 'Scheduled' : 'Ended'}</dd></div><div className="flex flex-wrap gap-x-3"><dt className="text-slate-400">Starts</dt><dd>{date(offer.launch.startsAt)}</dd></div><div className="flex flex-wrap gap-x-3"><dt className="text-slate-400">Ends</dt><dd>{date(offer.launch.endsAt)}</dd></div></dl>
-                <button type="button" className={`${button} mt-6 border-emerald-400/30 text-emerald-300`} disabled={busy || policy.isFetching} onClick={() => confirm('launch')}>{active ? 'Restart six-month offer' : 'Start six-month offer'}</button>
-                {confirmation?.kind === 'launch' && confirmationPanel}
+        <section className={panel} aria-labelledby="free-allowance-title">
+            <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 id="free-allowance-title" className="text-xl font-semibold text-white">Free plan allowance</h2><p className="mt-2 text-sm leading-6 text-slate-400">Set the daily AI token allowance for all signed-in Free accounts.</p></div><button type="button" className={button} disabled={busy || policy.isFetching} onClick={() => { setConfirmation(null); setFreeLimitDraft(null); action.reset(); policy.refetch(); }}><RefreshCw size={16} />Refresh allowance</button></div>
+            {policy.isPending && <p className="mt-5 text-sm text-slate-400" role="status">Loading allowance…</p>}
+            {currentFreeLimit != null && !policy.isError && <>
+                <form className="mt-5 flex flex-wrap items-end gap-3" onSubmit={event => {
+                    event.preventDefault();
+                    if (canSaveFreeLimit && !busy && !policy.isFetching && confirmation?.kind !== 'free-limit') confirm('free-limit');
+                }}>
+                    <div className="w-full max-w-56">
+                        <label htmlFor="free-ai-token-limit" className="mb-2 block text-sm font-medium text-slate-300">Tokens per 24 hours</label>
+                        <input id="free-ai-token-limit" type="number" inputMode="numeric" min={1} max={Number.MAX_SAFE_INTEGER} step={1} required value={freeLimitInput}
+                            onChange={event => setFreeLimitDraft(event.target.value)} disabled={busy || policy.isFetching || confirmation?.kind === 'free-limit'}
+                            className="min-h-11 w-full rounded-xl border border-white/10 bg-black/15 px-3 text-base tabular-nums text-white outline-none focus:border-sky-400 disabled:opacity-70" />
+                    </div>
+                    <button type="submit" className={`${button} border-emerald-400/30 text-emerald-300`} disabled={!canSaveFreeLimit || busy || policy.isFetching || confirmation?.kind === 'free-limit'}>Review change</button>
+                </form>
+                {confirmation?.kind === 'free-limit' && confirmationPanel}
             </>}
         </section>
 
@@ -130,13 +145,14 @@ function Controls({ token }) {
     </div>;
 }
 
-function ConfirmAction({ confirmation, active, offer, action, onCancel }) {
+function ConfirmAction({ confirmation, action, onCancel }) {
+    const isReset = confirmation.kind === 'reset';
     return <section role="group" aria-labelledby="ai-token-confirm-title" className="mt-5 rounded-2xl border border-amber-400/30 bg-amber-400/5 p-5 sm:p-7">
-            <h2 id="ai-token-confirm-title" className="text-lg font-semibold text-white">{confirmation.kind === 'reset' ? `Reset @${confirmation.username}?` : `${active ? 'Restart' : 'Start'} the shared launch offer?`}</h2>
-            <p className="mt-3 text-sm leading-7 text-slate-300">{confirmation.kind === 'reset'
-                ? 'Used tokens will become 0 and a new 24-hour window will start now. The account receives its full allowance under its current plan and launch offer.'
-                : `The six-month offer will start now for every Free account, replacing the current launch dates. Free accounts receive ${format(offer.freeLaunchTokenLimit)} tokens per 24 hours, then ${format(offer.freeStandardTokenLimit)} afterward. Existing usage and reset times are preserved.`}</p>
+            <h2 id="ai-token-confirm-title" className="text-lg font-semibold text-white">{isReset ? `Reset @${confirmation.username}?` : 'Change the Free plan allowance?'}</h2>
+            <p className="mt-3 text-sm leading-7 text-slate-300">{isReset
+                ? 'Used tokens will become 0 and a new 24-hour window will start now with the account’s current plan allowance.'
+                : `The allowance will change from ${format(confirmation.previousLimit)} to ${format(confirmation.limit)} tokens per 24 hours for all Free accounts. Tokens already used and reset times carry over. Requests already running can finish.`}</p>
             {action.error && <p role="alert" className="mt-3 text-sm text-rose-200">{action.error.message}</p>}
-            <div className="mt-5 flex flex-wrap gap-3"><button type="button" className={`${button} border-amber-400/40 bg-amber-400 text-slate-950 hover:bg-amber-300`} disabled={action.isPending} onClick={() => action.mutate(confirmation)}>{action.isPending && <Loader2 size={16} className="animate-spin" />}{confirmation.kind === 'reset' ? 'Confirm account reset' : 'Confirm launch offer'}</button><button type="button" className={button} disabled={action.isPending} onClick={onCancel}>Cancel</button></div>
+            <div className="mt-5 flex flex-wrap gap-3"><button type="button" className={`${button} border-amber-400/40 bg-amber-400 text-slate-950 hover:bg-amber-300`} disabled={action.isPending} onClick={() => action.mutate(confirmation)}>{action.isPending && <Loader2 size={16} className="animate-spin" />}{isReset ? 'Confirm account reset' : 'Save Free allowance'}</button><button type="button" className={button} disabled={action.isPending} onClick={onCancel}>Cancel</button></div>
         </section>;
 }

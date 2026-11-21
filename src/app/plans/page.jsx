@@ -85,8 +85,6 @@ export default function PlansPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <div className={`rounded-2xl border p-6 ${panel}`}><h2 className="text-lg font-semibold">{text('Free', 'مجاني')}</h2><p className="mt-5 text-3xl font-bold">{text('Free', 'مجاناً')}</p>
             <p className={`mt-2 text-sm ${muted}`}>{tokens(data.catalog.freeDailyTokenLimit)} {text('AI tokens per 24 hours', 'توكن ذكاء اصطناعي كل ٢٤ ساعة')}</p>
-            {data.catalog.launchBonusEndsAt && <p className={`mt-4 text-xs leading-6 ${muted}`}>{text('Includes a temporary launch bonus until ', 'يشمل مكافأة الإطلاق المؤقتة حتى ')}{new Date(data.catalog.launchBonusEndsAt).toLocaleDateString(ar ? 'ar-EG' : 'en-GB')}</p>}
-            {data.catalog.launchBonusEndsAt && <p className={`mt-2 text-xs leading-6 ${muted}`}>{text('After the launch offer: ', 'بعد عرض الإطلاق: ')}{tokens(data.catalog.freeStandardTokenLimit)} {text('tokens per 24 hours.', 'توكن كل ٢٤ ساعة.')}</p>}
             <p className={`mt-6 flex items-center gap-2 text-sm ${muted}`}><Check size={16} />{text('Available without a subscription', 'متاح دون اشتراك')}</p>
           </div>
           {data.catalog.plans.map(plan => {
