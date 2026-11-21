@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useContext, useEffect, useLayoutEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, animate, useMotionValue } from 'framer-motion';
 import Portal from '../Portal/Portal';
 import { UserContext } from '../context/User_Context';
 import { useLanguage } from '../context/LanguageContext';
@@ -522,7 +522,7 @@ export function BibleForm({ controller, isPage = false }) {
   const settingsRef = useRef(null);
   const readerSurfaceRef = useRef(null);
 
-  const compareModalCardRef = useRef(null);
+  const compareY = useMotionValue(0);
   const compareScrollRef = useRef(null);
   const compareTouchStartY = useRef(0);
   const comparePullDistance = useRef(0);
@@ -532,51 +532,28 @@ export function BibleForm({ controller, isPage = false }) {
     compareTouchStartY.current = e.touches[0].clientY;
     comparePullDistance.current = 0;
     compareStartedAtTop.current = (compareScrollRef.current?.scrollTop ?? 0) <= 0;
-    if (compareModalCardRef.current) {
-      compareModalCardRef.current.style.transition = 'none';
-    }
+    compareY.stop();
   };
 
   const handleCompareTouchMove = (e) => {
     const currentY = e.touches[0].clientY;
-    const currentScrollTop = compareScrollRef.current?.scrollTop ?? 0;
-    if (currentScrollTop <= 0) {
-      if (!compareStartedAtTop.current) {
-        compareStartedAtTop.current = true;
-        compareTouchStartY.current = currentY;
-      }
-      const deltaY = currentY - compareTouchStartY.current;
-      if (deltaY > 0) {
-        comparePullDistance.current = deltaY;
-        if (compareModalCardRef.current) {
-          compareModalCardRef.current.style.transform = `translate3d(0, ${deltaY}px, 0)`;
-        }
-      }
-    } else {
-      comparePullDistance.current = 0;
+    if ((compareScrollRef.current?.scrollTop ?? 0) > 0) {
       compareStartedAtTop.current = false;
-      if (compareModalCardRef.current) {
-        compareModalCardRef.current.style.transform = '';
-      }
+    } else if (!compareStartedAtTop.current) {
+      compareStartedAtTop.current = true;
+      compareTouchStartY.current = currentY;
     }
+    comparePullDistance.current = compareStartedAtTop.current
+      ? Math.max(0, currentY - compareTouchStartY.current)
+      : 0;
+    compareY.set(comparePullDistance.current);
   };
 
-  const handleCompareTouchEnd = () => {
-    if (compareModalCardRef.current) {
-      compareModalCardRef.current.style.transition = 'transform 0.22s cubic-bezier(0.32, 0.72, 0, 1)';
-      if (compareStartedAtTop.current && comparePullDistance.current > 80) {
-        compareModalCardRef.current.style.transform = 'translate3d(0, 100%, 0)';
-        setTimeout(() => {
-          setCompareModal(false);
-          if (compareModalCardRef.current) {
-            compareModalCardRef.current.style.transform = '';
-          }
-        }, 220);
-      } else {
-        compareModalCardRef.current.style.transform = 'translate3d(0, 0, 0)';
-      }
-    } else if (compareStartedAtTop.current && comparePullDistance.current > 80) {
+  const handleCompareTouchEnd = (e) => {
+    if (e.type !== 'touchcancel' && comparePullDistance.current > 80) {
       setCompareModal(false);
+    } else {
+      animate(compareY, 0, { duration: 0.22, ease: [0.32, 0.72, 0, 1] });
     }
     comparePullDistance.current = 0;
     compareStartedAtTop.current = false;
@@ -1529,15 +1506,15 @@ export function BibleForm({ controller, isPage = false }) {
               />
 
               <motion.div
-                ref={compareModalCardRef}
                 onTouchStart={handleCompareTouchStart}
                 onTouchMove={handleCompareTouchMove}
                 onTouchEnd={handleCompareTouchEnd}
+                onTouchCancel={handleCompareTouchEnd}
                 initial={{ y: 50, opacity: 0, scale: 0.98 }}
                 animate={{ y: 0, opacity: 1, scale: 1 }}
-                exit={{ y: 30, opacity: 0, scale: 0.98 }}
+                exit={{ y: typeof window === "undefined" ? 1000 : window.innerHeight, opacity: 0, transition: { duration: 0.22 } }}
                 transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-                style={{ willChange: 'transform, opacity' }}
+                style={{ y: compareY, willChange: 'transform, opacity' }}
                 className={`relative w-full sm:max-w-2xl h-[90vh] sm:h-[85vh] rounded-t-[2rem] sm:rounded-[2rem] backdrop-blur-2xl border-t sm:border shadow-2xl flex flex-col overflow-hidden ring-1 transition-colors bg-app-panel/95 border-white/[0.08] ring-white/5 sm:shadow-[0_0_60px_-15px_rgba(14,165,233,0.15)]`}
               >
                 {/* ── Compare Modal Header (Hymns Lyrics Style with Drag Bar) ── */}
