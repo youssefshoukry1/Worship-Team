@@ -21,7 +21,7 @@ export default function BibleFormPage() {
 
   return (
     <>
-      <BibleReader controller={presenter.bibleController} isPage />
+      <BibleReader controller={presenter.bibleController} presenter={presenter} isPage />
       {presenter.showDataShow && selectedLyricsHymn && (
         <Presentation view={presenter} onLoadClose={() => presenter.setShowDataShow(false)} />
       )}

@@ -6,13 +6,14 @@ import Portal from '../Portal/Portal';
 import { UserContext } from '../context/User_Context';
 import { useLanguage } from '../context/LanguageContext';
 import { showToast } from '../components/ToastContainer';
-import { X, Check, Search, ChevronLeft, ChevronRight, Loader2, Copy, Lightbulb, Monitor, PlusCircle, Link2, Download, CircleHelp, Plus, Trash2 } from 'lucide-react';
+import { X, Check, Search, Bookmark, ChevronLeft, ChevronRight, Loader2, Copy, Lightbulb, Monitor, PlusCircle, Link2, Download, CircleHelp, Plus, Trash2 } from 'lucide-react';
 import WaslaWaveLogo from '../components/WaslaWaveLogo';
 import PageSkeleton from '../components/PageSkeleton';
 import { useRouter, usePathname } from 'next/navigation';
 import { HIGHLIGHT_COLORS, BIBLE_LAST_POS_KEY } from './bibleShared';
 import { useTabPageActive, useTabViewMemory } from '../components/TabPageActivity';
 import BibleSettings from './BibleSettings';
+import { LiveSessionButton, LiveSessionPanel } from '../components/LiveSession';
 import { aiStudyTextSegments } from '../utils/aiWordStudies';
 import AiJourneyMap from './AiJourneyMap';
 import AiPracticalFlow from './AiPracticalFlow';
@@ -512,7 +513,7 @@ function BibleReaderWrapper({ isPage, onClose, children }) {
   );
 }
 
-export function BibleForm({ controller, isPage = false }) {
+export function BibleForm({ controller, presenter, isPage = false }) {
   const router = useRouter();
   const pageActive = useTabPageActive();
   const view = useTabViewMemory();
@@ -589,6 +590,46 @@ export function BibleForm({ controller, isPage = false }) {
     goToChapterFromSearch, goToNextChapter, goToPrevChapter, hasNextChapter, hasPrevChapter,
     bibleScrollContainerRef
   } = controller;
+
+  const [savedChapter, setSavedChapter] = useState(null);
+  const savedChapterKey = 'taspe7_bible_saved_chapter';
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(savedChapterKey));
+      if (typeof saved?.bookName === 'string' && Number.isInteger(saved.chapter) && saved.chapter > 0) {
+        setSavedChapter(saved);
+      }
+    } catch {
+      // The reader can still save a new bookmark if the old entry is invalid.
+    }
+  }, [savedChapterKey]);
+
+  const savedBook = savedChapter && (bibleModalBook?.bookName === savedChapter.bookName
+    ? bibleModalBook
+    : bibleModalBooks.find(book => book.bookName === savedChapter.bookName));
+  const bookmarkLabel = savedChapter
+    ? `${t('returnToSavedChapter')} ${savedChapter.bookName} ${savedChapter.chapter}`
+    : t('saveReadingPlace');
+  const toggleSavedChapter = () => {
+    if (savedChapter) {
+      if (!savedBook) return;
+      navigateChapter(() => {
+        setBibleModalBook(savedBook);
+        setBibleModalChapter(savedChapter.chapter);
+        setBiblePickerOpen(null);
+        setBibleSelectedVerseIds(new Set());
+        localStorage.setItem(BIBLE_LAST_POS_KEY, JSON.stringify(savedChapter));
+        localStorage.removeItem(savedChapterKey);
+        setSavedChapter(null);
+      });
+      return;
+    }
+    if (!bibleModalBook?.bookName || bibleModalChapter == null) return;
+    const current = { bookName: bibleModalBook.bookName, chapter: Number(bibleModalChapter) };
+    localStorage.setItem(savedChapterKey, JSON.stringify(current));
+    setSavedChapter(current);
+  };
 
   const chapterKey = JSON.stringify([bibleModalBook?.bookName, bibleModalChapter, bibleTranslation]);
   useLayoutEffect(() => {
@@ -994,8 +1035,7 @@ export function BibleForm({ controller, isPage = false }) {
                   </div>
                 ) : (bibleModalVerses.length > 0 || bibleModalBook) ? (
                   <div className="space-y-10">
-                    {/* Modern Chapter Indicator */}
-                    <div className="flex items-end justify-between border-b border-white/5 pb-6">
+                    <div className="flex items-end justify-between gap-3 border-b border-white/5 pb-6">
                       <div>
                         <h1 className="text-3xl sm:text-5xl font-black text-white leading-none">
                           {bibleModalBook.bookName}
@@ -1003,10 +1043,23 @@ export function BibleForm({ controller, isPage = false }) {
                         <div className="mt-2 flex items-center gap-2">
                           <span className="h-[2px] w-8 bg-sky-500" />
                           <span className="text-xs font-bold text-sky-400 uppercase tracking-tighter">{t("chapter")} {bibleModalChapter}</span>
+                          <button
+                            type="button"
+                            onClick={toggleSavedChapter}
+                            aria-label={bookmarkLabel}
+                            title={bookmarkLabel}
+                            disabled={savedChapter ? !savedBook : bibleModalChapter == null}
+                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-white transition-colors hover:text-sky-300 focus-visible:outline focus-visible:outline-sky-400 disabled:opacity-40"
+                          >
+                            <Bookmark className={`h-5 w-5 shrink-0 ${savedChapter ? 'text-sky-400' : ''}`} fill={savedChapter ? 'currentColor' : 'none'} aria-hidden="true" />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <BibleSettings ref={settingsRef} controller={controller} containerRef={readerSurfaceRef} onDeselectAll={closeSelectionPanel} />
+                      <div className="flex shrink-0 items-center gap-2">
+                        <BibleSettings ref={settingsRef} controller={controller} containerRef={readerSurfaceRef} onDeselectAll={closeSelectionPanel}>
+                          {presenter && <div className="flex items-center"><LiveSessionButton presenter={presenter} /></div>}
+                          {presenter && <LiveSessionPanel presenter={presenter} />}
+                        </BibleSettings>
                         <button
                           onClick={() => openBiblePresentation({ bookName: bibleModalBook.bookName, chapter: bibleModalChapter, verses: bibleModalVerses, startIndex: 0 })}
                           className="p-3 bg-white/5 hover:bg-sky-500 text-white rounded-2xl transition-all active:scale-90 group"

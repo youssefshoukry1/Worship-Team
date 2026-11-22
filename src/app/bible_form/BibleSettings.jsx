@@ -10,7 +10,7 @@ import { useTabPageActive } from '../components/TabPageActivity';
 import { waitForNavigationIdle } from '../utils/navigationWork';
 
 // Opening this surface owns only its own state, never the chapter's render.
-export default function BibleSettings({ ref, controller, containerRef, onDeselectAll }) {
+export default function BibleSettings({ ref, controller, containerRef, onDeselectAll, children }) {
   const { t, language } = useLanguage();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [host, setHost] = useState(null);
@@ -161,6 +161,7 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
 
             {/* Scrollable Settings Content */}
             <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 custom-scrollbar-thin">
+              {children}
               {/* Section 1: Translations */}
               <div className="space-y-1">
                 <span className="text-[10px] font-bold text-gray-400/90 uppercase tracking-widest px-1">
