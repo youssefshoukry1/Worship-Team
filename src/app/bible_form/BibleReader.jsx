@@ -1035,7 +1035,7 @@ export function BibleForm({ controller, presenter, isPage = false }) {
                   </div>
                 ) : (bibleModalVerses.length > 0 || bibleModalBook) ? (
                   <div className="space-y-10">
-                    <div className="flex items-end justify-between gap-3 border-b border-white/5 pb-6">
+                    <div className="flex items-end justify-between border-b border-white/5 pb-6">
                       <div>
                         <h1 className="text-3xl sm:text-5xl font-black text-white leading-none">
                           {bibleModalBook.bookName}
@@ -1049,13 +1049,13 @@ export function BibleForm({ controller, presenter, isPage = false }) {
                             aria-label={bookmarkLabel}
                             title={bookmarkLabel}
                             disabled={savedChapter ? !savedBook : bibleModalChapter == null}
-                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-white transition-colors hover:text-sky-300 focus-visible:outline focus-visible:outline-sky-400 disabled:opacity-40"
+                            className="inline-flex size-4 shrink-0 items-center justify-center text-white transition-colors hover:text-sky-300 focus-visible:outline focus-visible:outline-sky-400 disabled:opacity-40"
                           >
-                            <Bookmark className={`h-5 w-5 shrink-0 ${savedChapter ? 'text-sky-400' : ''}`} fill={savedChapter ? 'currentColor' : 'none'} aria-hidden="true" />
+                            <Bookmark className={`size-full ${savedChapter ? 'text-sky-400' : ''}`} fill={savedChapter ? 'currentColor' : 'none'} aria-hidden="true" />
                           </button>
                         </div>
                       </div>
-                      <div className="flex shrink-0 items-center gap-2">
+                      <div className="flex items-center gap-2">
                         <BibleSettings ref={settingsRef} controller={controller} containerRef={readerSurfaceRef} onDeselectAll={closeSelectionPanel}>
                           {presenter && <div className="flex items-center"><LiveSessionButton presenter={presenter} /></div>}
                           {presenter && <LiveSessionPanel presenter={presenter} />}
