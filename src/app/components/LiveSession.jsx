@@ -4,7 +4,8 @@ import { useLanguage } from '../context/LanguageContext';
 
 export function LiveSessionButton({ presenter, id }) {
   const { t } = useLanguage();
-  const { dataShowId, isConnected, showSessionPanel, setShowSessionPanel } = presenter;
+  const { dataShowId, isCreatingSession, isConnected, showSessionPanel, setShowSessionPanel } = presenter;
+  const pendingLabel = isCreatingSession ? 'Creating...' : dataShowId && !isConnected ? 'Connecting...' : null;
   return (
     <div id={id} className="relative">
       <div className={`relative p-[1px] rounded-full overflow-hidden transition-all duration-300
@@ -31,42 +32,44 @@ export function LiveSessionButton({ presenter, id }) {
               : 'bg-app-panel text-gray-400 hover:bg-app-raised hover:text-white'
             }`}
         >
-          <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse text-green-400' : ''}`} />
+          {pendingLabel ? <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin text-sky-400" /> : <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse text-green-400' : ''}`} />}
           {isConnected ? (
             <><span className="text-[10px] text-green-400 font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
-          ) : t('livesession')}
+          ) : pendingLabel || t('livesession')}
         </button>
       </div>
     </div>
   );
 }
 
-export function LiveSessionPanel({ presenter }) {
+export function LiveSessionPanel({ presenter, compact = false }) {
   const router = useRouter();
   const {
     showSessionPanel, dataShowId, setDataShowId, dataShowIdInput, setDataShowIdInput,
-    handleCreateSession, handleJoinSession, isCreatingSession, isJoiningSession,
+    handleCreateSession, handleJoinSession, createSessionError, isCreatingSession, isJoiningSession,
     toggleAudio, isAudioActive, clearDisplay,
   } = presenter;
 
   if (!showSessionPanel) return null;
   return (
-    <div className="w-full sm:max-w-[420px] p-4 bg-app-panel border border-white/10 rounded-2xl shadow-xl backdrop-blur-sm">
-      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Presentation Room</p>
-      <div className="flex flex-col sm:flex-row gap-2">
+    <div className={compact ? "space-y-2 rounded-xl border border-white/10 bg-black/20 p-2" : "w-full sm:max-w-[420px] p-4 bg-app-panel border border-white/10 rounded-2xl shadow-xl backdrop-blur-sm"}>
+      {!compact && <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Presentation Room</p>}
+      <div className={compact ? "flex flex-col gap-1.5" : "flex flex-col sm:flex-row gap-2"}>
         <input
+          disabled={isCreatingSession}
           type="text"
           value={dataShowIdInput}
           onChange={e => setDataShowIdInput(e.target.value)}
-          placeholder='e.g. "sunday-01"'
-          className="flex-1 bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600 w-full"
+          aria-label="Room name"
+          placeholder={compact ? "Room name" : 'e.g. "sunday-01"'}
+          className={compact ? "w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white outline-none focus:border-sky-400/50" : "flex-1 bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600 w-full"}
           onKeyDown={e => { if (e.key === 'Enter') handleJoinSession(); }}
         />
         <div className="flex gap-2">
           <button
             onClick={handleCreateSession}
-            disabled={isCreatingSession}
-            className="flex items-center justify-center gap-2 flex-1 sm:flex-none px-4 py-2 bg-sky-500 hover:bg-sky-400 disabled:bg-sky-500/50 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-all whitespace-nowrap"
+            disabled={isCreatingSession || isJoiningSession || !!dataShowId}
+            className={compact ? "flex flex-1 items-center justify-center gap-1 rounded-lg bg-sky-500 py-1.5 text-xs font-bold text-white disabled:opacity-50" : "flex items-center justify-center gap-2 flex-1 sm:flex-none px-4 py-2 bg-sky-500 hover:bg-sky-400 disabled:bg-sky-500/50 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-all whitespace-nowrap"}
           >
             {isCreatingSession ? (
               <>
@@ -77,15 +80,16 @@ export function LiveSessionPanel({ presenter }) {
           </button>
           <button
             onClick={handleJoinSession}
-            disabled={isJoiningSession}
-            className="flex-1 sm:flex-none px-4 py-2 bg-indigo-500 hover:bg-indigo-400 disabled:bg-indigo-500/50 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-all whitespace-nowrap"
+            disabled={isJoiningSession || isCreatingSession}
+            className={compact ? "flex-1 rounded-lg border border-white/10 bg-white/5 py-1.5 text-xs font-bold text-white disabled:opacity-50" : "flex-1 sm:flex-none px-4 py-2 bg-indigo-500 hover:bg-indigo-400 disabled:bg-indigo-500/50 disabled:cursor-not-allowed rounded-xl text-sm font-bold transition-all whitespace-nowrap"}
           >
             Join
           </button>
         </div>
       </div>
+      {createSessionError && <p role="alert" className="mt-2 text-sm text-red-300">{createSessionError}</p>}
       {dataShowId && (
-        <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-2">
+        <div className={compact ? "grid grid-cols-3 gap-1 [&>a]:px-0 [&>button]:px-0 [&>*]:py-1.5 [&>*]:flex-col [&>*]:gap-1 [&>*]:bg-white/5 [&>*]:border-white/10 [&>*]:text-[10px]" : "mt-4 flex flex-col sm:flex-row flex-wrap gap-2"}>
           <a
             href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
             onClick={(e) => {
@@ -95,9 +99,9 @@ export function LiveSessionPanel({ presenter }) {
               }
             }}
             target="_blank" rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all flex-1"
+            className={compact ? "flex items-center justify-center rounded-lg border text-sky-400" : "flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-all flex-1"}
           >
-            <Tv2 size={13} /> Open Display Window
+            <Tv2 size={13} /> {compact ? "Display" : "Open Display Window"}
           </a>
 
           {/* Microphone Toggle Button */}
@@ -109,7 +113,7 @@ export function LiveSessionPanel({ presenter }) {
               }`}
           >
             {isAudioActive ? <Mic size={13} className="text-sky-400 animate-pulse" /> : <MicOff size={13} />}
-            {isAudioActive ? 'Mic On' : 'Turn On Mic'}
+            {isAudioActive ? 'Mic On' : compact ? 'Mic off' : 'Turn On Mic'}
           </button>
 
           {/* End Session Button */}
@@ -122,7 +126,7 @@ export function LiveSessionPanel({ presenter }) {
             }}
             className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all w-full sm:w-auto"
           >
-            <X size={13} /> End Session
+            <X size={13} /> {compact ? "End" : "End Session"}
           </button>
         </div>
       )}

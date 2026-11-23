@@ -59,6 +59,7 @@ export function usePresenter({
   const [dataShowIdInput, setDataShowIdInput] = useState('');
   const [showSessionPanel, setShowSessionPanel] = useState(false);
   const [sessionExpiresAt, setSessionExpiresAt] = useState(null);
+  const [createSessionError, setCreateSessionError] = useState('');
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [isJoiningSession, setIsJoiningSession] = useState(false);
 
@@ -108,13 +109,18 @@ export function usePresenter({
   );
 
   const handleCreateSession = async () => {
+    if (isCreatingSession) return;
+    setCreateSessionError('');
     if (dataShowId || localStorage.getItem('myLivePresentationId')) {
-      alert("You already have an active Live Presentation on this device. Please end it first.");
+      setCreateSessionError("You already have an active Live Presentation on this device. Please end it first.");
       return;
     }
 
     const id = dataShowIdInput.trim();
-    if (!id) return;
+    if (!id) {
+      setCreateSessionError('Enter a room name.');
+      return;
+    }
 
     setIsCreatingSession(true);
     try {
@@ -127,10 +133,11 @@ export function usePresenter({
         setDataShowId(id);
         if (response.data.expiresAt) setSessionExpiresAt(response.data.expiresAt);
         localStorage.setItem('myLivePresentationId', id);
-        setShowSessionPanel(false);
+      } else {
+        setCreateSessionError("Failed to create session. Please try again.");
       }
     } catch (error) {
-      alert(error.response?.data?.error || "Failed to create session");
+      setCreateSessionError(error.response?.data?.error || "Failed to create session");
     } finally {
       setIsCreatingSession(false);
     }
@@ -666,7 +673,7 @@ export function usePresenter({
     increaseFontSize,
     isAudioActive,
     isConnected,
-    isCreatingSession,
+    createSessionError, isCreatingSession,
     isJoiningSession,
     isSearchingPreset,
     localDisplayRef,

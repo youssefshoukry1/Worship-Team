@@ -1058,7 +1058,7 @@ export function BibleForm({ controller, presenter, isPage = false }) {
                       <div className="flex items-center gap-2">
                         <BibleSettings ref={settingsRef} controller={controller} containerRef={readerSurfaceRef} onDeselectAll={closeSelectionPanel}>
                           {presenter && <div className="flex items-center"><LiveSessionButton presenter={presenter} /></div>}
-                          {presenter && <LiveSessionPanel presenter={presenter} />}
+                          {presenter && <LiveSessionPanel presenter={presenter} compact />}
                         </BibleSettings>
                         <button
                           onClick={() => openBiblePresentation({ bookName: bibleModalBook.bookName, chapter: bibleModalChapter, verses: bibleModalVerses, startIndex: 0 })}
