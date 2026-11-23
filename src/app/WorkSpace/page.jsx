@@ -14,6 +14,8 @@ import { Virtuoso } from 'react-virtuoso';
 import { transposeScale, transposeChords, transposeLyrics } from '../utils/musicUtils';
 import { usePresentation } from '../hooks/usePresentation';
 import { getApiBaseUrl } from '../utils/apiBase';
+import { Capacitor } from '@capacitor/core';
+import { navigateDocumentFallback } from '../utils/appNavigation';
 import { useRouter } from 'next/navigation';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { showToast } from '../components/ToastContainer';
@@ -1095,8 +1097,8 @@ export default function WorkSpace() {
             const data = await response.json();
             if (data.exists) {
                 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-                if (isMobile || window.innerWidth < 640) {
-                    router.push(`/presentation/display?dataShowId=${encodeURIComponent(id)}`);
+                if (Capacitor.isNativePlatform() || isMobile || window.innerWidth < 640) {
+                    navigateDocumentFallback(`/presentation/display/?dataShowId=${encodeURIComponent(id)}`);
                 } else {
                     window.open(`/presentation/display?dataShowId=${encodeURIComponent(id)}`, '_blank');
                     setIsJoiningSession(false);
@@ -1925,10 +1927,10 @@ export default function WorkSpace() {
                                             <a
                                                 href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
                                                 onClick={(e) => {
-                                                    if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
+                                                    if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
                                                         e.preventDefault();
                                                         setIsJoiningSession(true);
-                                                        router.push(`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`);
+                                                        navigateDocumentFallback(`/presentation/display/?dataShowId=${encodeURIComponent(dataShowId)}`);
                                                     }
                                                 }}
                                                 target="_blank"
@@ -2715,10 +2717,10 @@ export default function WorkSpace() {
                                         <div className="flex flex-wrap items-center gap-2">
                                             <a href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
                                                 onClick={(e) => {
-                                                    if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
+                                                    if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
                                                         e.preventDefault();
                                                         setIsJoiningSession(true);
-                                                        router.push(`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`);
+                                                        navigateDocumentFallback(`/presentation/display/?dataShowId=${encodeURIComponent(dataShowId)}`);
                                                     }
                                                 }}
                                                 target="_blank" rel="noopener noreferrer"

@@ -25,7 +25,7 @@ If the UI-control API returns an HTML 404 page, the configured backend has not r
 2. Deploy the candidate's `version.json` to `https://wasla-w.vercel.app/version.json`. Its existing `version` and `url` fields identify the candidate. Updating this file does not authorize delivery to apps running the controlled updater.
 3. Open the control center and refresh. New candidates start **On hold**.
 4. Choose **PROGRAMER only**, set **Show update intro**, and save. Sign in to the installed app with your PROGRAMER account to test it.
-5. The app silently downloads an authorized higher version during a check. On the next app opening, return to foreground, or later online check, it asks the server again and activates the downloaded bundle if permission still exists. Saving a release also requests a check on the device displaying the dashboard.
+5. The app silently stages an authorized higher version. Returning to the foreground, reconnecting, or saving dashboard settings can refresh that download. On a fresh native launch at the home or Pray route, the app checks the installed bundle and asks the server for current approval while the launch logo is visible. With approval, the new version starts behind the logo. With the intro enabled, the logo hands off to the intro before Pray. With the intro disabled, it hands off directly to the opening screen.
 6. When testing succeeds, choose **All users** and save. Earlier public releases remain available to regular users while a newer release is being tested privately.
 
 **Hold** revokes future delivery of that version. It does not roll back devices already running it. Earlier approved public releases remain available, and the updater never installs a version lower than the version currently running.
@@ -50,6 +50,8 @@ Native Android/iOS apps report their active bundle version on authenticated upda
 - Candidate discovery is read-only. New release creation verifies the candidate against the fixed manifest URL. Saved versions keep their bundle URL, and revision checks reject conflicting dashboard edits. Each release retains its last 50 changes.
 - MongoDB collections: `OtaRelease` and `OtaDevice`, created through the existing Mongoose connection. No manual data migration is needed.
 - The new updater uses `set()` only after a fresh authorization check. It does not use Capgo's automatic `next()` queue, so a held downloaded update cannot activate offline.
+- Regular launches use the existing early Pray handoff. A staged update gets up to 900 ms from startup to obtain authorization, including at most 180 ms after the opening screen requests display. A missed deadline or an app background event cancels activation for that session. After committing the switch, the new document controls the native handoff. When the intro is enabled, the cover waits for its first render, with a 2.5-second recovery deadline.
+- The bundle already installed on the device decides how to activate the release that first introduces this behavior. That transition can still refresh a visible page. Subsequent releases use the fresh-launch flow. The feature uses the existing native launch bridge and release API.
 - OTA health confirmation runs before authentication/network checks. A release-service outage leaves the app usable without downloading or activating an update. Dashboard release history remains manageable when candidate discovery fails.
 
 ## Verification

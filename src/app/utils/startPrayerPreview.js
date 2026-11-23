@@ -30,7 +30,8 @@ export const startPrayerPreview = `(() => {
   let frame = requestAnimationFrame(() => {
     frame = requestAnimationFrame(() => {
       if (!shell.isConnected || !field.getBoundingClientRect().height) return;
-      preview.visible = bridge.ready().then(() => true, () => false);
+      const reveal = window.waslaBeforeReveal ? window.waslaBeforeReveal().then(() => bridge.ready()) : bridge.ready();
+      preview.visible = reveal.then(() => true, () => false);
     });
   });
 })();`;

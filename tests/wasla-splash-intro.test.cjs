@@ -21,6 +21,7 @@ async function launch({ saved, version = '1.0.76', native = false, bundle, fetch
   const state = [], timers = [], events = [];
   let cursor = 0, effect, fetches = 0, animationLoads = 0;
   const react = {
+    useCallback: fn => fn,
     createElement: (type, props, ...children) => ({ type, props, children }),
     useState(initial) {
       const index = cursor++;

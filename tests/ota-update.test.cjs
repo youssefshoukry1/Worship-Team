@@ -19,7 +19,7 @@ const candidate = { version: '1.0.77', url: 'https://github.com/test/out.zip', s
 function fixture({ release = candidate, version = '1.0.76', builtin = false, responses = [], offline = false } = {}) {
     const storage = new Map(), calls = [], requests = [], bundles = [];
     let sessionActive = true;
-    const api = load('src/app/services/otaUpdateService.js', {
+    const env = {
         require: name => name === '../utils/appVersion' ? versionTools : { getApiBaseUrl: () => 'https://api.test/api' },
         localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
         crypto: { randomUUID: () => 'installation-123456789' }, AbortSignal,
@@ -30,7 +30,11 @@ function fixture({ release = candidate, version = '1.0.76', builtin = false, res
             const value = responses.length ? responses.shift() : { release, currentRelease: null };
             return { ok: true, json: async () => value };
         },
-    });
+    };
+    const launch = load('public/ota-launch.js', env);
+    const api = load('src/app/services/otaUpdateService.js', { ...env, require: name =>
+        name.includes('public/ota-launch') ? launch : env.require(name) });
+    env.localStorage.setItem('user_Taspe7_Token', 'signed-token');
     const updater = {
         current: async () => ({ bundle: { id: builtin ? 'builtin' : 'current', version: builtin ? 'builtin' : version }, native: '1.0.6' }),
         list: async () => ({ bundles }),
@@ -44,6 +48,10 @@ function fixture({ release = candidate, version = '1.0.76', builtin = false, res
     };
     return { api, updater, storage, calls, requests, bundles,
         stopSession: () => { sessionActive = false; },
+        activate: (commit = () => sessionActive) => launch.activatePreparedRelease({
+            apiBase: 'https://api.test/api', updater, token: 'signed-token', signal: new AbortController().signal,
+            pending: JSON.parse(storage.get(launch.PENDING_KEY)), commit,
+        }),
         run: () => api.runControlledOtaUpdate({ updater, token: 'signed-token', platform: 'android', isCurrentSession: () => sessionActive }),
     };
 }
@@ -57,12 +65,14 @@ test('no approved release never downloads, even with a locally pending bundle', 
     assert.equal(f.requests.length, 1);
 });
 
-test('download stays inactive until a later freshly authorized check', async () => {
+test('foreground checks only stage and only a freshly authorized launch activates', async () => {
     const f = fixture();
     await f.run();
     assert.deepEqual(f.calls.map(call => call[0]), ['download']);
     assert.equal(f.api.shouldShowReleaseSplash('1.0.77'), true);
     await f.run();
+    assert.deepEqual(f.calls.map(call => call[0]), ['download']);
+    await f.activate();
     assert.deepEqual(f.calls.map(call => call[0]), ['download', 'set']);
     assert.equal(f.calls[1][1].id, 'downloaded');
 });
@@ -70,14 +80,14 @@ test('download stays inactive until a later freshly authorized check', async () 
 test('holding a previously downloaded release prevents activation', async () => {
     const responses = [{ release: candidate }, { release: null }];
     const f = fixture({ responses });
-    await f.run(); await f.run();
+    await f.run(); await f.activate();
     assert.deepEqual(f.calls.map(call => call[0]), ['download']);
 });
 
 test('revocation during a check is revalidated before activation', async () => {
     const f = fixture({ responses: [{ release: candidate }, { release: null }] });
     f.bundles.push({ id: 'existing', version: '1.0.77', status: 'pending' });
-    await f.run();
+    await f.run(); await f.activate();
     assert.equal(f.calls.length, 0);
     assert.equal(f.requests.length, 2);
 });
@@ -120,6 +130,7 @@ test('activation uses the latest intro setting rather than the downloaded settin
     const f = fixture({ responses: [{ release: candidate }, { release: { ...candidate, showSplash: false } }] });
     f.bundles.push({ id: 'existing', version: '1.0.77', status: 'pending' });
     await f.run();
+    await f.activate();
     assert.equal(f.calls[0][0], 'set');
     assert.equal(f.api.shouldShowReleaseSplash('1.0.77'), false);
 });
@@ -136,4 +147,25 @@ test('failed bundles are not reused as successful candidates', async () => {
     f.bundles.push({ id: 'broken', version: '1.0.77', status: 'error' });
     await f.run();
     assert.deepEqual(f.calls.map(call => call[0]), ['download']);
+});
+
+test('late authorization after the screen opened cannot reload the session', async () => {
+    const f = fixture();
+    await f.run();
+    await f.activate(() => false);
+    assert.deepEqual(f.calls.map(call => call[0]), ['download']);
+});
+
+test('a changed account, changed running bundle or failed staged bundle cannot activate', async () => {
+    for (const change of [
+        f => f.storage.set('user_Taspe7_Token', 'different'),
+        f => { f.updater.current = async () => ({ bundle: { id: 'other', version: '1.0.80' } }); },
+        f => { f.bundles[0].status = 'error'; },
+    ]) {
+        const f = fixture();
+        await f.run();
+        change(f);
+        await f.activate();
+        assert.deepEqual(f.calls.map(call => call[0]), ['download']);
+    }
 });

@@ -1,4 +1,5 @@
-import { useRouter } from 'next/navigation';
+import { Capacitor } from '@capacitor/core';
+import { navigateDocumentFallback } from '../utils/appNavigation';
 import { Loader2, Mic, MicOff, Radio, Tv2, X } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -43,7 +44,6 @@ export function LiveSessionButton({ presenter, id }) {
 }
 
 export function LiveSessionPanel({ presenter, compact = false }) {
-  const router = useRouter();
   const {
     showSessionPanel, dataShowId, setDataShowId, dataShowIdInput, setDataShowIdInput,
     handleCreateSession, handleJoinSession, createSessionError, isCreatingSession, isJoiningSession,
@@ -93,9 +93,9 @@ export function LiveSessionPanel({ presenter, compact = false }) {
           <a
             href={`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`}
             onClick={(e) => {
-              if (typeof window !== 'undefined' && window.Capacitor?.isNative) {
+              if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
                 e.preventDefault();
-                  router.push(`/presentation/display?dataShowId=${encodeURIComponent(dataShowId)}`);
+                  navigateDocumentFallback(`/presentation/display/?dataShowId=${encodeURIComponent(dataShowId)}`);
               }
             }}
             target="_blank" rel="noopener noreferrer"

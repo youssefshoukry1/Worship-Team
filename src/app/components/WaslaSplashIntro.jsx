@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { parseVersion, compareVersions } from "../utils/appVersion";
 import { shouldShowReleaseSplash } from "../services/otaUpdateService";
 
@@ -13,6 +13,7 @@ export default function WaslaSplashIntro() {
         if (typeof window !== "undefined") {
             window.__wasla_splash_active = false;
             window.__wasla_splash_done = true;
+            window.waslaOtaIntro?.finish();
             window.dispatchEvent(new CustomEvent("wasla_splash_done"));
         }
     };
@@ -53,6 +54,11 @@ export default function WaslaSplashIntro() {
                     } else if (compareVersions(version, savedVersion) === 1) {
                         const { default: animation } = await import("./ReleaseAnimation");
                         if (cancelled) return;
+                        if (window.waslaSkippedOtaIntro === version) {
+                            localStorage.setItem("wasla_splash_version", version);
+                            finishSplash();
+                            return;
+                        }
                         setAnimation(() => animation);
                         setAppVersion(version);
                         window.__wasla_splash_active = true;
@@ -70,6 +76,15 @@ export default function WaslaSplashIntro() {
         return () => { cancelled = true; };
     }, []);
 
+    const onVisible = useCallback(node => {
+        if (!node || !appVersion) return;
+        try { localStorage.setItem("wasla_splash_version", appVersion); } catch {}
+        const gate = window.waslaOtaIntro;
+        if (gate) requestAnimationFrame(() => requestAnimationFrame(() => {
+            if (window.waslaOtaIntro === gate) gate.finish();
+        }));
+    }, [appVersion]);
+
     const handleAnimationComplete = () => {
         // Hold for a moment to enjoy the full splash, then gracefully fade out
         setTimeout(() => {
@@ -80,5 +95,5 @@ export default function WaslaSplashIntro() {
         }, 600);
     };
 
-    return Animation ? <Animation showSplash={showSplash} onComplete={handleAnimationComplete} onExitComplete={finishSplash} /> : null;
+    return Animation ? <Animation showSplash={showSplash} onVisible={onVisible} onComplete={handleAnimationComplete} onExitComplete={finishSplash} /> : null;
 }

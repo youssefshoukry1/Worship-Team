@@ -19,6 +19,8 @@ import BillingLifecycle from './components/BillingLifecycle';
 import AndroidBackNavigation from './components/AndroidBackNavigation';
 import IOSBackNavigation from './components/IOSBackNavigation';
 import TestimonyFeedProvider from './components/testimonies/TestimonyFeedProvider';
+import { otaLaunchScript } from './utils/otaLaunchScript';
+import { getApiBaseUrl } from './utils/apiBase';
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -65,6 +67,7 @@ export default function RootLayout({
         <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${notoNaskhArabic.variable} ${tajawal.variable}`} style={uiFontStyle} suppressHydrationWarning>
             <head>
                 <meta name="theme-color" content="#060b13" />
+                <script dangerouslySetInnerHTML={{ __html: otaLaunchScript(getApiBaseUrl()) }} />
                 <script
                     dangerouslySetInnerHTML={{
                         __html: `(function(){try{var r=document.documentElement,t=localStorage.getItem("taspe7_theme"),l=localStorage.getItem("app-language"),d=t==="dark";r.classList.toggle("dark",d);r.setAttribute("data-theme",d?"dark":"light");document.querySelector('meta[name="theme-color"]').setAttribute("content",d?"#090c0f":"#060b13");r.setAttribute("data-startup-language",["en","ar","de"].includes(l)?l:"ar");r.setAttribute("data-startup-session",localStorage.getItem("user_Taspe7_Token")&&localStorage.getItem("user_Taspe7_Username")?"returning":"guest");}catch(_){}})();`

@@ -3,7 +3,8 @@
 import React, { useContext, useEffect, useState } from 'react';
 import axios from 'axios';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { Capacitor } from '@capacitor/core';
+import { navigateDocumentFallback } from '../utils/appNavigation';
 import { UserContext } from '../context/User_Context';
 import { useLanguage } from '../context/LanguageContext';
 import { useBibleForm } from '../bible_form/useBibleForm';
@@ -23,7 +24,6 @@ export function usePresenter({
   selectedLyricsHymn, setSelectedLyricsHymn, showChords, setShowChords,
   allHymns, isBiblePage = false, onCloseBible,
 }) {
-  const router = useRouter();
   const pageActive = useTabPageActive();
   const queryClient = useQueryClient();
   const { vocalsMode } = useContext(UserContext);
@@ -156,11 +156,11 @@ export function usePresenter({
       }
 
       const displayUrl = `/presentation/display/?dataShowId=${encodeURIComponent(id)}`;
-      const openInApp = isBiblePage || window.Capacitor?.isNative
+      const openInApp = isBiblePage || Capacitor.isNativePlatform()
         || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 640;
       if (openInApp || !window.open(displayUrl, '_blank')) {
         // Load the standalone display without carrying over the reader's client layout.
-        window.location.assign(displayUrl);
+        navigateDocumentFallback(displayUrl);
       }
       setShowSessionPanel(false);
     } catch {

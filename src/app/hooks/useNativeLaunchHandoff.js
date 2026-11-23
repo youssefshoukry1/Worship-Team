@@ -41,7 +41,8 @@ export default function useNativeLaunchHandoff({ mounted, waitForPrayer, waitFor
             editor?.focus({ preventScroll: true });
           }
           const visible = preview?.visible;
-          const handoff = visible ? visible.then(shown => shown || launch.ready()) : launch.ready();
+          const reveal = () => window.waslaBeforeReveal ? window.waslaBeforeReveal().then(() => launch.ready()) : launch.ready();
+          const handoff = visible ? visible.then(shown => shown || reveal()) : reveal();
           void handoff.then(finishNativeLaunch).catch(() => { /* Use the recovery deadline. */ });
         });
       });

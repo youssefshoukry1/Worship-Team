@@ -4,12 +4,13 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import WaslaLogo from "../Navbar/WaslaLogo";
 
-export default function ReleaseAnimation({ showSplash, onComplete, onExitComplete }) {
+export default function ReleaseAnimation({ showSplash, onVisible, onComplete, onExitComplete }) {
     return (
         <AnimatePresence onExitComplete={onExitComplete}>
             {showSplash && (
                 <motion.div
                     id="wasla-splash-screen"
+                    ref={onVisible}
                     key="wasla-full-splash"
                     initial={{ opacity: 1 }}
                     exit={{ opacity: 0 }}

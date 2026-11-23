@@ -179,7 +179,7 @@ test('candidate outage preserves controls for existing release history', async t
     assert.equal(app.saves[0].audience, 'held');
 });
 
-test('native bridge confirms app health, reports the active version, and activates only on a later check', async t => {
+test('native bridge confirms app health, reports the active version, and only stages on dashboard rechecks', async t => {
     const app = await setup(t, { native: true });
     await app.page.waitForFunction(() => JSON.parse(localStorage.getItem('wasla_ota_pending_bundle') || 'null')?.id === 'native-test-download');
     let calls = await app.page.evaluate(() => window.__otaCalls);
@@ -193,9 +193,9 @@ test('native bridge confirms app health, reports the active version, and activat
     assert.equal(app.reports[0].nativeVersion, '1.0.6');
     assert.equal(app.legacyManifestRequests.length, 0);
     await app.page.evaluate(() => window.dispatchEvent(new CustomEvent('wasla_ota_check')));
-    await app.page.waitForFunction(() => window.__otaCalls.some(call => call.method === 'set'));
+    await app.page.waitForFunction(() => window.__otaCalls.filter(call => call.method === 'list').length >= 2);
     calls = await app.page.evaluate(() => window.__otaCalls);
-    assert.equal(calls.find(call => call.method === 'set').options.id, 'native-test-download');
+    assert.equal(calls.some(call => call.method === 'set' || call.method === 'next'), false);
     assert.equal(await app.page.evaluate(() => JSON.parse(localStorage.getItem('wasla_ota_splash_policy'))['1.0.77']), true);
     assert.deepEqual(app.errors, []);
 });
