@@ -10,14 +10,14 @@ export function LiveSessionButton({ presenter, id }) {
     <div id={id} className="relative">
       <div className={`relative p-[1px] rounded-full overflow-hidden transition-all duration-300
         ${isConnected
-          ? 'shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]'
+          ? 'shadow-[0_0_20px_rgba(255,255,255,0.25)] hover:shadow-[0_0_25px_rgba(255,255,255,0.4)]'
           : 'shadow-[0_0_15px_rgba(255,255,255,0.02)]'}`}
       >
         {/* Animated looping gradient background */}
         <div className={`absolute -inset-[100%] pointer-events-none z-0 ${isConnected ? 'animate-border-spin-fast' : 'animate-border-spin-slow'}`}
           style={{
             background: isConnected
-              ? 'conic-gradient(from 0deg, transparent 0deg, transparent 120deg, #10b981 180deg, #34d399 240deg, #3b82f6 300deg, transparent 360deg)'
+              ? 'conic-gradient(from 0deg, transparent 0deg, transparent 120deg, rgba(255,255,255,0.45) 180deg, #fff 240deg, rgba(255,255,255,0.45) 300deg, transparent 360deg)'
               : 'conic-gradient(from 0deg, transparent 0deg, transparent 180deg, rgba(255,255,255,0.15) 270deg, transparent 360deg)'
           }}
         />
@@ -28,13 +28,13 @@ export function LiveSessionButton({ presenter, id }) {
           onClick={() => setShowSessionPanel(p => !p)}
           className={`relative z-10 flex items-center gap-2 px-5 py-2.5 rounded-full transition-all font-semibold text-sm w-full h-full justify-center
               ${isConnected
-              ? 'bg-app-panel text-green-400 hover:bg-app-raised'
+              ? 'bg-app-panel text-white hover:bg-app-raised'
               : 'bg-app-panel text-gray-400 hover:bg-app-raised hover:text-white'
             }`}
         >
-          {pendingLabel ? <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin text-sky-400" /> : <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse text-green-400' : ''}`} />}
+          {pendingLabel ? <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin text-sky-400" /> : <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse text-white' : ''}`} />}
           {isConnected ? (
-            <><span className="text-[10px] text-green-400 font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
+            <><span className="text-[10px] text-white font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
           ) : pendingLabel || t('livesession')}
         </button>
       </div>
@@ -62,7 +62,7 @@ export function LiveSessionPanel({ presenter, compact = false }) {
           onChange={e => setDataShowIdInput(e.target.value)}
           aria-label="Room name"
           placeholder={compact ? "Room name" : 'e.g. "sunday-01"'}
-          className={compact ? "w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white outline-none focus:border-sky-400/50" : "flex-1 bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600 w-full"}
+          className={compact ? "w-full rounded-lg border border-transparent bg-white/5 px-2 py-1.5 text-xs text-white outline-none focus:bg-white/10" : "flex-1 bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sky-400 placeholder:text-gray-600 w-full"}
           onKeyDown={e => { if (e.key === 'Enter') handleJoinSession(); }}
         />
         <div className="flex gap-2">

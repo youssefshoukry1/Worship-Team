@@ -167,7 +167,7 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
                 <span className="text-[10px] font-bold text-gray-400/90 uppercase tracking-widest px-1">
                   {language === 'ar' ? 'الترجمة' : 'Translation'}
                 </span>
-                <div className="p-1.5 rounded-xl border bg-black/30 border-white/10 space-y-1">
+                <div className="p-1.5 rounded-xl border border-transparent bg-black/30 space-y-1">
                   <div className="flex flex-col gap-1">
                     {availableTranslations.map((tr) => {
                       const isDownloaded = downloadedTranslations.has(tr);
@@ -191,9 +191,9 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
                               }
                             }
                           }}
-                          className={`flex items-center justify-between px-2 py-1.5 rounded-lg border transition-colors cursor-pointer ${isSelected
-                            ? 'bg-sky-500/20 border-sky-400 text-white shadow-sm'
-                            : 'bg-black/20 border-white/10 text-gray-200 hover:bg-black/40 hover:text-white'
+                          className={`flex items-center justify-between px-2 py-1.5 rounded-lg border border-transparent transition-colors cursor-pointer ${isSelected
+                            ? 'bg-sky-500/20 text-white'
+                            : 'bg-black/20 text-gray-200 hover:bg-black/40 hover:text-white'
                             }`}
                         >
                           <div className="flex items-center gap-1.5 min-w-0">

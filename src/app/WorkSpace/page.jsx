@@ -1848,14 +1848,14 @@ export default function WorkSpace() {
                         <div className="relative inline-block">
                             <div className={`relative p-[1px] rounded-2xl overflow-hidden transition-all duration-300 inline-block
                                 ${isConnected
-                                    ? 'shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]'
+                                    ? 'shadow-[0_0_20px_rgba(255,255,255,0.25)] hover:shadow-[0_0_25px_rgba(255,255,255,0.4)]'
                                     : 'shadow-[0_0_15px_rgba(255,255,255,0.02)]'}`}
                             >
                                 {/* Animated looping gradient background */}
                                 <div className={`absolute -inset-[100%] pointer-events-none z-0 ${isConnected ? 'animate-border-spin-fast' : 'animate-border-spin-slow'}`}
                                     style={{
                                         background: isConnected
-                                            ? 'conic-gradient(from 0deg, transparent 0deg, transparent 120deg, #10b981 180deg, #34d399 240deg, #3b82f6 300deg, transparent 360deg)'
+                                            ? 'conic-gradient(from 0deg, transparent 0deg, transparent 120deg, rgba(255,255,255,0.45) 180deg, #fff 240deg, rgba(255,255,255,0.45) 300deg, transparent 360deg)'
                                             : 'conic-gradient(from 0deg, transparent 0deg, transparent 180deg, rgba(255,255,255,0.15) 270deg, transparent 360deg)'
                                     }}
                                 />
@@ -1864,13 +1864,13 @@ export default function WorkSpace() {
                                     onClick={() => setShowSessionPanel(p => !p)}
                                     className={`relative z-10 flex items-center gap-2 px-5 py-2.5 rounded-2xl transition-all font-bold text-sm w-full h-full justify-center
                                         ${isConnected
-                                            ? 'bg-app-panel text-green-400 hover:bg-app-raised'
+                                            ? 'bg-app-panel text-white hover:bg-app-raised'
                                             : 'bg-app-panel text-gray-400 hover:bg-app-raised hover:text-white'
                                         }`}
                                 >
-                                    <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse text-green-400' : ''}`} />
+                                    <Radio className={`w-4 h-4 ${isConnected ? 'animate-pulse text-white' : ''}`} />
                                     {isConnected ? (
-                                        <><span className="text-[10px] text-green-400 font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
+                                        <><span className="text-[10px] text-white font-black uppercase tracking-widest">● LIVE</span> · {dataShowId}</>
                                     ) : t('livesession')}
                                 </button>
                             </div>

@@ -47,7 +47,10 @@ function Session({ token, userId, children }) {
     };
     import('socket.io-client').then(({ io }) => {
       if (stopped) return;
-      socket = io(`${getApiBaseUrl().replace(/\/api\/?$/, '')}/testimonies`, { transports: ['websocket'], auth: { token }, reconnectionDelay: 1000, reconnectionDelayMax: 30000 });
+      socket = io(`${getApiBaseUrl().replace(/\/api\/?$/, '')}/testimonies`, {
+        transports: ['polling', 'websocket'], tryAllTransports: true,
+        auth: { token }, reconnectionDelay: 1000, reconnectionDelayMax: 30000,
+      });
       socket.on('notes-ready', () => { window.dispatchEvent(new Event('taspe7:directory-resume')); connected = true; clearTimeout(bootstrap); fallbackStarted = true; void store.sync(true); profiles.resume(); });
       socket.on('disconnect', () => { connected = false; });
       socket.on('connect_error', initialSync);

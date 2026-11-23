@@ -105,7 +105,7 @@ export function usePresentation(dataShowId, role = 'controller') {
             import('socket.io-client').then(({ io }) => {
                 if (cancelled) return;
                 socket = io(SOCKET_URL, {
-                    transports: ['websocket', 'polling'],
+                    transports: ['polling', 'websocket'],
                     tryAllTransports: true,
                     reconnectionAttempts: Infinity,
                     reconnectionDelay: 1000,
