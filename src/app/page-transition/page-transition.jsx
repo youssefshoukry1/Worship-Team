@@ -33,6 +33,9 @@ export default function PageTransition({ children }) {
 
     if (touch && index >= 0) return <PrimaryTabPager index={index} />;
 
+    // A transformed page wrapper becomes the containing block for the fixed display.
+    if (pathname?.replace(/\/(?:index\.html)?$/, '') === '/presentation/display') return children;
+
     return (
         <div key={pathname} ref={surface} className="app-page-transition h-full w-full">
             {children}

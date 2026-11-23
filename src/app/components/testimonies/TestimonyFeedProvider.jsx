@@ -115,5 +115,7 @@ function Session({ token, userId, children }) {
 
 export default function TestimonyFeedProvider({ children }) {
   const { isLogin, user_id } = useContext(UserContext);
-  return isLogin && user_id ? <Session key={`${user_id}:${isLogin}`} token={isLogin} userId={user_id}>{children}</Session> : <FeedContext.Provider value={null}>{children}</FeedContext.Provider>;
+  const pathname = usePathname();
+  const isDisplay = pathname?.replace(/\/(?:index\.html)?$/, '') === '/presentation/display';
+  return isLogin && user_id && !isDisplay ? <Session key={`${user_id}:${isLogin}`} token={isLogin} userId={user_id}>{children}</Session> : <FeedContext.Provider value={null}>{children}</FeedContext.Provider>;
 }

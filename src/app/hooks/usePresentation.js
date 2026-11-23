@@ -105,10 +105,11 @@ export function usePresentation(dataShowId, role = 'controller') {
             import('socket.io-client').then(({ io }) => {
                 if (cancelled) return;
                 socket = io(SOCKET_URL, {
-                    transports: ['websocket'], // Force WebSocket
+                    transports: ['websocket', 'polling'],
+                    tryAllTransports: true,
                     reconnectionAttempts: Infinity,
                     reconnectionDelay: 1000,
-                    reconnectionDelayMax: 5000,
+                    reconnectionDelayMax: 15000,
                     timeout: 20000,
                 });
                 socketRef.current = socket;
@@ -150,7 +151,7 @@ export function usePresentation(dataShowId, role = 'controller') {
                 socket.on('display-update', (state) => {
                     setDisplayState(prev => {
                         if (
-                            prev &&
+                            prev && state.slides === undefined &&
                             prev.currentHymnId === state.currentHymnId &&
                             prev.currentSlide  === state.currentSlide  &&
                             prev.type          === state.type

@@ -138,26 +138,27 @@ export function usePresenter({
 
   const handleJoinSession = async () => {
     const id = dataShowIdInput.trim();
-    if (!id) return;
+    if (!id || isJoiningSession) return;
 
     setIsJoiningSession(true);
     try {
       const response = await axios.get(`${API_ROOT}/presentation/check/${encodeURIComponent(id)}`);
-      if (response.data.exists) {
-        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-        if (isMobile || window.innerWidth < 640) {
-          router.push(`/presentation/display?dataShowId=${encodeURIComponent(id)}`);
-        } else {
-          window.open(`/presentation/display?dataShowId=${encodeURIComponent(id)}`, '_blank');
-          setIsJoiningSession(false);
-        }
-        setShowSessionPanel(false);
-      } else {
+      if (!response.data.exists) {
         alert("Presentation room does not exist or has expired.");
-        setIsJoiningSession(false);
+        return;
       }
+
+      const displayUrl = `/presentation/display/?dataShowId=${encodeURIComponent(id)}`;
+      const openInApp = isBiblePage || window.Capacitor?.isNative
+        || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 640;
+      if (openInApp || !window.open(displayUrl, '_blank')) {
+        // Load the standalone display without carrying over the reader's client layout.
+        window.location.assign(displayUrl);
+      }
+      setShowSessionPanel(false);
     } catch {
       alert("Failed to join session: could not connect to server");
+    } finally {
       setIsJoiningSession(false);
     }
   };
