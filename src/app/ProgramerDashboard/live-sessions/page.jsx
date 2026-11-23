@@ -12,7 +12,6 @@ const button = 'rounded-lg bg-sky-400/10 px-4 py-2 text-sm font-semibold text-sk
 const fields = [
     ['allowanceMinutes', 'Account allowance (minutes)', 34560],
     ['resetHours', 'Allowance reset interval (hours)', 8760],
-    ['roomHours', 'Room expires after (hours)', 576],
 ];
 
 function Controls({ token }) {
@@ -41,10 +40,10 @@ function Controls({ token }) {
     return <div className="space-y-5">
         <section className={card}>
             <h2 className="text-lg font-semibold">Session limits</h2>
-            <p className="mt-1 text-sm text-slate-400">Room expiry applies to new rooms. The allowance applies to signed-in readers.</p>
+            <p className="mt-1 text-sm text-slate-400">Set how many live minutes each account receives per reset window.</p>
             {policy.isLoading && <p role="status">Loading settings…</p>}
             {values && <form className="mt-5 space-y-4" onSubmit={e => { e.preventDefault(); save.mutate(); }}>
-                <div className="grid gap-4 sm:grid-cols-3">{fields.map(([name, label, max]) =>
+                <div className="grid gap-4 sm:grid-cols-2">{fields.map(([name, label, max]) =>
                     <label key={name} className="text-sm text-slate-300">{label}
                         <input className={input} type="number" required min="1" max={max} step="1" value={values[name]} disabled={save.isPending}
                             onChange={e => { setNotice(''); setDraft({ ...values, [name]: e.target.value === '' ? '' : Number(e.target.value) }); }} />
