@@ -23,8 +23,34 @@ const OBSOLETE_KEYS = ['REACT_QUERY_OFFLINE_CACHE'];
 
 const MIGRATION_FLAG = 'taspe7_storage_migrated_v1';
 
+const retiredCodes = ['KEH', 'ERV-AR', 'ERV_AR'];
+export const isRetiredTranslation = code => retiredCodes.includes(String(code).toUpperCase());
+
+function cleanBiblePreferences() {
+  if (isRetiredTranslation(localStorage.getItem('taspe7_bible_translation'))) {
+    localStorage.setItem('taspe7_bible_translation', 'AVD');
+  }
+  for (const key of ['taspe7_compare_translations', 'taspe7_bible_downloaded_translations']) {
+    const raw = localStorage.getItem(key);
+    if (!raw) continue;
+    try {
+      const current = JSON.parse(raw);
+      const kept = current.filter(code => !isRetiredTranslation(code));
+      if (kept.length !== current.length) localStorage.setItem(key, JSON.stringify(kept));
+    } catch { localStorage.removeItem(key); }
+  }
+  const key = 'taspe7_bible_last_verses';
+  const last = localStorage.getItem(key);
+  if (last && retiredCodes.some(code => last.toUpperCase().includes(code))) {
+    try {
+      if (isRetiredTranslation(JSON.parse(last)?.translation)) localStorage.removeItem(key);
+    } catch { localStorage.removeItem(key); }
+  }
+}
+
 if (typeof window !== 'undefined') {
   localforage.config(MAIN_STORE);
+  try { cleanBiblePreferences(); } catch { /* Storage can be unavailable. */ }
 }
 
 // Opens the database without creating it (or the store) when it doesn't exist.
@@ -83,4 +109,15 @@ async function migrateLegacyStores() {
 
 // Resolves once data from legacy stores has been copied into MAIN_STORE. Await it before
 // reading offline data that must not be re-seeded (hymns cache, downloaded Bibles).
-export const storageReady = typeof window === 'undefined' ? Promise.resolve() : migrateLegacyStores();
+export const storageReady = typeof window === 'undefined' ? Promise.resolve() : migrateLegacyStores().then(async () => {
+  const flag = 'taspe7_removed_keh_erv_v1';
+  if (localStorage.getItem(flag)) return;
+  const stores = [localforage];
+  for (const source of LEGACY_STORES) {
+    if (await idbHasStore(source)) stores.push(localforage.createInstance(source));
+  }
+  for (const store of stores) {
+    for (const code of retiredCodes) await store.removeItem(`taspe7_bible_db_${code}`);
+  }
+  localStorage.setItem(flag, '1');
+}).catch(error => console.warn('[Storage] Bible cleanup will retry next launch', error));

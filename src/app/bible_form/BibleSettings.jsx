@@ -170,6 +170,7 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
                 <div className="p-1.5 rounded-xl border border-transparent bg-black/30 space-y-1">
                   <div className="flex flex-col gap-1">
                     {availableTranslations.map((tr) => {
+                      const label = tr === 'ONAV' ? 'KEHM' : tr;
                       const isDownloaded = downloadedTranslations.has(tr);
                       const isDownloading = isDownloadingTranslation === tr;
                       const isSelected = bibleTranslation === tr;
@@ -184,8 +185,8 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
                               if (!isDownloading) {
                                 showToast(
                                   language === 'ar'
-                                    ? `جاري تحميل ترجمة ${tr}...`
-                                    : `Downloading ${tr} translation...`
+                                    ? `جاري تحميل ترجمة ${label}...`
+                                    : `Downloading ${label} translation...`
                                 );
                                 toggleDownloadTranslation(tr, true);
                               }
@@ -200,7 +201,7 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
                             <div className={`w-2.5 h-2.5 rounded-full border shrink-0 flex items-center justify-center ${isSelected ? 'border-sky-400 bg-sky-400' : 'border-white/30'}`}>
                               {isSelected && <div className="w-1 h-1 rounded-full bg-app-panel" />}
                             </div>
-                            <span className="text-[11px] font-bold tracking-wide truncate">{tr}</span>
+                            <span className="text-[11px] font-bold tracking-wide truncate">{label}</span>
                           </div>
 
                           {isDownloading ? (
@@ -213,14 +214,14 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
                                 if (!isDownloading) {
                                   showToast(
                                     language === 'ar'
-                                      ? `جاري تحميل ترجمة ${tr}...`
-                                      : `Downloading ${tr} translation...`
+                                      ? `جاري تحميل ترجمة ${label}...`
+                                      : `Downloading ${label} translation...`
                                   );
                                   toggleDownloadTranslation(tr, true);
                                 }
                               }}
                               className="p-0.5 rounded bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 transition-colors active:scale-95 shrink-0"
-                              title={language === 'ar' ? `تحميل ترجمة ${tr}` : `Download ${tr}`}
+                              title={language === 'ar' ? `تحميل ترجمة ${label}` : `Download ${label}`}
                             >
                               <Download className="w-3 h-3" />
                             </button>
@@ -230,6 +231,11 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
                         </div>
                       );
                     })}
+                    {availableTranslations.includes('ONAV') && (
+                      <a href="/onav-license.html" className="px-2 text-[10px] text-gray-400 underline">
+                        {language === 'ar' ? 'حقوق ترجمة كتاب الحياة المجاني' : 'Open New Arabic Version credits'}
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>

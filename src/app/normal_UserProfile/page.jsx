@@ -65,8 +65,6 @@ import { invalidateProfile, getCachedProfileSnapshot, readCachedProfile, refresh
 
 const BIBLE_TRANSLATIONS = [
     { id: 'AVD', name: 'فانديك (AVD)', desc: 'Arabic Van Dyck' },
-    { id: 'ERV-AR', name: 'المبسطة (ERV-AR)', desc: 'Arabic Easy-to-Read Version' },
-    { id: 'KEH', name: 'كتاب الحياة (KEH)', desc: 'Arabic Life Application' },
 ];
 
 const API_URL = getApiBaseUrl();

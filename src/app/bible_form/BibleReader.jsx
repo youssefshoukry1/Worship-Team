@@ -131,6 +131,7 @@ const VerseItem = React.memo(({
   return (
     <div
       data-bible-verse={verse._id}
+      dir={verse.lang === 'english' || ENGLISH_TRANSLATIONS.has(verse.translation) ? 'ltr' : 'rtl'}
       data-selected={isSelected}
       data-highlighted={Boolean(highlightStyle)}
       onClick={() => onClick(verse._id)}
@@ -186,7 +187,14 @@ const VerseItem = React.memo(({
 VerseItem.displayName = 'VerseItem';
 
 // ─── Compare Version Card ───
+const ENGLISH_TRANSLATIONS = new Set(['ASV', 'BSB', 'KJV', 'WEBP']);
 const TRANSLATION_LABELS = {
+  BSB: 'Berean Standard Bible',
+  WEBP: 'World English Bible',
+  ASV: 'American Standard Version (1901)',
+  KJV: 'King James Version',
+  ONAV: 'كتاب الحياة المجاني',
+  ARBWBTC: 'الترجمة العربية المبسطة',
   AVD: 'الكتاب المقدس',
   KEH: 'كتاب الحياة',
   ERV_AR: 'الكتاب المقدس: الترجمة العربية المبسطة',
@@ -254,7 +262,7 @@ function CompareVersionCard({
 
       <div className="border-l-2 sm:border-l-[3px] border-white/80 pl-4 py-1 space-y-2">
         {verses.length > 0 ? (
-          <div className="text-white/95 text-base sm:text-lg leading-relaxed font-arabic" dir="rtl">
+          <div className="text-white/95 text-base sm:text-lg leading-relaxed font-arabic" dir={ENGLISH_TRANSLATIONS.has(translationCode) ? 'ltr' : 'rtl'}>
             {verses.map((v, idx) => (
               <span key={v._id || v.verseNumber || idx} className="inline">
                 <sup className="text-xs text-sky-300 font-bold ml-1.5 select-none opacity-85">
@@ -1116,8 +1124,8 @@ export function BibleForm({ controller, presenter, isPage = false }) {
                         <PageSkeleton variant="bible" compact />
                       ) : bibleViewMode === 'paragraph' ? (
                         <div
-                          className="font-arabic text-right"
-                          dir="rtl"
+                          className="font-arabic text-start"
+                          dir={ENGLISH_TRANSLATIONS.has(bibleTranslation) ? 'ltr' : 'rtl'}
                           style={{
                             fontSize: `${bibleVerseFontSize}px`,
                             lineHeight: `${1.8 + (bibleVerseSpacing / 30)}`,

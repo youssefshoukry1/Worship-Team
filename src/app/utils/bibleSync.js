@@ -1,6 +1,6 @@
 import localforage from 'localforage';
 import axios from 'axios';
-import { isApp, storageReady } from './platform';
+import { isApp, storageReady, isRetiredTranslation } from './platform';
 import { checkCancelled, forEachChunked } from './cooperativeWork';
 import { waitForNavigationIdle } from './navigationWork';
 
@@ -226,6 +226,7 @@ export async function getDownloadedTranslations(translations) {
  * Downloads a translation completely from the server and stores it in IndexedDB.
  */
 export async function downloadTranslationToLocal(translation, apiBase) {
+  if (isRetiredTranslation(translation)) return false;
   if (typeof window === 'undefined') return false;
   try {
     const cleanTranslation = String(translation).toUpperCase();

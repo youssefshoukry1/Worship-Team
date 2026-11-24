@@ -8,6 +8,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { showToast } from '../components/ToastContainer';
 import { normalizeBibleBooksFromApi } from '../utils/bibleBooks';
 import { getApiBaseUrl } from '../utils/apiBase';
+import { isRetiredTranslation } from '../utils/platform';
 import { initLocalBible, prepareLocalBible, getLocalBibleIndex, searchLocalBible, isTranslationDownloaded, downloadTranslationToLocal, getKnownDownloadedTranslations, getDownloadedTranslations } from '../utils/bibleSync';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { invalidateProfile, readCachedProfile, refreshProfile } from '../utils/profileCache';
@@ -449,7 +450,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   const [bibleTranslation, setBibleTranslationRaw] = useState(getInitialTranslation);
   // Pre-seeded with known translations so all pills appear immediately,
   // even before the /translations endpoint responds.
-  const [availableTranslations, setAvailableTranslations] = useState(['AVD', 'ERV-AR', 'KEH']);
+  const [availableTranslations, setAvailableTranslations] = useState(['AVD']);
   const setBibleTranslation = (t) => {
     setBibleTranslationRaw(t);
     if (typeof window !== 'undefined') localStorage.setItem('taspe7_bible_translation', t);
@@ -691,10 +692,10 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     readTabJson(`${BIBLE_API}/translations`)
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
-          setAvailableTranslations(data);
+          setAvailableTranslations(data.filter(code => !isRetiredTranslation(code)));
         }
       })
-      .catch(() => { /* keep the default ['AVD','KEH'] */ });
+      .catch(() => { /* Keep the bundled AVD translation. */ });
   }, [isOpen, presentationActive, pageActive]);
 
   // ─── Load books when modal opens or presentation Bible mode is active ───
