@@ -170,7 +170,7 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
                 <div className="p-1.5 rounded-xl border border-transparent bg-black/30 space-y-1">
                   <div className="flex flex-col gap-1">
                     {availableTranslations.map((tr) => {
-                      const label = tr === 'ONAV' ? 'KEHM' : tr;
+                      const label = { ONAV: 'KEHM', ARBWBTC: 'ERV-AR' }[tr] ?? tr;
                       const isDownloaded = downloadedTranslations.has(tr);
                       const isDownloading = isDownloadingTranslation === tr;
                       const isSelected = bibleTranslation === tr;
