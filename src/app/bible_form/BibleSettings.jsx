@@ -6,6 +6,7 @@ import { AlignJustify, Check, Download, List, Loader2, SlidersHorizontal, X } fr
 import { useLanguage } from '../context/LanguageContext';
 import { showToast } from '../components/ToastContainer';
 import styles from './BibleSettings.module.css';
+import { ARABIC_TRANSLATIONS, ENGLISH_TRANSLATIONS } from './translationLanguages';
 import { useTabPageActive } from '../components/TabPageActivity';
 import { waitForNavigationIdle } from '../utils/navigationWork';
 
@@ -13,6 +14,9 @@ import { waitForNavigationIdle } from '../utils/navigationWork';
 export default function BibleSettings({ ref, controller, containerRef, onDeselectAll, children }) {
   const { t, language } = useLanguage();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [filter, setFilter] = useState('All');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterRef = useRef(null);
   const [host, setHost] = useState(null);
   const settingsPanelRef = useRef(null);
   const settingsBtnRef = useRef(null);
@@ -28,12 +32,24 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
     bibleVerseSpacing, handleSetBibleVerseSpacing, bibleVerseGap, handleSetBibleVerseGap,
     setBibleSelectedVerseIds, bibleModalVerses,
   } = controller;
+  const visibleTranslations = availableTranslations.filter(code =>
+    filter === 'All' || (filter === 'AR' ? ARABIC_TRANSLATIONS : ENGLISH_TRANSLATIONS).has(code)
+  );
+  useEffect(() => {
+    if (!filterOpen) return;
+    const dismiss = event => {
+      if (!filterRef.current?.contains(event.target)) setFilterOpen(false);
+    };
+    document.addEventListener('pointerdown', dismiss);
+    return () => document.removeEventListener('pointerdown', dismiss);
+  }, [filterOpen]);
 
   const close = useCallback(() => {
     openIntentRef.current = false;
     pendingOpenRef.current = false;
     justClosedSettingsRef.current = Date.now();
     setIsSettingsOpen(false);
+    setFilterOpen(false);
   }, []);
   const toggle = () => {
     if (openIntentRef.current) close();
@@ -164,12 +180,41 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
               {children}
               {/* Section 1: Translations */}
               <div className="space-y-1">
+                <div className="flex items-center gap-1">
                 <span className="text-[10px] font-bold text-gray-400/90 uppercase tracking-widest px-1">
                   {language === 'ar' ? 'الترجمة' : 'Translation'}
                 </span>
+                <div ref={filterRef} className="relative" onBlur={e => {
+                  if (!e.currentTarget.contains(e.relatedTarget)) setFilterOpen(false);
+                }} onKeyDown={e => {
+                  if (e.key === 'Escape' && filterOpen) {
+                    e.stopPropagation();
+                    setFilterOpen(false);
+                    filterRef.current.firstElementChild.focus();
+                  }
+                }}>
+                  <button type="button" aria-expanded={filterOpen}
+                    aria-label={`${language === 'ar' ? 'لغة الترجمات' : 'Translation language'}: ${filter}`}
+                    onClick={() => setFilterOpen(open => !open)}
+                    className="block h-6 min-w-9 rounded-lg bg-white/5 text-[10px] font-bold text-sky-400">
+                    {filter}
+                  </button>
+                  {['All', 'AR', 'EN'].filter(option => option !== filter).map((option, index) => (
+                    <button key={option} type="button" disabled={!filterOpen} aria-hidden={!filterOpen}
+                      className={`absolute start-full ms-1 z-20 h-6 min-w-9 rounded-lg border border-white/10 bg-app-panel text-[10px] font-bold text-white shadow-lg transition-[opacity,translate] duration-100 ease-out motion-reduce:transition-none ${index === 0 ? 'bottom-1/2 mb-0.5' : 'top-1/2 mt-0.5'} ${filterOpen ? 'opacity-100 translate-y-0' : `pointer-events-none opacity-0 ${index === 0 ? 'translate-y-1' : '-translate-y-1'}`}`}
+                      onClick={() => {
+                        setFilter(option);
+                        setFilterOpen(false);
+                        filterRef.current.firstElementChild.focus();
+                      }}>
+                      {option}
+                    </button>
+                  ))}
+                </div>
+                </div>
                 <div className="p-1.5 rounded-xl border border-transparent bg-black/30 space-y-1">
                   <div className="flex flex-col gap-1">
-                    {availableTranslations.map((tr) => {
+                    {visibleTranslations.map((tr) => {
                       const label = { ONAV: 'KEHM', ARBWBTC: 'ERV-AR' }[tr] ?? tr;
                       const isDownloaded = downloadedTranslations.has(tr);
                       const isDownloading = isDownloadingTranslation === tr;
@@ -231,7 +276,12 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
                         </div>
                       );
                     })}
-                    {availableTranslations.includes('ONAV') && (
+                    {visibleTranslations.includes('ARBWBTC') && (
+                      <a href="/erv-ar-credits.html" className="px-2 text-[10px] text-gray-400 underline">
+                        {language === 'ar' ? 'حقوق الترجمة العربية المبسطة' : 'ERV-AR credits'}
+                      </a>
+                    )}
+                    {visibleTranslations.includes('ONAV') && (
                       <a href="/onav-license.html" className="px-2 text-[10px] text-gray-400 underline">
                         {language === 'ar' ? 'حقوق ترجمة كتاب الحياة المجاني' : 'Open New Arabic Version credits'}
                       </a>

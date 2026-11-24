@@ -3,6 +3,7 @@
 import React, { useState, useContext, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion, AnimatePresence, animate, useMotionValue } from 'framer-motion';
 import Portal from '../Portal/Portal';
+import { ENGLISH_TRANSLATIONS } from './translationLanguages';
 import { UserContext } from '../context/User_Context';
 import { useLanguage } from '../context/LanguageContext';
 import { showToast } from '../components/ToastContainer';
@@ -187,7 +188,6 @@ const VerseItem = React.memo(({
 VerseItem.displayName = 'VerseItem';
 
 // ─── Compare Version Card ───
-const ENGLISH_TRANSLATIONS = new Set(['ASV', 'BSB', 'KJV', 'WEBP']);
 const TRANSLATION_LABELS = {
   BSB: 'Berean Standard Bible',
   WEBP: 'World English Bible',
