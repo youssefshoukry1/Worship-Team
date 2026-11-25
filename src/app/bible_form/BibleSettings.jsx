@@ -270,16 +270,13 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
                           onClick={() => {
                             if (isDownloaded) {
                               setBibleTranslation(tr);
-                            } else {
-                              setBibleTranslation(tr);
-                              if (!isDownloading) {
-                                showToast(
-                                  language === 'ar'
-                                    ? `جاري تحميل ترجمة ${label}...`
-                                    : `Downloading ${label} translation...`
-                                );
-                                toggleDownloadTranslation(tr, true);
-                              }
+                            } else if (!isDownloading) {
+                              showToast(
+                                language === 'ar'
+                                  ? `جاري تحميل ترجمة ${label}...`
+                                  : `Downloading ${label} translation...`
+                              );
+                              toggleDownloadTranslation(tr, true);
                             }
                           }}
                           className={`flex items-center justify-between px-2 py-1.5 rounded-lg border border-transparent transition-colors cursor-pointer ${isSelected

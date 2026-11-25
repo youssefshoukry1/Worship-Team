@@ -7,10 +7,10 @@ import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from '../context/LanguageContext';
 import { showToast } from '../components/ToastContainer';
 import { displayBookName } from './translationLanguages';
-import { normalizeBibleBooksFromApi } from '../utils/bibleBooks';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { isRetiredTranslation } from '../utils/platform';
-import { initLocalBible, prepareLocalBible, getLocalBibleIndex, searchLocalBible, isTranslationDownloaded, downloadTranslationToLocal, getKnownDownloadedTranslations, getDownloadedTranslations } from '../utils/bibleSync';
+import { prepareOfflineSearch, scheduleBibleMigration } from '../utils/bibleChapterStorage';
+import { openBibleReader, prepareLocalBible, readLocalChapter, searchLocalBible, isTranslationDownloaded, downloadTranslationToLocal, getKnownDownloadedTranslations, getDownloadedTranslations } from '../utils/bibleSync';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { invalidateProfile, readCachedProfile, refreshProfile } from '../utils/profileCache';
 import { prepareLocalAiOpening, completeLocalAiRequest, cancelLocalAiOpening } from '../utils/aiPersonalization';
@@ -32,6 +32,7 @@ const LOCAL_BIBLE_NOTES_KEY = 'taspe7_local_bible_notes';
 
 const BIBLE_LAST_VERSES_KEY = 'taspe7_bible_last_verses';
 
+const EMPTY_VERSES = [];
 const BIBLE_CACHED_BOOKS_KEY = 'taspe7_bible_cached_books';
 
 function getInitialBibleData() {
@@ -59,11 +60,19 @@ function getInitialBibleData() {
   }
 }
 
+function getInitialTranslation() {
+  if (typeof window === 'undefined') return 'AVD';
+  return localStorage.getItem('taspe7_bible_translation') || 'AVD';
+}
+
 function getInitialBibleBooks() {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(BIBLE_CACHED_BOOKS_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const cached = JSON.parse(raw);
+    const selected = getInitialTranslation();
+    if (Array.isArray(cached)) return selected === 'AVD' ? cached : [];
+    return cached?.translation === selected && Array.isArray(cached.books) ? cached.books : [];
   } catch {
     return [];
   }
@@ -200,7 +209,10 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   const [bibleModalBook, setBibleModalBook] = useState(initialBibleRef.current.book);
   const [bibleModalChapters, setBibleModalChapters] = useState([]);
   const [bibleModalChapter, setBibleModalChapter] = useState(initialBibleRef.current.chapter);
-  const [bibleModalVerses, setBibleModalVerses] = useState(initialBibleRef.current.verses);
+  const [loadedChapter, setLoadedChapter] = useState(() => ({
+    translation: getInitialTranslation(), bookName: initialBibleRef.current.book?.bookName,
+    chapter: initialBibleRef.current.chapter, verses: initialBibleRef.current.verses,
+  }));
   const [bibleSelectedVerseIds, setBibleSelectedVerseIdsState] = useState(new Set());
 
   // Lock bottom nav when verses are selected
@@ -242,7 +254,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   const [bibleAddedSuccess, setBibleAddedSuccess] = useState(false);
 
   const [bibleModalBrowseLoading, setBibleModalBrowseLoading] = useState(false);
-  const [bibleModalBooksReady, setBibleModalBooksReady] = useState(false);
+  const [readerIndex, setReaderIndex] = useState(null);
   const [biblePickerOpen, setBiblePickerOpen] = useState(null);
   const bibleBookPickerRef = useRef(null);
   const bibleChapterPickerRef = useRef(null);
@@ -444,24 +456,30 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   }, [setBibleSelectedVerseIds]);
 
   // --- Translation Selector State ---
-  const getInitialTranslation = () => {
-    if (typeof window === 'undefined') return 'AVD';
-    return localStorage.getItem('taspe7_bible_translation') || 'AVD';
-  };
   const [bibleTranslation, setBibleTranslationRaw] = useState(getInitialTranslation);
   // Pre-seeded with known translations so all pills appear immediately,
   // even before the /translations endpoint responds.
   const [availableTranslations, setAvailableTranslations] = useState(['AVD']);
-  const setBibleTranslation = (t) => {
+  const chapterMatches = loadedChapter?.translation === bibleTranslation &&
+    loadedChapter.bookName === bibleModalBook?.bookName && loadedChapter.chapter === bibleModalChapter;
+  const bibleModalVerses = chapterMatches ? loadedChapter.verses : EMPTY_VERSES;
+
+  const translationChoice = useRef(0);
+  const setBibleTranslation = React.useCallback((t) => {
+    translationChoice.current++;
+    if (t === bibleTranslation) return;
     setBibleTranslationRaw(t);
     if (typeof window !== 'undefined') localStorage.setItem('taspe7_bible_translation', t);
     // Reset selection and search while keeping active book & chapter position
-    setBibleModalVerses([]);
+    setReaderIndex(null);
+    setIsCheckingOffline(true);
+    setBibleModalBooks(getInitialBibleBooks());
+    setLoadedChapter(null);
     setBibleSelectedVerseIds(new Set());
     setBibleModalChapters([]);
     setBibleSearchQuery('');
     setBibleSearchResults([]);
-  };
+  }, [bibleTranslation, setBibleSelectedVerseIds]);
 
   // --- Offline Translation Downloads State ---
   const [downloadedTranslations, setDownloadedTranslations] = useState(() => new Set(getKnownDownloadedTranslations()));
@@ -471,33 +489,15 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   // Closed Hymns tools only schedule first-install preparation. Already saved
   // Bibles stay on disk until a Bible tool actually needs the verses.
   useEffect(() => {
-    if (!isOpen && !presentationActive) {
-      if (!pageActive) return;
-      const prepare = () => { prepareLocalBible().catch(() => {}); };
-      if (window.requestIdleCallback) {
-        const id = window.requestIdleCallback(prepare, { timeout: 3000 });
-        return () => window.cancelIdleCallback(id);
-      }
-      const id = window.setTimeout(prepare, 1000);
-      return () => window.clearTimeout(id);
+    if (!pageActive || isOpen || presentationActive || bibleTranslation !== 'AVD') return;
+    const prepare = () => { prepareLocalBible().catch(() => {}); };
+    if (window.requestIdleCallback) {
+      const id = window.requestIdleCallback(prepare, { timeout: 3000 });
+      return () => window.cancelIdleCallback(id);
     }
-
-    let cancelled = false;
-    initLocalBible().then((data) => {
-      if (!cancelled && data && data.length > 0) {
-        setDownloadedTranslations(prev => {
-          const next = new Set(prev);
-          next.add('AVD');
-          return next;
-        });
-        if ((localStorage.getItem('taspe7_bible_translation') || 'AVD') === 'AVD') {
-          setIsCheckingOffline(false);
-        }
-      }
-    }).catch(() => { });
-    // Let shared preparation finish; only stop updates to this closed view.
-    return () => { cancelled = true; };
-  }, [pageActive, isOpen, presentationActive]);
+    const id = window.setTimeout(prepare, 1000);
+    return () => window.clearTimeout(id);
+  }, [pageActive, isOpen, presentationActive, bibleTranslation]);
 
   // Check which translations are offline when modal opens or available translations change
   useEffect(() => {
@@ -505,18 +505,17 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     let cancelled = false;
     const checkOffline = async () => {
       try {
-        const active = await getDownloadedTranslations(availableTranslations);
+        const active = await getDownloadedTranslations([...new Set([...availableTranslations, bibleTranslation])]);
         if (!cancelled) {
           setDownloadedTranslations(active);
-          setIsCheckingOffline(false);
         }
       } catch {
-        if (!cancelled) setIsCheckingOffline(false);
+        // Keep the known downloads if storage is temporarily unavailable.
       }
     };
     checkOffline();
     return () => { cancelled = true; };
-  }, [isOpen, presentationActive, availableTranslations]);
+  }, [isOpen, presentationActive, availableTranslations, bibleTranslation]);
 
   const toggleDownloadTranslation = async (tr, autoSelect = false) => {
     if (downloadedTranslations.has(tr) || isDownloadingTranslation === tr) {
@@ -525,6 +524,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       }
       return;
     }
+    const choice = ++translationChoice.current;
     setIsDownloadingTranslation(tr);
     try {
       const success = await downloadTranslationToLocal(tr, BIBLE_API);
@@ -538,7 +538,14 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
           message: language === 'ar' ? `تم تحميل ترجمة ${tr} بنجاح!` : `${tr} downloaded successfully!`,
           type: 'success',
         });
-        if (autoSelect || bibleTranslation === tr) {
+        if (choice !== translationChoice.current) return;
+        if (bibleTranslation === tr) {
+          const index = await openBibleReader(tr);
+          if (choice === translationChoice.current && index && getInitialTranslation() === tr) {
+            setReaderIndex(index);
+            setBibleModalBooks(index.books);
+          }
+        } else if (autoSelect) {
           setBibleTranslation(tr);
         }
       }
@@ -557,7 +564,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
         });
       }
     } finally {
-      setIsDownloadingTranslation(null);
+      setIsDownloadingTranslation(current => current === tr ? null : current);
     }
   };
 
@@ -591,40 +598,38 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   const [compareDesktopPage, setCompareDesktopPage] = useState(0);
 
   // Core fetch function — separated so it can be called when user toggles translations
+  const compareRequest = useRef(0);
   const fetchCompareData = async (verseNumbers, translations) => {
     if (!bibleModalBook?.bookName || bibleModalChapter == null || !verseNumbers?.length) return;
+    const request = ++compareRequest.current;
     setIsLoadingCompare(true);
     setCompareData(null);
 
     try {
       const targetTranslations = translations && translations.length > 0 ? translations : availableTranslations;
       const finalCompareData = {};
+      const numsSet = new Set(verseNumbers.map(Number));
 
       // Fetch downloaded translations locally (Fast & Offline)
       for (const t of targetTranslations) {
+        if (request !== compareRequest.current) return;
         const isDownloaded = downloadedTranslations.has(t) || (await isTranslationDownloaded(t));
         if (isDownloaded) {
           try {
-            const index = await getLocalBibleIndex(t);
-            if (index && index.versesMap) {
-              const chapterKey = `${bibleModalBook.bookName}_${parseInt(bibleModalChapter)}`;
-              const allVerses = index.versesMap.get(chapterKey) || [];
-              const numsSet = new Set(verseNumbers.map(Number));
-              const matched = allVerses.filter(v => numsSet.has(Number(v.verseNumber)));
-              finalCompareData[t] = matched;
-            }
+            const verses = await readLocalChapter(t, bibleModalBook.bookName, bibleModalChapter);
+            finalCompareData[t] = verses.filter(v => numsSet.has(Number(v.verseNumber)));
           } catch (localErr) {
             console.warn(`Local fetch failed for ${t}:`, localErr);
           }
         }
       }
 
-      setCompareData(finalCompareData);
+      if (request === compareRequest.current) setCompareData(finalCompareData);
     } catch (err) {
       console.error('Compare fetch error', err);
-      setCompareData({});
+      if (request === compareRequest.current) setCompareData({});
     } finally {
-      setIsLoadingCompare(false);
+      if (request === compareRequest.current) setIsLoadingCompare(false);
     }
   };
 
@@ -699,127 +704,77 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       .catch(() => { /* Keep the bundled AVD translation. */ });
   }, [isOpen, presentationActive, pageActive]);
 
-  // ─── Load books when modal opens or presentation Bible mode is active ───
   useEffect(() => {
-    if (!pageActive) return;
-    if (!isOpen && !(presentationActive)) return;
+    if (!pageActive || (!isOpen && !presentationActive)) return;
     setBibleSelectedVerseIds(new Set());
-    let cancelled = false;
-    (async () => {
-      try {
-        // Books are the same across translations — prefer local index (fast/offline)
-        const index = await getLocalBibleIndex();
-        if (index && index.books && index.books.length > 0) {
-          const normalized = normalizeBibleBooksFromApi(index.books);
-          if (!cancelled) {
-            setBibleModalBooks(normalized);
-            if (typeof window !== 'undefined') localStorage.setItem(BIBLE_CACHED_BOOKS_KEY, JSON.stringify(normalized));
-          }
-        } else {
-          const data = await readTabJson(`${BIBLE_API}/books?lang=arabic`);
-          const normalized = normalizeBibleBooksFromApi(data);
-          if (!cancelled) {
-            setBibleModalBooks(normalized);
-            if (typeof window !== 'undefined') localStorage.setItem(BIBLE_CACHED_BOOKS_KEY, JSON.stringify(normalized));
-          }
-        }
-      } catch {
-        if (!cancelled && bibleModalBooks.length === 0) setBibleModalBooks([]);
-      } finally {
-        if (!cancelled) setBibleModalBooksReady(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [isOpen, presentationActive, pageActive, setBibleSelectedVerseIds]);
-
-  // Restore last book/chapter after books are loaded
-  useEffect(() => {
-    if (!bibleModalBooksReady || bibleModalBooks.length === 0) return;
-    try {
-      const saved = localStorage.getItem(BIBLE_LAST_POS_KEY);
-      if (!saved) return;
-      const { bookName, chapter } = JSON.parse(saved);
-      const book = bibleModalBooks.find(b => b.bookName === bookName);
-      if (book) {
-        setBibleModalBook(book);
-        if (chapter != null) setBibleModalChapter(chapter);
-      }
-    } catch { }
-  }, [bibleModalBooksReady]);
-
-  // ─── Load chapters when book or translation changes (synced with presentation) ───
-  useEffect(() => {
-    if (!pageActive) return;
-    if ((!isOpen && !(presentationActive)) || !bibleModalBook?.bookName) {
-      setBibleModalChapters([]);
-      setBibleSelectedVerseIds(new Set());
+    const selected = getInitialTranslation();
+    if (selected !== bibleTranslation) {
+      setBibleTranslation(selected);
       return;
     }
+
     let cancelled = false;
-    (async () => {
+    async function openTranslation() {
       setBibleModalBrowseLoading(true);
       try {
-        const isDownloaded = downloadedTranslations.has(bibleTranslation) || (await isTranslationDownloaded(bibleTranslation));
-        if (isDownloaded) {
-          // use local index for instant offline-first response
-          const index = await getLocalBibleIndex(bibleTranslation);
-          if (index) {
-            const chapters = index.chaptersMap.get(bibleModalBook.bookName) || [];
-            if (!cancelled) {
-              setBibleModalChapters(chapters);
-              setBibleModalBrowseLoading(false);
-            }
-            return;
-          }
+        const index = await openBibleReader(bibleTranslation, { seedDefault: true });
+        if (cancelled) return;
+        if (!index) {
+          if (bibleTranslation !== 'AVD') setBibleTranslation('AVD');
+          return;
         }
-        // If not downloaded, do not hit API. Only downloaded translations are used.
-        if (!cancelled) setBibleModalChapters([]);
+        setReaderIndex(index);
+        scheduleBibleMigration();
+        setBibleModalBooks(index.books);
+        setDownloadedTranslations(previous => previous.has(bibleTranslation)
+          ? previous : new Set([...previous, bibleTranslation]));
+        localStorage.setItem(BIBLE_CACHED_BOOKS_KEY, JSON.stringify({ translation: bibleTranslation, books: index.books }));
       } catch {
-        if (!cancelled) setBibleModalChapters([]);
+        // Keep the last cached chapter visible if storage is temporarily unavailable.
       } finally {
-        if (!cancelled) setBibleModalBrowseLoading(false);
+        if (!cancelled) {
+          setIsCheckingOffline(false);
+          setBibleModalBrowseLoading(false);
+        }
       }
-    })();
+    }
+    openTranslation();
     return () => { cancelled = true; };
-  }, [isOpen, presentationActive, pageActive, bibleModalBook, bibleTranslation, downloadedTranslations, setBibleSelectedVerseIds]);
+  }, [isOpen, presentationActive, pageActive, bibleTranslation, setBibleTranslation, setBibleSelectedVerseIds]);
 
-  // ─── Load verses when chapter or translation changes (synced with presentation) ───
   useEffect(() => {
-    if (!pageActive) return;
-    if ((!isOpen && !(presentationActive)) || !bibleModalBook?.bookName || bibleModalChapter == null) {
-      setBibleModalVerses([]);
-      setBibleSelectedVerseIds(new Set());
+    if (!readerIndex || !pageActive || (!isOpen && !presentationActive)) return;
+    const book = readerIndex.books.find(entry => entry.bookName === bibleModalBook?.bookName)
+      || readerIndex.books.find(entry => entry.bookNumber === bibleModalBook?.bookNumber)
+      || readerIndex.books[0];
+    const chapters = readerIndex.chaptersMap.get(book.bookName);
+    const chapter = bibleModalChapter == null ? null
+      : chapters.includes(Number(bibleModalChapter)) ? Number(bibleModalChapter) : chapters[0];
+    if (book !== bibleModalBook) setBibleModalBook(book);
+    if (chapter !== bibleModalChapter) setBibleModalChapter(chapter);
+    setBibleModalChapters(chapters);
+    if (chapter == null) {
+      setBibleModalBrowseLoading(false);
       return;
     }
+    if (book !== bibleModalBook || chapter !== bibleModalChapter) return;
     let cancelled = false;
-    (async () => {
-      setBibleModalBrowseLoading(true);
-      try {
-        const isDownloaded = downloadedTranslations.has(bibleTranslation) || (await isTranslationDownloaded(bibleTranslation));
-        if (isDownloaded) {
-          // use local index for instant offline-first response
-          const index = await getLocalBibleIndex(bibleTranslation);
-          if (index) {
-            const verses = index.versesMap.get(`${bibleModalBook.bookName}_${parseInt(bibleModalChapter)}`) || [];
-            if (!cancelled) {
-              setBibleModalVerses(verses);
-              saveLastCachedVerses(bibleModalBook.bookName, bibleModalChapter, verses, bibleTranslation);
-              setBibleModalBrowseLoading(false);
-            }
-            return;
-          }
-        }
-        // If not downloaded, do not hit API. Only downloaded translations are used.
-        if (!cancelled && bibleModalVerses.length === 0) setBibleModalVerses([]);
-      } catch {
-        if (!cancelled && bibleModalVerses.length === 0) setBibleModalVerses([]);
-      } finally {
-        if (!cancelled) setBibleModalBrowseLoading(false);
-      }
-    })();
+    setBibleModalBrowseLoading(true);
+    Promise.resolve(readerIndex.readChapter(book.bookName, chapter)).then(verses => {
+      if (cancelled || !verses) return;
+      setLoadedChapter({ translation: bibleTranslation, bookName: book.bookName, chapter, verses });
+      saveLastCachedVerses(book.bookName, chapter, verses, bibleTranslation);
+    }).catch(() => { /* Keep a matching cached chapter during a temporary storage failure. */ })
+      .finally(() => { if (!cancelled) setBibleModalBrowseLoading(false); });
     return () => { cancelled = true; };
-  }, [isOpen, presentationActive, pageActive, bibleModalBook?.bookName, bibleModalChapter, bibleTranslation, downloadedTranslations, setBibleSelectedVerseIds]);
+  }, [readerIndex, pageActive, isOpen, presentationActive, bibleModalBook, bibleModalChapter, bibleTranslation]);
 
+  useEffect(() => {
+    if (pageActive && (isOpen || presentationActive) && showBibleSearchBar && navigator.onLine === false) {
+      // Use the time spent typing the first offline query to prepare its index.
+      prepareOfflineSearch(bibleTranslation).catch(() => {});
+    }
+  }, [pageActive, isOpen, presentationActive, showBibleSearchBar, bibleTranslation]);
 
   // Bible Search Debounce Effect
   useEffect(() => {
@@ -1218,65 +1173,21 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
 
   const presentBibleFromSearchHit = async (hit) => {
     if (!hit?.bookName || hit.chapter == null || hit.verseNumber == null) return;
-    try {
-      let list = [];
-      const translation = hit.translation || bibleTranslation || 'AVD';
-      const isDownloaded = downloadedTranslations.has(translation) || (await isTranslationDownloaded(translation));
-
-      if (isDownloaded) {
-        const index = await getLocalBibleIndex(translation);
-        if (index) {
-          list = index.versesMap.get(`${hit.bookName}_${parseInt(hit.chapter)}`) || [];
-        }
-      }
-
-      if (!list.length) {
-        const avdIndex = await getLocalBibleIndex('AVD');
-        if (avdIndex) {
-          list = avdIndex.versesMap.get(`${hit.bookName}_${parseInt(hit.chapter)}`) || [];
-        }
-      }
-
-      if (!list.length) return;
-      const idx = list.findIndex((v) => v.verseNumber === hit.verseNumber);
-
-      // Keep Book & Chapter picker states in sync
-      const book = bibleModalBooks.find(b => b.bookName === hit.bookName);
-      if (book) {
-        setBibleModalBook(book);
-        setBibleModalChapter(hit.chapter);
-      }
-
-      onPresent({
-        bookName: hit.bookName,
-        chapter: hit.chapter,
-        verses: list,
-        startIndex: idx >= 0 ? idx : 0,
-      });
-    } catch (e) {
-      console.error('Bible search present:', e);
-      // Fallback: if offline, try loading AVD local index
+    const translation = hit.translation || bibleTranslation || 'AVD';
+    for (const code of new Set([translation, 'AVD'])) {
       try {
-        const index = await getLocalBibleIndex('AVD');
-        if (index) {
-          const list = index.versesMap.get(`${hit.bookName}_${parseInt(hit.chapter)}`) || [];
-          if (list.length) {
-            const idx = list.findIndex((v) => v.verseNumber === hit.verseNumber);
-            const book = bibleModalBooks.find(b => b.bookName === hit.bookName);
-            if (book) {
-              setBibleModalBook(book);
-              setBibleModalChapter(hit.chapter);
-            }
-            onPresent({
-              bookName: hit.bookName,
-              chapter: hit.chapter,
-              verses: list,
-              startIndex: idx >= 0 ? idx : 0,
-            });
-          }
+        const verses = await readLocalChapter(code, hit.bookName, hit.chapter);
+        if (!verses.length) continue;
+        const book = bibleModalBooks.find(entry => entry.bookName === hit.bookName);
+        if (book) {
+          setBibleModalBook(book);
+          setBibleModalChapter(hit.chapter);
         }
-      } catch (innerErr) {
-        console.error('Offline AVD fallback failed:', innerErr);
+        const index = verses.findIndex(v => v.verseNumber === hit.verseNumber);
+        onPresent({ bookName: hit.bookName, chapter: hit.chapter, verses, startIndex: Math.max(0, index) });
+        return;
+      } catch (error) {
+        console.warn('Bible presentation chapter unavailable', code, error);
       }
     }
   };
@@ -1328,7 +1239,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     bibleModalBook, setBibleModalBook,
     bibleModalChapters, setBibleModalChapters,
     bibleModalChapter, setBibleModalChapter,
-    bibleModalVerses, setBibleModalVerses,
+    bibleModalVerses,
     bibleSelectedVerseIds, setBibleSelectedVerseIds,
     aiAnalysis, clearAiAnalysis, showAiOptions, setShowAiOptions,
     bibleVerseFontSize, setBibleVerseFontSize,

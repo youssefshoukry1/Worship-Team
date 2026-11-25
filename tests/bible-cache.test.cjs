@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- CommonJS Node test entry point. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { cooperativeWork } = require('./helpers/cooperative-work.cjs');
-const source = fs.readFileSync(path.join(__dirname, '../src/app/utils/bibleSync.js'), 'utf8')
+const source = ['bibleSearchIndex', 'bibleChapterStorage', 'bibleSync'].map(name => fs.readFileSync(path.join(__dirname, '../src/app/utils', name + '.js'), 'utf8')).join('\n')
   .replace(/^import .*;$/gm, '').replaceAll('export async function', 'async function').replaceAll('export function', 'function');
 const verse = (text = 'Original verse', translation = 'AVD') => ({ _id: 'v1', bookName: 'Genesis', bookNumber: 1, chapter: 1, verseNumber: 1, text, translation });
 const key = translation => `taspe7_bible_db_${translation}`;
@@ -18,10 +19,12 @@ function setup({ saved = {}, isApp = true, storageReady = Promise.resolve(), get
   const context = {
     waitForNavigationIdle: async () => {},
     ...work,
+    isRetiredTranslation: () => false, removeLegacyStorageKeys: async () => {},
     isApp, storageReady, console: { log() {}, warn() {}, error() {} },
     window: { location: { origin: 'https://example.test' } },
     localStorage: { getItem: k => local.get(k) || null, setItem: (k, v) => local.set(k, v) },
     localforage: {
+      async ready() {}, driver: () => 'test', INDEXEDDB: 'asyncStorage',
       async getItem(k) { reads.push(k); return get ? get(k, disk) : structuredClone(disk.get(k) || null); },
       async setItem(k, v) { writes.push(k); disk.set(k, structuredClone(v)); },
       async removeItem(k) { disk.delete(k); },
@@ -30,9 +33,30 @@ function setup({ saved = {}, isApp = true, storageReady = Promise.resolve(), get
     async fetch(url) { fetches.push(url); return fetch ? fetch(url) : { ok: true, json: async () => [verse()] }; },
     axios: { async get(url) { downloads.push(url); return download ? download(url) : { data: [verse('Downloaded verse')] }; } },
   };
-  vm.runInNewContext(source + ';globalThis.api = { initLocalBible, prepareLocalBible, getLocalBibleIndex, searchLocalBible, downloadTranslationToLocal, deleteTranslationFromLocal, isTranslationDownloaded };', context);
+  vm.runInNewContext(source + ';globalThis.api = { openBibleReader, initLocalBible, prepareLocalBible, getLocalBibleIndex, searchLocalBible, downloadTranslationToLocal, deleteTranslationFromLocal, isTranslationDownloaded };', context);
   return { api: context.api, disk, reads, writes, fetches, downloads };
 }
+
+test('opening and revisiting KJV reads only its own books, chapters and verses', async () => {
+  const kjv = { ...verse('KJV verse', 'KJV'), bookName: 'John', bookNumber: 43, chapter: 3 };
+  const h = setup({ saved: { [key('KJV')]: [kjv], [key('AVD')]: [verse()] } });
+  const index = await h.api.openBibleReader('KJV');
+  assert.equal(index.books[0].bookName, 'John');
+  assert.equal(index.chaptersMap.get('John')[0], 3);
+  assert.equal((await index.readChapter('John', 3))[0].text, 'KJV verse');
+  const revisited = await h.api.openBibleReader('KJV');
+  assert.equal((await revisited.readChapter('John', 3))[0].text, 'KJV verse');
+  assert.deepEqual(h.reads.filter(k => k.startsWith('taspe7_bible_db_')), [key('KJV')]);
+  assert.deepEqual(h.fetches, []);
+});
+
+test('a missing selection returns no index and the default can seed on demand', async () => {
+  const h = setup();
+  assert.equal(await h.api.openBibleReader('KJV'), null);
+  assert.deepEqual(h.fetches, []);
+  assert.ok(await h.api.openBibleReader('AVD', {seedDefault:true}));
+  assert.deepEqual(h.fetches, ['/Taspe7.bibles.json']);
+});
 
 test('closed-tool preparation checks metadata without reading a downloaded Bible', async () => {
   const h = setup({ saved: { [key('AVD')]: [verse()] } });
@@ -64,11 +88,11 @@ test('initialization, browsing and searching share one read and reuse the same i
 });
 
 test('first-install preparation still seeds native storage and readers wait for it', async () => {
-  const gate = deferred();
-  const h = setup({ fetch: async () => { await gate.promise; return { ok: true, json: async () => [{ ...verse(), _id: { $oid: 'seed-id' } }] }; } });
+  const gate = deferred(), fetching = deferred();
+  const h = setup({ fetch: async () => { fetching.resolve(); await gate.promise; return { ok: true, json: async () => [{ ...verse(), _id: { $oid: 'seed-id' } }] }; } });
   const init = h.api.initLocalBible();
   const index = h.api.getLocalBibleIndex();
-  await flush();
+  await fetching.promise;
   assert.deepEqual(h.fetches, ['/Taspe7.bibles.json']);
   gate.resolve();
   const [data, loadedIndex] = await Promise.all([init, index]);

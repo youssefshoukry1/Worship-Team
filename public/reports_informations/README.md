@@ -3,6 +3,7 @@
 Read the relevant report before changing a feature. These documents describe application behavior and engineering contracts; they contain no account exports or credentials.
 
 - [Friends, requests, local search and synchronization](./friends-system.md)
+- [Bible offline storage and chapter reading](./bible-offline-storage.md)
 - [Splash performance and cold startup](./splash-performance.md)
 - [Swipe navigation across Pray, Bible, Friends and Profile](./swipe-navigation.md)
 

@@ -86,51 +86,59 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
     const [bibleSearchQuery, setBibleSearchQuery] = useState('');
 
     const searchTimerRef = useRef(null);
+    const bibleSearchController = useRef(null);
+    useEffect(() => () => {
+        clearTimeout(searchTimerRef.current);
+        bibleSearchController.current?.abort();
+    }, [type, tab]);
 
+    const browseRequest = useRef(0);
     useEffect(() => {
-        if (type === 'bible' && tab === 'search' && bibleStep === 'books') {
-            fetchBooks();
-        }
+        if (type === 'bible' && tab === 'search' && bibleStep === 'books') fetchBooks();
     }, [type, tab, bibleStep]);
 
-    const fetchBooks = async () => {
+    const browse = async (readLocal, path, publish) => {
+        const request = ++browseRequest.current;
+        setIsSearching(true);
         try {
-            setIsSearching(true);
-            const { data } = await axios.get(`${BIBLE_API}/books?lang=arabic`);
-            setBibleBooks(data);
-        } catch (err) {
-            console.error("Failed to fetch books", err);
+            let data;
+            try { data = await readLocal(); }
+            catch (error) { console.warn('Local Bible lookup unavailable', error); }
+            if (request !== browseRequest.current) return;
+            if (!data?.length && navigator.onLine !== false) data = (await axios.get(BIBLE_API + path)).data;
+            if (request === browseRequest.current) publish(data || []);
+        } catch (error) {
+            if (request === browseRequest.current) publish([]);
+            console.error('Bible picker lookup failed', error);
         } finally {
-            setIsSearching(false);
+            if (request === browseRequest.current) setIsSearching(false);
         }
     };
 
-    const fetchChapters = async (book) => {
-        try {
-            setIsSearching(true);
-            setSelectedBook(book);
-            setBibleStep('chapters');
-            const { data } = await axios.get(`${BIBLE_API}/chapters/${encodeURIComponent(book.bookName)}?lang=arabic&translation=SVD`);
-            setBibleChapters(data);
-        } catch (err) {
-            console.error("Failed to fetch chapters", err);
-        } finally {
-            setIsSearching(false);
-        }
+    const fetchBooks = () => browse(async () => {
+        const { openBibleReader } = await import('../../utils/bibleSync');
+        return (await openBibleReader('AVD'))?.books;
+    }, '/books?lang=arabic', setBibleBooks);
+
+    const fetchChapters = book => {
+        setSelectedBook(book);
+        setBibleStep('chapters');
+        setBibleChapters([]);
+        return browse(async () => {
+            const { openBibleReader } = await import('../../utils/bibleSync');
+            return (await openBibleReader('AVD'))?.chaptersMap.get(book.bookName);
+        }, '/chapters/' + encodeURIComponent(book.bookName) + '?lang=arabic&translation=SVD', setBibleChapters);
     };
 
-    const fetchVerses = async (chapter) => {
-        try {
-            setIsSearching(true);
-            setSelectedChapter(chapter);
-            setBibleStep('verses');
-            const { data } = await axios.get(`${BIBLE_API}/verses/${encodeURIComponent(selectedBook.bookName)}/${chapter}?lang=arabic&translation=SVD`);
-            setBibleVerses(data);
-        } catch (err) {
-            console.error("Failed to fetch verses", err);
-        } finally {
-            setIsSearching(false);
-        }
+    const chapterVerses = (book, chapter) => import('../../utils/bibleSync')
+        .then(({ readLocalChapter }) => readLocalChapter('AVD', book, chapter));
+
+    const fetchVerses = chapter => {
+        setSelectedChapter(chapter);
+        setBibleStep('verses');
+        setBibleVerses([]);
+        return browse(() => chapterVerses(selectedBook.bookName, chapter),
+            '/verses/' + encodeURIComponent(selectedBook.bookName) + '/' + chapter + '?lang=arabic&translation=SVD', setBibleVerses);
     };
 
     const [localSelection, setLocalSelection] = useState([]);
@@ -232,41 +240,40 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
 
     const handleBibleSearch = (query) => {
         setBibleSearchQuery(query);
-        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        clearTimeout(searchTimerRef.current);
+        bibleSearchController.current?.abort();
         if (!query.trim()) {
             setSearchResults([]);
+            setIsSearching(false);
             return;
         }
+        const controller = new AbortController();
+        bibleSearchController.current = controller;
+        const { signal } = controller;
         searchTimerRef.current = setTimeout(async () => {
             setIsSearching(true);
             try {
-                let onlineSuccess = false;
-                if (typeof navigator === 'undefined' || navigator.onLine) {
+                if (navigator.onLine !== false) {
                     try {
-                        const { data } = await axios.get(`${BIBLE_API}/search?q=${encodeURIComponent(query)}&lang=arabic&translation=SVD`);
+                        const { data } = await axios.get(`${BIBLE_API}/search?q=${encodeURIComponent(query)}&lang=arabic&translation=SVD`, { signal });
                         if (Array.isArray(data)) {
-                            setSearchResults(data);
-                            onlineSuccess = true;
+                            if (!signal.aborted) setSearchResults(data);
+                            return;
                         }
                     } catch {
-                        // Online bible search failed, fallback to local
+                        if (signal.aborted) return;
                     }
                 }
-
-                if (!onlineSuccess) {
-                    try {
-                        const { searchLocalBible } = await import('../../utils/bibleSync');
-                        const localResults = await searchLocalBible(query, 'AVD');
-                        setSearchResults(Array.isArray(localResults) ? localResults.slice(0, 15) : []);
-                    } catch (e) {
-                        console.error("Offline bible search failed", e);
-                        setSearchResults([]);
-                    }
+                const { searchLocalBible } = await import('../../utils/bibleSync');
+                const results = await searchLocalBible(query, 'AVD', { signal });
+                if (!signal.aborted) setSearchResults(results.slice(0, 15));
+            } catch (error) {
+                if (!signal.aborted) {
+                    console.error('Bible search failed', error);
+                    setSearchResults([]);
                 }
-            } catch (err) {
-                console.error(err);
             } finally {
-                setIsSearching(false);
+                if (!signal.aborted) setIsSearching(false);
             }
         }, 400);
     };
@@ -274,27 +281,12 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
     const handleSelectBibleHit = async (hit, isLongPress) => {
         try {
             setIsSearching(true);
-            let verses = [];
-            if (typeof navigator === 'undefined' || navigator.onLine) {
-                try {
-                    const { data } = await axios.get(`${BIBLE_API}/verses/${encodeURIComponent(hit.bookName)}/${hit.chapter}?lang=arabic`);
-                    if (Array.isArray(data)) verses = data;
-                } catch {
-                    // Fetch failed, try local
-                }
+            let verses = await chapterVerses(hit.bookName, hit.chapter).catch(() => []);
+            if (!verses.length && navigator.onLine !== false) {
+                const { data } = await axios.get(`${BIBLE_API}/verses/${encodeURIComponent(hit.bookName)}/${hit.chapter}?lang=arabic`);
+                if (Array.isArray(data)) verses = data;
             }
-
-            if (verses.length === 0) {
-                try {
-                    const { getLocalBibleIndex } = await import('../../utils/bibleSync');
-                    const index = await getLocalBibleIndex('AVD');
-                    if (index?.versesMap) {
-                        verses = index.versesMap.get(`${hit.bookName}_${hit.chapter}`) || [];
-                    }
-                } catch {
-                    // Local fallback failed
-                }
-            }
+            if (!verses.length) return;
 
             const item = {
                 type: 'bible',
@@ -420,6 +412,10 @@ export default function HymnsBiblePicker({ type, onSelect, onClose }) {
                                     <input 
                                         type="text"
                                         value={bibleSearchQuery}
+                                        onFocus={() => {
+                                            if (navigator.onLine === false) import('../../utils/bibleChapterStorage')
+                                                .then(({ prepareOfflineSearch }) => prepareOfflineSearch('AVD')).catch(() => {});
+                                        }}
                                         onChange={(e) => handleBibleSearch(e.target.value)}
                                         placeholder="Search Bible..."
                                         className="w-full bg-app-panel text-white text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-700/60 focus:outline-none focus:border-sky-500/70"

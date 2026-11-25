@@ -576,7 +576,7 @@ export function BibleForm({ controller, presenter, isPage = false }) {
     showBibleSearchBar, setShowBibleSearchBar,
     bibleModalBooks, setBibleModalBooks, bibleModalBook, setBibleModalBook,
     bibleModalChapters, setBibleModalChapters, bibleModalChapter, setBibleModalChapter,
-    bibleModalVerses, setBibleModalVerses, bibleSelectedVerseIds, setBibleSelectedVerseIds,
+    bibleModalVerses, bibleSelectedVerseIds, setBibleSelectedVerseIds,
     aiAnalysis, clearAiAnalysis, showAiOptions, setShowAiOptions, bibleVerseFontSize,
     bibleModalBrowseLoading, biblePickerOpen, setBiblePickerOpen,
     bibleBookPickerRef, bibleChapterPickerRef, bibleVerseSpacing,

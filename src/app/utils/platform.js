@@ -74,6 +74,17 @@ function idbHasStore({ name, storeName }) {
   });
 }
 
+// Remove the historical source copies before committing a user deletion in
+// the main store, so a later retry of legacy-store import cannot copy them back.
+export async function removeLegacyStorageKeys(keys) {
+  if (typeof indexedDB === 'undefined') return;
+  for (const source of LEGACY_STORES) {
+    if (!await idbHasStore(source)) continue;
+    const store = localforage.createInstance(source);
+    for (const key of keys) await store.removeItem(key);
+  }
+}
+
 async function migrateLegacyStores() {
   try {
     if (typeof indexedDB === 'undefined' || localStorage.getItem(MIGRATION_FLAG)) return;
