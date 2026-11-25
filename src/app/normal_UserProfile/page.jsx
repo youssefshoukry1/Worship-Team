@@ -1258,6 +1258,14 @@ function UserProfile({ profileUserId }) {
                                 </div>
                             </div>
 
+                            <section>
+                                <h2 className="mb-2 px-1 text-xs font-bold text-slate-400">{language === 'ar' ? 'حول التطبيق' : 'About'}</h2>
+                                <button type="button" onClick={() => openSettingsRoute('/bible-credits')}
+                                    className="w-full min-h-11 rounded-xl bg-white/5 px-3 text-start text-sm font-medium hover:bg-white/10">
+                                    {language === 'ar' ? 'حقوق ترجمات الكتاب المقدس' : 'Bible translation credits'}
+                                </button>
+                            </section>
+
                             {/* Logout Button */}
                             <div className="pt-2">
                                 <button

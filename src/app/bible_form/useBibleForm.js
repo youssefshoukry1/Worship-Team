@@ -6,6 +6,7 @@ import { UserContext } from '../context/User_Context';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from '../context/LanguageContext';
 import { showToast } from '../components/ToastContainer';
+import { displayBookName } from './translationLanguages';
 import { normalizeBibleBooksFromApi } from '../utils/bibleBooks';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { isRetiredTranslation } from '../utils/platform';
@@ -1053,13 +1054,13 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     if (selectedVersesData.length === 0) return '';
     const nums = selectedVersesData.map(v => v.verseNumber).sort((a, b) => a - b);
     if (nums.length === 1) {
-      return `${bibleModalBook.bookName} ${bibleModalChapter}:${nums[0]}`;
+      return `${displayBookName(bibleModalBook, bibleTranslation)} ${bibleModalChapter}:${nums[0]}`;
     } else {
       const isConsecutive = nums.every((num, i) => i === 0 || num === nums[i - 1] + 1);
       if (isConsecutive) {
-        return `${bibleModalBook.bookName} ${bibleModalChapter}:${nums[0]}-${nums[nums.length - 1]}`;
+        return `${displayBookName(bibleModalBook, bibleTranslation)} ${bibleModalChapter}:${nums[0]}-${nums[nums.length - 1]}`;
       } else {
-        return `${bibleModalBook.bookName} ${bibleModalChapter}:${nums.join('، ')}`;
+        return `${displayBookName(bibleModalBook, bibleTranslation)} ${bibleModalChapter}:${nums.join('، ')}`;
       }
     }
   };

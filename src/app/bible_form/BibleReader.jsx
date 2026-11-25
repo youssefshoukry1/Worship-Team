@@ -3,7 +3,7 @@
 import React, { useState, useContext, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion, AnimatePresence, animate, useMotionValue } from 'framer-motion';
 import Portal from '../Portal/Portal';
-import { ENGLISH_TRANSLATIONS } from './translationLanguages';
+import { displayBookName, ENGLISH_TRANSLATIONS } from './translationLanguages';
 import { UserContext } from '../context/User_Context';
 import { useLanguage } from '../context/LanguageContext';
 import { showToast } from '../components/ToastContainer';
@@ -616,8 +616,9 @@ export function BibleForm({ controller, presenter, isPage = false }) {
   const savedBook = savedChapter && (bibleModalBook?.bookName === savedChapter.bookName
     ? bibleModalBook
     : bibleModalBooks.find(book => book.bookName === savedChapter.bookName));
+  const currentBookName = displayBookName(bibleModalBook, bibleTranslation);
   const bookmarkLabel = savedChapter
-    ? `${t('returnToSavedChapter')} ${savedChapter.bookName} ${savedChapter.chapter}`
+    ? `${t('returnToSavedChapter')} ${displayBookName(savedBook || savedChapter, bibleTranslation)} ${savedChapter.chapter}`
     : t('saveReadingPlace');
   const toggleSavedChapter = () => {
     if (savedChapter) {
@@ -907,7 +908,7 @@ export function BibleForm({ controller, presenter, isPage = false }) {
                         className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 text-white text-xs font-bold transition-all flex items-center gap-2 ${biblePickerOpen === 'book' ? 'bg-sky-500/20 border-sky-500/50' : ''}`}
                       >
                         <span className="opacity-50 tracking-tighter">{t("book")}:</span>
-                        <span className="truncate max-w-[80px]">{bibleModalBook?.bookName || '...'}</span>
+                        <span className="truncate max-w-[80px]">{currentBookName || '...'}</span>
                       </button>
 
                       <button
@@ -948,7 +949,7 @@ export function BibleForm({ controller, presenter, isPage = false }) {
                                 className={`px-3 py-2 rounded-xl text-right text-[11px] font-medium transition-colors ${bibleModalBook?.bookName === book.bookName ? 'bg-slate-700/80 text-slate-100 border border-slate-500/30 shadow-lg shadow-black/30' : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10 hover:text-white'}`}
                                 onClick={() => { setBibleModalBook(book); setBibleModalChapter(null); setBiblePickerOpen('chapter'); if (typeof window !== 'undefined') localStorage.setItem(BIBLE_LAST_POS_KEY, JSON.stringify({ bookName: book.bookName, chapter: null })); }}
                               >
-                                {book.bookName}
+                                {displayBookName(book, bibleTranslation)}
                               </button>
                             ))}
                           </div>
@@ -994,7 +995,7 @@ export function BibleForm({ controller, presenter, isPage = false }) {
                             >
                               <div className="flex justify-between items-start gap-4 mb-2">
                                 <span className="text-sky-400 font-bold text-sm">
-                                  {hit.bookName} {hit.chapter}:{hit.verseNumber}
+                                  {displayBookName(hit, bibleTranslation)} {hit.chapter}:{hit.verseNumber}
                                 </span>
                                 <button
                                   onClick={(e) => {
@@ -1046,7 +1047,7 @@ export function BibleForm({ controller, presenter, isPage = false }) {
                     <div className="flex items-end justify-between border-b border-white/5 pb-6">
                       <div>
                         <h1 className="text-3xl sm:text-5xl font-black text-white leading-none">
-                          {bibleModalBook.bookName}
+                          {currentBookName}
                         </h1>
                         <div className="mt-2 flex items-center gap-2">
                           <span className="h-[2px] w-8 bg-sky-500" />
@@ -1582,7 +1583,7 @@ export function BibleForm({ controller, presenter, isPage = false }) {
                 <div className="shrink-0 pt-3 pb-3 px-6 border-b border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent flex flex-col items-center">
                   <div className="w-12 bg-white/20 hover:bg-white/30 rounded-full shrink-0 h-1.5 mb-2.5 transition-colors cursor-grab active:cursor-grabbing" />
                   <p className="text-base sm:text-lg font-bold text-white/95 tracking-wide text-center" dir="rtl">
-                    {bibleModalBook?.bookName} {bibleModalChapter}
+                    {currentBookName} {bibleModalChapter}
                   </p>
                 </div>
 
@@ -1614,7 +1615,7 @@ export function BibleForm({ controller, presenter, isPage = false }) {
                           key={tr}
                           translationCode={tr}
                           verses={compareData?.[tr] || []}
-                          bookName={bibleModalBook?.bookName}
+                          bookName={currentBookName}
                           chapter={bibleModalChapter}
                           verseNumbers={compareVerseNums}
                           canDelete={(compareSelectedTranslations.length > 0 ? compareSelectedTranslations : availableTranslations).length > 1}
