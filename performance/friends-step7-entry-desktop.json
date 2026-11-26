@@ -1,0 +1,81 @@
+{
+  "engine": "145.0.7632.6",
+  "build": "eUFRwvlx0MS_J_rWmToGv",
+  "version": "2.0.18",
+  "mode": "desktop",
+  "trials": [
+    {
+      "pair": 1,
+      "variant": "before",
+      "cachedRowMs": 244,
+      "domContentLoadedMs": 34
+    },
+    {
+      "pair": 1,
+      "variant": "after",
+      "cachedRowMs": 205,
+      "domContentLoadedMs": 27
+    },
+    {
+      "pair": 2,
+      "variant": "after",
+      "cachedRowMs": 216,
+      "domContentLoadedMs": 30
+    },
+    {
+      "pair": 2,
+      "variant": "before",
+      "cachedRowMs": 201,
+      "domContentLoadedMs": 28
+    },
+    {
+      "pair": 3,
+      "variant": "before",
+      "cachedRowMs": 212,
+      "domContentLoadedMs": 28
+    },
+    {
+      "pair": 3,
+      "variant": "after",
+      "cachedRowMs": 202,
+      "domContentLoadedMs": 28
+    },
+    {
+      "pair": 4,
+      "variant": "after",
+      "cachedRowMs": 209,
+      "domContentLoadedMs": 28
+    },
+    {
+      "pair": 4,
+      "variant": "before",
+      "cachedRowMs": 227,
+      "domContentLoadedMs": 38
+    },
+    {
+      "pair": 5,
+      "variant": "before",
+      "cachedRowMs": 229,
+      "domContentLoadedMs": 36
+    },
+    {
+      "pair": 5,
+      "variant": "after",
+      "cachedRowMs": 334,
+      "domContentLoadedMs": 68
+    },
+    {
+      "pair": 6,
+      "variant": "after",
+      "cachedRowMs": 377,
+      "domContentLoadedMs": 51
+    },
+    {
+      "pair": 6,
+      "variant": "before",
+      "cachedRowMs": 332,
+      "domContentLoadedMs": 71
+    }
+  ],
+  "baselineBuild": "gnzFh_PGW3eYiyi7DQMD_"
+}

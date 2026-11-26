@@ -16,6 +16,18 @@ const isNative = Capacitor.isNativePlatform();
 const avatarDownloads = new Map();
 const backgroundAvatarQueue = [];
 const queuedBackgroundAvatars = new Set();
+// Successful checks only. Keep URLs in memory and let storage own the image data.
+const cachedPhotoUrls = new Map();
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', event => {
+    if (event.key === AVATAR_INDEX_KEY || event.key === null) cachedPhotoUrls.clear();
+  });
+}
+function rememberPhoto(key, url) {
+  cachedPhotoUrls.delete(key);
+  cachedPhotoUrls.set(key, url);
+  if (cachedPhotoUrls.size > MAX_AVATAR_ENTRIES) cachedPhotoUrls.delete(cachedPhotoUrls.keys().next().value);
+}
 let activeBackgroundDownloads = 0;
 let cacheMaintenancePromise = Promise.resolve();
 
@@ -68,6 +80,7 @@ function removeAvatarFromIndex(key) {
 }
 
 async function deleteAvatarRecord(key) {
+  cachedPhotoUrls.delete(key);
   const record = await avatarStore.getItem(key);
   if (isNative && record?.path) {
     try {
@@ -121,7 +134,7 @@ export function getAvatarCacheKey(userKey, remoteUrl) {
 export async function readCachedAvatar(userKey, remoteUrl) {
   const key = getAvatarCacheKey(userKey, remoteUrl);
   const record = await avatarStore.getItem(key);
-  if (!record) return null;
+  if (!record) { cachedPhotoUrls.delete(key); return null; }
 
   if (isNative) {
     if (!record.path) return null;
@@ -169,6 +182,7 @@ export async function saveAvatarBlob(userKey, remoteUrl, blob) {
     await avatarStore.setItem(key, { ...baseRecord, blob });
   }
 
+  rememberPhoto(key, remoteUrl);
   await registerAvatarAndPrune(key, blob.size);
   return baseRecord;
 }
@@ -204,7 +218,7 @@ export async function ensureAvatarCached(userKey, remoteUrl) {
   if (!remoteUrl || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
   const key = getAvatarCacheKey(userKey, remoteUrl);
   const record = await avatarStore.getItem(key);
-  if (record?.remoteUrl === remoteUrl) return;
+  if (record?.remoteUrl === remoteUrl) { rememberPhoto(key, remoteUrl); return; }
   await persistAvatarDownload(userKey, remoteUrl);
 }
 
@@ -232,7 +246,7 @@ export function cacheAvatarsInBackground(users) {
     const userKey = user?._id || user?.username;
     const remoteUrl = user?.profilePhoto;
     const queueKey = `${userKey}:${remoteUrl}`;
-    if (!userKey || !remoteUrl || queuedBackgroundAvatars.has(queueKey)) return;
+    if (!userKey || !remoteUrl || queuedBackgroundAvatars.has(queueKey) || cachedPhotoUrls.get(getAvatarCacheKey(userKey, remoteUrl)) === remoteUrl) return;
     queuedBackgroundAvatars.add(queueKey);
     backgroundAvatarQueue.push({ queueKey, userKey, remoteUrl });
   });

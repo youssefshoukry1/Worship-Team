@@ -14,7 +14,7 @@ let desktopBrowser, mobileBrowser;
 before(async () => { await mkdir(output, { recursive: true }); desktopBrowser = await chromium.launch({ executablePath: chromium.executablePath() }); mobileBrowser = await webkit.launch(); });
 after(async () => { await desktopBrowser?.close(); await mobileBrowser?.close(); });
 
-async function setup(t, { startPath = '/friends/', mobile = false, failFirstPublish = false, failFirstLove = false, empty = false, expiresSoon = false, programer = false, cooldownSoon = false, relationship = 'friends', failFriendship = false, friendPhoto = false, omitProfileMetadata = false, profileRelationship = null } = {}) {
+async function setup(t, { startPath = '/friends/', mobile = false, failFirstPublish = false, failFirstLove = false, empty = false, expiresSoon = false, programer = false, cooldownSoon = false, relationship = 'friends', failFriendship = false, friendPhoto = false, omitProfileMetadata = false, profileRelationship = null, waitForSocket = false } = {}) {
   const context = await (mobile ? mobileBrowser : desktopBrowser).newContext({ ...(mobile ? devices['iPhone 13'] : { viewport: { width: 1440, height: 1100 } }), serviceWorkers: 'block' });
   t.after(() => context.close());
   const page = await context.newPage();
@@ -51,10 +51,14 @@ async function setup(t, { startPath = '/friends/', mobile = false, failFirstPubl
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'Authorization, Content-Type', 'access-control-allow-methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS' };
   state.sockets = new Set();
   state.publishNote = event => { for (const socket of state.sockets) socket.send(`42/testimonies,${JSON.stringify(['note-changed', event])}`); };
+  let socketReady;
+  const firstSocket = new Promise(resolve => { socketReady = resolve; });
+  if (waitForSocket) await page.route(/\/socket\.io\/.*transport=polling/, route => route.abort());
   await page.routeWebSocket(/\/socket\.io\//, socket => {
     socket.onMessage(message => {
       if (String(message).startsWith('40/testimonies,')) {
         state.sockets.add(socket);
+        socketReady();
         socket.send('40/testimonies,{"sid":"notes-test"}');
         socket.send('42/testimonies,["notes-ready"]');
       }
@@ -198,15 +202,16 @@ async function setup(t, { startPath = '/friends/', mobile = false, failFirstPubl
   const initialAvatar = friendPhoto && !empty ? page.waitForResponse(response => response.url() === viewedFriend.profilePhoto && response.request().resourceType() === 'fetch').then(response => response.finished()) : Promise.resolve();
   await page.goto(`${base}${startPath}`, { waitUntil: 'domcontentloaded' });
   await Promise.all([initialFriends, initialAvatar, initialFeed]);
+  if (waitForSocket) await firstSocket;
   await page.getByRole('button', { name: 'Share your testimony', exact: true }).waitFor();
   await page.getByRole('status', { name: 'Loading testimonies' }).waitFor({ state: 'hidden' });
   return { page, state, errors };
 }
 
-test('compact dark notes, full reader, name navigation, and permanent friend collection', async t => {
+test('compact dark notes, full reader, and permanent friend collection', async t => {
   const { page, errors } = await setup(t, { friendPhoto: true });
   assert.equal(await page.getByTestId('testimony-cards').getByRole('article').count(), 3);
-  assert.ok((await page.getByRole('region', { name: 'Friends testimony highlights' }).boundingBox()).height < 160);
+  assert.ok((await page.getByRole('region', { name: 'Friends highlights' }).boundingBox()).height < 160);
   await page.screenshot({ path: resolve(output, 'friends-desktop.png'), fullPage: true });
   assert.equal(await page.getByTestId('testimony-cards').getByRole('link').count(), 0);
   // The compact name/photo area opens the note, rather than navigating away.
@@ -218,9 +223,10 @@ test('compact dark notes, full reader, name navigation, and permanent friend col
   assert.ok(Math.abs(expanded.width - expanded.height) < 1);
   assert.equal(await reader.getByText('A moment of faith', { exact: true }).count(), 0);
   await page.screenshot({ path: resolve(output, 'reader-desktop.png'), animations: 'disabled' });
-  await reader.getByRole('link', { name: 'Visit Youssef profile', exact: true }).click();
+  assert.equal(await reader.getByRole('link', { name: 'Visit Youssef profile', exact: true }).count(), 0);
+  await page.goto(`${base}/normal_UserProfile/?user=${B}`);
   await page.getByRole('heading', { name: 'Youssef', exact: true }).waitFor();
-  await page.getByRole('heading', { name: 'A story from last week', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Read testimony: A story from last week', exact: true }).waitFor();
   await page.screenshot({ path: resolve(output, 'friend-profile-desktop.png'), fullPage: true });
   assert.deepEqual(errors, []);
 });
@@ -408,15 +414,15 @@ test('client expiry removes a card while profile retains it; denied access clear
   const { page, state, errors } = await setup(t, { expiresSoon: true });
   const reads = state.socialReads.length;
   await page.clock.fastForward(31000);
-  await page.getByRole('heading', { name: 'Peace in the middle of it all', exact: true }).waitFor({ state: 'hidden' });
-  assert.equal(await page.getByRole('heading', { name: 'Peace in the middle of it all', exact: true }).count(), 0);
+  await page.getByRole('button', { name: 'Read testimony: Peace in the middle of it all', exact: true }).waitFor({ state: 'hidden' });
+  assert.equal(await page.getByRole('button', { name: 'Read testimony: Peace in the middle of it all', exact: true }).count(), 0);
   assert.equal(state.socialReads.length, reads, 'expiring a note must not call the server');
   await page.goto(`${base}/normal_UserProfile/?user=${B}`);
-  await page.getByRole('heading', { name: 'Peace in the middle of it all', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Read testimony: Peace in the middle of it all', exact: true }).waitFor();
   state.denyProfile = true;
   await page.evaluate(() => window.dispatchEvent(new Event('taspe7:testimonies-changed')));
   await page.getByText('This profile is available only to current friends.', { exact: true }).waitFor();
-  assert.equal(await page.getByRole('heading', { name: 'Peace in the middle of it all', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Read testimony: Peace in the middle of it all', exact: true }).count(), 0);
   assert.deepEqual(errors, []);
 });
 
@@ -1000,7 +1006,7 @@ test('own note loved-by sheet opens with swipe up and dismisses without replacin
   assert.equal(await reader.locator('[data-reactor-sheet]').evaluate(element => element.style.transform), 'translate3d(0px, 0px, 0px)');
   assert.equal(await list.isVisible(), true);
   const scroller = list.locator('[data-reactor-scroll]');
-  await list.getByRole('link').first().waitFor();
+  await list.getByText('@youssef', { exact: true }).waitFor();
   await scroller.evaluate(element => { element.scrollTop = 30; });
   await gesture(scroller, 250, 350);
   assert.equal(await list.isVisible(), true, 'a list-scroll gesture must not dismiss the sheet');
@@ -1309,8 +1315,8 @@ test('love appears immediately while saving is delayed and continues after closi
   assert.deepEqual(errors, []);
 });
 
-test('live notes arrive off-page and the nav dot clears on visiting Friends until a new note arrives after leaving', async t => {
-  const { page, state, errors } = await setup(t, { empty: true, startPath: '/normal_UserProfile/' });
+test('live notes arrive off-page and the nav dot clears only after opening the unread notes', async t => {
+  const { page, state, errors } = await setup(t, { empty: true, mobile: true, waitForSocket: true, startPath: '/normal_UserProfile/' });
   const item = { _id: '555555555555555555555555', author: friend, title: 'A new moment of faith', body: 'A note shared while I was on another page.', style: 'olive', loved: false, loveCount: 0,
     createdAt: new Date().toISOString(), feedExpiresAt: new Date(Date.now() + 86400000).toISOString() };
   state.posts.unshift(item);
@@ -1323,14 +1329,20 @@ test('live notes arrive off-page and the nav dot clears on visiting Friends unti
   await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Friends', exact: true }).click();
   await page.getByRole('button', { name: `Read testimony: ${item.title}`, exact: true }).waitFor();
   assert.equal(state.socialReads.filter(path => path.endsWith('/testimonies')).length, reads, 'opening Friends must reuse the prepared feed');
-  await page.getByTestId('friends-notes-badge').waitFor({ state: 'hidden' });
+  const read = async note => {
+    await page.getByTestId('friends-notes-badge').waitFor();
+    await page.getByRole('button', { name: `Read testimony: ${note.title}`, exact: true }).click();
+    await page.keyboard.press('Escape');
+    await page.getByTestId('friends-notes-badge').waitFor({ state: 'hidden' });
+  };
+  await read(item);
   const incoming = { ...item, _id: '777777777777777777777777', title: 'Shared while viewing Friends' };
   state.posts.unshift(incoming);
   const inFeed = page.waitForResponse(response => response.url().includes(`/testimonies/note/${incoming._id}`)).then(response => response.finished());
   state.publishNote({ id: incoming._id, authorId: B, action: 'created' });
   await inFeed;
   await page.getByRole('button', { name: `Read testimony: ${incoming.title}`, exact: true }).waitFor();
-  assert.equal(await page.getByTestId('friends-notes-badge').count(), 0);
+  await read(incoming);
   const navigation = page.getByRole('navigation', { name: 'Primary navigation' });
   await navigation.getByRole('link', { name: 'Profile', exact: true }).click();
   await page.waitForURL('**/normal_UserProfile/');
@@ -1343,7 +1355,7 @@ test('live notes arrive off-page and the nav dot clears on visiting Friends unti
   await page.getByTestId('friends-notes-badge').waitFor();
   await navigation.getByRole('link', { name: 'Friends', exact: true }).click();
   await page.getByRole('button', { name: `Read testimony: ${later.title}`, exact: true }).waitFor();
-  await page.getByTestId('friends-notes-badge').waitFor({ state: 'hidden' });
+  await read(later);
   state.posts = [];
   state.publishNote({ id: item._id, authorId: B, action: 'deleted' });
   await page.getByRole('button', { name: `Read testimony: ${item.title}`, exact: true }).waitFor({ state: 'hidden' });
@@ -1351,7 +1363,7 @@ test('live notes arrive off-page and the nav dot clears on visiting Friends unti
 });
 
 test('reconnecting catches missed notes and friendship revocation clears a prepared feed', async t => {
-  const { page, state, errors } = await setup(t, { empty: true, startPath: '/normal_UserProfile/' });
+  const { page, state, errors } = await setup(t, { empty: true, mobile: true, waitForSocket: true, startPath: '/normal_UserProfile/' });
   const item = { _id: '666666666666666666666666', author: friend, title: 'Shared while disconnected', body: 'A new reflection that arrived during a lost connection.', style: 'olive', loved: false, loveCount: 0,
     createdAt: new Date().toISOString(), feedExpiresAt: new Date(Date.now() + 86400000).toISOString() };
   const sockets = [...state.sockets];
@@ -1406,4 +1418,22 @@ for (const mobile of [false, true]) test(`Friends downloaded notes survive API-o
   for (let i = 0; i < 100 && (await saved())?.items?.some(item => item._id === first._id); i++) await page.waitForTimeout(50);
   assert.equal((await saved()).items.some(item => item._id === first._id), false);
   assert.deepEqual(errors, []);
+});
+
+test('warm mobile tab returns preserve the note rail and the unread pin', async t => {
+  const { page } = await setup(t, { mobile: true });
+  const rail = page.getByRole('region', { name: 'Friends highlights' }).getByTestId('testimony-cards');
+  await page.setViewportSize({width:320,height:700});
+  const left = await rail.evaluate(el => {
+    el.scrollTo({left:el.scrollWidth,behavior:'instant'});
+    return el.scrollLeft;
+  });
+  assert.ok(left > 0);
+  const nav = page.getByRole('navigation',{name:'Primary navigation'});
+  await nav.getByRole('link',{name:'Profile',exact:true}).click();
+  await page.waitForURL(url=>url.pathname.includes('normal_UserProfile'));
+  await nav.getByRole('link',{name:'Friends',exact:true}).click();
+  await rail.waitFor();
+  assert.ok(Math.abs(await rail.evaluate(el=>el.scrollLeft)-left)<2);
+  assert.ok(await rail.locator('[data-unread]').count()>0);
 });

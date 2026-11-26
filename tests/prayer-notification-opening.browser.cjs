@@ -410,6 +410,50 @@ test('the native index.html entry keeps Prayer drafts and opens notification tar
   } finally { await context.close(); }
 });
 
+test('prayer taps from primary tabs and settings open the latest target in the same document', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  try {
+    const page = await context.newPage();
+    await context.route('**/*', route => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith('/translations')) return route.fulfill({ json: ['AVD'] });
+      if (/\/(catalog|status)$/.test(path)) return route.fulfill({ status: 503, json: {} });
+      return mockPrayerApi(route, base);
+    });
+    await seed(page, [received('first'), received('latest')], { controlledNavigation: true });
+    for (const path of ['/friends/', '/bible_form/', '/normal_UserProfile/', '/plans/']) {
+      await page.goto(base + path);
+      await page.locator('nav[aria-label="Primary navigation"]').waitFor({ timeout: 5000 }).catch(error => {
+        throw Error('Navigation shell missing at ' + path, { cause: error });
+      });
+      const startLength = await page.evaluate(() => {
+        window.originalPrayerDocument = document;
+        const initial = history.length;
+        // Interrupt a real pager drag before it can settle on another tab.
+        if (location.pathname === '/friends/') {
+          const panel = document.querySelector('[data-tab-active="true"]');
+          for (const [type, x] of [['touchstart', 200], ['touchmove', 130]]) {
+            const point = new Touch({ identifier: 1, target: panel, clientX: x, clientY: 300 });
+            panel.dispatchEvent(new TouchEvent(type, { bubbles: true, cancelable: true, touches: [point], changedTouches: [point] }));
+          }
+          if (!document.querySelector('[data-swiping]')) throw Error('Expected a swipe in progress');
+        }
+        for (const id of ['first', 'latest', 'latest']) {
+          const handled = !window.dispatchEvent(new CustomEvent('taspe7:open-prayer', {
+            cancelable: true, detail: { href: '/pray/?notificationType=PRAY_SHARED&shareId=' + id, notificationId: id },
+          }));
+          if (!handled) throw Error('Prayer tap was unclaimed');
+        }
+        return initial;
+      });
+      await page.locator('[data-prayer-id="received-latest"]').getByRole('textbox').waitFor();
+      assert.equal(await page.locator('[data-prayer-id="received-first"]').getByRole('textbox').count(), 0);
+      assert.equal(await page.evaluate(() => window.originalPrayerDocument === document), true, path);
+      assert.equal(await page.evaluate(() => history.length), startLength + 1, path);
+    }
+  } finally { await context.close(); }
+});
+
 test('the direct Prayer entry still requires sign-in before mounting the app', async () => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
@@ -577,6 +621,40 @@ test('deep notification targets render immediately in a long list even while the
     await card.waitFor({ state: 'detached' });
     assert.ok(await page.locator('[data-prayer-id]').count() < 30);
   } finally { release(); await context.close(); }
+});
+
+test('an offline notification reveals the saved reply below a long original at large text size', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 740 }, hasTouch: true, isMobile: true });
+  try {
+    const page = await context.newPage();
+    const targets = [];
+    await context.route('**/*', route => {
+      const url = new URL(route.request().url());
+      if (url.pathname.includes('/pray-time/') && url.searchParams.has('target')) targets.push(url.pathname);
+      return mockPrayerApi(route, base);
+    });
+    await seed(page, [{ ...sent, words: 'A long original prayer. '.repeat(350),
+      sharedWith: { ...sent.sharedWith, status: 'confirmed', responseWords: 'My saved reply', respondedAt: new Date().toISOString() } }]);
+    await page.goto(base + '/pray/');
+    await page.getByRole('button', { name: /^Prayer Circle/ }).waitFor();
+    await page.addStyleTag({ content: 'html { font-size: 24px !important }' });
+    await context.setOffline(true);
+    const tapReply = shareId => page.evaluate(id => window.dispatchEvent(new CustomEvent('taspe7:open-prayer', {
+      cancelable: true, detail: { href: '/pray/?notificationType=PRAY_CONFIRMED&shareId=' + id },
+    })), shareId);
+    await tapReply('superseded');
+    await page.getByRole('list').first().waitFor();
+    await tapReply('789');
+    await page.getByText('My saved reply', { exact: true }).waitFor();
+    await page.waitForFunction(() => {
+      const text = [...document.querySelectorAll('[data-prayer-id] p')].find(p => p.textContent === 'My saved reply');
+      const rect = text?.getBoundingClientRect();
+      return rect && rect.top > 0 && rect.bottom < innerHeight && text.contains(document.elementFromPoint(rect.left + 4, rect.top + 4));
+    }, undefined, { timeout: 4000 });
+    await context.setOffline(false);
+    await page.waitForFunction(() => navigator.onLine);
+    assert.deepEqual(targets, []);
+  } finally { await context.close(); }
 });
 
 test('saved-card actions use the latest reply text after other cards and composer state change', async () => {
@@ -1159,6 +1237,40 @@ test('failed delivery acknowledgements replay after reload without duplicate tex
   } finally { await context.close(); }
 });
 
+test('a missing notification shows pending feedback, waits offline and resolves an unavailable target', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  let targetRequests = 0;
+  try {
+    await context.route('**/*', async route => {
+      const url = new URL(route.request().url());
+      if (url.searchParams.get('target') === 'gone') {
+        targetRequests++;
+        await gate;
+        return route.fulfill({ json: { protocol: 2, items: [] } });
+      }
+      return mockPrayerApi(route, base);
+    });
+    const page = await context.newPage();
+    await seed(page, [received('other')]);
+    await page.goto(base + '/pray/');
+    await page.getByRole('button', { name: /^Prayer Circle/ }).waitFor();
+    await context.setOffline(true);
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('taspe7:open-prayer', {
+      cancelable: true, detail: { href: '/pray/?notificationType=PRAY_SHARED&shareId=gone' },
+    })));
+    await page.getByText('Waiting for a connection…', { exact: true }).waitFor();
+    assert.equal(targetRequests, 0);
+    await context.setOffline(false);
+    await page.getByText('Opening message…', { exact: true }).waitFor();
+    release();
+    await page.getByText('This message is unavailable.', { exact: true }).waitFor();
+    assert.equal(targetRequests, 1);
+    assert.equal(await page.locator('[data-prayer-id="received-other"]').getByRole('textbox').count(), 0);
+  } finally { release(); await context.close(); }
+});
+
 test('versioned inbox pages use real workers and open a deep notification before the ordinary queue', async () => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const acknowledgements = [], requests = [];
@@ -1209,23 +1321,78 @@ test('versioned inbox pages use real workers and open a deep notification before
   } finally { await context.close(); }
 });
 
+const { seedFriendCache } = require('./helpers/friend-cache.cjs');
+const aliceId = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+const bobId = 'bbbbbbbbbbbbbbbbbbbbbbbb';
+const friendViewerId = 'dddddddddddddddddddddddd';
+const requestRow = person => ({ _id: 'cccccccccccccccccccccccc', from: person });
+const incomingUrl = url => url.endsWith('/friend-requests?kind=incoming');
 async function seedFriends(page, cache) {
   await seed(page, []);
-  await page.evaluate(async cache => {
-    const db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open('taspe7_app', 2);
-      request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('bible_store')) request.result.createObjectStore('bible_store'); };
-      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
-    });
-    await new Promise((resolve, reject) => {
-      const tx = db.transaction('bible_store', 'readwrite');
-      tx.objectStore('bible_store').put({ ...cache, requestsSyncedAt: Date.now(), friendsSyncedAt: Date.now() }, 'friends_data_tester');
-      tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
-    });
-    db.close();
-  }, cache);
+  await page.evaluate(id => localStorage.setItem('user_Taspe7_ID', id), friendViewerId);
+  await page.evaluate(seedFriendCache, { ...cache, ownerId: friendViewerId });
 }
 
+for (const engine of ['chromium', 'webkit']) test(`${engine}: Friends keeps a deep reading anchor while reconciling only the required cursor pages`, async t => {
+  const runner = engine === 'webkit' ? await require('playwright').webkit.launch() : browser;
+  if (runner !== browser) t.after(() => runner.close());
+  const context = await runner.newContext({ serviceWorkers: 'block', viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    page.setDefaultTimeout(8000);
+    const id = value => value.toString(16).padStart(24, '0');
+    const makeRow = value => ({ _id: id(9000 - value), from: { _id: id(value), Name: 'Sender ' + value } });
+    let rows = Array.from({ length: 100 }, (_, index) => makeRow(index + 1));
+    let summaryReads = 0;
+    const cursors = [];
+    await context.route('**/*', async route => {
+      const url = new URL(route.request().url());
+      if (url.origin === base) return route.continue();
+      const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type, cache-control, pragma', 'access-control-allow-methods': 'GET, POST, OPTIONS' };
+      if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+      if (url.pathname.endsWith('/friends-summary')) {
+        summaryReads++;
+        return route.fulfill({ headers, json: { incoming: rows.length, outgoing: 0, friends: 0 } });
+      }
+      if (url.pathname.endsWith('/friend-requests') && url.searchParams.get('kind') === 'incoming') {
+        const cursor = url.searchParams.get('cursor');
+        const start = cursor ? rows.findIndex(row => row._id === cursor) + 1 : 0;
+        const items = rows.slice(start, start + 10);
+        cursors.push(start);
+        return route.fulfill({ headers, json: { items, total: rows.length, nextCursor: start + 10 < rows.length ? items.at(-1)._id : null } });
+      }
+      return fulfillPrayerFixture(route, { headers, json: { items: [], nextCursor: null, changes: [], cursor: '1', user: { _id: friendViewerId, username: 'fixture' } } });
+    });
+    await seedFriends(page, { friends: [], incomingRequests: rows });
+    await page.goto(base + '/friends/');
+    const target = page.locator('[data-friend-id="' + id(75) + '"]');
+    await target.waitFor({ state: 'attached' });
+    await page.waitForFunction(() => document.querySelectorAll('[data-pending-page="incoming"]').length === 90);
+    assert.deepEqual(cursors, [0]);
+    await target.evaluate(row => row.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await page.waitForFunction(() => document.querySelectorAll('[data-pending-page="incoming"]').length <= 20);
+    const top = await target.evaluate(row => row.getBoundingClientRect().top);
+    cursors.length = 0;
+    rows = [makeRow(0), ...rows];
+    await page.evaluate(() => window.dispatchEvent(new Event('taspe7:friends-push')));
+    await page.getByText('Incoming requests (101)', { exact: true }).waitFor();
+    await page.waitForFunction(() => {
+      const count = document.querySelectorAll('[data-pending-page="incoming"]').length;
+      return count > 0 && count <= 21 && !document.body.innerText.includes('Loading people');
+    });
+    assert.ok(cursors.includes(70) && !cursors.includes(90), JSON.stringify(cursors));
+    assert.ok(Math.abs(await target.evaluate(row => row.getBoundingClientRect().top) - top) <= 2, 'The same user should remain at the same viewport offset');
+    assert.equal(summaryReads, 2);
+    const before = cursors.length;
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event('online'));
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await page.waitForTimeout(150);
+    assert.equal(summaryReads, 2);
+    assert.equal(cursors.length, before);
+  } finally { await context.close(); }
+});
 test('friend notifications select the right cached section with a stalled backend and no warm-page reload', async () => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   let release;
@@ -1240,21 +1407,21 @@ test('friend notifications select the right cached section with a stalled backen
       fetched.push(url); await stalled;
       return fulfillPrayerFixture(route, { json: {} }).catch(() => {});
     });
-    await seedFriends(page, { friends: [{ _id: 'alice', Name: 'Alice', username: 'alice' }],
-      incomingRequests: [{ _id: 'request-bob', from: { _id: 'bob', Name: 'Bob', username: 'bob' } }], outgoingRequests: [] });
-    await page.goto(base + '/friends/index.html?notificationType=FRIEND_REQUEST_ACCEPTED&actorId=alice', { waitUntil: 'domcontentloaded' });
-    await page.locator('[data-friend-id="alice"]').getByText('Alice', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
-    assert.equal(await page.getByText('Loading connections...', { exact: true }).count(), 0);
+    await seedFriends(page, { friends: [{ _id: aliceId, Name: 'Alice', username: 'alice' }],
+      incomingRequests: [{ _id: 'cccccccccccccccccccccccc', from: { _id: bobId, Name: 'Bob', username: 'bob' } }], outgoingRequests: [] });
+    await page.goto(base + '/friends/?notificationType=FRIEND_REQUEST_ACCEPTED&actorId=' + aliceId, { waitUntil: 'domcontentloaded' });
+    await page.locator(`[data-friend-id="${aliceId}"]`).getByText('Alice', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+    assert.equal(await page.locator('[data-page-skeleton="friends"]').count(), 0);
     const href = page.url();
-    const handled = await page.evaluate(() => !window.dispatchEvent(new CustomEvent('taspe7:open-friends', {
-      detail: { href: '/friends/?notificationType=FRIEND_REQUEST_RECEIVED&actorId=bob' }, cancelable: true,
-    })));
+    const handled = await page.evaluate(id => !window.dispatchEvent(new CustomEvent('taspe7:open-friends', {
+      detail: { href: '/friends/?notificationType=FRIEND_REQUEST_RECEIVED&actorId=' + id }, cancelable: true,
+    })), bobId);
     assert.equal(handled, true);
-    const row = page.locator('[data-friend-id="bob"]');
+    const row = page.locator(`[data-friend-id="${bobId}"]`);
     await row.getByRole('button', { name: 'Accept', exact: true }).waitFor({ state: 'visible', timeout: 5000 });
     assert.equal(await row.evaluate(el => getComputedStyle(el).outlineStyle), 'none');
     assert.equal(page.url(), href);
-    assert.ok(fetched.some(url => url.endsWith('/friend-requests')), 'Notification must bypass the fresh cache TTL');
+    assert.ok(fetched.some(incomingUrl), 'Opening the incoming notification should also revalidate the cached list');
   } finally { release(); await context.close(); }
 });
 
@@ -1269,31 +1436,135 @@ test('a new incoming request appears before a slow friends-list response complet
       const url = route.request().url();
       if (url.startsWith(base)) return route.continue();
       if (!['fetch', 'xhr'].includes(route.request().resourceType())) return route.abort();
-      if (url.endsWith('/users/friends')) { await stalled; return fulfillPrayerFixture(route, { json: { friends: [] } }).catch(() => {}); }
-      if (url.endsWith('/users/friend-requests')) {
+      if (url.includes('/friends-directory/sync?')) { await stalled; return fulfillPrayerFixture(route, { json: { changes: [], cursor: '1', hasMore: false } }).catch(() => {}); }
+      if (incomingUrl(url)) {
         requests++;
-        return fulfillPrayerFixture(route, { json: { incoming: [{ from: { _id: requests === 1 ? 'new-friend' : 'later-friend', Name: 'New Friend', username: 'newfriend' } }], outgoing: [] } });
+        return fulfillPrayerFixture(route, { json: { items: [requestRow({ _id: requests === 1 ? aliceId : bobId, Name: 'New Friend', username: 'newfriend' })], total: 1, nextCursor: null } });
       }
       return fulfillPrayerFixture(route, { json: { user: { username: 'tester' } } });
     });
     await seedFriends(page, { friends: [], incomingRequests: [], outgoingRequests: [] });
-    // A push received while on another page invalidates this otherwise fresh cache.
-    await page.evaluate(() => localStorage.setItem('taspe7_friends_dirty_tester', '1'));
+    const directoryStarted = page.waitForRequest(request => request.method() === 'GET' && request.url().includes('/friends-directory/sync?'), { timeout: 5000 });
     await page.goto(base + '/friends/', { waitUntil: 'domcontentloaded' });
-    await page.locator('[data-friend-id="new-friend"]').getByText('New Friend', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
-    assert.equal(await page.getByText('Loading connections...', { exact: true }).count(), 0);
-    assert.equal(await page.evaluate(() => localStorage.getItem('taspe7_friends_dirty_tester')), '1');
+    await directoryStarted;
+    await page.locator(`[data-friend-id="${aliceId}"]`).getByText('New Friend', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+    assert.equal(await page.locator('[data-page-skeleton="friends"]').count(), 0);
     await page.evaluate(() => window.dispatchEvent(new Event('taspe7:friends-push')));
-    await page.locator('[data-friend-id="later-friend"]').getByText('New Friend', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator(`[data-friend-id="${bobId}"]`).getByText('New Friend', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
   } finally { release(); await context.close(); }
 });
 
+test('concurrent accepts preserve the confirmed friend, request badge and note access', async () => {
+  const context = await browser.newContext({serviceWorkers: 'block', viewport: {width:390,height:844}});
+  let releaseAlice;
+  const held = new Promise(resolve => {releaseAlice = resolve;});
+  try {
+    const page = await context.newPage();
+    page.setDefaultTimeout(8000);
+    const alice = {_id:aliceId,username:'alice',Name:'Alice'};
+    const bob = {_id:bobId,username:'bob',Name:'Bob'};
+    let incoming = [requestRow(alice),{_id:'eeeeeeeeeeeeeeeeeeeeeeee',from:bob}];
+    let bobAccepted = false, reads = 0;
+    await context.route('**/*',async route=>{
+      const url = new URL(route.request().url());
+      if (url.origin === base) return route.continue();
+      const reply = json => route.fulfill({json});
+      if (route.request().method()==='OPTIONS') return route.fulfill({status:204});
+      if (url.pathname.endsWith('/accept/'+aliceId)) {
+        await held;
+        return route.fulfill({status:403,json:{msg:'Alice request rejected'}});
+      }
+      if (url.pathname.endsWith('/accept/'+bobId)) {
+        bobAccepted = true;
+        incoming = incoming.filter(row => row.from._id !== bobId);
+        return reply({success:true});
+      }
+      if (incomingUrl(url.href)) { reads++; return reply({items:incoming,total:incoming.length,nextCursor:null}); }
+      if (url.pathname.endsWith('/friends-summary')) return reply({incoming:incoming.length,outgoing:0,friends:Number(bobAccepted)});
+      if (url.pathname.endsWith('/sync')) return reply({cursor:'2',changes:bobAccepted?[{type:'upsert',person:bob}]:[],hasMore:false});
+      return reply({items:[],nextCursor:null,activeNotes:[],publishing:{canPublish:true},user:{_id:friendViewerId}});
+    });
+    await seedFriends(page,{friends:[],incomingRequests:incoming});
+    await page.goto(base+'/friends/');
+    const row = id => page.locator('[data-friend-id="'+id+'"]');
+    await page.getByText('Incoming requests (2)',{exact:true}).waitFor();
+    const first = page.waitForRequest(request=>request.url().endsWith('/accept/'+aliceId));
+    await row(aliceId).getByRole('button',{name:'Accept'}).click();
+    await first;
+    const refresh = page.waitForResponse(response=>incomingUrl(response.url()) && bobAccepted);
+    await row(bobId).getByRole('button',{name:'Accept'}).click();
+    await refresh;
+    await page.getByText('Incoming requests (0)',{exact:true}).waitFor();
+    const before = reads;
+    releaseAlice();
+    await row(aliceId).getByRole('button',{name:'Accept'}).waitFor();
+    await page.getByText('Incoming requests (1)',{exact:true}).waitFor();
+    assert.equal(await row(bobId).count(),0);
+    assert.equal(reads,before);
+    await page.getByRole('button',{name:'My Friends',exact:true}).click();
+    await row(bobId).waitFor();
+    assert.equal(await row(aliceId).count(),0);
+  } finally { releaseAlice(); await context.close(); }
+});
+test('rejected discovery send leaves notes alone and confirmed removal revokes only that friend immediately', async () => {
+  const context = await browser.newContext({serviceWorkers:'block',viewport:{width:390,height:844}});
+  let release;
+  const stalledFeed = new Promise(resolve => {release = resolve;});
+  try {
+    const page = await context.newPage();
+    page.setDefaultTimeout(8000);
+    const alice = {_id:aliceId,username:'alice',Name:'Alice'};
+    const bob = {_id:bobId,username:'bob',Name:'Bob'};
+    const stranger = {_id:'eeeeeeeeeeeeeeeeeeeeeeee',username:'stranger',Name:'Stranger',relationship:'none'};
+    const note = author => ({_id:author._id,title:author.Name+' note',body:'Fixture',author,style:'olive',
+      createdAt:new Date().toISOString(), feedExpiresAt:new Date(Date.now()+3600000).toISOString()});
+    const notes = [note(alice),note(bob)];
+    let feedReads = 0, removed = false;
+    await context.route('**/*',async route=>{
+      const url = new URL(route.request().url()), method=route.request().method();
+      if (url.origin===base) return route.continue();
+      const reply = json=>route.fulfill({json});
+      if (method==='OPTIONS') return route.fulfill({status:204});
+      if (url.pathname.endsWith('/friend-request/'+stranger._id)) return route.fulfill({status:403,json:{msg:'Send declined'}});
+      if (url.pathname.endsWith('/friends/'+aliceId) && method==='DELETE') {removed=true; return reply({success:true});}
+      if (url.pathname.endsWith('/people-search')) return reply({items:[stranger],nextCursor:null});
+      if (url.pathname.endsWith('/testimonies')) {
+        feedReads++;
+        if (removed) await stalledFeed;
+        const items=removed?[notes[1]]:notes;
+        return reply({items,activeNotes:items.map(n=>({_id:n._id,authorId:n.author._id,feedExpiresAt:n.feedExpiresAt})),publishing:{canPublish:true},nextCursor:null});
+      }
+      if (url.pathname.endsWith('/friends-summary')) return reply({incoming:0,outgoing:0,friends:removed?1:2});
+      if (url.pathname.endsWith('/sync')) return reply({cursor:'2',hasMore:false,changes:removed?[{type:'remove',id:aliceId}]:[]});
+      return reply({items:[],nextCursor:null,total:0,user:{_id:friendViewerId}});
+    });
+    await seedFriends(page,{friends:[alice,bob],incomingRequests:[]});
+    await page.goto(base+'/friends/');
+    const aliceNote=page.getByRole('button',{name:'Read testimony: Alice note'});
+    const bobNote=page.getByRole('button',{name:'Read testimony: Bob note'});
+    await aliceNote.waitFor();
+    const initial=feedReads;
+    await page.getByRole('button',{name:'Search friends',exact:true}).click();
+    await page.getByRole('textbox',{name:'Search friends by username'}).fill('stranger');
+    await page.getByRole('button',{name:'Add',exact:true}).click();
+    await page.getByText('Send declined',{exact:true}).waitFor();
+    assert.equal(feedReads,initial);
+    await page.getByRole('button',{name:'Close search',exact:true}).click();
+    await page.getByRole('button',{name:'My Friends',exact:true}).click();
+    const refresh=page.waitForRequest(r=>removed && new URL(r.url()).pathname.endsWith('/testimonies'));
+    await page.locator('[data-friend-id="'+aliceId+'"]').getByRole('button',{name:'Remove Friend'}).click();
+    await refresh;
+    await aliceNote.waitFor({state:'hidden'});
+    await bobNote.waitFor();
+    await page.getByText('1 friend',{exact:true}).waitFor();
+    assert.equal(feedReads,initial+1);
+    release();
+  } finally {release();await context.close();}
+});
 test('a late background response cannot restore a request that the user has already accepted', async () => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  const alice = { _id: 'alice', Name: 'Alice', username: 'alice' };
-  let release, firstStarted, secondStarted, accepted = false, count = 0;
-  const first = new Promise(resolve => { firstStarted = resolve; });
-  const second = new Promise(resolve => { secondStarted = resolve; });
+  const alice = { _id: aliceId, Name: 'Alice', username: 'alice' };
+  let release, accepted = false, count = 0;
   const stale = new Promise(resolve => { release = resolve; });
   try {
     const page = await context.newPage();
@@ -1301,37 +1572,36 @@ test('a late background response cannot restore a request that the user has alre
       const url = route.request().url();
       if (url.startsWith(base)) return route.continue();
       if (!['fetch', 'xhr'].includes(route.request().resourceType())) return route.abort();
-      if (url.endsWith('/friend-request/accept/alice')) { accepted = true; return fulfillPrayerFixture(route, { json: { success: true } }); }
-      if (url.endsWith('/users/friend-requests')) {
+      if (url.endsWith('/friend-request/accept/' + aliceId)) { accepted = true; return fulfillPrayerFixture(route, { json: { success: true } }); }
+      if (incomingUrl(url)) {
         count++;
         if (count === 1) {
-          firstStarted(); await stale;
-          return fulfillPrayerFixture(route, { json: { incoming: [{ from: alice }], outgoing: [] } }).catch(() => {});
+          await stale;
+          return fulfillPrayerFixture(route, { json: { items: [requestRow(alice)], total: 1, nextCursor: null } }).catch(() => {});
         }
-        secondStarted();
-        return fulfillPrayerFixture(route, { json: { incoming: accepted ? [] : [{ from: alice }], outgoing: [] } });
+        return fulfillPrayerFixture(route, { json: { items: accepted ? [] : [requestRow(alice)], total: accepted ? 0 : 1, nextCursor: null } });
       }
-      if (url.endsWith('/users/friends')) return fulfillPrayerFixture(route, { json: { friends: accepted ? [alice] : [] } });
+      if (url.includes('/friends-directory/sync?')) return fulfillPrayerFixture(route, { json: { changes: accepted ? [{ type: 'upsert', person: alice }] : [], cursor: '2', hasMore: false } });
       return fulfillPrayerFixture(route, { json: { user: { username: 'tester' } } });
     });
-    await seedFriends(page, { friends: [], incomingRequests: [{ from: alice }], outgoingRequests: [] });
-    // Ensure this test exercises an in-flight refresh rather than the short
-    // cache reuse window for an ordinary tab visit.
-    await page.evaluate(() => localStorage.setItem('taspe7_friends_dirty_tester', '1'));
+    await seedFriends(page, { friends: [], incomingRequests: [requestRow(alice)], outgoingRequests: [] });
+    const first = page.waitForRequest(request => incomingUrl(request.url()) && request.method() === 'GET', { timeout: 5000 });
     await page.goto(base + '/friends/', { waitUntil: 'domcontentloaded' });
     await first;
-    await page.locator('[data-friend-id="alice"]').getByRole('button', { name: 'Accept', exact: true }).click();
+    const second = page.waitForResponse(response => incomingUrl(response.url()) && response.request().method() === 'GET', { timeout: 5000 });
+    await page.locator(`[data-friend-id="${aliceId}"]`).getByRole('button', { name: 'Accept', exact: true }).click();
     await page.getByText('No pending incoming requests', { exact: true }).waitFor({ state: 'visible' });
-    await page.evaluate(() => {
+    await page.evaluate(aliceId => {
       window.requestRestored = false;
-      new MutationObserver(() => { if (document.querySelector('[data-friend-id="alice"]')) window.requestRestored = true; })
+      new MutationObserver(() => { if (document.querySelector(`[data-friend-id="${aliceId}"]`)) window.requestRestored = true; })
         .observe(document.body, { childList: true, subtree: true });
-    });
-    release(); await Promise.race([second, new Promise((_, reject) => setTimeout(() => reject(new Error('Action refresh was not immediate')), 5000))]);
+    }, aliceId);
+    await second;
+    release();
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     assert.equal(await page.evaluate(() => window.requestRestored), false);
     await page.getByRole('button', { name: /My Friends/ }).click();
-    await page.locator('[data-friend-id="alice"]').getByText('Alice', { exact: true }).waitFor({ state: 'visible' });
+    await page.locator(`[data-friend-id="${aliceId}"]`).getByText('Alice', { exact: true }).waitFor({ state: 'visible' });
   } finally { release(); await context.close(); }
 });
 
@@ -1616,4 +1886,167 @@ test('returning from Bible preserves the composer and bounded rows before activa
       assert.equal(await panel.locator('textarea').first().inputValue(), 'Keep this draft ready');
     }
   } finally { await context.close(); }
+});
+test('My Friends reveals a distant saved person cold and warm with a bounded keyboard-accessible window', async () => {
+  for (const size of [1250, 2500]) {
+    const context = await browser.newContext({ viewport: { width: 393, height: 800 } });
+    try {
+      const page = await context.newPage();
+      const friends = Array.from({length: size}, (_, index) => ({
+        _id: (index + 1).toString(16).padStart(24, '0'), Name: 'Person ' + index, username: 'person' + index,
+      }));
+      await context.route('**/*', route => route.request().url().startsWith(base) ? route.continue() : route.abort());
+      await seedFriends(page, { friends, incomingRequests: [], outgoingRequests: [] });
+      const href = index => '/friends/?notificationType=FRIEND_REQUEST_ACCEPTED&actorId=' + friends[index]._id;
+      await page.goto(base + href(999), {waitUntil:'domcontentloaded'});
+      for (const index of [999, size - 1]) {
+        if (index !== 999) await page.evaluate(href => window.dispatchEvent(new CustomEvent('taspe7:open-friends', {
+          cancelable: true, detail: { href },
+        })), href(index));
+        await page.waitForFunction(id => {
+          const box = document.querySelector('[data-friend-id="' + id + '"]')?.getBoundingClientRect();
+          return box && box.top >= 0 && box.bottom <= innerHeight;
+        }, friends[index]._id);
+        const list = page.getByRole('list', {name:'My Friends'});
+        assert.ok(await list.getByRole('listitem').count() < 40);
+        assert.equal(await list.locator('[aria-posinset="' + (index + 1) + '"]').getAttribute('aria-setsize'), String(size));
+      }
+      const last = page.getByRole('button', {name:'Open Person ' + (size - 1) + ' profile',exact:true});
+      await last.evaluate(button => button.addEventListener('click', () => {
+        sessionStorage.setItem('expectedFriendOffset', String(button.closest('[data-friend-id]').getBoundingClientRect().top));
+      }, { once: true }));
+      await last.click();
+      await page.waitForURL(url => url.pathname.includes('normal_UserProfile') && url.searchParams.has('user'), {timeout:5000});
+      const offset = await page.evaluate(() => Number(sessionStorage.getItem('expectedFriendOffset')));
+      await page.goBack({waitUntil:'domcontentloaded'});
+      await page.waitForFunction(({id,offset}) => {
+        const row = document.querySelector('[data-friend-id="' + id + '"]');
+        return row && Math.abs(row.getBoundingClientRect().top - offset) < 4;
+      }, {id:friends[size - 1]._id, offset}, {timeout:5000});
+      await last.focus();
+      await page.mouse.wheel(0, -800);
+      await page.evaluate(() => window.scrollTo({top:0,behavior:'instant'}));
+      await page.locator('[aria-posinset="1"]').waitFor();
+      assert.equal(await last.evaluate(el => document.activeElement === el), true);
+      const first = page.getByRole('button', {name:'Open Person 0 profile',exact:true});
+      await first.focus();
+      for (let i = 0; i < 32; i++) {
+        await page.keyboard.press('Tab');
+        await page.keyboard.press('Tab');
+        assert.equal(await page.locator(':focus').getAttribute('aria-label'), 'Open Person ' + (i+1) + ' profile');
+      }
+      const count = await page.evaluate(async () => {
+        const list = document.querySelector('[aria-label="My Friends"][role="list"]');
+        const start = list.getBoundingClientRect().top + scrollY;
+        const seen = new Set();
+        for (let top = 0; top < list.offsetHeight + innerHeight; top += innerHeight) {
+          scrollTo({top: start + top, behavior:'instant'});
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          for (const row of list.querySelectorAll('[data-friend-id]')) seen.add(row.dataset.friendId);
+        }
+        return seen.size;
+      });
+      assert.equal(count, size);
+    } finally { await context.close(); }
+  }
+});
+
+test('withdrawn and unavailable offline notification targets leave the saved friend list usable', async () => {
+  const context = await browser.newContext();
+  try {
+    const page = await context.newPage();
+    const lookups = [];
+    await context.route('**/*', route => {
+      const url = new URL(route.request().url());
+      if (url.origin === base) return route.continue();
+      if (url.searchParams.has('target') && route.request().method() === 'GET') lookups.push(url.pathname);
+      return fulfillPrayerFixture(route, {headers:{'access-control-allow-origin':'*','access-control-allow-headers':'*'},
+        json:{items:[], changes:[], total:0, cursor:'1', nextCursor:null, user:{_id:friendViewerId}}});
+    });
+    await seedFriends(page,{friends:[{_id:aliceId,Name:'Alice',username:'alice'}],incomingRequests:[]});
+    await page.goto(base + '/friends/?notificationType=FRIEND_REQUEST_RECEIVED&actorId=' + bobId);
+    await page.getByText('This person is no longer in this list.').waitFor();
+    assert.equal(lookups.length,1);
+    await context.setOffline(true);
+    await page.evaluate(id => window.dispatchEvent(new CustomEvent('taspe7:open-friends',{cancelable:true,
+      detail:{href:'/friends/?notificationType=FRIEND_REQUEST_ACCEPTED&actorId='+id}})),bobId);
+    await page.getByText('This person is unavailable in your saved list.').waitFor();
+    await page.getByRole('button',{name:'Open Alice profile'}).waitFor();
+    assert.equal(lookups.length,1);
+  } finally { await context.close(); }
+});
+
+test('Friends discovery isolates delayed queries and keeps confirmed actions visible', async () => {
+  const context = await browser.newContext({viewport:{width:390,height:844}});
+  const calls = [];
+  let release;
+  const slow = new Promise(resolve => { release = resolve; });
+  try {
+    const page = await context.newPage();
+    page.setDefaultTimeout(6000);
+    const alice = {_id:aliceId, Name:'Alice', username:'alice', relationship:'none'};
+    const bob = {_id:bobId, Name:'Bob', username:'bob', relationship:'incoming'};
+    let retry = false;
+    await context.route('**/*', async route => {
+      const url = new URL(route.request().url());
+      if (url.origin === base) return route.continue();
+      if (route.request().method() === 'OPTIONS') return route.fulfill({status:204});
+      const reply = json => route.fulfill({json});
+      if (url.pathname.endsWith('/people-search')) {
+        const query = url.searchParams.get('q');
+        calls.push(query);
+        if (query === 'slow') await slow;
+        if (query === 'retry' && !retry) { retry = true; return route.fulfill({status:503,json:{message:'Search unavailable'}}); }
+        return reply({items:query === 'bob' ? [bob] : query === 'alice' || query === 'slow' ? [alice] : [],nextCursor:null});
+      }
+      if (url.pathname.includes('/friend-request/')) return reply({success:true});
+      return reply({items:[],nextCursor:null,total:0,changes:[],cursor:'1',user:{_id:friendViewerId}});
+    });
+    await seedFriends(page,{friends:[{_id:'eeeeeeeeeeeeeeeeeeeeeeee',Name:'Jos\u00e9 Garc\u00eda',username:'jose'},
+      {_id:'ffffffffffffffffffffffff',Name:'\u064a\u064f\u0648\u0633\u0641 \u0634\u0643\u0631\u064a',username:'youssef'}]});
+    await page.goto(base+'/friends/');
+    await page.getByRole('button',{name:'Search friends',exact:true}).click();
+    const input=page.getByRole('textbox',{name:'Search friends by username'});
+    const empty=page.getByText(/No users found matching/);
+    await input.fill('@s');
+    assert.equal(await empty.count(),0);
+    const started = page.waitForRequest(r => r.url().includes('people-search?q=slow'));
+    await input.fill('slow');
+    await started;
+    await input.fill('@ALICE');
+    assert.equal(await empty.count(),0);
+    await page.getByRole('button',{name:'Open Alice profile'}).waitFor();
+    await input.fill('absent');
+    assert.equal(await page.getByRole('button',{name:'Open Alice profile'}).count(),0);
+    release();
+    await empty.waitFor();
+    await input.fill('retry');
+    await page.getByRole('alert').filter({hasText:'Search unavailable'}).waitFor();
+    await page.getByRole('button',{name:'Retry',exact:true}).click();
+    await empty.waitFor();
+    await input.fill('alice');
+    const aliceRow=page.getByRole('button',{name:'Open Alice profile'}).locator('../..');
+    await aliceRow.getByRole('button',{name:'Add'}).click();
+    await page.getByText('Request sent to @alice',{exact:true}).waitFor();
+    await aliceRow.getByRole('button',{name:'Cancel'}).click();
+    await page.getByText('Request cancelled',{exact:true}).waitFor();
+    await aliceRow.getByRole('button',{name:'Add'}).waitFor();
+    await input.fill('bob');
+    const bobRow=page.getByRole('button',{name:'Open Bob profile'}).locator('../..');
+    await bobRow.getByRole('button',{name:'Accept'}).click();
+    await bobRow.getByText('Friends',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'My Friends',exact:true}).click();
+    const count=calls.length;
+    await context.setOffline(true);
+    await input.fill('@garcia jose');
+    await page.getByRole('button',{name:'Open Jos\u00e9 Garc\u00eda profile'}).waitFor();
+    await input.fill('\u0634\u0643\u0631\u064a \u064a\u0648\u0633\u0641');
+    await page.getByText('@youssef',{exact:true}).waitFor();
+    await input.fill('absent');
+    await page.getByText('No matching friends',{exact:true}).waitFor();
+    await page.waitForTimeout(400);
+    assert.equal(calls.length,count);
+    await input.press('Escape');
+    assert.equal(await input.count(),0);
+  } finally { release(); await context.close(); }
 });

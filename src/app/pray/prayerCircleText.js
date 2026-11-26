@@ -9,6 +9,9 @@ copy.ar.deleteForEveryone = 'حذف هذه الصلاة عندك وعند صدي
 copy.ar.deleteFailed = 'تعذّر حذف الصلاة. تحقّق من اتصالك وحاول مجدداً خلال دقيقة من الإرسال.';
 copy.de.deleteForEveryone = 'Dieses Gebet für euch beide löschen?';
 copy.de.deleteFailed = 'Das Gebet konnte nicht gelöscht werden. Prüfe deine Verbindung und versuche es innerhalb einer Minute nach dem Senden erneut.';
+copy.en.notification = { opening: 'Opening message…', offline: 'Waiting for a connection…', unavailable: 'This message is unavailable.', failed: 'Couldn’t load this message.' };
+copy.ar.notification = { opening: 'جارٍ فتح الرسالة…', offline: 'في انتظار الاتصال بالإنترنت…', unavailable: 'هذه الرسالة غير متاحة.', failed: 'تعذّر تحميل الرسالة.' };
+copy.de.notification = { opening: 'Nachricht wird geöffnet…', offline: 'Warten auf Verbindung…', unavailable: 'Diese Nachricht ist nicht verfügbar.', failed: 'Nachricht konnte nicht geladen werden.' };
 export const prayerCircleText = language => copy[language] || copy.en;
 const formats = new Map();
 export function formatActivityTime(value, language) {

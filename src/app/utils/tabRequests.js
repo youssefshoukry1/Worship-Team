@@ -5,6 +5,7 @@ export const TAB_READ_FRESH_MS = 15000;
 const reads = new Map();
 
 export const tabReadKey = (url, token = '') => JSON.stringify([url, token]);
+export const friendsSummaryKey = (token, owner) => JSON.stringify(['friends-summary', token, owner]);
 
 function cancelled() {
   const error = new Error('Read superseded');

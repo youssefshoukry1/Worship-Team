@@ -1,15 +1,19 @@
 let running = 0;
 const pending = [];
+const selected = [];
 function pump() {
-    while (running < 2 && pending.length) {
-        const job = pending.shift();
+    while (running < 2 && (selected.length || pending.length)) {
+        const job = selected.shift() || pending.shift();
         if (!job.active()) { job.reject(new DOMException('Prayer session changed', 'AbortError')); continue; }
         running++;
         run(job.options, job.active).then(job.resolve, job.reject).finally(() => { running--; pump(); });
     }
 }
-export function downloadPrayerPayload(options, active = () => true) {
-    return new Promise((resolve, reject) => { pending.push({ options, active, resolve, reject }); pump(); });
+export function downloadPrayerPayload(options, active = () => true, prioritize = false) {
+    return new Promise((resolve, reject) => {
+        (prioritize ? selected : pending).push({ options, active, resolve, reject });
+        pump();
+    });
 }
 function run(options, active) {
     return new Promise((resolve, reject) => {

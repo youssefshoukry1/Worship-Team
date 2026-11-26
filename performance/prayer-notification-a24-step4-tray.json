@@ -1,0 +1,34 @@
+{
+  "source": "Local test broadcast enters the production Android renderer. System shade tap opens its PendingIntent. Seeded native prayer index, test package, external web connections blocked. Times use device epoch at adb input dispatch and JavaScript RAF text visibility.",
+  "trials": [
+    {
+      "process": "background",
+      "target": "prayer",
+      "actionMs": 188,
+      "textMs": 475,
+      "processChanged": false
+    },
+    {
+      "process": "background",
+      "target": "reply",
+      "actionMs": 159,
+      "textMs": 363,
+      "processChanged": false
+    },
+    {
+      "process": "cold",
+      "target": "prayer",
+      "actionMs": 2261,
+      "textMs": 2335,
+      "processChanged": true
+    },
+    {
+      "process": "cold",
+      "target": "reply",
+      "actionMs": 2621,
+      "textMs": 2708,
+      "processChanged": true
+    }
+  ],
+  "foregroundProducedTrayNotification": false
+}

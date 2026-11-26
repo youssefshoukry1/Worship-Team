@@ -104,7 +104,7 @@ function Board({ token, userId, username, profilePhoto, profileUserId, onProfile
   const publishing = data.publishing;
   const canPublish = !loading && !!publishing && (publishing.unlimited || publishing.canPublish || (publishing.nextPublishAt && new Date(publishing.nextPublishAt).getTime() <= now));
   const restricted = profileAccess === false || data.canViewTestimonies === false;
-  const visibleItems = restricted ? [] : isFeed ? data.items.filter(item => new Date(item.feedExpiresAt).getTime() > now) : data.items;
+  const visibleItems = restricted ? [] : isFeed && !isSharedFeed ? data.items.filter(item => new Date(item.feedExpiresAt).getTime() > now) : data.items;
   const reading = !restricted && modal?.type === 'read' ? data.items.find(item => item._id === modal.id) || modal.linkedItem : null;
   const author = { _id: userId, Name: (ownProfile && data.user?.Name) || username || 'You', username,
     profilePhoto: profilePhoto || (ownProfile ? data.user?.profilePhoto : null) };

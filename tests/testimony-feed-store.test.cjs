@@ -284,3 +284,26 @@ test('reconnect reconciliation rejects an older individual response for a now-mi
   assert.equal(f.store.getSnapshot().items.length, 0);
   f.store.dispose();
 });
+
+test('unchanged tab visits keep the same feed snapshot and expiry timer until a deadline passes', async () => {
+  const f = fixture();
+  const loading = f.store.sync(); f.finish(0, [note()]); await loading;
+  const snapshot = f.store.getSnapshot(), timers = f.timers.length;
+  let notifications = 0;
+  f.store.subscribe(() => notifications++);
+  for (let i = 0; i < 100; i++) {
+    f.store.setFeedVisible(false);
+    f.store.setFeedVisible(true);
+    f.store.tick();
+  }
+  assert.equal(f.store.getSnapshot(), snapshot);
+  assert.equal(f.timers.length, timers);
+  assert.equal(notifications, 0);
+  f.time(10000);
+  f.store.setFeedVisible(true);
+  assert.equal(notifications, 1);
+  assert.equal(f.store.getSnapshot().items.length, 0);
+  assert.equal(f.store.getSnapshot().hasUnseen, false);
+  assert.equal(f.requests.length, 1);
+  f.store.dispose();
+});

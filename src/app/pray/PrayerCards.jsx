@@ -322,7 +322,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                                         @{targetUsername} {t('prayReply')}
                                     </span>
                                 </div>
-                                <p dir="auto" className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
+                                <p data-prayer-reply-text dir="auto" className="text-xs text-slate-300 italic leading-relaxed whitespace-pre-wrap pl-2 border-l-2 border-[#00C2FF]/40">
                                     {entry.sharedWith?.responseWords || targetInfo.responseWords}
                                 </p>
                             </div>
@@ -504,11 +504,11 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
 
 });
 
-const ListPanel = memo(function ListPanel({ title, icon: Icon, items, emptyText, renderItem, active, scope, targetId, targetKey, hasSnapshot, storageError, loadingLabel }) {
+const ListPanel = memo(function ListPanel({ title, icon: Icon, items, emptyText, renderItem, active, scope, targetId, targetKey, targetReply, hasSnapshot, storageError, loadingLabel }) {
     let body;
     if (items.length) {
         const List = scope === 'personal' ? JournalList : PrayerList;
-        body = active ? <List key={scope} scope={scope} items={items} renderItem={renderItem} targetId={targetId} targetKey={targetKey} /> : <div className="min-h-[200px]" />;
+        body = active ? <List key={scope} scope={scope} items={items} renderItem={renderItem} targetId={targetId} targetKey={targetKey} targetReply={targetReply} /> : <div className="min-h-[200px]" />;
     } else if (!hasSnapshot || storageError) {
         body = active && !storageError && <PrayerCardsSkeleton label={loadingLabel} />;
     } else {

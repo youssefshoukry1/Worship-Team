@@ -10,6 +10,7 @@ import { createNoteReactorsStore } from './noteReactorsStore';
 import { createProfileNotesStore } from './profileNotesStore';
 import { feedNotesStorage } from './feedNotesStorage';
 import { useFriendDirectorySession } from '../../utils/friendDirectory/useLocalFriends';
+import { handlePeoplePush } from '../../utils/peoplePageCache';
 import { profileNotesStorage } from './profileNotesStorage';
 
 const FeedContext = createContext(null);
@@ -63,7 +64,17 @@ function Session({ token, userId, children }) {
       socket?.connect();
     };
     const restore = event => { if (event.persisted) resume(); };
-    const friends = event => { if (!event.detail?.notesHandled && document.visibilityState === 'visible') { void store.changed({ action: 'access' }); profiles.accessChanged(); } };
+    const friends = event => {
+      handlePeoplePush(event, token, userId);
+      if (event.detail?.notesHandled) return;
+      if (event.detail?.friendChange?.after === 'friends') {
+        void store.sync(true);
+        profiles.refresh(event.detail.friendChange.person._id);
+      } else if (event.detail?.removedFriendId || document.visibilityState === 'visible') {
+        void store.changed({ action: 'access', removedFriendId: event.detail?.removedFriendId });
+        profiles.accessChanged();
+      }
+    };
     const ownChange = event => {
       if (event.detail?.action) void profiles.changed(event.detail, Promise.resolve(event.detail));
       else profiles.resume();
@@ -104,16 +115,11 @@ function Session({ token, userId, children }) {
     if (ownNote) reactors.prime(ownNote);
   }, [reactors, state.items, userId]);
   useEffect(() => {
-    const updateVisibility = () => store.setFeedVisible(isFriendsPage && document.visibilityState === 'visible');
-    updateVisibility();
-    document.addEventListener('visibilitychange', updateVisibility);
-    return () => {
-      document.removeEventListener('visibilitychange', updateVisibility);
-      store.setFeedVisible(false);
-    };
+    store.setFeedVisible(isFriendsPage && document.visibilityState === 'visible');
   }, [store, isFriendsPage]);
   const stores = useMemo(() => ({ store, reactors, profiles }), [store, reactors, profiles]);
-  return <StoresContext.Provider value={stores}><FeedContext.Provider value={{ ...stores, state }}>{children}</FeedContext.Provider></StoresContext.Provider>;
+  const feed = useMemo(() => ({ ...stores, state }), [stores, state]);
+  return <StoresContext.Provider value={stores}><FeedContext.Provider value={feed}>{children}</FeedContext.Provider></StoresContext.Provider>;
 }
 
 export default function TestimonyFeedProvider({ children }) {

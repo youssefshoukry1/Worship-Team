@@ -1,6 +1,6 @@
 # Friends system: behavior, storage and maintenance guide
 
-Updated: 17 November 2026.
+Updated 26 November 2026.
 
 Read this before changing friendship requests, people lists, local friend search, Profile connections or Pray's recipient picker. Paths below are relative to the frontend or backend repository as indicated. This report supersedes the earlier server-search-only description for **the viewer's own friends**.
 
@@ -21,6 +21,8 @@ The first directory preparation needs a connection. Partial saved results are us
 | Frontend file | Responsibility |
 | --- | --- |
 | `src/app/friends/page.jsx` | Tabs, requests, discovery, optimistic actions, totals, notification targets |
+| `src/app/friends/FriendWindow.jsx` | Viewport-sized My Friends rendering, focus retention and direct jumps to a saved person |
+| `src/app/utils/useFriendActions.js`, `src/app/utils/peoplePageCache.js` | Per-person pending operations, confirmed relationship updates and cache invalidation |
 | `src/app/utils/friendDirectory/store.js` | Directory synchronization, normalized search index, completeness, removals, stale-response protection |
 | `src/app/utils/friendDirectory/storage.js` | Account-scoped IndexedDB rows/checkpoints, atomic writes, legacy-cache migration and logout cleanup |
 | `src/app/utils/friendDirectory/useLocalFriends.js` | Authenticated directory session, lifecycle triggers, shared instance and local pages of ten |
@@ -55,10 +57,9 @@ The first directory preparation needs a connection. Partial saved results are us
 - Cancel removes the pending entries. The same existing endpoint supports declining an incoming request.
 - Remove deletes the relationship from both accounts. Shared-content authorization requires the current reciprocal relationship; cached directory membership never grants permission.
 - Existing duplicate, self-request, missing-user and Already friends handling remains server-owned. Structured Already friends errors preserve the accepted relationship in the UI.
-- Requests and lists use optimistic updates where already supported. Failed operations restore the prior UI state. Profile rapid add/cancel operations retain their ordered request queue.
-- While Friends mutations are in progress, directory/list refreshes pause and obsolete requests are invalidated. Concurrent operations resume synchronization after the final operation settles.
-
-Own removal immediately removes the person from local directory search and schedules the corresponding disk deletion. If the server rejects it, the saved record is restored. The same path is used from Friends and Profile actions.
+- Friends tracks a pending write per person in the signed-in session. Buttons, visible rows and counts reflect the intended change immediately. A rejected write drops that person's pending state. Other people's operations continue independently. Profile retains its own action queue and removal rollback.
+- A confirmed write updates affected request rows, cached discovery results and counts. A send can resolve as an acceptance. An ambiguous response triggers a targeted relationship read before settling. The client never automatically repeats the write. If verification also fails, the UI reports uncertainty and invalidates reads for reconciliation.
+- Count responses arriving during pending writes are deferred. A confirmed removal evicts the identity from the saved directory and revokes that author's downloaded notes. Ordinary sends and cancellations leave the notes feed alone.
 
 When another person removes the viewer, the existing authenticated socket delivers `removedFriendId` to that viewer's session. The directory removes that record immediately and rejects older in-flight responses. If the event was missed, a successful reconnect log sync removes it.
 
@@ -81,9 +82,11 @@ Authenticated paths are relative to `/api/users`.
 
 The request cursor uses request ID descending; friend/profile lists use person ID ascending. Suggestions sort distinct mutual connections descending, then candidate ID ascending, and exclude self, existing friends and pending requests. Their ranking can change as relationships change; refresh and ID deduplication handle that rather than promising a permanently frozen ranking.
 
-The Friends tabs fetch server-based collections when needed. Scrolling loads the next ten; duplicate rows and overlapping fetches are suppressed. A failed next page preserves prior rows and retries that page. Refresh replaces only the already-loaded depth and keeps old rows visible until replacement is ready.
+Incoming, Sent and Suggested friends use the progressive pager. Within 15 seconds, an ordinary return reuses fresh data. A stale return at the top refreshes the first page of each visible collection. Previously visited rows remain provisional. As the reader approaches them, the pager follows the verified server cursor, deduplicates IDs and reconciles the tail. Reaching the final page removes provisional rows the server omitted. A failed read preserves usable rows and offers Retry. The summary has its own account-scoped freshness and in-flight sharing.
 
-The optional validated `target` parameter on friends/requests supports notification targets beyond the first page. A targeted response must never replace the main list's cursor or total. Request totals count pending entries; references to deleted accounts may be skipped when rendering public rows.
+My Friends exposes saved names in tens and mounts a viewport-sized window with a buffer above and below. It keeps the focused row mounted and exposes logical list positions to assistive technology. Opening a cached notification target jumps directly to its index. Returning from a friend's profile restores the row and local search. An online target missing locally uses one targeted lookup, preserving the collection cursor. An unavailable target leaves the list usable.
+
+Discovery on Requests and Sent waits for two username characters and a 300 ms pause. Results, pagination and retry belong to the current query. My Friends always filters the local directory. Partial offline preparation is shown explicitly.
 
 ## 5. Directory synchronization protocol
 
@@ -149,7 +152,13 @@ Thousands of small identities are reasonable for this design; thousands of mount
 
 Backend friend IDs and pending requests still live on the existing user documents. Snapshot and changed-entry authorization inspect those relationships. The indexed event query reads only events after the saved sequence. Identity edits create an event per affected friend; this write fan-out is a deliberate cost, not a claim of constant-cost updates for unlimited follower graphs. This change reduces repeated transfer and client rendering; it does not claim constant-cost backend processing for unlimited social graphs. Moving relationships into their own indexed collection would be a separate schema migration if measured scale requires it.
 
-Local result pagination incrementally renders loaded pages; it is not full people-list virtualization. Search, network and storage timings should still be checked on a real low-end phone before release.
+My Friends bounds mounted cards independently of directory size. Requests, suggestions and Profile dialogs retain their respective paging modes.
+
+### November 26 release measurements
+
+On the Galaxy A24 WebView with 1,250 saved friends, the median time to show the cached notification target at position 1,000 fell from 9,880 ms to 55 ms across five trials. The median longest animation-callback gap during that jump fell from 517 ms to 50 ms. My Friends mounted at most 30 cards during the final jumps. With 100 previously loaded incoming requests, refreshing at the top fetched one incoming page, down from ten. A separate six-pair entry check measured a median of 726 ms to the first cached row for both builds on the phone.
+
+The production build and 102 focused checks passed. This frontend performance update is ready for staged web/OTA release against the existing APIs. The device figures use synthetic responses in the installed Android WebView. See the [full measurement table and release limitations](../../docs/friends-page-performance-plan.md#step-7-release-review).
 
 ## 9. Validation and maintenance rules
 
@@ -182,7 +191,7 @@ Before changing this system:
 
 Browser fixtures exercise the UI with mocked API responses; backend tests exercise authorization and data contracts separately. These results do not replace a real-device/end-to-end release check. Storage coverage is in `tests/friend-directory-storage.test.mjs`.
 
-## 10. Release status and next step
+## 10. Deployment prerequisites for the original directory protocol
 
 This change requires a MongoDB replica set (Atlas is suitable), as do the existing billing/testimony transactions. Ensure the `FriendDirectoryEvent` unique `{ owner: 1, sequence: 1 }` index and `createdAt` TTL index exist, and the state counter has its normal unique `_id` index. Model initialization creates these when automatic index creation is enabled. All backend instances and identity writers must run the new write boundary before issuing new log cursors. Mixed old writers can otherwise create unlogged changes.
 

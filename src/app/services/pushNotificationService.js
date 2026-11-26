@@ -111,9 +111,8 @@ export async function initPushNotifications() {
                 }
                 const prayerHref = prayerNotificationHref(data);
                 if (prayerHref) {
-                    // An already mounted page opens the card without reloading the WebView.
                     const open = new CustomEvent('taspe7:open-prayer', {
-                        detail: { href: prayerHref }, cancelable: true,
+                        detail: { href: prayerHref, notificationId: action.notification.id }, cancelable: true,
                     });
                     if (window.dispatchEvent(open)) navigateDocumentFallback(prayerHref);
                     else window.dispatchEvent(new CustomEvent('taspe7:prayer-push', { detail: { type: data.type } }));

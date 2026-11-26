@@ -1,0 +1,301 @@
+{
+  "revision": "1c3ecef2dc3822896a3b98b292f95c53a2478ce7",
+  "build": "eUFRwvlx0MS_J_rWmToGv",
+  "version": "2.0.18",
+  "engine": "157.0.8103.52",
+  "mode": "webview",
+  "trials": [
+    {
+      "trial": 1,
+      "scenario": "warm cached share",
+      "handled": true,
+      "visibleMs": 83,
+      "mounted": 5,
+      "deliveryRequests": [
+        [
+          "/api/users/pray-time/inbox",
+          "deletions"
+        ],
+        [
+          "/api/users/pray-time/sent-updates",
+          "replies"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "inbox:target"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "inbox"
+        ]
+      ]
+    },
+    {
+      "trial": 1,
+      "scenario": "warm cached reply",
+      "handled": true,
+      "visibleMs": 70,
+      "mounted": 5,
+      "deliveryRequests": [
+        [
+          "/api/users/pray-time/sent-updates",
+          "replies"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "deletions"
+        ],
+        [
+          "/api/users/pray-time/sent-updates",
+          "replies:target"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "inbox"
+        ]
+      ]
+    },
+    {
+      "trial": 1,
+      "scenario": "other tab cached share",
+      "handled": false,
+      "visibleMs": 463,
+      "mounted": 5,
+      "deliveryRequests": [
+        [
+          "/api/users/pray-time/inbox",
+          "deletions"
+        ],
+        [
+          "/api/users/pray-time/sent-updates",
+          "replies"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "inbox:target"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "inbox"
+        ]
+      ]
+    },
+    {
+      "trial": 1,
+      "scenario": "warm remote share",
+      "handled": true,
+      "visibleMs": 725,
+      "mounted": 7,
+      "deliveryRequests": [
+        [
+          "/api/users/pray-time/inbox",
+          "deletions"
+        ],
+        [
+          "/api/users/pray-time/sent-updates",
+          "replies"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "inbox:target"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "inbox"
+        ],
+        [
+          "/api/users/pray-time/inbox/payload/remote",
+          ""
+        ],
+        [
+          "/api/users/pray-time/ack",
+          ""
+        ]
+      ]
+    },
+    {
+      "trial": 2,
+      "scenario": "warm cached share",
+      "handled": true,
+      "visibleMs": 63,
+      "mounted": 5,
+      "deliveryRequests": [
+        [
+          "/api/users/pray-time/inbox",
+          "deletions"
+        ],
+        [
+          "/api/users/pray-time/sent-updates",
+          "replies"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "inbox:target"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "inbox"
+        ]
+      ]
+    },
+    {
+      "trial": 2,
+      "scenario": "warm cached reply",
+      "handled": true,
+      "visibleMs": 53,
+      "mounted": 5,
+      "deliveryRequests": [
+        [
+          "/api/users/pray-time/sent-updates",
+          "replies"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "deletions"
+        ],
+        [
+          "/api/users/pray-time/sent-updates",
+          "replies:target"
+        ]
+      ]
+    },
+    {
+      "trial": 2,
+      "scenario": "other tab cached share",
+      "handled": false,
+      "visibleMs": 485,
+      "mounted": 5,
+      "deliveryRequests": [
+        [
+          "/api/users/pray-time/inbox",
+          "deletions"
+        ],
+        [
+          "/api/users/pray-time/sent-updates",
+          "replies"
+        ]
+      ]
+    },
+    {
+      "trial": 2,
+      "scenario": "warm remote share",
+      "handled": true,
+      "visibleMs": 758,
+      "mounted": 7,
+      "deliveryRequests": [
+        [
+          "/api/users/pray-time/inbox",
+          "deletions"
+        ],
+        [
+          "/api/users/pray-time/sent-updates",
+          "replies"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "inbox"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "inbox:target"
+        ],
+        [
+          "/api/users/pray-time/inbox/payload/remote",
+          ""
+        ],
+        [
+          "/api/users/pray-time/ack",
+          ""
+        ]
+      ]
+    },
+    {
+      "trial": 3,
+      "scenario": "warm cached share",
+      "handled": true,
+      "visibleMs": 62,
+      "mounted": 5,
+      "deliveryRequests": [
+        [
+          "/api/users/pray-time/inbox",
+          "deletions"
+        ],
+        [
+          "/api/users/pray-time/sent-updates",
+          "replies"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "inbox"
+        ]
+      ]
+    },
+    {
+      "trial": 3,
+      "scenario": "warm cached reply",
+      "handled": true,
+      "visibleMs": 48,
+      "mounted": 5,
+      "deliveryRequests": [
+        [
+          "/api/users/pray-time/sent-updates",
+          "replies"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "deletions"
+        ]
+      ]
+    },
+    {
+      "trial": 3,
+      "scenario": "other tab cached share",
+      "handled": false,
+      "visibleMs": 479,
+      "mounted": 5,
+      "deliveryRequests": [
+        [
+          "/api/users/pray-time/inbox",
+          "deletions"
+        ],
+        [
+          "/api/users/pray-time/sent-updates",
+          "replies"
+        ]
+      ]
+    },
+    {
+      "trial": 3,
+      "scenario": "warm remote share",
+      "handled": true,
+      "visibleMs": 828,
+      "mounted": 7,
+      "deliveryRequests": [
+        [
+          "/api/users/pray-time/inbox",
+          "deletions"
+        ],
+        [
+          "/api/users/pray-time/sent-updates",
+          "replies"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "inbox:target"
+        ],
+        [
+          "/api/users/pray-time/inbox",
+          "inbox"
+        ],
+        [
+          "/api/users/pray-time/inbox/payload/remote",
+          ""
+        ],
+        [
+          "/api/users/pray-time/ack",
+          ""
+        ]
+      ]
+    }
+  ]
+}

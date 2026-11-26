@@ -1,8 +1,8 @@
-> Current friend directory and request architecture: [Friends system report](../../../public/reports_informations/friends-system.md). Own-friend search now uses the local directory; online discovery and other users' friend lists remain server-paginated. This supersedes older own-friend API search descriptions below.
+> Current friend directory and request architecture: [Friends system report](../../../public/reports_informations/friends-system.md). Own-friend search now uses the local directory; online discovery and other users' friend lists remain server-paginated.
 
 # Friends notes: implementation guide
 
-Updated: 17 November 2026. Read this before changing notes on Friends or the shared Profile note components.
+Updated 26 November 2026. Read this before changing notes on Friends or the shared Profile note components.
 
 ## Ownership and entry points
 
@@ -79,7 +79,7 @@ Only successfully downloaded notes are saved. There is no background download of
 
 ### Expiry and deletion
 
-- A single timer wakes at the nearest active expiry/publishing boundary, not one timer per card and not repeated server polling. Normal visibility/resume also checks expiry.
+- The session records the earliest active-note, read-marker or publishing deadline. One timer handles expiry. Returning to Friends checks that deadline without publishing a new snapshot or replacing the timer on an unchanged visit. A visible app resume also reconciles server access. The rail consumes the already-filtered feed. Its relative time labels refresh separately.
 - At expiry, remove the note from memory and persist the filtered snapshot. Expired seen markers are pruned too.
 - When the application is suspended or closed, JavaScript cannot run an exact-time disk deletion. Expired content is filtered and cleaned on next activation before it is shown. Physical writes are asynchronous and subject to storage availability.
 - A received `deleted` event removes the note immediately from memory and the persistent snapshot. Session deletion markers prevent later individual responses from restoring it.
@@ -121,9 +121,9 @@ Regression suites: `tests/testimony-feed-store.test.cjs`, `tests/feed-notes-stor
 They cover restart offline, transient failures, original-expiry removal, complete-index reconciliation, deletion/access/logout races, account separation, stale queued writes, cache bounds, storage failures and React StrictMode hydration, alongside existing Profile/reaction behavior. Validation on 17 November 2026: 45 store/storage/reaction regression tests passed; two browser checks passed in Chromium and mobile WebKit/Safari (API-offline reload, reading, reconnect deletion, open-reader removal and IndexedDB cleanup); the production build passed. Targeted ESLint reported zero errors and one pre-existing unused-disable warning in `User_Context.jsx`. Build/browser logs are `performance/friends-notes-offline-build.log` and `performance/friends-notes-offline-browser.log`. Automated store tests do not substitute for checking suspension, storage eviction and gestures on a physical phone.
 
 
-## Friend-list pagination update ? 17 November 2026
+## Friend-list pagination
 
-All Friends / Profile connection lists now fetch **10 records per request**. This section concerns people, not the separate testimony feed above.
+Server-paged people lists fetch up to ten records per request. My Friends reads its local directory in batches of ten.
 
 ### API contract
 
@@ -144,31 +144,28 @@ Authenticated paths are relative to `/api/users`:
 
 The old full `{friends}` / combined `{incoming,outgoing}` response formats are removed from these routes. The unrelated public username-search endpoint remains available for its other callers; Friends and Pray use authenticated paginated search now.
 
-Request totals count pending request entries. Entries whose referenced account no longer exists are skipped in the public rows; cursors advance over the underlying entries so deleted accounts cannot trap pagination. Suggestions exclude the viewer, current friends, incoming requests and sent requests. Their ranking can change as friendships change; refresh recomputes loaded pages, and appends deduplicate IDs.
+Request totals count pending request entries. Entries whose referenced account no longer exists are skipped in the public rows; cursors advance over the underlying entries so deleted accounts cannot trap pagination. Suggestions exclude the viewer, current friends, incoming requests and sent requests. Their ranking can change as friendships change. Refresh verifies the first page, and further cursor reads reconcile provisional rows as they approach the viewport.
 
 ### Frontend behavior and files
 
 - `../utils/peoplePageStore.js` owns list state, cursors, deduplication, refresh, retry, cache hydration and stale-response guards.
 - `../utils/usePeoplePage.js` shares stores by session token/path, observes friendship changes, and persists eligible lists by viewer ID/path.
 - `../components/PeoplePager.jsx` loads the next page when the list bottom approaches the viewport (120px margin), with a Show more fallback and Retry on failure.
-- Requests loads incoming requests and suggestions. My Friends and Sent fetch on first activation, rather than downloading all three lists in the background. Small summary counts are independent of downloaded rows.
-- Refresh keeps existing rows visible and replaces only the already-loaded depth after fetching its replacement pages. It does not crawl the entire collection. Fifteen-second freshness reuse avoids immediate repeated reads; friendship events invalidate the session's lists.
-- In-progress Friends mutations pause paging/refresh, abort superseded reads and allow optimistic row changes. After the last concurrent mutation settles, active lists refresh. Late reads cannot undo accept/cancel/remove actions.
-- Search result buttons use the server's relationship, including for people outside downloaded pages. Profile actions use the targeted relationship endpoint.
-- Incoming-request/friend notifications can fetch one target outside page one, append it without changing the main cursor, and scroll to it. No sequential crawl to locate the notification target.
-- Profile Friends and Mutual friends dialogs use the same engine, search debounce, incremental loading and retry. They preserve already-loaded session pages when reopened.
-- Pray's share picker loads friend pages **only when opened**, searches friends on the server, and combines them with authenticated username results. A friend beyond page one still has the Friend badge and can be selected. Pray uses already-downloaded friends only for optional metadata enrichment; prayer participants retain their own saved metadata.
+- Requests loads incoming requests and suggestions. Sent loads on selection. My Friends, the owner's Profile friend list and Pray's recipient picker search the local directory. Discovery and another person's Profile connections use paged online requests.
+- Incoming, Sent and Suggested friends revalidate the first page after the 15-second freshness window, keeping deeper rows provisional. The pager follows verified cursors as those rows approach the viewport. A fresh return reuses the list and summary.
+- Pending changes belong to one person. A rejected send leaves their note access and unrelated pending operations intact. Confirmed membership changes reconcile access. My Friends notifications resolve the saved index before attempting a targeted lookup.
+- Incoming and sent row snapshots independently trigger avatar prefetch. A bounded in-memory map remembers successful photo URL checks. URL changes, removal, eviction and cross-tab cache changes allow another check. Failures remain retryable. Offline and data-saver restrictions and the four-download background limit still apply. A mounted avatar reads its image through the existing browser or native storage path.
 
 ### Cache and performance boundaries
 
-`taspe7_app / people_pages_v1` is a separate localForage store. Friends, incoming, sent and suggestions snapshots retain up to 100 downloaded rows per list with matching cursor/total. Beyond 100, the last bounded disk snapshot remains; the actively loaded list can continue in memory. Search and other people's Profile dialogs are session-memory-only. Stores without subscribers can be evicted when the session map exceeds 64 entries. Existing legacy `friends_data_<userId>` data can seed the first ten cached friends/requests during migration, then a normal refresh validates it.
+`taspe7_app / people_pages_v1` is a separate localForage store. Incoming, sent and suggestions snapshots retain up to 100 downloaded rows per list with matching cursor/total. Beyond 100, the last bounded disk snapshot remains; the actively loaded list can continue in memory. Search and other people's Profile dialogs are session-memory-only. Stores without subscribers can be evicted when the session map exceeds 64 entries. Existing legacy `friends_data_<userId>` data can seed the first ten cached friends/requests during migration, then a normal refresh validates it.
 
 Storage writes are serialized per store. Network failures keep downloaded rows and expose Retry. Cache keys isolate accounts; tokens are not persisted in the disk key. This feature does not change the offline testimony body cache, seen markers, avatar implementation, or native prayer storage.
 
-Pagination bounds network responses, populated user records and initial UI rows. It does **not** change the MongoDB schema: friendship IDs and pending-request arrays still live on the user document. At much larger scale, moving relationships/requests into indexed collections would be a separate migration. Suggestions still compute mutual counts over eligible candidates before selecting a page. The UI renders loaded pages, not a virtualized people list.
+Pagination bounds network responses, populated user records and initial UI rows. It does **not** change the MongoDB schema: friendship IDs and pending-request arrays still live on the user document. At much larger scale, moving relationships/requests into indexed collections would be a separate migration. Suggestions still compute mutual counts over eligible candidates before selecting a page. My Friends uses a viewport-sized window. The server-paged collections render their loaded rows.
 
 ### Verification and release
 
 Validated with 36 backend integration tests (disposable MongoDB, including existing testimony/access regressions), 8 list-store/relationship tests, 13 browser checks covering Chromium, mobile WebKit/Safari, both Profile views, Pray recipient search, and optimistic friendship actions. Two additional offline-note browser regression checks also pass. Local list refresh events mark notes as separately handled so a failed friendship action does not clear valid offline notes; authenticated note refresh/live access events still reconcile their access. Targeted lint and production build pass. Logs: `work/friends-pagination-backend.log` at workspace root; `frontend/performance/friends-pagination-{unit,browser-final,lint,build}.log`.
 
-Next release step: deploy the backend and the corresponding web/OTA frontend as one coordinated contract change, then smoke-test two real accounts on a phone (paging, accept/cancel/remove, notification targets, and offline/reconnect). These changes contain no native plugin or Android/iOS code changes, so this feature itself does not require a new APK. Older frontend bundles expecting the removed response shape need updating alongside the API. Nothing was deployed by this implementation task.
+The original pagination rollout required coordinating the server response contract with the frontend. The November 26 Friends performance changes use those existing endpoints. See the current [Friends release review](../../../docs/friends-page-performance-plan.md#step-7-release-review) for device measurements and release scope.

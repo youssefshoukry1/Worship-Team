@@ -50,3 +50,44 @@ test('an in-progress friendship mutation blocks refresh and pagination until set
   f.store.pause(false); task = f.store.refresh(); f.requests[1].resolve(page(1)); await task;
   assert.equal(f.store.getSnapshot().items[0]._id, '1');
 });
+
+test('stale progressive lists validate the head once and traverse changed rankings from the new cursor', async () => {
+  let time = 100000;
+  let offline = false;
+  let rows = Array.from({length: 100}, (_, i) => ({ _id: String(i) }));
+  const oldRows = rows;
+  const calls = [];
+  const store = ctx.create({
+    progressive: true, now: () => time,
+    cache: { get: async () => ({items: rows, nextCursor: null, total: rows.length}), set: async () => {} },
+    request: async cursor => {
+      calls.push(cursor);
+      if (offline) throw Error('Offline');
+      const start = cursor ? rows.findIndex(person => person._id === cursor) + 1 : 0;
+      const items = rows.slice(start, start + 10);
+      return {items, total: rows.length, nextCursor: start + 10 < rows.length ? items.at(-1)._id : null};
+    },
+  });
+  await Promise.all([store.ensure(), store.ensure()]);
+  assert.deepEqual(calls, [null]);
+  assert.equal(store.getSnapshot().verifiedCount, 10);
+  assert.equal(store.getSnapshot().items[80], oldRows[80]);
+  await store.ensure();
+  assert.equal(calls.length, 1);
+  time += 16000;
+  // Remove one row, promote a late suggestion and insert a new person.
+  rows = [{_id: 'new'}, oldRows[71], ...oldRows.filter((_, i) => i !== 3 && i !== 71)];
+  await store.ensure();
+  assert.deepEqual(calls, [null, null]);
+  assert.equal(store.getSnapshot().items[1]._id, '71');
+  assert.ok(store.getSnapshot().items.includes(oldRows[80]));
+  const saved = store.getSnapshot();
+  offline = true;
+  await store.loadMore();
+  assert.equal(store.getSnapshot().items, saved.items);
+  offline = false;
+  await store.retry();
+  assert.equal(calls.at(-1), saved.nextCursor);
+  while (store.getSnapshot().nextCursor) await store.loadMore();
+  assert.deepEqual(Array.from(store.getSnapshot().items, item => item._id), rows.map(item => item._id));
+});

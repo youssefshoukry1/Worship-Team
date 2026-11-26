@@ -28,3 +28,16 @@ test('account change stops an active worker and stale queued work never starts',
     const assertions = pending.map(p => assert.rejects(p, { name: 'AbortError' })); current = false;
     await Promise.all(assertions); assert.equal(f.active, 0); assert.equal(f.workers.length, 2);
 });
+
+test('a tapped notification gets the next free worker ahead of queued background prayers', async () => {
+    const f = fixture();
+    const downloads = [1, 2, 3, 4].map(shareId => f.download({ shareId }, () => true, shareId === 4));
+    for (const [index, id] of [1, 2, 4, 3].entries()) {
+        const worker = f.workers[index];
+        assert.equal(worker.options.shareId, id);
+        worker.onmessage({ data: { bundle: { shareId: id } } });
+        await new Promise(resolve => setImmediate(resolve));
+    }
+    await Promise.all(downloads);
+    assert.equal(f.maximum, 2);
+});

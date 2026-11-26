@@ -2,30 +2,14 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import localforage from 'localforage';
 import { createPeoplePageStore } from './peoplePageStore';
-import { pauseFriendDirectory } from './friendDirectory/useLocalFriends';
 import { getApiBaseUrl } from './apiBase';
+import { peopleStores as stores, handlePeoplePush, affectsPeoplePage } from './peoplePageCache';
+export { invalidatePeoplePages } from './peoplePageCache';
 
 const disk = localforage.createInstance({ name: 'taspe7_app', storeName: 'people_pages_v1' });
-const stores = new Map();
-const handledEvents = new WeakSet();
-const mutations = new Map();
-export function beginPeopleMutation(token) {
-  pauseFriendDirectory(token, true);
-  mutations.set(token, (mutations.get(token) || 0) + 1);
-  for (const entry of stores.values()) if (entry.token === token) entry.store.pause(true);
-}
-export function endPeopleMutation(token) {
-  const remaining = Math.max(0, (mutations.get(token) || 0) - 1);
-  mutations.set(token, remaining);
-  if (!remaining) pauseFriendDirectory(token, false);
-  if (!remaining) for (const entry of stores.values()) if (entry.token === token) { entry.store.pause(false); entry.store.invalidate(); }
-}
-export function invalidatePeoplePages(token) {
-  for (const entry of stores.values()) if (entry.token === token) entry.store.invalidate();
-}
 export default function usePeoplePage(path, token, userId, enabled = true, persistent = true) {
   const store = useMemo(() => {
-    const key = JSON.stringify([token, path]);
+    const key = JSON.stringify([token, userId, path]);
     if (!stores.has(key)) {
       // Search strings stay in memory only; preserve the small non-search lists.
       if (stores.size > 64) {
@@ -36,6 +20,7 @@ export default function usePeoplePage(path, token, userId, enabled = true, persi
       let writes = Promise.resolve();
       const cached = persistent && !path.includes('q=') && userId;
       const store = createPeoplePageStore({
+        progressive: path.startsWith('friend-requests?kind=') || path === 'friend-suggestions',
         cache: cached ? { get: async () => {
           const saved = await disk.getItem(cacheKey);
           if (saved) return saved;
@@ -53,8 +38,7 @@ export default function usePeoplePage(path, token, userId, enabled = true, persi
           return result;
         },
       });
-      if (mutations.get(token)) store.pause(true);
-      stores.set(key, { token, store, users: 0 });
+      stores.set(key, { token, path, store, users: 0 });
     }
     return stores.get(key).store;
   }, [path, token, userId, persistent]);
@@ -66,11 +50,15 @@ export default function usePeoplePage(path, token, userId, enabled = true, persi
   }, [store]);
   useEffect(() => {
     if (!token) return;
-    if (enabled) void store.ensure();
     const refresh = () => { if (enabled && document.visibilityState === 'visible') void store.ensure(); };
+    refresh();
     const changed = event => {
-      if (!handledEvents.has(event)) { handledEvents.add(event); invalidatePeoplePages(token); }
-      refresh();
+      handlePeoplePush(event, token, userId);
+      const change = event.detail?.friendChange;
+      // The confirmed write already updated every cached matching search result.
+      // Unfinished first reads still need a response after invalidation.
+      if (change && path.startsWith('people-search?') && store.getSnapshot().ready) return;
+      if (affectsPeoplePage(path, change)) refresh();
     };
     window.addEventListener('taspe7:friends-push', changed);
     window.addEventListener('online', refresh);
@@ -80,6 +68,6 @@ export default function usePeoplePage(path, token, userId, enabled = true, persi
       window.removeEventListener('online', refresh);
       document.removeEventListener('visibilitychange', refresh);
     };
-  }, [store, enabled, token]);
+  }, [store, enabled, token, userId, path]);
   return { ...state, ...store };
 }

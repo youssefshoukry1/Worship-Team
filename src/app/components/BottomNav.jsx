@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
+import { UserContext } from '../context/User_Context';
 import Link from 'next/link';
 import { settingsParent } from '../utils/profileNavigation';
 import { usePathname } from 'next/navigation';
@@ -24,7 +25,8 @@ export default function BottomNav() {
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isHiddenForChapter, setIsHiddenForChapter] = useState(false);
   const lastScrollY = useRef(0);
-  const { navigate, pendingHref } = useTabNavigation();
+  const { user_id } = useContext(UserContext);
+  const { navigate, pendingHref } = useTabNavigation(user_id);
 
   const settingsActive = typeof window !== 'undefined' && settingsParent();
   const visualPath = normalizeTabPath(pendingHref || (settingsActive ? '/normal_UserProfile' : pathname));

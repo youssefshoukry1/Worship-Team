@@ -1,4 +1,17 @@
 const PRAYER_TYPES = new Set(['PRAY_SHARED', 'PRAY_CONFIRMED']);
+let pendingOpen;
+
+// Hand off the latest tap across a lazy tab mount within this document.
+export function queuePrayerOpen(owner, target) {
+    pendingOpen = { owner, target };
+}
+
+export function takePrayerOpen(owner) {
+    if (!pendingOpen || pendingOpen.owner !== owner) return null;
+    const { target } = pendingOpen;
+    pendingOpen = undefined;
+    return target;
+}
 
 function normalizeShareId(value) {
     return typeof value === 'string' ? value.trim().replace(/^received-/, '') : '';
@@ -33,4 +46,10 @@ export function findNotificationPrayer(prayers, target) {
             entry._id === `received-${shareId}`
         );
     }) || null;
+}
+
+export function savedNotificationPrayer(prayers, target) {
+    const prayer = findNotificationPrayer(prayers, target);
+    if (target?.type === 'PRAY_CONFIRMED' && prayer?.sharedWith?.status !== 'confirmed') return null;
+    return prayer;
 }

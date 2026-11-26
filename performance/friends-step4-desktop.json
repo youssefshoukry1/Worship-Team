@@ -1,0 +1,448 @@
+{
+  "engine": "145.0.7632.6",
+  "build": "tQyHQ1SPlSqHacW_f94vH",
+  "version": "2.0.18",
+  "mode": "desktop",
+  "trials": [
+    {
+      "size": 10,
+      "trial": 1,
+      "cachedRowMs": 493,
+      "targetMountedMs": 9,
+      "targetMs": 22,
+      "maxRows": 10,
+      "targetMaxRows": 10,
+      "targetScrollY": 472,
+      "targetP95FrameGapMs": 17,
+      "targetWorstFrameGapMs": 17,
+      "counts": {
+        "open": {
+          "my-teams": 1,
+          "ping": 1,
+          "requests": 1,
+          "": 1,
+          "friends-summary": 1,
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "sync": 1,
+          "my-profile": 1,
+          "000000000000000000002328": 1,
+          "testimonies": 1
+        },
+        "sent": {
+          "friend-requests?kind=outgoing": 1
+        },
+        "stale return": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1
+        },
+        "target": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1,
+          "sync": 1
+        }
+      },
+      "staleCursors": [
+        null
+      ]
+    },
+    {
+      "size": 10,
+      "trial": 2,
+      "cachedRowMs": 226,
+      "targetMountedMs": 9,
+      "targetMs": 25,
+      "maxRows": 10,
+      "targetMaxRows": 10,
+      "targetScrollY": 472,
+      "targetP95FrameGapMs": 17,
+      "targetWorstFrameGapMs": 17,
+      "counts": {
+        "open": {
+          "my-teams": 1,
+          "ping": 1,
+          "requests": 1,
+          "": 1,
+          "friends-summary": 1,
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "sync": 1,
+          "my-profile": 1,
+          "000000000000000000002328": 1,
+          "testimonies": 1
+        },
+        "sent": {
+          "friend-requests?kind=outgoing": 1
+        },
+        "stale return": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1
+        },
+        "target": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1,
+          "sync": 1
+        }
+      },
+      "staleCursors": [
+        null
+      ]
+    },
+    {
+      "size": 10,
+      "trial": 3,
+      "cachedRowMs": 233,
+      "targetMountedMs": 16,
+      "targetMs": 23,
+      "maxRows": 10,
+      "targetMaxRows": 10,
+      "targetScrollY": 472,
+      "targetP95FrameGapMs": 17,
+      "targetWorstFrameGapMs": 17,
+      "counts": {
+        "open": {
+          "my-teams": 1,
+          "ping": 1,
+          "requests": 1,
+          "": 1,
+          "friends-summary": 1,
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "sync": 1,
+          "my-profile": 1,
+          "000000000000000000002328": 1,
+          "testimonies": 1
+        },
+        "sent": {
+          "friend-requests?kind=outgoing": 1
+        },
+        "stale return": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1
+        },
+        "target": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1,
+          "sync": 1
+        }
+      },
+      "staleCursors": [
+        null
+      ]
+    },
+    {
+      "size": 10,
+      "trial": 4,
+      "cachedRowMs": 367,
+      "targetMountedMs": 11,
+      "targetMs": 27,
+      "maxRows": 10,
+      "targetMaxRows": 10,
+      "targetScrollY": 472,
+      "targetP95FrameGapMs": 17,
+      "targetWorstFrameGapMs": 17,
+      "counts": {
+        "open": {
+          "my-teams": 1,
+          "ping": 1,
+          "requests": 1,
+          "": 1,
+          "friends-summary": 1,
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "sync": 1,
+          "my-profile": 1,
+          "000000000000000000002328": 1,
+          "testimonies": 1
+        },
+        "sent": {
+          "friend-requests?kind=outgoing": 1
+        },
+        "stale return": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1
+        },
+        "target": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1,
+          "sync": 1
+        }
+      },
+      "staleCursors": [
+        null
+      ]
+    },
+    {
+      "size": 10,
+      "trial": 5,
+      "cachedRowMs": 300,
+      "targetMountedMs": 12,
+      "targetMs": 27,
+      "maxRows": 10,
+      "targetMaxRows": 10,
+      "targetScrollY": 472,
+      "targetP95FrameGapMs": 17,
+      "targetWorstFrameGapMs": 17,
+      "counts": {
+        "open": {
+          "my-teams": 1,
+          "ping": 1,
+          "requests": 1,
+          "": 1,
+          "friends-summary": 1,
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "sync": 1,
+          "my-profile": 1,
+          "000000000000000000002328": 1,
+          "testimonies": 1
+        },
+        "sent": {
+          "friend-requests?kind=outgoing": 1
+        },
+        "stale return": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1
+        },
+        "target": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1,
+          "sync": 1
+        }
+      },
+      "staleCursors": [
+        null
+      ]
+    },
+    {
+      "size": 1250,
+      "trial": 1,
+      "cachedRowMs": 276,
+      "targetMountedMs": 12,
+      "targetMs": 27,
+      "maxRows": 100,
+      "targetMaxRows": 30,
+      "targetScrollY": 73748,
+      "targetP95FrameGapMs": 17,
+      "targetWorstFrameGapMs": 17,
+      "counts": {
+        "open": {
+          "my-teams": 1,
+          "ping": 1,
+          "requests": 1,
+          "": 1,
+          "friends-summary": 1,
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "sync": 1,
+          "my-profile": 1,
+          "000000000000000000002328": 1,
+          "testimonies": 1
+        },
+        "sent": {
+          "friend-requests?kind=outgoing": 1
+        },
+        "stale return": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1
+        },
+        "target": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1,
+          "sync": 1
+        }
+      },
+      "staleCursors": [
+        null
+      ]
+    },
+    {
+      "size": 1250,
+      "trial": 2,
+      "cachedRowMs": 250,
+      "targetMountedMs": 27,
+      "targetMs": 34,
+      "maxRows": 100,
+      "targetMaxRows": 30,
+      "targetScrollY": 73748,
+      "targetP95FrameGapMs": 17,
+      "targetWorstFrameGapMs": 17,
+      "counts": {
+        "open": {
+          "my-teams": 1,
+          "ping": 1,
+          "requests": 1,
+          "": 1,
+          "friends-summary": 1,
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "sync": 1,
+          "my-profile": 1,
+          "000000000000000000002328": 1,
+          "testimonies": 1
+        },
+        "sent": {
+          "friend-requests?kind=outgoing": 1
+        },
+        "stale return": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1
+        },
+        "target": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1,
+          "sync": 1
+        }
+      },
+      "staleCursors": [
+        null
+      ]
+    },
+    {
+      "size": 1250,
+      "trial": 3,
+      "cachedRowMs": 269,
+      "targetMountedMs": 23,
+      "targetMs": 43,
+      "maxRows": 100,
+      "targetMaxRows": 30,
+      "targetScrollY": 73748,
+      "targetP95FrameGapMs": 17,
+      "targetWorstFrameGapMs": 17,
+      "counts": {
+        "open": {
+          "my-teams": 1,
+          "ping": 1,
+          "requests": 1,
+          "": 1,
+          "friends-summary": 1,
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "sync": 1,
+          "my-profile": 1,
+          "000000000000000000002328": 1,
+          "testimonies": 1
+        },
+        "sent": {
+          "friend-requests?kind=outgoing": 1
+        },
+        "stale return": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1
+        },
+        "target": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1,
+          "sync": 1
+        }
+      },
+      "staleCursors": [
+        null
+      ]
+    },
+    {
+      "size": 1250,
+      "trial": 4,
+      "cachedRowMs": 337,
+      "targetMountedMs": 21,
+      "targetMs": 47,
+      "maxRows": 100,
+      "targetMaxRows": 30,
+      "targetScrollY": 73748,
+      "targetP95FrameGapMs": 17,
+      "targetWorstFrameGapMs": 17,
+      "counts": {
+        "open": {
+          "my-teams": 1,
+          "ping": 1,
+          "requests": 1,
+          "": 1,
+          "friends-summary": 1,
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "sync": 1,
+          "my-profile": 1,
+          "000000000000000000002328": 1,
+          "testimonies": 1
+        },
+        "sent": {
+          "friend-requests?kind=outgoing": 1
+        },
+        "stale return": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1
+        },
+        "target": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1,
+          "sync": 1
+        }
+      },
+      "staleCursors": [
+        null
+      ]
+    },
+    {
+      "size": 1250,
+      "trial": 5,
+      "cachedRowMs": 395,
+      "targetMountedMs": 26,
+      "targetMs": 33,
+      "maxRows": 100,
+      "targetMaxRows": 30,
+      "targetScrollY": 73748,
+      "targetP95FrameGapMs": 17,
+      "targetWorstFrameGapMs": 17,
+      "counts": {
+        "open": {
+          "my-teams": 1,
+          "ping": 1,
+          "requests": 1,
+          "": 1,
+          "friends-summary": 1,
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "sync": 1,
+          "my-profile": 1,
+          "000000000000000000002328": 1,
+          "testimonies": 1
+        },
+        "sent": {
+          "friend-requests?kind=outgoing": 1
+        },
+        "stale return": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1
+        },
+        "target": {
+          "friend-requests?kind=incoming": 1,
+          "friend-suggestions": 1,
+          "friends-summary": 1,
+          "sync": 1
+        }
+      },
+      "staleCursors": [
+        null
+      ]
+    }
+  ]
+}

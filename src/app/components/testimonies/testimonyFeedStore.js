@@ -7,6 +7,7 @@ export function createTestimonyFeedStore({ userId, request, sendSeen, storage, c
   if (typeof seen !== 'object' || Array.isArray(seen)) seen = {};
   let state = { items: [], activeNotes: [], publishing: null, nextCursor: null, loading: true, loadingMore: false, ready: false, error: '', hasUnseen: false, now: now() };
   const listeners = new Set(), requests = new Set(), revisions = new Map();
+  let nextDeadline = Infinity;
   let timer, pendingSync, syncAgain = false, disposed = false, generation = 0, accessGeneration = 0;
   let hydration, hydrated = !cache, cacheSnapshot = '', lastCachedItems = null, cacheInvalidated = false;
   const deleted = new Set();
@@ -73,11 +74,25 @@ export function createTestimonyFeedStore({ userId, request, sendSeen, storage, c
     if (seenChanged) persistSeen();
     state.hasUnseen = state.activeNotes.some(item => String(item.authorId) !== String(userId) && !seen[item._id]);
     cancel(timer);
-    const expiries = [...state.activeNotes.map(item => new Date(item.feedExpiresAt).getTime()), new Date(state.publishing?.nextPublishAt).getTime()].filter(expiry => expiry > time);
-    if (expiries.length) timer = schedule(() => emit({}), Math.min(2147483647, expiries.reduce((soonest, value) => Math.min(soonest, value), Infinity) - time + 10));
+    nextDeadline = Infinity;
+    const consider = expiry => { if (expiry > time && expiry < nextDeadline) nextDeadline = expiry; };
+    for (const item of state.activeNotes) consider(Date.parse(item.feedExpiresAt));
+    for (const expiry of Object.values(seen)) consider(expiry);
+    consider(Date.parse(state.publishing?.nextPublishAt));
+    armTimer();
     persistNotes();
     for (const listener of listeners) listener();
   };
+  function armTimer() {
+    if (Number.isFinite(nextDeadline) && !disposed) {
+      timer = schedule(() => {
+        timer = null;
+        if (now() >= nextDeadline) emit({});
+        else armTimer();
+      }, Math.min(2147483647, Math.max(0, nextDeadline - now()) + 10));
+    }
+  }
+  const tick = () => { if (!disposed && now() >= nextDeadline) emit({}); };
   const fetchData = async path => {
     const controller = new AbortController(); requests.add(controller);
     try { return await request(path, { signal: controller.signal }); }
@@ -154,9 +169,9 @@ export function createTestimonyFeedStore({ userId, request, sendSeen, storage, c
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     sync,
     hydrate,
-    tick: () => emit({}),
+    tick,
     // Visiting the feed does not mean its notes have been opened.
-    setFeedVisible() { emit({}); },
+    setFeedVisible(visible) { if (visible) tick(); },
     isSeen(id) { return Boolean(seen[id]); },
     async loadMore() {
       if (!state.nextCursor || state.loadingMore) return;
@@ -177,7 +192,11 @@ export function createTestimonyFeedStore({ userId, request, sendSeen, storage, c
       if (event.action === 'access') {
         cacheInvalidated = true;
         ++generation; ++accessGeneration; for (const controller of requests) controller.abort();
-        emit({ items: [], activeNotes: [], publishing: null, ready: false, loading: true });
+        if (event.removedFriendId && hydrated && state.ready) {
+          const removed = String(event.removedFriendId);
+          emit({ items: state.items.filter(note => String(note.author._id) !== removed),
+            activeNotes: state.activeNotes.filter(note => String(note.authorId) !== removed), nextCursor: null, loadingMore: false });
+        } else emit({ items: [], activeNotes: [], publishing: null, ready: false, loading: true });
         if (pendingSync) syncAgain = true;
         else void sync();
         return;
@@ -216,13 +235,13 @@ export function createTestimonyFeedStore({ userId, request, sendSeen, storage, c
       emit({});
     },
     updateReaction(id, reaction) { emit({ items: state.items.map(item => item._id === id ? { ...item, ...reaction } : item) }); },
-    activate() { disposed = false; void hydrate(); },
+    activate() { disposed = false; if (now() >= nextDeadline) tick(); else if (timer == null) armTimer(); void hydrate(); },
     clear() {
       if (sendSeen && pendingReads.size) void sendSeen([...pendingReads].slice(0, 100), undefined, true).catch(() => {});
       cacheInvalidated = true; ++accessGeneration; hydrated = true;
       emit({ items: [], activeNotes: [], publishing: null });
       this.dispose();
     },
-    dispose() { disposed = true; ++generation; ++accessGeneration; cancel(timer); cancel(readTimer); readTimer = null; readRequest?.abort(); for (const controller of requests) controller.abort(); },
+    dispose() { disposed = true; ++generation; ++accessGeneration; cancel(timer); timer = null; cancel(readTimer); readTimer = null; readRequest?.abort(); for (const controller of requests) controller.abort(); },
   };
 }

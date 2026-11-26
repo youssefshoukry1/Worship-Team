@@ -21,7 +21,7 @@ export async function readFriendship(token, targetId, { signal } = {}) {
   return result.relationship;
 }
 
-export async function changeFriendship(token, targetId, action) {
+export async function changeFriendship(token, targetId, action, { optimisticRemoval = true, signal } = {}) {
   const routes = {
     add: ['POST', `friend-request/${targetId}`],
     cancel: ['POST', `friend-request/cancel/${targetId}`],
@@ -31,10 +31,10 @@ export async function changeFriendship(token, targetId, action) {
   };
   const route = routes[action];
   if (!route) throw new Error('Invalid friendship action.');
-  const settle = action === 'remove' ? optimisticFriendRemoval(token, targetId) : () => {};
+  const settle = optimisticRemoval && action === 'remove' ? optimisticFriendRemoval(token, targetId) : () => {};
   try {
   const response = await fetch(`${getApiBaseUrl()}/users/${route[1]}`, {
-    method: route[0], headers: { Authorization: `Bearer ${token}` }, cache: 'no-store',
+    method: route[0], signal, headers: { Authorization: `Bearer ${token}` }, cache: 'no-store',
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {

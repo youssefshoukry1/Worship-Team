@@ -1,0 +1,81 @@
+{
+  "engine": "157.0.8103.52",
+  "build": "eUFRwvlx0MS_J_rWmToGv",
+  "version": "2.0.18",
+  "mode": "a24-webview",
+  "trials": [
+    {
+      "pair": 1,
+      "variant": "before",
+      "cachedRowMs": 769,
+      "domContentLoadedMs": 188
+    },
+    {
+      "pair": 1,
+      "variant": "after",
+      "cachedRowMs": 727,
+      "domContentLoadedMs": 184
+    },
+    {
+      "pair": 2,
+      "variant": "after",
+      "cachedRowMs": 725,
+      "domContentLoadedMs": 189
+    },
+    {
+      "pair": 2,
+      "variant": "before",
+      "cachedRowMs": 640,
+      "domContentLoadedMs": 123
+    },
+    {
+      "pair": 3,
+      "variant": "before",
+      "cachedRowMs": 686,
+      "domContentLoadedMs": 145
+    },
+    {
+      "pair": 3,
+      "variant": "after",
+      "cachedRowMs": 696,
+      "domContentLoadedMs": 174
+    },
+    {
+      "pair": 4,
+      "variant": "after",
+      "cachedRowMs": 737,
+      "domContentLoadedMs": 189
+    },
+    {
+      "pair": 4,
+      "variant": "before",
+      "cachedRowMs": 712,
+      "domContentLoadedMs": 191
+    },
+    {
+      "pair": 5,
+      "variant": "before",
+      "cachedRowMs": 740,
+      "domContentLoadedMs": 182
+    },
+    {
+      "pair": 5,
+      "variant": "after",
+      "cachedRowMs": 727,
+      "domContentLoadedMs": 172
+    },
+    {
+      "pair": 6,
+      "variant": "after",
+      "cachedRowMs": 696,
+      "domContentLoadedMs": 159
+    },
+    {
+      "pair": 6,
+      "variant": "before",
+      "cachedRowMs": 828,
+      "domContentLoadedMs": 253
+    }
+  ],
+  "baselineBuild": "gnzFh_PGW3eYiyi7DQMD_"
+}

@@ -32,9 +32,6 @@ export function getFriendDirectory(token, userId) {
   }
   return sessions.get(key).store;
 }
-export function pauseFriendDirectory(token, paused) {
-  for (const entry of sessions.values()) if (entry.token === token) entry.store.pause(paused);
-}
 export function optimisticFriendRemoval(token, id) {
   const entry = [...sessions.values()].find(entry => entry.token === token);
   return entry ? entry.store.beginRemoval(id) : () => {};
@@ -48,6 +45,9 @@ export function useFriendDirectorySession(token, userId) {
     const resume = () => { if (document.visibilityState === 'visible') void store.sync(); };
     const reconnect = () => { if (document.visibilityState === 'visible') void store.restart(); };
     const changed = event => {
+      const change = event.detail?.friendChange;
+      if (change && change.before !== 'friends' && change.after !== 'friends') return;
+      if (change?.after === 'friends') store.confirmFriend(change.person);
       if (event.detail?.removedFriendId) store.removeKnown(event.detail.removedFriendId);
       if (document.visibilityState === 'visible') void store.sync(true);
     };
@@ -90,8 +90,9 @@ export default function useLocalFriends(token, userId, query = '', enabled = tru
     return true;
   }, [matches, query]);
   const retry = useCallback(() => store.restart(), [store]);
-  return { items: matches.slice(0, limit), total: allItems.length, matchedTotal: matches.length, complete: state.complete,
+  const items = useMemo(() => matches.slice(0, limit), [matches, limit]);
+  return { items, total: allItems.length, matchedTotal: matches.length, complete: state.complete,
     ready: state.ready, loading: false, syncing: state.syncing, error: state.ready ? '' : state.error, syncError: state.error, storageError: state.storageError,
     nextCursor: matches.length > limit ? String(limit) : null, loadMore, retry, setItems: store.setItems,
-    knownTotal: state.total, reveal, contains: id => allItems.some(person => person._id === id) };
+    knownTotal: state.total, reveal, contains: store.contains };
 }

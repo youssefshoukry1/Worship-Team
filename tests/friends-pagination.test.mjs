@@ -59,6 +59,18 @@ for (const mobile of [false, true]) test(`Friends lists load on demand, scroll i
   assert.ok(calls.some(path => path.includes('kind=outgoing')));
   assert.deepEqual(errors, []);
 });
+test('discovery opens the selected profile and the Friends navigation link returns to Requests', async t => {
+  const { page, calls, errors } = await setup(t, false);
+  await page.goto('http://localhost:3000/friends/');
+  await page.getByRole('button', { name: 'Search friends', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Search friends by username' }).fill('@person24');
+  await page.getByRole('button', { name: 'Open Person 24 profile', exact: true }).first().click();
+  await page.waitForURL(url => url.pathname.includes('normal_UserProfile') && url.searchParams.get('user') === rows[24]._id);
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Friends', exact: true }).click();
+  await page.getByText('Incoming requests (25)', { exact: true }).waitFor();
+  assert.ok(calls.some(path => path.includes('/people-search?q=person24')));
+  assert.deepEqual(errors, []);
+});
 test('both Profile views page friends and Pray searches recipients beyond the first page', async t => {
   const { page, calls, errors } = await setup(t, false);
   for (const id of [A, B]) {

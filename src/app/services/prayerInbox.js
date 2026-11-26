@@ -4,6 +4,7 @@ import { yieldToMain } from '../utils/cooperativeWork';
 // No durable delivery cursor: failed/unacknowledged items are retried on the next scan.
 export async function syncPrayerPages({ kind, read, download, consume, remove, saveDeletionCursor, deletedSince, target, targetOnly = false, active, acknowledge }) {
     let failures = 0;
+    let targetSaved = false;
     const current = () => { if (!active()) throw Object.assign(new Error('Prayer session changed'), { name: 'AbortError' }); };
     const deliver = async (items) => {
         for (let offset = 0; offset < items.length; offset += 10) {
@@ -18,6 +19,7 @@ export async function syncPrayerPages({ kind, read, download, consume, remove, s
                     current();
                     const committed = await consume(bundle); current();
                     if (committed !== false) {
+                        if (target && bundle.shareId === target) targetSaved = true;
                         acknowledgements.push(Promise.resolve().then(() => acknowledge(bundle.shareId, kind === 'replies'))
                             .then(response => { if (!response.ok) failures++; }).catch(() => { failures++; }));
                     }
@@ -33,31 +35,48 @@ export async function syncPrayerPages({ kind, read, download, consume, remove, s
         }
     };
     current();
-    let page = await read({ protocol: 2, kind: kind === 'replies' ? 'replies' : 'deletions', ...(deletedSince ? { deletedSince } : {}) }); current();
-    if (page.protocol !== 2) throw new Error('Unsupported prayer delivery protocol');
-    if (kind !== 'replies') {
+    const readPage = async params => {
+        const page = await read({ protocol: 2, ...params });
+        current();
+        if (page.protocol !== 2) throw new Error('Unsupported prayer delivery protocol');
+        return page;
+    };
+    let revokedTarget = false;
+    const applyDeletions = async () => {
+        if (kind === 'replies') return;
         const seen = new Set();
+        let page = await readPage({ kind: 'deletions', ...(deletedSince ? { deletedSince } : {}) });
         for (;;) {
-            current(); await remove((page.items || []).map(item => item.shareId)); current();
+            const ids = (page.items || []).map(item => item.shareId);
+            if (target && ids.includes(target)) revokedTarget = true;
+            current(); await remove(ids); current();
             if (!page.nextCursor) { if (page.deletionCursor) await saveDeletionCursor(page.deletionCursor); break; }
             if (seen.has(page.nextCursor)) throw new Error('Prayer deletion cursor repeated'); seen.add(page.nextCursor);
             await yieldToMain(); current();
-            page = await read({ protocol: 2, kind: 'deletions', cursor: page.nextCursor, ...(deletedSince ? { deletedSince } : {}) }); current();
-            if (page.protocol !== 2) throw new Error('Prayer protocol changed during sync');
+            page = await readPage({ kind: 'deletions', cursor: page.nextCursor, ...(deletedSince ? { deletedSince } : {}) });
         }
-        page = null;
+    };
+    // Only fetch the descriptor in parallel. Never fetch or persist its payload
+    // until every deletion page and its watermark have committed.
+    if (target) {
+        const [deletions, descriptor] = await Promise.allSettled([applyDeletions(), readPage({ kind, target })]);
+        if (deletions.status === 'rejected') throw deletions.reason;
+        if (descriptor.status === 'rejected') throw descriptor.reason;
+        current();
+        if (!revokedTarget) await deliver((descriptor.value.items || []).filter(item => item.shareId === target));
+    } else if (kind !== 'replies') {
+        await applyDeletions();
     }
-    // Deep targets get their own authorized request and never move the normal cursor.
-    if (target) { const selected = await read({ protocol: 2, kind, target }); current(); if (selected.protocol !== 2) throw new Error('Unsupported prayer delivery protocol'); await deliver(selected.items || []); }
-    if (targetOnly) return { failures, protocol: 2 };
+    current();
+    if (targetOnly) return { failures, targetSaved, protocol: 2 };
     const seen = new Set();
+    let page;
     for (;;) {
-        current(); if (!page) page = await read({ protocol: 2, kind }); current();
-        if (page.protocol !== 2) throw new Error('Prayer protocol changed during sync');
+        current(); if (!page) page = await readPage({ kind }); current();
         await deliver(page.items || []);
         if (!page.nextCursor) break;
         if (seen.has(page.nextCursor)) throw new Error('Prayer cursor repeated'); seen.add(page.nextCursor);
-        current(); page = await read({ protocol: 2, kind, cursor: page.nextCursor });
+        current(); page = await readPage({ kind, cursor: page.nextCursor });
     }
     return { failures, protocol: 2 };
 }

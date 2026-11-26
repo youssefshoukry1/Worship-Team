@@ -5,8 +5,8 @@ const clean = person => ({ _id: person._id, Name: String(person.Name || ''), use
   profilePhoto: person.profilePhoto || null, revision: Number(person.revision) || 0 });
 export function createFriendDirectory({ request, cache, now = Date.now, yieldTask = () => Promise.resolve() }) {
   let state = { items: [], ready: false, complete: false, syncing: false, error: '', storageError: '', total: 0, cursor: null };
-  let paused = false;
   let records = new Map(), index = new Map(), ids = new Set(), pending, hydration, disposed = false, generation = 0, controller, again = false, lastSync = 0, saving = Promise.resolve();
+  let sessionVersion = 0;
   const removals = new Map(), listeners = new Set();
   const emit = patch => { if (!disposed) { state = { ...state, ...patch }; for (const listener of listeners) listener(); } };
   const meta = extra => ({ version: 2, cursor: state.cursor, complete: state.complete, ids: [...ids], ...extra });
@@ -48,7 +48,7 @@ export function createFriendDirectory({ request, cache, now = Date.now, yieldTas
     return hydration;
   };
   const sync = (force = false) => {
-    if (disposed || paused || removals.size) return Promise.resolve();
+    if (disposed || removals.size) return Promise.resolve();
     if (pending) { again ||= force; return pending; }
     if (!force && state.complete && now() - lastSync < 30000) return Promise.resolve();
     const version = generation; controller = new AbortController(); const signal = controller.signal;
@@ -122,6 +122,7 @@ export function createFriendDirectory({ request, cache, now = Date.now, yieldTas
   };
   return {
     getSnapshot: () => state,
+    contains: id => records.has(id),
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     hydrate, sync,
     restart() { invalidate(); return sync(true); },
@@ -138,7 +139,14 @@ export function createFriendDirectory({ request, cache, now = Date.now, yieldTas
       emit({ total: ids.size }); void save({ ...delta, meta: meta() });
     },
     removeKnown,
-    pause(value) { paused = value; if (value) invalidate(); },
+    sessionVersion: () => disposed ? null : sessionVersion,
+    confirmFriend(person) {
+      invalidate();
+      ids.add(person._id);
+      const delta = apply([person]);
+      emit({ total: ids.size });
+      void save({ ...delta, meta: meta() });
+    },
     beginRemoval(id) {
       const previous = records.get(id); removals.set(id, previous); removeKnown(id);
       let finished = false;
@@ -151,6 +159,6 @@ export function createFriendDirectory({ request, cache, now = Date.now, yieldTas
       };
     },
     activate() { disposed = false; },
-    dispose() { invalidate(); disposed = true; },
+    dispose() { ++sessionVersion; invalidate(); disposed = true; },
   };
 }

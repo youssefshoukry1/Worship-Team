@@ -51,3 +51,37 @@ test('a target-only notification scan applies deletions then stops after the sel
     f.options.read = async params => { f.calls.push(params); return { protocol: 2, items: params.kind === 'deletions' ? [] : [{ shareId: 'target' }] }; };
     await context.sync(f.options); assert.deepEqual(f.consumed, ['target']); assert.equal(f.calls.length, 2);
 });
+
+test('a target-only reply fetches only the requested descriptor and acknowledges its payload', async () => {
+    const f = fixture();
+    f.options.read = async params => { f.calls.push(params); return { protocol: 2, items: [{ shareId: 'other' }, { shareId: 'reply' }] }; };
+    const result = await context.sync({ ...f.options, kind: 'replies', target: 'reply', targetOnly: true });
+    assert.equal(f.calls.length, 1);
+    assert.equal(f.calls[0].target, 'reply');
+    assert.deepEqual(f.ack, ['reply']);
+    assert.equal(result.targetSaved, true);
+});
+
+test('an early target descriptor cannot bypass a revocation on the last deletion page', async () => {
+    const f = fixture();
+    let release;
+    const lastPage = new Promise(resolve => { release = resolve; });
+    f.options.read = async params => {
+        f.calls.push(params);
+        if (params.target) return { protocol: 2, items: [{ shareId: 'gone' }] };
+        if (!params.cursor) return { protocol: 2, items: [], nextCursor: 'last' };
+        await lastPage;
+        return { protocol: 2, items: [{ shareId: 'gone' }], deletionCursor: 'done' };
+    };
+    let downloads = 0;
+    f.options.download = async item => { downloads++; return item; };
+    const run = context.sync({ ...f.options, target: 'gone', targetOnly: true });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.ok(f.calls.some(call => call.target === 'gone'));
+    assert.equal(downloads, 0);
+    release();
+    assert.equal((await run).targetSaved, false);
+    assert.deepEqual(f.removed, ['gone', 'done']);
+    assert.deepEqual(f.ack, []);
+    assert.equal(downloads, 0);
+});

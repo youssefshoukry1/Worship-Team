@@ -4,6 +4,7 @@
 
 import { useSyncExternalStore, useMemo, useCallback, useEffect, useLayoutEffect, useState, useContext, useRef } from 'react';
 import { UserContext } from '../context/User_Context';
+import { usePathname } from 'next/navigation';
 import { Heart, Users, Send, Inbox, Lock, Layers } from 'lucide-react';
 import privacyStyles from './PrayerBackup.module.css';
 import { getApiBaseUrl } from '../utils/apiBase';
@@ -21,7 +22,7 @@ import { waitForNativeLaunch } from '../utils/nativeLaunch';
 import { usePrayerSession, usePrayerField } from './PrayerSessionProvider';
 import { useLanguage } from '../context/LanguageContext';
 import useLocalFriends from '../utils/friendDirectory/useLocalFriends';
-import { findNotificationPrayer, readPrayerNotificationTarget } from '../utils/prayerNotificationNavigation';
+import { savedNotificationPrayer, readPrayerNotificationTarget, takePrayerOpen } from '../utils/prayerNotificationNavigation';
 import { readCachedProfile, refreshProfile } from '../utils/profileCache';
 import { readTabJson, tabReadKey } from '../utils/tabRequests';
 import { runSessionTask } from '../utils/sessionTasks';
@@ -58,6 +59,7 @@ export default function PrayPage() {
         else setActivePrayTab('personal');
     };
     const pageActive = useTabPageActive();
+    const pathname = usePathname();
     const [historyStarted, setHistoryStarted] = usePrayerField('historyStarted');
     const historyActive = pageActive && Boolean(historyStarted);
     useEffect(() => {
@@ -248,43 +250,56 @@ export default function PrayPage() {
 
     const [notificationTarget, setNotificationTarget] = useState(null);
     const [notificationPrayerId, setNotificationPrayerId] = useState(null);
-    const [notificationKey, setNotificationKey] = useState(0);
+    const [targetStatus, setTargetStatus] = useState('opening');
     const notificationTargetRef = useRef(null);
+    useLayoutEffect(() => () => { notificationTargetRef.current = null; }, [session]);
+    const expandNotification = useCallback(prayer => {
+        setNotificationPrayerId(String(prayer._id));
+        setExpandedFriendPrayers(previous => previous.has(prayer._id) ? previous : new Set(previous).add(prayer._id));
+    }, [setExpandedFriendPrayers]);
 
     useLayoutEffect(() => {
         if (!pageActive) return;
         const openTarget = (target) => {
-            notificationTargetRef.current = target;
-            setNotificationKey(value => value + 1);
+            const key = Number(session.get('notificationSequence') || 0) + 1;
+            session.set('notificationSequence', key);
+            const intent = { ...target, key };
+            notificationTargetRef.current = intent;
+            setTargetStatus(navigator.onLine === false ? 'offline' : 'opening');
             setListTarget(null);
-            setNotificationPrayerId(null);
-            setNotificationTarget(target);
+            const saved = savedNotificationPrayer(getCachedPrayerSnapshot()?.prayers || EMPTY_CIRCLE, intent);
+            if (saved) expandNotification(saved);
+            else setNotificationPrayerId(null);
+            setNotificationTarget(intent);
             setActivePrayTab('shared');
             setCircleFilter('all');
         };
-        const target = readPrayerNotificationTarget(window.location.search);
-        if (target) openTarget(target);
-        const handleOpen = (event) => {
-            if (!event.detail?.href) return;
-            const url = new URL(event.detail.href, window.location.origin);
-            event.preventDefault();
-            openTarget(readPrayerNotificationTarget(url.search));
+        const handleOpen = () => {
+            // A swipe preview may be active before its route has committed.
+            if (!['/', '/index.html', '/pray', '/pray/', '/pray/index.html'].includes(location.pathname)) return;
+            const url = new URL(location.href);
+            const launchTarget = readPrayerNotificationTarget(url.search);
+            const target = takePrayerOpen(userId) || launchTarget;
+            if (!target) return;
+            if (launchTarget) {
+                url.searchParams.delete('shareId');
+                url.searchParams.delete('notificationType');
+                history.replaceState(history.state, '', url);
+            }
+            openTarget(target);
         };
-        window.addEventListener('taspe7:open-prayer', handleOpen);
-        return () => window.removeEventListener('taspe7:open-prayer', handleOpen);
-    }, [pageActive, setActivePrayTab, setCircleFilter]);
+        handleOpen();
+        window.addEventListener('taspe7:prayer-target-ready', handleOpen);
+        return () => window.removeEventListener('taspe7:prayer-target-ready', handleOpen);
+    }, [pageActive, pathname, userId, session, expandNotification, setActivePrayTab, setCircleFilter]);
 
     // The target can arrive from local storage or the inbox sync. Expand it once,
     // without changing the card's styling or preventing the user from closing it.
     useLayoutEffect(() => {
         if (!notificationTarget || notificationPrayerId !== null) return;
-        const prayer = findNotificationPrayer(guestPrays, notificationTarget);
-        if (!prayer) return;
-        // A reply push can arrive before its payload. Do not open/clear the older sent content.
-        if (notificationTarget.type === 'PRAY_CONFIRMED' && prayer.sharedWith?.status !== 'confirmed') return;
-        setNotificationPrayerId(String(prayer._id));
-        setExpandedFriendPrayers((prev) => new Set(prev).add(prayer._id));
-    }, [guestPrays, notificationTarget, notificationPrayerId, setExpandedFriendPrayers]);
+        const prayer = savedNotificationPrayer(guestPrays, notificationTarget);
+        if (prayer) expandNotification(prayer);
+    }, [guestPrays, notificationTarget, notificationPrayerId, expandNotification]);
 
     const unreadPrayCount = unreadPrayerIds.size;
     const circleText = prayerCircleText(language);
@@ -431,7 +446,7 @@ export default function PrayPage() {
         const endpoint = `${API_URL}/users/pray-time/${kind === 'replies' ? 'sent-updates' : 'inbox'}`;
         const selectedTarget = notificationTargetRef.current;
         await runSessionTask(tabReadKey(targetOnly ? `${endpoint}:target:${selectedTarget?.shareId}` : endpoint, token), async () => {
-            const active = () => session.active && session.owner === String(userId) && (!targetOnly || notificationTargetRef.current?.shareId === selectedTarget?.shareId);
+            const active = () => session.active && session.owner === String(userId) && (!targetOnly || notificationTargetRef.current === selectedTarget);
             try {
                 if (!active() || !canStart()) return;
                 const started = Date.now();
@@ -453,7 +468,7 @@ export default function PrayPage() {
                     target: target?.type === (kind === 'replies' ? 'PRAY_CONFIRMED' : 'PRAY_SHARED') ? target.shareId : null,
                     read: params => readTabJson(`${endpoint}?${new URLSearchParams(params)}`, token, { maxAge: 0 }),
                     download: (item, reply) => downloadPrayerPayload({ url: `${API_URL}/users/pray-time/inbox/payload/${encodeURIComponent(item.shareId)}${reply ? '?kind=reply' : ''}`,
-                        token, shareId: item.shareId, isAnonymous: item.isAnonymous, reply }, active),
+                        token, shareId: item.shareId, isAnonymous: item.isAnonymous, reply }, active, targetOnly),
                     remove, saveDeletionCursor: cursor => remove([], cursor),
                     acknowledge: async (shareId, reply) => {
                         if (!active()) return { ok: false };
@@ -480,18 +495,35 @@ export default function PrayPage() {
                         return active();
                     },
                 });
+                if (targetOnly && active() && !result.targetSaved) {
+                    setTargetStatus(result.failures ? 'failed' : 'unavailable');
+                }
                 if (!targetOnly && active() && !result.failures && revision === session.get('deliveryRevision:' + kind)) {
                     session.set(freshKey, started);
                 }
             } catch {
+                if (targetOnly && active()) setTargetStatus(navigator.onLine === false ? 'offline' : 'failed');
                 // Pending deliveries retry on the next poll, reconnect or foreground refresh.
             }
         }, { force });
     }, [token, userId, session, refreshRecordings, setGuestPrays]);
     useEffect(() => {
-        if (!notificationTarget) return;
-        void syncDeliveries(notificationTarget.type === 'PRAY_CONFIRMED' ? 'replies' : 'inbox', true, true);
-    }, [notificationTarget, syncDeliveries]);
+        if (!notificationTarget || notificationPrayerId !== null) return;
+        const requestMissing = () => {
+            if (notificationTargetRef.current === notificationTarget) {
+                setTargetStatus('opening');
+                void syncDeliveries(notificationTarget.type === 'PRAY_CONFIRMED' ? 'replies' : 'inbox', true, true);
+            }
+        };
+        const offline = () => setTargetStatus('offline');
+        if (navigator.onLine !== false) requestMissing();
+        window.addEventListener('online', requestMissing);
+        window.addEventListener('offline', offline);
+        return () => {
+            window.removeEventListener('online', requestMissing);
+            window.removeEventListener('offline', offline);
+        };
+    }, [notificationTarget, notificationPrayerId, syncDeliveries]);
 
     useEffect(() => {
         if (!historyActive || !hasSnapshot || activePrayTab !== 'shared' || !token || !userId) return;
@@ -655,6 +687,8 @@ export default function PrayPage() {
                             hasSnapshot={hasSnapshot} storageError={storageError} loadingLabel={t('loadingSavedPrayers')} />
                     </div>
                     {sharedTabVisited && <div hidden={activePrayTab !== 'shared'}>
+                    {circleFilter === 'all' && notificationTarget && notificationPrayerId === null &&
+                        <p role="status" className="mb-2 px-3 text-xs text-slate-400">{circleText.notification[targetStatus]}</p>}
                     <ListPanel
                         title={activePrayTab === 'personal' ? t('myPrayTimeNotes')
                             : circleFilter === 'unread' ? `${circleText.unread} (${unreadPrayCount})`
@@ -693,7 +727,8 @@ export default function PrayPage() {
                         }
                         active={activePrayTab === 'shared'} scope={`shared:${circleFilter}`}
                         targetId={listTarget?.scope === `shared:${circleFilter}` ? listTarget.id : circleFilter === 'all' ? notificationPrayerId : null}
-                        targetKey={listTarget?.scope === `shared:${circleFilter}` ? listTarget.key : `notification:${notificationKey}`}
+                        targetKey={listTarget?.scope === `shared:${circleFilter}` ? listTarget.key : `notification:${notificationTarget?.key}`}
+                        targetReply={!listTarget && notificationTarget?.type === 'PRAY_CONFIRMED'}
                         renderItem={renderPrayer}
                         hasSnapshot={hasSnapshot} storageError={storageError} loadingLabel={t('loadingSavedPrayers')}
                     />

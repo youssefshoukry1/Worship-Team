@@ -26,7 +26,7 @@ async function setup(t, { initial = 'none', failure = false, accepted = false } 
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(({ viewerId }) => {
     for (const [key, value] of Object.entries({
-      wasla_splash_version: '1.0.6', user_Taspe7_Token: 'optimistic-test',
+      'app-language': 'en', wasla_splash_version: '1.0.6', user_Taspe7_Token: 'optimistic-test',
       user_Taspe7_ID: viewerId, user_Taspe7_Username: 'viewer', user_Taspe7_GlobalRole: 'USER',
     })) localStorage.setItem(key, value);
   }, { viewerId });

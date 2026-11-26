@@ -1,8 +1,9 @@
 'use client';
 // Before changing Friends notes, read ./README.md for cache and lifecycle rules.
+import FriendWindow from './FriendWindow';
 import PageSkeleton from '../components/PageSkeleton';
 
-import { useState, useEffect, useLayoutEffect, useContext, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useLayoutEffect, useContext, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Users,
@@ -16,20 +17,25 @@ import {
 } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
 import { useTabPageActive, useTabViewMemory } from '../components/TabPageActivity';
+import { handlePeoplePush } from '../utils/peoplePageCache';
+import { fetchTabJson, friendsSummaryKey, readTabResource } from '../utils/tabRequests';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { showToast } from '../components/ToastContainer';
 import OfflineAvatar from '../components/OfflineAvatar';
 import FriendPhotoViewer from '../components/FriendPhotoViewer';
 import { cacheAvatarsInBackground } from '../utils/avatarStorage';
-import usePeoplePage, { beginPeopleMutation, endPeopleMutation } from '../utils/usePeoplePage';
+import usePeoplePage from '../utils/usePeoplePage';
 import useLocalFriends from '../utils/friendDirectory/useLocalFriends';
-import { changeFriendship } from '../utils/friendshipActions';
+import { useFriendActions } from '../utils/useFriendActions';
+import { projectRequestRows } from '../utils/friendRequestRows';
+import { normalizeFriendSearch } from '../utils/friendDirectory/store';
 import FriendDirectoryStatus from '../components/FriendDirectoryStatus';
+import PeopleRows from '../components/PeopleRows';
 import PeoplePager from '../components/PeoplePager';
 import { readFriendNotificationTarget } from '../utils/friendNotificationNavigation';
 
 import TestimonyBoard from '../components/testimonies/TestimonyBoard';
-import { announceTestimonyChange, profileHref } from '../components/testimonies/testimonyApi';
+import { profileHref } from '../components/testimonies/testimonyApi';
 
 const API_URL = getApiBaseUrl();
 
@@ -44,48 +50,107 @@ export default function FriendsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showFriendsSearch, setShowFriendsSearch] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const discoveryQuery = showFriendsSearch && activeTab !== 'friends'
+    ? searchQuery.trim().replace(/^@/, '').trim().toLowerCase() : '';
+  const searchMatches = discoveryQuery.length >= 2 && searchTerm === discoveryQuery;
   const incomingPage = usePeoplePage('friend-requests?kind=incoming', isLogin, user_id, pageActive && activeTab === 'requests');
   const outgoingPage = usePeoplePage('friend-requests?kind=outgoing', isLogin, user_id, pageActive && activeTab === 'sent');
   const friendsPage = useLocalFriends(isLogin, user_id, activeTab === 'friends' ? searchQuery : '', pageActive);
   const suggestedPage = usePeoplePage('friend-suggestions', isLogin, user_id, pageActive && activeTab === 'requests');
-  const searchPage = usePeoplePage(`people-search?q=${encodeURIComponent(searchTerm)}`, isLogin, user_id, pageActive && activeTab !== 'friends' && searchTerm.length >= 2, false);
-  const { items: incomingRequests, setItems: setIncomingRequests } = incomingPage;
-  const { items: outgoingRequests, setItems: setOutgoingRequests } = outgoingPage;
-  const { items: friends, setItems: setFriends, reveal: revealFriend } = friendsPage;
+  const searchPage = usePeoplePage(`people-search?q=${encodeURIComponent(searchTerm)}`, isLogin, user_id, pageActive && searchMatches, false);
+  const { pending, actions } = useFriendActions(isLogin, user_id);
+  const setIncomingRequests = incomingPage.setItems;
+  const { setItems: setFriends, reveal: revealFriend, contains: containsFriend } = friendsPage;
+  const incomingRequests = useMemo(() => [...pending.values()].reduce((rows, change) =>
+    projectRequestRows(rows, 'incoming', change), incomingPage.items), [incomingPage.items, pending]);
+  const outgoingRequests = useMemo(() => [...pending.values()].reduce((rows, change) =>
+    projectRequestRows(rows, 'outgoing', change), outgoingPage.items), [outgoingPage.items, pending]);
+  const friends = useMemo(() => {
+    if (!pending.size) return friendsPage.items;
+    const rows = friendsPage.items.filter(person => pending.get(person._id)?.before !== 'friends');
+    const terms = normalizeFriendSearch(searchQuery).replace(/^@/, '').split(/\s+/).filter(Boolean);
+    for (const { person, after } of pending.values()) {
+      if (after === 'friends' && !rows.some(row => row._id === person._id)
+        && terms.every(term => normalizeFriendSearch(`${person.Name} ${person.username}`).includes(term))) rows.push(person);
+    }
+    return rows;
+  }, [friendsPage.items, pending, searchQuery]);
   const suggestions = suggestedPage.items, suggestionsLoading = suggestedPage.loading && !suggestedPage.ready;
-  const searchResults = searchTerm === searchQuery.trim().replace(/^@/, '') ? searchPage.items : [];
-  const isSearching = searchPage.loading;
+  const searchResults = searchMatches ? searchPage.items : [];
+  const waitingForSearch = discoveryQuery.length >= 2 && (!searchMatches || (!searchPage.ready && !searchPage.error));
+  const isSearching = waitingForSearch || (searchMatches && searchPage.loading);
   const currentPage = activeTab === 'requests' ? incomingPage : activeTab === 'sent' ? outgoingPage : friendsPage;
   const loading = !currentPage.ready && !currentPage.error;
-  const [totals, setTotals] = useState({});
-  const incomingTotal = totals.incoming ?? incomingPage.total ?? 0;
-  const outgoingTotal = totals.outgoing ?? outgoingPage.total ?? 0;
-  const friendsTotal = friendsPage.complete ? friendsPage.total : (friendsPage.knownTotal || totals.friends || 0);
-  const [actionLoading, setActionLoading] = useState({});
+  const [summary, setTotals] = useState(null);
+  const totals = summary?.key === friendsSummaryKey(isLogin, user_id) ? summary.result : {};
+  const projectedCount = (kind, total) => Math.max(0, [...pending.values()].reduce(
+    (count, change) => count + Number(change.after === kind) - Number(change.before === kind), total));
+  const incomingTotal = projectedCount('incoming', totals.incoming ?? incomingPage.total ?? 0);
+  const outgoingTotal = projectedCount('outgoing', totals.outgoing ?? outgoingPage.total ?? 0);
+  const savedFriendsTotal = friendsPage.complete ? friendsPage.total : (friendsPage.knownTotal || totals.friends || 0);
+  const friendsTotal = Math.max(0, [...pending.values()].reduce((count, change) => {
+    if (change.after === 'friends' && !containsFriend(change.person._id)) return count + 1;
+    if (change.before === 'friends' && containsFriend(change.person._id)) return count - 1;
+    return count;
+  }, savedFriendsTotal));
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const closePhoto = useCallback(() => setSelectedPhoto(null), []);
 
   const [notificationTarget, setNotificationTarget] = useState(null);
+  const pageRoot = useRef(null);
+  const lastNotificationSearch = useRef(null);
+  const [targetMessage, setTargetMessage] = useState('');
   const notificationScrolledRef = useRef(false);
-  const refreshSummary = useCallback(async (signal) => {
-    try {
-      const response = await fetch(`${API_URL}/users/friends-summary`, { signal, headers: { Authorization: `Bearer ${isLogin}` }, cache: 'no-store' });
-      if (response.ok) { const result = await response.json(); if (!signal?.aborted) setTotals(result); }
-    } catch { /* Keep previous totals while offline. */ }
-  }, [isLogin]);
+  const markRevealed = useCallback(() => { notificationScrolledRef.current = true; }, []);
   useEffect(() => {
-    if (!pageActive || !isLogin) return;
-    const controller = new AbortController();
-    const refresh = () => { if (document.visibilityState === 'visible') void refreshSummary(controller.signal); };
-    refresh();
-    window.addEventListener('taspe7:friends-push', refresh);
+    if (!pageActive || !isLogin || !user_id) return;
+    const key = friendsSummaryKey(isLogin, user_id);
+    let sequence = 0, deferred = false;
+    const refresh = async () => {
+      if (document.visibilityState !== 'visible' || !navigator.onLine) return;
+      if (actions.snapshot().size) { deferred = true; return; }
+      deferred = false;
+      const current = ++sequence;
+      try {
+        const result = await readTabResource(key, signal => fetchTabJson(`${API_URL}/users/friends-summary`, isLogin, signal));
+        if (current !== sequence) return;
+        if (actions.snapshot().size) deferred = true;
+        else setTotals({ key, result });
+      } catch { /* Keep saved counts while offline or when superseded. */ }
+    };
+    const pushed = event => {
+      handlePeoplePush(event, isLogin, user_id);
+      const change = event.detail?.friendChange;
+      if (change) setTotals(previous => {
+        if (previous?.key !== key) return previous;
+        const result = { ...previous.result };
+        for (const kind of ['incoming', 'outgoing', 'friends']) {
+          if (Number.isFinite(result[kind])) result[kind] = Math.max(0, result[kind] + Number(change.after === kind) - Number(change.before === kind));
+        }
+        return { key, result };
+      });
+      void refresh();
+    };
+    const unsubscribe = actions.subscribe(() => {
+      if (deferred && !actions.snapshot().size) void refresh();
+    });
+    void refresh();
+    window.addEventListener('taspe7:friends-push', pushed);
     window.addEventListener('online', refresh);
-    return () => { controller.abort(); window.removeEventListener('taspe7:friends-push', refresh); window.removeEventListener('online', refresh); };
-  }, [pageActive, isLogin, refreshSummary]);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      ++sequence;
+      unsubscribe();
+      window.removeEventListener('taspe7:friends-push', pushed);
+      window.removeEventListener('online', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [pageActive, activeTab, isLogin, user_id, actions]);
   useLayoutEffect(() => {
     if (!pageActive) return;
     const open = (target) => {
       if (!target) return;
+      setTargetMessage('');
       notificationScrolledRef.current = false;
       setNotificationTarget(target);
       setActiveTab(target.tab);
@@ -93,7 +158,17 @@ export default function FriendsPage() {
       setSelectedPhoto(null);
 
     };
-    open(readFriendNotificationTarget(window.location.search));
+    const saved = window.history.state?.friendsReturn;
+    if (saved && saved.owner === user_id) {
+      window.history.replaceState({ ...window.history.state, friendsReturn: null }, '');
+      open({ tab: 'friends', actorId: saved.id, offset: saved.offset });
+      setSearchQuery(saved.query);
+      setShowFriendsSearch(Boolean(saved.query));
+      lastNotificationSearch.current = window.location.search;
+    } else if (lastNotificationSearch.current !== window.location.search) {
+      lastNotificationSearch.current = window.location.search;
+      open(readFriendNotificationTarget(window.location.search));
+    }
     const handleOpen = (event) => {
       const href = event.detail?.href;
       if (!href) return;
@@ -105,12 +180,12 @@ export default function FriendsPage() {
     };
     window.addEventListener('taspe7:open-friends', handleOpen);
     return () => window.removeEventListener('taspe7:open-friends', handleOpen);
-  }, [pageActive]);
+  }, [pageActive, user_id]);
 
   useLayoutEffect(() => {
     if (!pageActive || !notificationTarget?.actorId || notificationScrolledRef.current || activeTab !== notificationTarget.tab) return;
-    const row = Array.from(document.querySelectorAll('[data-friend-id]'))
-      .find(element => element.dataset.friendId === notificationTarget.actorId);
+    if (activeTab === 'friends') return;
+    const row = pageRoot.current?.querySelector(`[data-friend-id="${CSS.escape(notificationTarget.actorId)}"]`);
     if (row) {
       notificationScrolledRef.current = true;
       row.scrollIntoView({ behavior: 'instant', block: 'center' });
@@ -120,168 +195,72 @@ export default function FriendsPage() {
   // Notification targets can be outside the downloaded pages. Fetch just that row.
   useEffect(() => {
     const target = notificationTarget?.actorId;
-    if (!pageActive || !target || currentPage.loading || !currentPage.ready || notificationScrolledRef.current) return;
+    if (!pageActive || activeTab !== notificationTarget?.tab || !target || pending.has(target) || currentPage.loading || !currentPage.ready || notificationScrolledRef.current) return;
     const isFriends = notificationTarget.tab === 'friends';
     const rows = isFriends ? friends : incomingRequests;
     if (rows.some(row => String(isFriends ? row._id : row.from?._id) === target)) return;
     if (isFriends && revealFriend(target)) return;
+    const unavailable = message => { notificationScrolledRef.current = true; setTargetMessage(message); };
+    if (!navigator.onLine) { unavailable('This person is unavailable in your saved list.'); return; }
     const controller = new AbortController();
     const path = isFriends ? 'friends' : 'friend-requests?kind=incoming';
-    fetch(`${API_URL}/users/${path}${path.includes('?') ? '&' : '?'}target=${target}`, { signal: controller.signal, headers: { Authorization: `Bearer ${isLogin}` } })
+    fetch(`${API_URL}/users/${path}${path.includes('?') ? '&' : '?'}target=${encodeURIComponent(target)}`, { signal: controller.signal, headers: { Authorization: `Bearer ${isLogin}` } })
       .then(response => response.ok ? response.json() : null).then(result => {
         if (!controller.signal.aborted && result?.items?.length) {
           const update = isFriends ? setFriends : setIncomingRequests;
           update(previous => [...previous, ...result.items.filter(item => !previous.some(old => old._id === item._id))]);
-        }
-      }).catch(() => {});
+        } else if (!controller.signal.aborted) unavailable(result ? 'This person is no longer in this list.' : 'Could not open this person.');
+      }).catch(() => { if (!controller.signal.aborted) unavailable('Could not open this person.'); });
     return () => controller.abort();
-  }, [pageActive, notificationTarget, currentPage.loading, currentPage.ready, friends, incomingRequests, isLogin, setFriends, setIncomingRequests, revealFriend]);
+  }, [pageActive, activeTab, pending, notificationTarget, currentPage.loading, currentPage.ready, friends, incomingRequests, isLogin, setFriends, setIncomingRequests, revealFriend]);
 
   useEffect(() => {
-    cacheAvatarsInBackground([...friends, ...incomingRequests.map(request => request.from), ...outgoingRequests.map(request => request.to)].filter(Boolean));
-  }, [friends, incomingRequests, outgoingRequests]);
+    cacheAvatarsInBackground(incomingPage.items.map(request => request.from));
+  }, [incomingPage.items]);
   useEffect(() => {
-    const timer = setTimeout(() => setSearchTerm(searchQuery.trim().replace(/^@/, '')), 300);
+    cacheAvatarsInBackground(outgoingPage.items.map(request => request.to));
+  }, [outgoingPage.items]);
+  useEffect(() => {
+    if (!pageActive || discoveryQuery.length < 2) {
+      setSearchTerm('');
+      return;
+    }
+    const timer = setTimeout(() => setSearchTerm(discoveryQuery), 300);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [pageActive, discoveryQuery]);
 
-  // Helper status checker for a target user
-  const getUserStatus = (targetId) => {
-    if (targetId === user_id) return 'self';
-    const known = searchResults.find(person => person._id === targetId);
-    if (known?.relationship && !actionLoading[targetId]) return ({ friends: 'friend', outgoing: 'requested' })[known.relationship] || known.relationship;
-    if (friends.some((f) => (f._id || f) === targetId)) return 'friend';
-    if (outgoingRequests.some((r) => (r.to?._id || r.to) === targetId)) return 'requested';
-    if (incomingRequests.some((r) => (r.from?._id || r.from) === targetId)) return 'incoming';
-    const person = searchResults.find(person => person._id === targetId) || suggestions.find(person => person._id === targetId);
-    return ({ friends: 'friend', outgoing: 'requested' })[person?.relationship] || person?.relationship || 'none';
-  };
+  const requestStatuses = useMemo(() => {
+    const statuses = new Map();
+    for (const { from } of incomingRequests) statuses.set(from?._id || from, 'incoming');
+    for (const { to } of outgoingRequests) statuses.set(to?._id || to, 'outgoing');
+    return statuses;
+  }, [incomingRequests, outgoingRequests]);
+  const getUserStatus = useCallback(person => {
+    if (person._id === user_id) return 'self';
+    return pending.get(person._id)?.after
+      ?? (containsFriend(person._id) ? 'friends' : requestStatuses.get(person._id))
+      ?? person.relationship ?? 'none';
+  }, [pending, containsFriend, requestStatuses, user_id]);
+  const visibleSuggestions = useMemo(() => {
+    return suggestions.flatMap((user, index) => getUserStatus(user) === 'none' ? [{ user, index }] : []);
+    // containsFriend reads the directory index. Its item snapshot signals membership changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestions, getUserStatus, friendsPage.items]);
 
-  // Send friend request
-  const beginAction = () => beginPeopleMutation(isLogin);
-  const finishAction = () => {
-    endPeopleMutation(isLogin);
-    window.dispatchEvent(new CustomEvent('taspe7:friends-push', { detail: { notesHandled: true } }));
-    announceTestimonyChange();
-  };
-
-  const handleSendRequest = async (targetUser) => {
-    beginAction();
-    const targetId = targetUser._id;
-    setActionLoading((prev) => ({ ...prev, [targetId]: true }));
-
-    // Optimistic update
-    setOutgoingRequests((prev) => [...prev, { to: targetUser, createdAt: new Date() }]);
-
+  const perform = async (person, action, before) => {
     try {
-      const res = await fetch(`${API_URL}/users/friend-request/${targetId}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${isLogin}` }
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.msg || 'Request failed');
-      }
-
-      if (data.status === 'accepted') {
-        setOutgoingRequests((prev) => prev.filter((r) => (r.to?._id || r.to) !== targetId));
-        setIncomingRequests((prev) => prev.filter((r) => (r.from?._id || r.from) !== targetId));
-        setFriends((prev) => [...prev, targetUser]);
-        showToast({ message: `You are now friends with @${targetUser.username}`, type: 'success' });
-      } else {
-        showToast({ message: `Request sent to @${targetUser.username}`, type: 'success' });
-      }
-    } catch (err) {
-      setOutgoingRequests((prev) => prev.filter((r) => (r.to?._id || r.to) !== targetId));
-      showToast({ message: err.message, type: 'error' });
-    } finally {
-      finishAction();
-      setActionLoading((prev) => ({ ...prev, [targetId]: false }));
-    }
-  };
-
-  // Cancel friend request (sender unsend or receiver dismiss)
-  const handleCancelRequest = async (targetId) => {
-    beginAction();
-    setActionLoading((prev) => ({ ...prev, [targetId]: true }));
-
-    // Optimistic removal
-    const prevIncoming = [...incomingRequests];
-    const prevOutgoing = [...outgoingRequests];
-    setIncomingRequests((prev) => prev.filter((r) => (r.from?._id || r.from) !== targetId));
-    setOutgoingRequests((prev) => prev.filter((r) => (r.to?._id || r.to) !== targetId));
-
-    try {
-      const res = await fetch(`${API_URL}/users/friend-request/cancel/${targetId}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${isLogin}` }
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.msg || 'Cancel failed');
-      }
-      showToast({ message: 'Request cancelled', type: 'info' });
-    } catch (err) {
-      setIncomingRequests(prevIncoming);
-      setOutgoingRequests(prevOutgoing);
-      showToast({ message: err.message, type: 'error' });
-    } finally {
-      finishAction();
-      setActionLoading((prev) => ({ ...prev, [targetId]: false }));
-    }
-  };
-
-  // Accept incoming friend request
-  const handleAcceptRequest = async (targetUser) => {
-    beginAction();
-    const targetId = targetUser._id;
-    setActionLoading((prev) => ({ ...prev, [targetId]: true }));
-
-    // Optimistic update
-    const prevIncoming = [...incomingRequests];
-    setIncomingRequests((prev) => prev.filter((r) => (r.from?._id || r.from) !== targetId));
-    setFriends((prev) => [...prev, targetUser]);
-
-    try {
-      const res = await fetch(`${API_URL}/users/friend-request/accept/${targetId}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${isLogin}` }
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.msg || 'Accept failed');
-      }
-      showToast({ message: `Accepted @${targetUser.username}'s request!`, type: 'success' });
-    } catch (err) {
-      setIncomingRequests(prevIncoming);
-      setFriends((prev) => prev.filter((f) => (f._id || f) !== targetId));
-      showToast({ message: err.message, type: 'error' });
-    } finally {
-      finishAction();
-      setActionLoading((prev) => ({ ...prev, [targetId]: false }));
-    }
-  };
-
-  // Remove friend
-  const handleRemoveFriend = async (targetId, username) => {
-    beginAction();
-    setActionLoading((prev) => ({ ...prev, [targetId]: true }));
-
-    try {
-      await changeFriendship(isLogin, targetId, 'remove');
-      showToast({ message: `Removed @${username} from friends`, type: 'info' });
-      announceTestimonyChange();
-    } catch (err) {
-      showToast({ message: err.message, type: 'error' });
-    } finally {
-      finishAction();
-      setActionLoading((prev) => ({ ...prev, [targetId]: false }));
-    }
+      const after = await actions.run(person, action, before);
+      if (!after) return;
+      const message = after === 'friends' ? `You are now friends with @${person.username}`
+        : after === 'outgoing' ? `Request sent to @${person.username}`
+        : action === 'remove' ? `Removed @${person.username} from friends` : 'Request cancelled';
+      showToast({ message, type: after === 'none' ? 'info' : 'success' });
+    } catch (error) { showToast({ message: error.message, type: 'error' }); }
   };
 
   return (
-    <div className="app-page min-h-screen text-slate-100 pb-28 pt-4 px-4 sm:px-6 max-w-2xl mx-auto transition-colors duration-150">
+    <div ref={pageRoot} className="app-page min-h-screen text-slate-100 pb-28 pt-4 px-4 sm:px-6 max-w-2xl mx-auto transition-colors duration-150">
+      {targetMessage && activeTab === notificationTarget?.tab && <p role="status" className="mb-3 text-sm text-slate-400">{targetMessage}</p>}
       {/* Top Header */}
       <div className="flex items-center justify-between gap-3 mb-6 relative z-30">
         <h1 data-preview-content={currentPage.ready ? 'friends' : undefined} className={`${showFriendsSearch ? 'hidden sm:block' : ''} text-lg sm:text-xl font-bold tracking-tight text-white`}>Friends activity</h1>
@@ -298,34 +277,38 @@ export default function FriendsPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by @username..."
-            className="w-full h-full pl-4 pr-8 py-2 bg-transparent text-sm text-white placeholder-gray-400/70 outline-none relative z-10 font-light tracking-wide"
+            className={`w-full h-full pl-4 ${isSearching ? 'pr-16' : 'pr-8'} py-2 bg-transparent text-sm text-white placeholder-gray-400/70 outline-none relative z-10 font-light tracking-wide`}
           />
-          {isSearching ? (
-            <Loader2 className="absolute z-20 right-3.5 w-4 h-4 text-[#00C2FF] animate-spin" />
-          ) : searchQuery ? (
+          {isSearching && (
+            <Loader2 className="absolute z-20 right-3.5 w-4 h-4 text-[#00C2FF] animate-spin pointer-events-none" />
+          )}
+          {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute z-20 right-3.5 p-0.5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white"
+              aria-label="Clear search"
+              className={`absolute z-20 ${isSearching ? 'right-9' : 'right-3.5'} p-0.5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white`}
             >
               <X className="w-3.5 h-3.5" />
             </button>
-          ) : null}
+          )}
         </div>
 
         {/* Live Search Results Dropdown / Panel */}
-        {activeTab !== 'friends' && searchQuery.trim().length >= 2 && (
+        {discoveryQuery.length >= 2 && (
           <div className="absolute top-full right-0 mt-2 w-[min(360px,calc(100vw-32px))] max-h-[60dvh] overflow-y-auto p-2 rounded-2xl bg-app-panel/95 border border-white/10 backdrop-blur-xl shadow-2xl shadow-black/50 space-y-1.5">
             <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400">
               Search Results
             </div>
-            {searchResults.length === 0 && !isSearching && !searchPage.error ? (
+            {waitingForSearch ? (
+              <p role="status" className="p-4 text-center text-xs text-slate-400">Searching...</p>
+            ) : searchPage.ready && !searchPage.loading && !searchResults.length && !searchPage.error ? (
               <div className="p-4 text-center text-xs text-slate-400">
                 No users found matching &ldquo;{searchQuery}&rdquo;
               </div>
             ) : (
               searchResults.map((user) => {
-                const status = getUserStatus(user._id);
-                const isLoading = actionLoading[user._id];
+                const status = getUserStatus(user);
+                const isLoading = pending.has(user._id);
 
                 return (
                   <div
@@ -352,13 +335,13 @@ export default function FriendsPage() {
                     <div className="shrink-0">
                       {status === 'self' ? (
                         <span className="text-[11px] text-slate-500 font-medium px-2 py-1">You</span>
-                      ) : status === 'friend' ? (
+                      ) : status === 'friends' ? (
                         <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg font-medium">
                           <Check className="w-3 h-3" /> Friends
                         </span>
-                      ) : status === 'requested' ? (
+                      ) : status === 'outgoing' ? (
                         <button
-                          onClick={() => handleCancelRequest(user._id)}
+                          onClick={() => perform(user, 'cancel', status)}
                           disabled={isLoading}
                           className="inline-flex items-center gap-1 text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg font-medium transition-colors"
                         >
@@ -367,14 +350,14 @@ export default function FriendsPage() {
                       ) : status === 'incoming' ? (
                         <div className="flex items-center gap-1.5">
                           <button
-                            onClick={() => handleAcceptRequest(user)}
+                            onClick={() => perform(user, 'accept', 'incoming')}
                             disabled={isLoading}
                             className="text-[11px] bg-[#00C2FF] text-[#020817] font-semibold px-2.5 py-1 rounded-lg hover:brightness-110 transition-all"
                           >
                             Accept
                           </button>
                           <button
-                            onClick={() => handleCancelRequest(user._id)}
+                            onClick={() => perform(user, 'cancel', status)}
                             disabled={isLoading}
                             className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
                           >
@@ -383,7 +366,7 @@ export default function FriendsPage() {
                         </div>
                       ) : (
                         <button
-                          onClick={() => handleSendRequest(user)}
+                          onClick={() => perform(user, 'add', 'none')}
                           disabled={isLoading}
                           className="inline-flex items-center gap-1 text-[11px] bg-[#00C2FF]/15 border border-[#00C2FF]/30 text-[#00C2FF] hover:bg-[#00C2FF] hover:text-[#020817] px-2.5 py-1 rounded-lg font-medium transition-all"
                         >
@@ -395,7 +378,7 @@ export default function FriendsPage() {
                 );
               })
             )}
-            <PeoplePager page={searchPage} active={pageActive && searchTerm.length >= 2} />
+            {searchMatches && !waitingForSearch && <PeoplePager page={searchPage} active={pageActive} />}
           </div>
         )}
       </div>)}
@@ -453,7 +436,7 @@ export default function FriendsPage() {
       {loading ? (
         <PageSkeleton variant="friends" compact />
       ) : activeTab === 'requests' ? (
-        <div className="space-y-6">
+        <div className="space-y-6" data-people-section="incoming">
           {/* Incoming Requests */}
           <div>
             <div className="flex items-center gap-2 mb-3 px-1">
@@ -467,15 +450,16 @@ export default function FriendsPage() {
                 No pending incoming requests
               </div>
             ) : (
-              <div className="space-y-2">
-                {incomingRequests.map((req) => {
+              <PeopleRows items={incomingRequests} active={pageActive}>
+                {incomingRequests.map((req, index) => {
                   const sender = req.from || {};
-                  const isLoading = actionLoading[sender._id];
+                  const isLoading = pending.has(sender._id);
 
                   return (
                     <div
                       key={req._id || sender._id}
                       data-friend-id={String(sender._id)}
+                      data-people-row="" data-pending-page={index >= incomingPage.verifiedCount ? "incoming" : undefined}
                       className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-white/20 transition-all"
                     >
                       <div className="flex items-center gap-3 min-w-0 pr-3">
@@ -497,14 +481,14 @@ export default function FriendsPage() {
 
                       <div className="flex items-center gap-2 shrink-0">
                         <button
-                          onClick={() => handleAcceptRequest(sender)}
+                          onClick={() => perform(sender, 'accept', 'incoming')}
                           disabled={isLoading}
                           className="px-3 py-1.5 text-xs font-semibold bg-[#00C2FF] text-[#020817] rounded-xl hover:brightness-110 transition-all disabled:opacity-50"
                         >
                           Accept
                         </button>
                         <button
-                          onClick={() => handleCancelRequest(sender._id)}
+                          onClick={() => perform(sender, 'cancel', 'incoming')}
                           disabled={isLoading}
                           className="px-3 py-1.5 text-xs font-semibold bg-white/5 border border-white/10 text-slate-300 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-50"
                         >
@@ -514,29 +498,29 @@ export default function FriendsPage() {
                     </div>
                   );
                 })}
-              </div>
+              </PeopleRows>
             )}
           </div>
 
-          <PeoplePager page={incomingPage} active={pageActive} />
-          <section aria-label="Suggested friends">
+          <PeoplePager section="incoming" page={incomingPage} active={pageActive} />
+          <section aria-label="Suggested friends" data-people-section="suggested">
             <h2 className="text-xs font-semibold text-slate-400 mb-3 px-1">Suggested friends</h2>
             {suggestionsLoading ? <div role="status" className="p-6 text-center text-xs text-slate-400">Finding people...</div>
-              : suggestions.filter(user => getUserStatus(user._id) === 'none').length === 0 && !suggestedPage.error ? <p className="p-6 rounded-2xl bg-white/[0.02] text-center text-xs text-slate-400">No mutual-friend suggestions yet. Use search to find people you know.</p>
-              : <div className="space-y-2">{suggestions.filter(user => getUserStatus(user._id) === 'none').map(user => (
-                <div key={user._id} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/[0.04] border border-white/10">
+              : visibleSuggestions.length === 0 && !suggestedPage.error ? <p className="p-6 rounded-2xl bg-white/[0.02] text-center text-xs text-slate-400">No mutual-friend suggestions yet. Use search to find people you know.</p>
+              : <PeopleRows items={visibleSuggestions} active={pageActive}>{visibleSuggestions.map(({ user, index }) => (
+                <div key={user._id} data-people-row="" data-pending-page={index >= suggestedPage.verifiedCount ? "suggested" : undefined} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/[0.04] border border-white/10">
                   <button type="button" onClick={() => router.push(profileHref(user._id))} className="flex items-center gap-3 min-w-0 text-left" aria-label={`Open ${user.Name || user.username} profile`}>
                     <OfflineAvatar userKey={user._id || user.username} remoteUrl={user.profilePhoto} name={user.Name} className="w-10 h-10 shrink-0 rounded-full overflow-hidden bg-white/5 flex items-center justify-center text-sky-300" />
                     <span className="min-w-0"><span className="block truncate text-xs sm:text-sm font-semibold text-white">{user.Name || user.username}</span><span className="block truncate text-[11px] text-slate-400">@{user.username}</span><span className="block mt-1 text-[11px] text-sky-300/80">{user.mutualFriendCount} mutual {user.mutualFriendCount === 1 ? 'friend' : 'friends'}</span></span>
                   </button>
-                  <button type="button" disabled={actionLoading[user._id]} onClick={() => handleSendRequest(user)} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500/10 text-sky-300 text-xs font-semibold disabled:opacity-50"><UserPlus className="w-3.5 h-3.5" />Add</button>
+                  <button type="button" disabled={pending.has(user._id)} onClick={() => perform(user, 'add', 'none')} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500/10 text-sky-300 text-xs font-semibold disabled:opacity-50"><UserPlus className="w-3.5 h-3.5" />Add</button>
                 </div>
-              ))}</div>}
-            <PeoplePager page={suggestedPage} active={pageActive} />
+              ))}</PeopleRows>}
+            <PeoplePager section="suggested" page={suggestedPage} active={pageActive} />
           </section>
         </div>
       ) : activeTab === 'sent' ? (
-        <div>          {/* Outgoing Requests */}
+        <div data-people-section="outgoing">          {/* Outgoing Requests */}
           <div>
             <div className="flex items-center gap-2 mb-3 px-1">
               <h2 className="text-xs font-semibold text-slate-400">
@@ -549,14 +533,15 @@ export default function FriendsPage() {
                 No pending sent requests
               </div>
             ) : (
-              <div className="space-y-2">
-                {outgoingRequests.map((req) => {
+              <PeopleRows items={outgoingRequests} active={pageActive}>
+                {outgoingRequests.map((req, index) => {
                   const target = req.to || {};
-                  const isLoading = actionLoading[target._id];
+                  const isLoading = pending.has(target._id);
 
                   return (
                     <div
                       key={req._id || target._id}
+                      data-people-row="" data-pending-page={index >= outgoingPage.verifiedCount ? "outgoing" : undefined}
                       className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] border border-white/10"
                     >
                       <div className="flex items-center gap-3 min-w-0 pr-3">
@@ -577,7 +562,7 @@ export default function FriendsPage() {
                       </div>
 
                       <button
-                        onClick={() => handleCancelRequest(target._id)}
+                        onClick={() => perform(target, 'cancel', 'outgoing')}
                         disabled={isLoading}
                         className="px-3 py-1.5 text-xs font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl hover:bg-amber-500/20 transition-colors disabled:opacity-50"
                       >
@@ -586,9 +571,9 @@ export default function FriendsPage() {
                     </div>
                   );
                 })}
-              </div>
+              </PeopleRows>
             )}
-          </div><PeoplePager page={outgoingPage} active={pageActive} /></div>
+          </div><PeoplePager section="outgoing" page={outgoingPage} active={pageActive} /></div>
       ) : (
         /* My Friends Tab */
         <div>
@@ -597,15 +582,16 @@ export default function FriendsPage() {
           {friends.length === 0 && !friendsPage.error ? (
             <div className="p-10 rounded-2xl bg-white/[0.02] border border-white/5 text-center space-y-2">
               <Users className="w-8 h-8 text-slate-500 mx-auto" />
-              <div className="text-sm font-semibold text-white">{searchQuery ? 'No matching friends' : friendsPage.complete ? 'No friends yet' : 'No saved friends yet'}</div>
+              <div className="text-sm font-semibold text-white">{searchQuery.trim() ? (friendsPage.complete ? 'No matching friends' : 'No match in saved friends') : friendsPage.complete ? 'No friends yet' : 'No saved friends yet'}</div>
               <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                Search for someone using their @username above to send a friend request!
+                To find someone new, search by @username in Requests.
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {friends.map((friend) => {
-                const isLoading = actionLoading[friend._id];
+            <FriendWindow rows={friends} total={Math.max(friends.length, friendsPage.matchedTotal)} active={pageActive}
+              target={notificationTarget?.tab === 'friends' && !notificationScrolledRef.current ? notificationTarget : null} onReveal={markRevealed}>
+              {friend => {
+                const isLoading = pending.has(friend._id);
 
                 return (
                   <div
@@ -633,7 +619,11 @@ export default function FriendsPage() {
                           className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#00C2FF]/20 to-blue-600/30 border border-[#00C2FF]/30 flex items-center justify-center font-bold text-sm text-[#00C2FF] shrink-0 overflow-hidden"
                         />
                       </button>
-                      <button type="button" onClick={() => router.push(profileHref(friend._id))} className="min-w-0 text-left rounded-lg focus-visible:outline-2 focus-visible:outline-sky-400" aria-label={`Open ${friend.Name || 'friend'} profile`}>
+                      <button type="button" onClick={event => {
+                        const offset = event.currentTarget.closest('[data-friend-id]').getBoundingClientRect().top;
+                        window.history.replaceState({ ...window.history.state, friendsReturn: { owner: user_id, id: friend._id, offset, query: searchQuery } }, '');
+                        router.push(profileHref(friend._id));
+                      }} className="min-w-0 text-left rounded-lg focus-visible:outline-2 focus-visible:outline-sky-400" aria-label={`Open ${friend.Name || 'friend'} profile`}>
                         <div className="text-xs sm:text-sm font-semibold text-white truncate hover:text-sky-300 transition-colors">
                           {friend.Name}
                         </div>
@@ -644,7 +634,7 @@ export default function FriendsPage() {
                     </div>
 
                     <button
-                      onClick={() => handleRemoveFriend(friend._id, friend.username)}
+                      onClick={() => perform(friend, 'remove', 'friends')}
                       disabled={isLoading}
                       className="p-2 rounded-xl bg-white/5 hover:bg-rose-500/15 border border-white/10 hover:border-rose-500/30 text-slate-400 hover:text-rose-400 transition-colors disabled:opacity-50"
                       title="Remove Friend"
@@ -653,8 +643,8 @@ export default function FriendsPage() {
                     </button>
                   </div>
                 );
-              })}
-            </div>
+              }}
+            </FriendWindow>
           )}
           <PeoplePager page={friendsPage} active={pageActive} />
         </div>

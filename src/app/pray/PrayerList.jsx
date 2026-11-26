@@ -19,7 +19,7 @@ const PrayerRow = memo(function PrayerRow({ entry, index, count, top, register, 
 
 // Keep the bounded visible rows ready for a return swipe. Only the active
 // page may measure, scroll, observe resizes or advance its loaded batch.
-export default function PrayerList({ items, renderItem, scope, targetId, targetKey }) {
+export default function PrayerList({ items, renderItem, scope, targetId, targetKey, targetReply = false }) {
     const active = useTabPageActive();
     const session = usePrayerSession();
     const { language } = useLanguage();
@@ -77,11 +77,11 @@ export default function PrayerList({ items, renderItem, scope, targetId, targetK
         frame.current = requestAnimationFrame(() => { frame.current = null; measureViewport(); });
     }, [measureViewport]);
 
-    const jumpTo = useCallback((id, offset = 0, focus = false) => {
+    const jumpTo = useCallback((id, offset = 0, focus = false, reply = false) => {
         const current = latest.current;
         const index = current?.items.findIndex(entry => String(entry._id) === id);
         if (index == null || index < 0) return false;
-        pendingJump.current = { id, offset, focus };
+        pendingJump.current = { id, offset, focus, reply };
         restoring.current = true;
         setLimit(previous => prayerBatchFor(index, current.items.length, previous));
         setRevision(value => value + 1);
@@ -147,10 +147,10 @@ export default function PrayerList({ items, renderItem, scope, targetId, targetK
         if (!active || !targetId || consumedTarget.current === targetKey) return;
         let cancelled = false;
         void waitForNavigationIdle().then(() => {
-            if (!cancelled && jumpTo(String(targetId))) consumedTarget.current = targetKey;
+            if (!cancelled && jumpTo(String(targetId), 0, false, targetReply)) consumedTarget.current = targetKey;
         });
         return () => { cancelled = true; };
-    }, [active, targetId, targetKey, items, jumpTo]);
+    }, [active, targetId, targetKey, targetReply, items, jumpTo]);
 
     useLayoutEffect(() => {
         const element = root.current;
@@ -161,11 +161,23 @@ export default function PrayerList({ items, renderItem, scope, targetId, targetK
             const index = layout.indices.get(anchor.id) ?? (!jump && visibleItems.length ? Math.min(anchor.index || 0, visibleItems.length - 1) : undefined);
             if (index !== undefined) {
                 const listTop = element.getBoundingClientRect().top + scrollY;
-                const nextTop = Math.max(0, listTop + layout.offsets[index] + (anchor.offset || 0));
+                let offset = anchor.offset || 0;
+                if (jump?.reply) {
+                    const row = nodes.current.get(jump.id);
+                    const reply = row?.querySelector('[data-prayer-reply-text]');
+                    if (reply) {
+                        const distance = reply.getBoundingClientRect().top - row.getBoundingClientRect().top;
+                        if (distance > innerHeight * 0.6) offset = distance - innerHeight * 0.4;
+                    }
+                }
+                const nextTop = Math.max(0, listTop + layout.offsets[index] + offset);
                 if (Math.abs(nextTop - scrollY) > 1) window.scrollTo({ top: nextTop, behavior: 'instant' });
                 if (jump) {
                     const row = nodes.current.get(jump.id);
-                    if (row && heights.current.has(jump.id)) {
+                    // An already-mounted collapsed row can still have its old
+                    // height until ResizeObserver commits the expanded layout.
+                    if (row && heights.current.has(jump.id) && (!jump.reply ||
+                        Math.abs(heights.current.get(jump.id) - row.getBoundingClientRect().height) <= 1)) {
                         pendingJump.current = null; restoring.current = false;
                         if (jump.focus) row.focus({ preventScroll: true });
                     }
