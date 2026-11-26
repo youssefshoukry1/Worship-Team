@@ -32,24 +32,21 @@ export function otaLaunchScript(apiBase) {
         if (!pending?.report || !token) return;
 
         const controller = new AbortController();
-        let resolve, committed = false, revealTimer;
+        let resolve, committed = false;
         const decision = new Promise(done => { resolve = done; });
-        let deadline = performance.now() + 900;
+        const budget = 4000;
+        const deadline = performance.now() + budget;
         const cancel = () => {
             if (committed) return;
             controller.abort();
             resolve();
         };
-        const timer = setTimeout(cancel, 900);
+        const timer = setTimeout(cancel, budget);
         document.addEventListener('visibilitychange', cancel, { once: true });
         window.addEventListener('pagehide', cancel, { once: true });
-        window.waslaBeforeReveal = () => {
-            if (!committed && !revealTimer) {
-                deadline = Math.min(deadline, performance.now() + 180);
-                revealTimer = setTimeout(cancel, 180);
-            }
-            return decision;
-        };
+        // The preview and live reader must wait on the same decision. An early
+        // paint must not cancel the dashboard check for an already staged OTA.
+        window.waslaBeforeReveal = () => decision;
         const commit = () => {
             if (document.hidden || controller.signal.aborted || performance.now() >= deadline) return false;
             committed = true;
@@ -63,7 +60,6 @@ export function otaLaunchScript(apiBase) {
             if (!switched) resolve();
         }, resolve).finally(() => {
             clearTimeout(timer);
-            clearTimeout(revealTimer);
             document.removeEventListener('visibilitychange', cancel);
             window.removeEventListener('pagehide', cancel);
         });

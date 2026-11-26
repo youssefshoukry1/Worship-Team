@@ -169,3 +169,44 @@ test('a changed account, changed running bundle or failed staged bundle cannot a
         assert.deepEqual(f.calls.map(call => call[0]), ['download']);
     }
 });
+
+test('a ready Pray screen waits for a staged release decision, including slower approvals', async () => {
+    const { otaLaunchScript } = load('src/app/utils/otaLaunchScript.js', {});
+    for (const outcome of ['approved', 'timeout', 'background', 'no update']) {
+        let now = 0, activation, finish;
+        const timers = new Map(), document = new EventTarget(), window = new EventTarget();
+        window.Capacitor = { Plugins: { WaslaLaunch: { ready() {} }, CapacitorUpdater: {} } };
+        const pending = JSON.stringify({ report: {} });
+        const module = { activatePreparedRelease: args => {
+            activation = args;
+            return new Promise(resolve => { finish = resolve; });
+        } };
+        const script = otaLaunchScript('https://api.test').replace("import('/ota-launch.js')", 'Promise.resolve(module)');
+        vm.runInNewContext(script, {
+            window, document, module, AbortController, navigator: { onLine: true }, location: { pathname: '/pray/' },
+            sessionStorage: { getItem() {}, setItem() {} },
+            localStorage: { getItem: key => ({
+                user_Taspe7_Token: 'test', wasla_ota_pending_bundle: outcome === 'no update' ? null : pending,
+            })[key] },
+            performance: { now: () => now, getEntriesByType: () => [{ type: 'navigate' }] },
+            setTimeout: (fn, ms) => { timers.set(fn, ms); return fn; }, clearTimeout: fn => timers.delete(fn),
+        });
+        if (outcome === 'no update') {
+            assert.equal(window.waslaBeforeReveal, undefined);
+            assert.equal(timers.size, 0);
+            continue;
+        }
+        const decision = window.waslaBeforeReveal();
+        assert.equal(window.waslaBeforeReveal(), decision);
+        await Promise.resolve();
+        now = outcome === 'timeout' ? 4000 : 600;
+        for (const [fn, ms] of timers) if (ms <= now) fn();
+        if (outcome === 'background') document.dispatchEvent(new Event('visibilitychange'));
+        assert.equal(activation.commit(), outcome === 'approved');
+        if (outcome !== 'approved') {
+            await decision;
+            assert.equal(activation.signal.aborted, true);
+        }
+        finish(outcome === 'approved');
+    }
+});
