@@ -738,6 +738,45 @@ test('long prayer lists retain audio playback while offscreen and while the comp
   } finally { await context.close(); }
 });
 
+test('Journal defers delivery, Circle retries only failed or invalidated streams', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const calls = { inbox: 0, replies: 0 };
+  try {
+    const page = await context.newPage();
+    await context.route('**/*', route => {
+      const url = new URL(route.request().url());
+      const kind = url.searchParams.get('kind');
+      if (url.pathname.includes('/pray-time/') && kind) {
+        if (kind in calls) calls[kind]++;
+        const status = kind === 'replies' && calls.replies === 1 ? 503 : 200;
+        return route.fulfill({ status, json: { protocol: 2, items: [], nextCursor: null } });
+      }
+      return mockPrayerApi(route, base);
+    });
+    await seed(page, [...personalPrayers(1), received('cached')]);
+    await page.goto(base + '/pray/');
+    const circle = page.getByRole('button', { name: /^Prayer Circle/ });
+    const journal = page.getByRole('button', { name: 'My Journal', exact: true });
+    const open = () => circle.click();
+    const push = type => page.evaluate(type => window.dispatchEvent(new CustomEvent('taspe7:prayer-push', { detail: { type } })), type);
+    await page.locator('[data-prayer-id="personal-0"]').waitFor();
+    await push('PRAY_SHARED');
+    assert.deepEqual(calls, { inbox: 0, replies: 0 });
+    await open();
+    await page.locator('[data-prayer-id="received-cached"]').waitFor();
+    await page.waitForTimeout(250);
+    assert.deepEqual(calls, { inbox: 1, replies: 1 });
+    await journal.click(); await open(); await page.waitForTimeout(250);
+    assert.deepEqual(calls, { inbox: 1, replies: 2 });
+    await journal.click(); await push('PRAY_SHARED');
+    assert.deepEqual(calls, { inbox: 1, replies: 2 });
+    await open(); await page.waitForTimeout(250);
+    assert.deepEqual(calls, { inbox: 2, replies: 2 });
+    await journal.click(); await open(); await page.waitForTimeout(250);
+    assert.deepEqual(calls, { inbox: 2, replies: 2 });
+  } finally { await context.close(); }
+});
+
 test('prayer circle orders latest activity, distinguishes new replies, and persists read state', async () => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
@@ -1152,7 +1191,10 @@ test('versioned inbox pages use real workers and open a deep notification before
     });
     const page = await context.newPage(); await seed(page, []);
     await page.goto(base + '/pray/?notificationType=PRAY_SHARED&shareId=paged-20');
-    await page.locator('[data-prayer-id="received-paged-20"]').waitFor({ state: 'attached' });
+    await page.locator('[data-prayer-id="received-paged-20"]').waitFor({ state: 'attached', timeout: 15000 }).catch(async error => {
+      const cards = await page.locator('[data-prayer-id]').evaluateAll(nodes => nodes.map(node => node.dataset.prayerId));
+      throw new Error('Deep target unavailable: '+JSON.stringify({requests, acknowledgements, cards}), { cause: error });
+    });
     await page.waitForFunction(async () => {
       const db = await new Promise(resolve => { const r = indexedDB.open('my_prays', 2); r.onsuccess = () => resolve(r.result); });
       const count = await new Promise(resolve => { const r = db.transaction('keyvaluepairs').objectStore('keyvaluepairs').get('index'); r.onsuccess = () => resolve(Object.keys(r.result?.recordings || {}).length); });
@@ -1160,6 +1202,7 @@ test('versioned inbox pages use real workers and open a deep notification before
     }, null, { timeout: 15000 });
     for (let attempt = 0; attempt < 100 && !requests.some(request => request.cursor === '20'); attempt++) await page.waitForTimeout(50);
     assert.ok(requests.some(request => request.cursor === '20'));
+    await page.locator('[data-prayer-id="received-paged-20"]').waitFor({ state: 'visible', timeout: 3000 });
     assert.ok(acknowledgements.indexOf('paged-20') < acknowledgements.indexOf('paged-19'));
     assert.ok(await page.evaluate(() => window.deliveryWorkers.maximum <= 2));
     assert.equal(await page.getByText('@private sender', { exact: true }).count(), 0);

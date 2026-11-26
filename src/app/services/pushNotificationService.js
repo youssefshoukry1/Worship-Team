@@ -116,7 +116,7 @@ export async function initPushNotifications() {
                         detail: { href: prayerHref }, cancelable: true,
                     });
                     if (window.dispatchEvent(open)) navigateDocumentFallback(prayerHref);
-                    else window.dispatchEvent(new Event('taspe7:prayer-push'));
+                    else window.dispatchEvent(new CustomEvent('taspe7:prayer-push', { detail: { type: data.type } }));
                 } else if (typeof data?.url === 'string' && data.url.startsWith('/') && !data.url.startsWith('//')) {
                     navigateDocumentFallback(data.url);
                 }
@@ -172,7 +172,7 @@ export async function initPushNotifications() {
                 window.dispatchEvent(new Event('taspe7:friends-push'));
             }
             if (['PRAY_SHARED', 'PRAY_CONFIRMED', 'PRAY_DELETED'].includes(notification.data?.type)) {
-                window.dispatchEvent(new Event('taspe7:prayer-push'));
+                window.dispatchEvent(new CustomEvent('taspe7:prayer-push', { detail: { type: notification.data.type } }));
             }
         }));
 

@@ -90,7 +90,7 @@ async function setup(t, engine, { href = '/', platform = 'ios', authenticated = 
     };
   }, platform);
   const initialReads = authenticated && ['/', '/index.html', '/pray/', '/pray/index.html'].includes(href)
-    ? Promise.all(['/my-profile', '/pray-time/inbox', '/pray-time/sent-updates'].map(suffix => page.waitForResponse(response => response.request().method() === 'GET' && response.url().includes(suffix))))
+    ? Promise.all(['/my-profile'].map(suffix => page.waitForResponse(response => response.request().method() === 'GET' && response.url().includes(suffix))))
     : Promise.resolve();
   await page.goto(base + href, { waitUntil: 'domcontentloaded' });
   if (authenticated) await page.locator('nav[aria-label="Primary navigation"]').waitFor();
@@ -153,10 +153,10 @@ for (const engine of ['webkit', 'chromium']) {
     const before = { ...state };
     // A forced refresh can queue behind an existing read. Observe new requests
     // so an older in-flight response cannot satisfy this check prematurely.
-    const responses = Promise.all(['/my-profile', '/pray-time/inbox', '/pray-time/sent-updates'].map(suffix =>
+    const responses = Promise.all(['/my-profile'].map(suffix =>
       page.waitForRequest(request => request.method() === 'GET' && request.url().includes(suffix)).then(request => request.response())));
     await swipe(page, { right: true }); await responses;
-    assert.ok(state.profiles > before.profiles && state.inbox > before.inbox && state.sent > before.sent, JSON.stringify({ before, after: state }));
+    assert.ok(state.profiles > before.profiles && state.inbox === before.inbox && state.sent === before.sent, JSON.stringify({ before, after: state }));
     await swipe(page);
     assert.equal(await page.evaluate(() => window.__refreshes), 2);
     assert.equal(await page.evaluate(() => window.__exits), 0);

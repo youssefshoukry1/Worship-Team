@@ -89,7 +89,7 @@ async function setup(t, { platform = 'android', href = '/', authenticated = true
     };
   }, platform);
   const initialReads = authenticated && ['/', '/index.html', '/pray/', '/pray/index.html'].includes(href)
-    ? Promise.all(['/my-profile', '/pray-time/inbox', '/pray-time/sent-updates'].map(suffix => page.waitForResponse(response => response.url().includes(suffix))))
+    ? Promise.all(['/my-profile'].map(suffix => page.waitForResponse(response => response.url().includes(suffix))))
     : Promise.resolve();
   await page.goto(base + href, { waitUntil: 'domcontentloaded' });
   if (platform === 'android') await page.waitForFunction(() => !!window.__nativeEvents.backButton);
@@ -109,10 +109,10 @@ for (const href of ['/', '/index.html', '/pray/', '/pray/index.html']) {
     await draft.blur();
     const reads = { ...state };
     const documentId = await page.evaluate(() => window.__documentId);
-    const refreshed = Promise.all(['/my-profile', '/pray-time/inbox', '/pray-time/sent-updates'].map(suffix => page.waitForResponse(response => response.url().includes(suffix))));
+    const refreshed = Promise.all(['/my-profile'].map(suffix => page.waitForResponse(response => response.url().includes(suffix))));
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await back(page); await refreshed;
-    assert.ok(state.profileReads > reads.profileReads && state.inboxReads > reads.inboxReads && state.sentReads > reads.sentReads);
+    assert.ok(state.profileReads > reads.profileReads && state.inboxReads === reads.inboxReads && state.sentReads === reads.sentReads);
     assert.equal(await draft.inputValue(), 'Keep my unsaved prayer');
     assert.equal(await page.evaluate(() => window.__documentId), documentId);
     assert.equal(await page.evaluate(() => window.__exits), 0);

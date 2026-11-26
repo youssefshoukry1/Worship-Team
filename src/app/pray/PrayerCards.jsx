@@ -518,7 +518,7 @@ const ListPanel = memo(function ListPanel({ title, icon: Icon, items, emptyText,
         </div>;
     }
     return (
-        <div data-journal-panel={scope === 'personal' || undefined} className="flex flex-col app-card rounded-3xl border shadow-xl shadow-black/20">
+        <div data-prayer-list-panel="" data-journal-panel={scope === 'personal' || undefined} className="flex flex-col app-card rounded-3xl border shadow-xl shadow-black/20">
             <div className="flex items-center gap-3 border-b border-white/5 p-4 sm:p-5 bg-black/20">
                 <h2 className="text-sm sm:text-base font-bold text-white tracking-wide">{title}</h2>
             </div>

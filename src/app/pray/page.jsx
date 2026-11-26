@@ -36,6 +36,9 @@ import { PRAYER_READ_EVENT } from '../services/prayerReadSync';
 
 const API_URL = getApiBaseUrl();
 
+const EMPTY_CIRCLE = [];
+const CIRCLE_REFRESH_MS = 15000;
+
 function normalizePrayerView(previous, incoming) {
     const overlay = localPrayerOverlay();
     const ids = new Set(overlay.map(entry => String(entry._id)));
@@ -217,16 +220,30 @@ export default function PrayPage() {
         try { return new Set(JSON.parse(localStorage.getItem('taspe7_opened_friend_prayers') || '[]').map(String)); }
         catch { return new Set(); }
     });
-    const sortedSharedPrays = useMemo(() => sortPrayerActivity([...receivedPrayList, ...sentPrayList]), [receivedPrayList, sentPrayList]);
-    const unreadPrayerIds = useMemo(() => new Set(sortedSharedPrays.filter(entry => isPrayerUnread(entry, userId, legacyOpenedFriendPrayers)).map(entry => String(entry._id))), [sortedSharedPrays, userId, legacyOpenedFriendPrayers]);
+    const { unreadPrayerIds, unreadReceivedCount } = useMemo(() => {
+        const unreadPrayerIds = new Set();
+        let unreadReceivedCount = 0;
+        for (const entry of prayList) {
+            if ((!isReceivedPrayer(entry) && !isSentPrayer(entry)) || !isPrayerUnread(entry, userId, legacyOpenedFriendPrayers)) continue;
+            unreadPrayerIds.add(String(entry._id));
+            if (isReceivedPrayer(entry)) unreadReceivedCount++;
+        }
+        return { unreadPrayerIds, unreadReceivedCount };
+    }, [prayList, userId, legacyOpenedFriendPrayers]);
+
+    const circleSelected = activePrayTab === 'shared';
+    // A snapshot can survive multiple Journal/Circle switches. Sort it on its
+    // first Circle visit and release that cached result when the snapshot changes.
+    const getSharedActivity = useMemo(() => {
+        let sorted;
+        return () => sorted ??= sortPrayerActivity([...receivedPrayList, ...sentPrayList]);
+    }, [receivedPrayList, sentPrayList]);
+    const sortedSharedPrays = circleSelected && hasSnapshot ? getSharedActivity() : EMPTY_CIRCLE;
     const visiblePrayList = useMemo(() => {
-        return sortedSharedPrays.filter(entry => {
-            if (circleFilter === 'sent') return isSentPrayer(entry);
-            if (circleFilter === 'received') return isReceivedPrayer(entry);
-            // Keep an opened unread result mounted while the user writes their response.
-            if (circleFilter === 'unread') return unreadPrayerIds.has(String(entry._id)) || expandedFriendPrayers.has(entry._id);
-            return true;
-        });
+        if (!sortedSharedPrays.length || circleFilter === 'all') return sortedSharedPrays;
+        if (circleFilter === 'sent') return sortedSharedPrays.filter(isSentPrayer);
+        if (circleFilter === 'received') return sortedSharedPrays.filter(isReceivedPrayer);
+        return sortedSharedPrays.filter(entry => unreadPrayerIds.has(String(entry._id)) || expandedFriendPrayers.has(entry._id));
     }, [circleFilter, sortedSharedPrays, unreadPrayerIds, expandedFriendPrayers]);
 
     const [notificationTarget, setNotificationTarget] = useState(null);
@@ -270,10 +287,10 @@ export default function PrayPage() {
     }, [guestPrays, notificationTarget, notificationPrayerId, setExpandedFriendPrayers]);
 
     const unreadPrayCount = unreadPrayerIds.size;
-    const unreadReceivedCount = receivedPrayList.filter(entry => unreadPrayerIds.has(String(entry._id))).length;
     const circleText = prayerCircleText(language);
     const circleAnchorRef = useRef(null);
-    const { visibleItems: orderedPrayList, pendingUpdates, revealUpdates } = usePrayerCircleOrder(visiblePrayList, hasSnapshot ? `${userId || 'guest'}:${circleFilter}` : null, circleAnchorRef, `${notificationPrayerId || ''}:${localActivityId}`);
+    const { visibleItems: orderedPrayList, pendingUpdates, revealUpdates } = usePrayerCircleOrder(visiblePrayList, circleSelected && hasSnapshot ? `${userId || 'guest'}:${circleFilter}` : null, circleAnchorRef, `${notificationPrayerId || ''}:${localActivityId}`,
+        expandedFriendPrayers.has(notificationPrayerId) ? notificationPrayerId : null);
     const seenWrites = useRef(new Set());
     const markSeen = useCallback(async (id, activity) => {
         const key = `${userId || 'guest'}:${id}:${activity}`;
@@ -409,14 +426,18 @@ export default function PrayPage() {
         }).catch(() => {});
     }, [historyActive, profile?.prayTime, setGuestPrays]);
 
-    const syncDeliveries = useCallback(async (kind, force, targetOnly = false) => {
+    const syncDeliveries = useCallback(async (kind, force, targetOnly = false, canStart = () => true) => {
         if (!token || !userId) return;
         const endpoint = `${API_URL}/users/pray-time/${kind === 'replies' ? 'sent-updates' : 'inbox'}`;
         const selectedTarget = notificationTargetRef.current;
         await runSessionTask(tabReadKey(targetOnly ? `${endpoint}:target:${selectedTarget?.shareId}` : endpoint, token), async () => {
             const active = () => session.active && session.owner === String(userId) && (!targetOnly || notificationTargetRef.current?.shareId === selectedTarget?.shareId);
             try {
-                if (!active()) return;
+                if (!active() || !canStart()) return;
+                const started = Date.now();
+                const freshKey = 'deliveryChecked:' + kind;
+                const revision = session.get('deliveryRevision:' + kind);
+                if (!targetOnly && started - Number(session.get(freshKey)) < CIRCLE_REFRESH_MS) return;
                 if (deletionSyncRef.current?.owner !== userId) deletionSyncRef.current = { owner: userId, ...(await getPrayerDeletionState(userId)) };
                 const sync = deletionSyncRef.current;
                 const remove = async (ids, cursor) => {
@@ -427,8 +448,8 @@ export default function PrayPage() {
                     ids.forEach(id => sync.seen.add(String(id))); if (cursor) sync.cursor = cursor;
                     if (result.prayers && mountedRef.current) { setGuestPrays(result.prayers); refreshRecordings(); }
                 };
-                const target = notificationTargetRef.current;
-                await syncPrayerPages({ kind, active, targetOnly, deletedSince: sync.cursor,
+                const target = targetOnly ? selectedTarget : null;
+                const result = await syncPrayerPages({ kind, active, targetOnly, deletedSince: sync.cursor,
                     target: target?.type === (kind === 'replies' ? 'PRAY_CONFIRMED' : 'PRAY_SHARED') ? target.shareId : null,
                     read: params => readTabJson(`${endpoint}?${new URLSearchParams(params)}`, token, { maxAge: 0 }),
                     download: (item, reply) => downloadPrayerPayload({ url: `${API_URL}/users/pray-time/inbox/payload/${encodeURIComponent(item.shareId)}${reply ? '?kind=reply' : ''}`,
@@ -459,44 +480,45 @@ export default function PrayPage() {
                         return active();
                     },
                 });
+                if (!targetOnly && active() && !result.failures && revision === session.get('deliveryRevision:' + kind)) {
+                    session.set(freshKey, started);
+                }
             } catch {
                 // Pending deliveries retry on the next poll, reconnect or foreground refresh.
             }
         }, { force });
     }, [token, userId, session, refreshRecordings, setGuestPrays]);
-    const checkIncomingSharedPrayers = useCallback((force = false) => syncDeliveries('inbox', force), [syncDeliveries]);
-    const checkSentPrayUpdates = useCallback((force = false) => syncDeliveries('replies', force), [syncDeliveries]);
-
     useEffect(() => {
         if (!notificationTarget) return;
         void syncDeliveries(notificationTarget.type === 'PRAY_CONFIRMED' ? 'replies' : 'inbox', true, true);
     }, [notificationTarget, syncDeliveries]);
 
     useEffect(() => {
-        if (!historyActive) return;
-        checkIncomingSharedPrayers();
-        checkSentPrayUpdates();
+        if (!historyActive || !hasSnapshot || activePrayTab !== 'shared' || !token || !userId) return;
+        let listening = true;
+        const canStart = () => listening && document.visibilityState === 'visible' && navigator.onLine !== false;
         const refresh = () => {
-            if (document.visibilityState !== 'visible') return;
-            checkIncomingSharedPrayers(true);
-            checkSentPrayUpdates(true);
+            if (!canStart()) return;
+            void syncDeliveries('inbox', true, false, canStart);
+            void syncDeliveries('replies', true, false, canStart);
         };
-        const refreshWhenVisible = () => {
-            if (document.visibilityState === 'visible') refresh();
-        };
-        const interval = setInterval(refresh, 15000);
-        window.addEventListener('taspe7:prayer-push', refresh);
+        const subscriptions = ['inbox', 'replies'].map(kind => session.subscribe('deliveryRevision:' + kind, () => {
+            if (canStart()) void syncDeliveries(kind, true, false, canStart);
+        }));
+        refresh();
+        const interval = setInterval(refresh, CIRCLE_REFRESH_MS);
         window.addEventListener(HOME_REFRESH_EVENT, refresh);
         window.addEventListener('online', refresh);
-        document.addEventListener('visibilitychange', refreshWhenVisible);
+        document.addEventListener('visibilitychange', refresh);
         return () => {
+            listening = false;
             clearInterval(interval);
-            window.removeEventListener('taspe7:prayer-push', refresh);
+            subscriptions.forEach(unsubscribe => unsubscribe());
             window.removeEventListener(HOME_REFRESH_EVENT, refresh);
             window.removeEventListener('online', refresh);
-            document.removeEventListener('visibilitychange', refreshWhenVisible);
+            document.removeEventListener('visibilitychange', refresh);
         };
-    }, [historyActive, checkIncomingSharedPrayers, checkSentPrayUpdates]);
+    }, [historyActive, hasSnapshot, activePrayTab, token, userId, session, syncDeliveries]);
 
 
     const handleDeletePrayTime = (prayId) => {
@@ -550,7 +572,7 @@ export default function PrayPage() {
                                 onRestored={async () => {
                                     repairCompletedRef.current = null;
                                     deletionSyncRef.current = null;
-                                    checkIncomingSharedPrayers(true);
+                                    window.dispatchEvent(new CustomEvent('taspe7:prayer-push', { detail: { type: 'PRAY_SHARED' } }));
                                     refreshRecordings();
                                     setGuestPrays(await getGuestPrays());
                                     setLocalActivityId(`restore-${crypto.randomUUID()}`);

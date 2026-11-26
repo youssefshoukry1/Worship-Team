@@ -1,0 +1,1153 @@
+{
+  "revision": "3e322c7b66bbc272d693931b72ff1d04baaa9f18",
+  "build": "cjJ4RrUJCX27Mz5OIzF6W",
+  "version": "2.0.17",
+  "engine": "157.0.8103.52",
+  "mode": "webview",
+  "trials": [
+    {
+      "count": 30,
+      "n": 1,
+      "editorMs": 589,
+      "journal": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "afterTyping": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "openMs": 47,
+      "circle": {
+        "sort": 1,
+        "order": 1,
+        "rows": 1,
+        "circleRows": 1
+      },
+      "circleHeapMiB": 7.4,
+      "scroll": {
+        "distance": 129,
+        "blur": "none",
+        "frames": 45,
+        "over34": 5,
+        "p95Ms": 50
+      },
+      "hidden": {
+        "sort": 1,
+        "order": 1,
+        "rows": 1,
+        "circleRows": 0
+      },
+      "warmMs": 25,
+      "offlineOpenMs": 22,
+      "afterBible": {
+        "sort": 1,
+        "order": 3,
+        "rows": 4,
+        "circleRows": 4
+      },
+      "events": [
+        {
+          "phase": "journal",
+          "path": "/api/users/my-teams",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ping",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/backup/drive-accounts",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ui-controls/requests",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/socket.io/",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/my-profile",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/friends-directory/snapshot",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/activity-reads/prayers",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/testimonies",
+          "kind": null
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/sent-updates",
+          "kind": "replies"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "deletions"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "inbox"
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "kind": null
+        },
+        {
+          "phase": "bible",
+          "path": "/api/users/testimonies",
+          "kind": null
+        },
+        {
+          "phase": "bible",
+          "path": "/api/ui-controls/requests",
+          "kind": null
+        },
+        {
+          "phase": "bible",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "deletions"
+        },
+        {
+          "phase": "bible",
+          "path": "/api/users/pray-time/sent-updates",
+          "kind": "replies"
+        },
+        {
+          "phase": "bible",
+          "path": "/api/users/friends-directory/snapshot",
+          "kind": null
+        },
+        {
+          "phase": "bible",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "inbox"
+        },
+        {
+          "phase": "bible",
+          "path": "/api/bible/translations",
+          "kind": null
+        },
+        {
+          "phase": "bible",
+          "path": "/api/bible/download",
+          "kind": null
+        },
+        {
+          "phase": "bible",
+          "path": "/api/users/my-profile",
+          "kind": null
+        },
+        {
+          "phase": "bible",
+          "path": "/api/users/my-notes",
+          "kind": null
+        },
+        {
+          "phase": "bible",
+          "path": "/api/users/activity-reads/prayers",
+          "kind": null
+        }
+      ]
+    },
+    {
+      "count": 30,
+      "n": 2,
+      "editorMs": 791,
+      "journal": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "afterTyping": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "openMs": 41,
+      "circle": {
+        "sort": 1,
+        "order": 1,
+        "rows": 1,
+        "circleRows": 1
+      },
+      "circleHeapMiB": 7.3,
+      "scroll": {
+        "distance": 125,
+        "blur": "none",
+        "frames": 39,
+        "over34": 4,
+        "p95Ms": 50
+      },
+      "hidden": {
+        "sort": 1,
+        "order": 1,
+        "rows": 1,
+        "circleRows": 0
+      },
+      "warmMs": 27,
+      "events": [
+        {
+          "phase": "journal",
+          "path": "/api/users/my-teams",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ping",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/backup/drive-accounts",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/socket.io/",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ui-controls/requests",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/my-profile",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/friends-directory/snapshot",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/activity-reads/prayers",
+          "kind": null
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/testimonies",
+          "kind": null
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "deletions"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/sent-updates",
+          "kind": "replies"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "inbox"
+        }
+      ]
+    },
+    {
+      "count": 30,
+      "n": 3,
+      "editorMs": 603,
+      "journal": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "afterTyping": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "openMs": 73,
+      "circle": {
+        "sort": 1,
+        "order": 1,
+        "rows": 1,
+        "circleRows": 1
+      },
+      "circleHeapMiB": 7.4,
+      "scroll": {
+        "distance": 124,
+        "blur": "none",
+        "frames": 44,
+        "over34": 3,
+        "p95Ms": 50
+      },
+      "hidden": {
+        "sort": 1,
+        "order": 1,
+        "rows": 2,
+        "circleRows": 0
+      },
+      "warmMs": 23,
+      "events": [
+        {
+          "phase": "journal",
+          "path": "/api/users/my-teams",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ping",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/backup/drive-accounts",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ui-controls/requests",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/socket.io/",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/my-profile",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/friends-directory/snapshot",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/activity-reads/prayers",
+          "kind": null
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/testimonies",
+          "kind": null
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "deletions"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/sent-updates",
+          "kind": "replies"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "inbox"
+        }
+      ]
+    },
+    {
+      "count": 30,
+      "n": 4,
+      "editorMs": 642,
+      "journal": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "afterTyping": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "openMs": 50,
+      "circle": {
+        "sort": 1,
+        "order": 1,
+        "rows": 1,
+        "circleRows": 1
+      },
+      "circleHeapMiB": 7.4,
+      "scroll": {
+        "distance": 129,
+        "blur": "none",
+        "frames": 47,
+        "over34": 4,
+        "p95Ms": 50
+      },
+      "hidden": {
+        "sort": 1,
+        "order": 1,
+        "rows": 2,
+        "circleRows": 0
+      },
+      "warmMs": 33,
+      "events": [
+        {
+          "phase": "journal",
+          "path": "/api/users/my-teams",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ping",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/backup/drive-accounts",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ui-controls/requests",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/socket.io/",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/my-profile",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/friends-directory/snapshot",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/activity-reads/prayers",
+          "kind": null
+        },
+        {
+          "phase": "typing",
+          "path": "/api/users/testimonies",
+          "kind": null
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "deletions"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/sent-updates",
+          "kind": "replies"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "inbox"
+        }
+      ]
+    },
+    {
+      "count": 30,
+      "n": 5,
+      "editorMs": 639,
+      "journal": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "afterTyping": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "openMs": 53,
+      "circle": {
+        "sort": 1,
+        "order": 1,
+        "rows": 1,
+        "circleRows": 1
+      },
+      "circleHeapMiB": 7.4,
+      "scroll": {
+        "distance": 132,
+        "blur": "none",
+        "frames": 42,
+        "over34": 5,
+        "p95Ms": 50
+      },
+      "hidden": {
+        "sort": 1,
+        "order": 1,
+        "rows": 0,
+        "circleRows": 0
+      },
+      "warmMs": 22,
+      "events": [
+        {
+          "phase": "journal",
+          "path": "/api/users/my-teams",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ping",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/backup/drive-accounts",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ui-controls/requests",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/my-profile",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/socket.io/",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/friends-directory/snapshot",
+          "kind": null
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/activity-reads/prayers",
+          "kind": null
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/testimonies",
+          "kind": null
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "deletions"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/sent-updates",
+          "kind": "replies"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "inbox"
+        }
+      ]
+    },
+    {
+      "count": 2000,
+      "n": 1,
+      "editorMs": 583,
+      "journal": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "afterTyping": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "openMs": 54,
+      "circle": {
+        "sort": 1,
+        "order": 1,
+        "rows": 1,
+        "circleRows": 1
+      },
+      "circleHeapMiB": 9.1,
+      "scroll": {
+        "distance": 76,
+        "blur": "none",
+        "frames": 46,
+        "over34": 4,
+        "p95Ms": 50
+      },
+      "hidden": {
+        "sort": 1,
+        "order": 1,
+        "rows": 1,
+        "circleRows": 0
+      },
+      "warmMs": 33,
+      "offlineOpenMs": 21,
+      "afterBible": {
+        "sort": 1,
+        "order": 3,
+        "rows": 4,
+        "circleRows": 4
+      },
+      "events": [
+        {
+          "phase": "journal",
+          "path": "/api/users/my-teams",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ping",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/backup/drive-accounts",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/socket.io/",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ui-controls/requests",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/my-profile",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/friends-directory/snapshot",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/testimonies",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/activity-reads/prayers",
+          "kind": null
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/sent-updates",
+          "kind": "replies"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "deletions"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "inbox"
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "kind": null
+        },
+        {
+          "phase": "bible",
+          "path": "/api/users/testimonies",
+          "kind": null
+        },
+        {
+          "phase": "bible",
+          "path": "/api/ui-controls/requests",
+          "kind": null
+        },
+        {
+          "phase": "bible",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "deletions"
+        },
+        {
+          "phase": "bible",
+          "path": "/api/users/pray-time/sent-updates",
+          "kind": "replies"
+        },
+        {
+          "phase": "bible",
+          "path": "/api/users/friends-directory/snapshot",
+          "kind": null
+        },
+        {
+          "phase": "bible",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "inbox"
+        },
+        {
+          "phase": "bible",
+          "path": "/api/bible/translations",
+          "kind": null
+        },
+        {
+          "phase": "bible",
+          "path": "/api/bible/download",
+          "kind": null
+        },
+        {
+          "phase": "bible",
+          "path": "/api/users/my-profile",
+          "kind": null
+        },
+        {
+          "phase": "bible",
+          "path": "/api/users/my-notes",
+          "kind": null
+        },
+        {
+          "phase": "bible",
+          "path": "/api/users/activity-reads/prayers",
+          "kind": null
+        }
+      ]
+    },
+    {
+      "count": 2000,
+      "n": 2,
+      "editorMs": 649,
+      "journal": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "afterTyping": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "openMs": 47,
+      "circle": {
+        "sort": 1,
+        "order": 1,
+        "rows": 1,
+        "circleRows": 1
+      },
+      "circleHeapMiB": 9,
+      "scroll": {
+        "distance": 77,
+        "blur": "none",
+        "frames": 42,
+        "over34": 5,
+        "p95Ms": 50
+      },
+      "hidden": {
+        "sort": 1,
+        "order": 1,
+        "rows": 2,
+        "circleRows": 0
+      },
+      "warmMs": 35,
+      "events": [
+        {
+          "phase": "journal",
+          "path": "/api/users/my-teams",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ping",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/backup/drive-accounts",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/socket.io/",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ui-controls/requests",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/my-profile",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/friends-directory/snapshot",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/activity-reads/prayers",
+          "kind": null
+        },
+        {
+          "phase": "typing",
+          "path": "/api/users/testimonies",
+          "kind": null
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "deletions"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/sent-updates",
+          "kind": "replies"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "inbox"
+        }
+      ]
+    },
+    {
+      "count": 2000,
+      "n": 3,
+      "editorMs": 604,
+      "journal": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "afterTyping": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "openMs": 57,
+      "circle": {
+        "sort": 1,
+        "order": 1,
+        "rows": 1,
+        "circleRows": 1
+      },
+      "circleHeapMiB": 9,
+      "scroll": {
+        "distance": 84,
+        "blur": "none",
+        "frames": 45,
+        "over34": 3,
+        "p95Ms": 50
+      },
+      "hidden": {
+        "sort": 1,
+        "order": 1,
+        "rows": 2,
+        "circleRows": 0
+      },
+      "warmMs": 34,
+      "events": [
+        {
+          "phase": "journal",
+          "path": "/api/users/my-teams",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ping",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/backup/drive-accounts",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ui-controls/requests",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/socket.io/",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/my-profile",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/friends-directory/snapshot",
+          "kind": null
+        },
+        {
+          "phase": "typing",
+          "path": "/api/users/testimonies",
+          "kind": null
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/activity-reads/prayers",
+          "kind": null
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "deletions"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/sent-updates",
+          "kind": "replies"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "inbox"
+        }
+      ]
+    },
+    {
+      "count": 2000,
+      "n": 4,
+      "editorMs": 631,
+      "journal": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "afterTyping": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "openMs": 57,
+      "circle": {
+        "sort": 1,
+        "order": 1,
+        "rows": 1,
+        "circleRows": 1
+      },
+      "circleHeapMiB": 9,
+      "scroll": {
+        "distance": 77,
+        "blur": "none",
+        "frames": 44,
+        "over34": 4,
+        "p95Ms": 50
+      },
+      "hidden": {
+        "sort": 1,
+        "order": 1,
+        "rows": 2,
+        "circleRows": 0
+      },
+      "warmMs": 38,
+      "events": [
+        {
+          "phase": "journal",
+          "path": "/api/users/my-teams",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ping",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/backup/drive-accounts",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ui-controls/requests",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/socket.io/",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/my-profile",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/friends-directory/snapshot",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/activity-reads/prayers",
+          "kind": null
+        },
+        {
+          "phase": "typing",
+          "path": "/api/users/testimonies",
+          "kind": null
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/sent-updates",
+          "kind": "replies"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "deletions"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "inbox"
+        }
+      ]
+    },
+    {
+      "count": 2000,
+      "n": 5,
+      "editorMs": 650,
+      "journal": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "afterTyping": {
+        "sort": 0,
+        "order": 0,
+        "rows": 4,
+        "circleRows": 0
+      },
+      "openMs": 48,
+      "circle": {
+        "sort": 1,
+        "order": 1,
+        "rows": 1,
+        "circleRows": 1
+      },
+      "circleHeapMiB": 9.1,
+      "scroll": {
+        "distance": 77,
+        "blur": "none",
+        "frames": 46,
+        "over34": 3,
+        "p95Ms": 50
+      },
+      "hidden": {
+        "sort": 1,
+        "order": 1,
+        "rows": 2,
+        "circleRows": 0
+      },
+      "warmMs": 32,
+      "events": [
+        {
+          "phase": "journal",
+          "path": "/api/users/my-teams",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ping",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/backup/drive-accounts",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/ui-controls/requests",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/socket.io/",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/my-profile",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/friends-directory/snapshot",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/testimonies",
+          "kind": null
+        },
+        {
+          "phase": "journal",
+          "path": "/api/users/activity-reads/prayers",
+          "kind": null
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "deletions"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/sent-updates",
+          "kind": "replies"
+        },
+        {
+          "phase": "circle",
+          "path": "/api/users/pray-time/inbox",
+          "kind": "inbox"
+        }
+      ]
+    }
+  ]
+}

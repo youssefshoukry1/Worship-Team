@@ -646,8 +646,12 @@ test('an in-flight prayer import survives tab changes and a notification queues 
   const { context, page } = await setup({ api: async route => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith('/pray-time/inbox')) {
-      inboxCalls++; await stalled;
-      await route.fulfill({ json: { inbox: [{ shareId: 'across-tabs', words: 'Prayer delivered across tab changes', senderUsername: 'alice' }] } }).catch(() => {}); return true;
+      const kind = new URL(route.request().url()).searchParams.get('kind');
+      if (kind === 'inbox') { inboxCalls++; await stalled; }
+      await route.fulfill({ json: { protocol: 2, items: kind === 'inbox' ? [{ shareId: 'across-tabs' }] : [], nextCursor: null } }).catch(() => {}); return true;
+    }
+    if (path.endsWith('/inbox/payload/across-tabs')) {
+      await route.fulfill({ json: { shareId: 'across-tabs', words: 'Prayer delivered across tab changes', senderUsername: 'alice' } }); return true;
     }
     if (path.endsWith('/pray-time/ack')) {
       acknowledged.push(route.request().postDataJSON().shareId);
@@ -657,7 +661,7 @@ test('an in-flight prayer import survives tab changes and a notification queues 
   } });
   try {
     await openHymns(page); await controlled(page);
-    await taps(page, ['/pray']); await page.waitForURL(base + '/pray/'); await waitUntil(() => inboxCalls === 1);
+    await taps(page, ['/pray']); await page.waitForURL(base + '/pray/'); await page.getByRole('button', { name: /^Prayer Circle/ }).click(); await waitUntil(() => inboxCalls === 1);
     await taps(page, ['/normal_UserProfile']); await page.waitForURL(base + '/normal_UserProfile/');
     await taps(page, ['/pray']); await page.waitForURL(base + '/pray/');
     await page.getByRole('button', { name: 'Save Note', exact: true }).waitFor();

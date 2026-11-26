@@ -99,7 +99,7 @@ body {
 
 /* This surface grows with the saved journal. Avoid sampling a list-sized
    backdrop as the WebView compositor scrolls through it. */
-.app-card[data-journal-panel] {
+.app-card[data-prayer-list-panel] {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }

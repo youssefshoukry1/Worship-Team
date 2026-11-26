@@ -106,7 +106,7 @@ async function setup(t, engine, { href = '/', platform = 'ios', authenticated = 
     };
   }, platform);
   const initialReads = waitForPrayReads && authenticated && ['/', '/index.html', '/pray/', '/pray/index.html'].includes(href)
-    ? Promise.all(['/my-profile', '/pray-time/inbox', '/pray-time/sent-updates'].map(suffix => page.waitForResponse(response => response.request().method() === 'GET' && response.url().includes(suffix))))
+    ? Promise.all(['/my-profile'].map(suffix => page.waitForResponse(response => response.request().method() === 'GET' && response.url().includes(suffix))))
     : Promise.resolve();
   await page.goto(base + href, { waitUntil: 'domcontentloaded' });
   if (authenticated) await page.locator('nav[aria-label="Primary navigation"]').waitFor();

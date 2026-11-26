@@ -47,6 +47,24 @@ function OwnerSession({ owner, token, children }) {
         return () => { unsubscribe(); stop?.(); };
     }, [session, owner, token]);
     useEffect(() => {
+        if (!token || owner === 'guest') return;
+        const invalidate = event => {
+            const type = event.detail?.type;
+            const streams = type === 'PRAY_CONFIRMED' ? ['replies']
+                : type === 'PRAY_SHARED' || type === 'PRAY_DELETED' ? ['inbox'] : ['inbox', 'replies'];
+            for (const kind of streams) {
+                session.set('deliveryChecked:' + kind, 0);
+                session.set('deliveryRevision:' + kind, previous => Number(previous) + 1);
+            }
+        };
+        window.addEventListener('taspe7:prayer-push', invalidate);
+        window.addEventListener('offline', invalidate);
+        return () => {
+            window.removeEventListener('taspe7:prayer-push', invalidate);
+            window.removeEventListener('offline', invalidate);
+        };
+    }, [session, token, owner]);
+    useEffect(() => {
         session.mount();
         let previousRecordings;
         const unsubscribe = subscribeLocalPrayers(snapshot => {

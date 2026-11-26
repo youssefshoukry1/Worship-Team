@@ -5,15 +5,16 @@ import { prayerActivityKey } from '../utils/prayerActivity';
 import { usePrayerSession } from './PrayerSessionProvider';
 
 // No scroll handlers, animation loop, or per-card measurements. Check only on data changes.
-export default function usePrayerCircleOrder(items, scope, anchorRef, forceId) {
+export default function usePrayerCircleOrder(items, scope, anchorRef, forceId, openedTargetId) {
     const session = usePrayerSession();
     const [order, setOrder] = useState({ scope: null, ids: [], activity: new Map(), pending: 0 });
     const latest = useRef(items);
     useLayoutEffect(() => { latest.current = items; }, [items]);
     useLayoutEffect(() => {
+        if (!scope) return;
         const activity = new Map(items.map(entry => [String(entry._id), prayerActivityKey(entry)]));
         setOrder(previous => {
-            if (previous.scope !== scope || (forceId && previous.forceId !== forceId)) return { scope, forceId, ids: [...activity.keys()], activity, pending: 0 };
+            if (previous.scope !== scope || (forceId && previous.forceId !== forceId) || (previous.pinnedId && previous.pinnedId !== openedTargetId)) return { scope, forceId, ids: [...activity.keys()], activity, pending: 0 };
             let pending = 0;
             for (const [id, key] of activity) if (previous.activity.get(id) !== key) pending++;
             if (!pending) return previous.pending ? { ...previous, pending: 0 } : previous;
@@ -23,12 +24,23 @@ export default function usePrayerCircleOrder(items, scope, anchorRef, forceId) {
             if (typing || playing || readingBelow || document.visibilityState !== 'visible') {
                 return previous.pending === pending ? previous : { ...previous, pending };
             }
-            return { scope, forceId, ids: [...activity.keys()], activity, pending: 0 };
+            const ids = [...activity.keys()];
+            // An open notification can be followed by several pages of older
+            // deliveries. Keep the target in its slot while adding other rows.
+            if (openedTargetId) {
+                const slot = previous.ids.indexOf(openedTargetId);
+                const nextSlot = ids.indexOf(openedTargetId);
+                if (slot >= 0 && nextSlot > slot) {
+                    ids.splice(nextSlot, 1);
+                    ids.splice(slot, 0, openedTargetId);
+                }
+            }
+            return { scope, forceId, ids, activity, pending: 0, pinnedId: openedTargetId };
         });
-    }, [items, scope, forceId, anchorRef, session]);
+    }, [items, scope, forceId, openedTargetId, anchorRef, session]);
 
     const visibleItems = useMemo(() => {
-        if (order.scope !== scope) return items;
+        if (!scope || order.scope !== scope) return items;
         const byId = new Map(items.map(entry => [String(entry._id), entry]));
         return order.ids.map(id => byId.get(id)).filter(Boolean);
     }, [items, scope, order]);
