@@ -19,7 +19,7 @@ export default function TestimonyCard({ item, onRead, index = 0, hideAuthor = fa
     : title;
   const buttonRef = useRef(null);
   useLayoutEffect(() => observeNotePreview(buttonRef.current), []);
-  return <article className={styles.miniCard} style={{ '--tilt': `${[-1.5, 1, -.8][index % 3]}deg` }}>
+  return <article data-profile-note={isFeed ? undefined : item._id} className={styles.miniCard} style={{ '--tilt': `${[-1.5, 1, -.8][index % 3]}deg` }}>
     <div data-note-surface data-unread={unread || undefined} className={`${styles.miniNote} ${hideAuthor ? styles.withoutAuthor : ''} ${styles[item.style] || styles.olive}`}>
       <button ref={buttonRef} type="button" className={styles.noteReadButton} aria-label={`Read testimony: ${item.title}`} onClick={event => onRead(item, event.currentTarget)}>
         <h3 dir="auto">{preview}</h3>

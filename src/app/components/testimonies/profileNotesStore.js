@@ -16,13 +16,13 @@ export function createProfileNotesStore({ userId, request, storage }) {
     entry.state = { ...entry.state, ...patch };
     for (const listener of entry.listeners) listener();
   };
-  const save = entry => {
+  const save = (entry, extraBodies = []) => {
     if (!isOwn(entry)) return;
     const epoch = entry.epoch;
     const data = { ...entry.state };
     for (const field of ['loading', 'checking', 'loadingMore', 'error']) delete data[field];
     entry.writes = entry.writes.catch(() => {}).then(() => {
-      if (epoch === entry.epoch) return storage?.setItem(entry.id, { ...data, dirty: entry.dirty });
+      if (epoch === entry.epoch) return storage?.setItem(entry.id, { ...data, dirty: entry.dirty }, extraBodies);
     }).catch(() => {});
   };
   const hydrate = entry => {
@@ -33,7 +33,7 @@ export function createProfileNotesStore({ userId, request, storage }) {
         if (disposed || epoch !== entry.epoch || (entry.id !== String(userId) && generation !== access)) return;
         if (saved?.ready && Array.isArray(saved.items) && Array.isArray(saved.manifest) && !entry.state.ready) {
           entry.dirty = Boolean(saved.dirty);
-          emit(entry, { ...saved, loading: false, loadingMore: false, checking: false, error: '' });
+          emit(entry, { ...saved, ...layout(saved.manifest, saved.items, saved.archiveCursor), loading: false, loadingMore: false, checking: false, error: '' });
         }
       }).catch(() => {});
     }
@@ -58,12 +58,12 @@ export function createProfileNotesStore({ userId, request, storage }) {
   };
   const metadata = item => ({ _id: item._id, createdAt: item.createdAt, updatedAt: item.updatedAt, contentVersion: item.contentVersion || 0,
     loveCount: item.loveCount || 0, loveVersion: item.loveVersion || 0 });
-  const layout = (manifest, items) => {
+  const layout = (manifest, items, archiveCursor = null) => {
     const byId = new Map(items.map(item => [item._id, item]));
-    return { manifest, items: manifest.filter(item => byId.has(item._id)).map(item => {
+    return { manifest, archiveCursor, items: manifest.filter(item => byId.has(item._id)).map(item => {
       const body = byId.get(item._id);
       return (item.loveVersion || 0) >= (body.loveVersion || 0) ? { ...body, loveCount: item.loveCount, loveVersion: item.loveVersion } : body;
-    }), nextCursor: manifest.find(item => !byId.has(item._id))?._id || null };
+    }), nextCursor: manifest.find(item => !byId.has(item._id))?._id || archiveCursor };
   };
   const denied = (entry, error) => {
     ++entry.epoch; entry.checked = session; entry.dirty = false;
@@ -82,7 +82,8 @@ export function createProfileNotesStore({ userId, request, storage }) {
     emit(entry, { loading: !entry.state.ready, checking: true, error: '' });
     const cached = entry.state.ready && Number.isFinite(entry.state.notesVersion);
     const ids = entry.state.items.slice(0, 120).map(item => item._id);
-    const query = cached ? `?notesVersion=${entry.state.notesVersion}${ids.length ? `&cachedIds=${ids.join(',')}` : ''}` : '';
+    let query = cached ? `?notesVersion=${entry.state.notesVersion}${ids.length ? `&cachedIds=${ids.join(',')}` : ''}` : '';
+    if (isOwn(entry)) query += (query ? "&" : "?") + "paged=1";
     entry.pending = (async () => {
       try {
         const result = await read(`/profile/${entry.id}${query}`);
@@ -99,11 +100,33 @@ export function createProfileNotesStore({ userId, request, storage }) {
             ...((reactions.get(item._id)?.loveVersion || 0) >= (item.loveVersion || 0) ? reactions.get(item._id) : {}) }));
           if (!result.unchanged || !cached) entry.limit = 12;
           entry.checked = currentSession; entry.dirty = false;
-          const profile = { ...result }; delete profile.reactions; delete profile.unchanged;
+          const profile = { ...result }; delete profile.reactions; delete profile.unchanged; delete profile.delta; delete profile.indexCursor;
           emit(entry, { ...profile, items, manifest: [], nextCursor: result.unchanged && cached ? entry.state.nextCursor : result.nextCursor || null,
             ready: true, loading: false, checking: false, error: '' });
           return;
         }
+        let archiveCursor = result.archiveCursor ?? entry.state.archiveCursor;
+        if (result.delta) {
+          const archived = new Set(entry.state.manifest.map(row => row._id));
+          const boundary = archiveCursor?.split('_');
+          const rows = result.delta.rows.filter(row => !boundary || archived.has(row._id)
+            || Number(new Date(row.createdAt)) > Number(boundary[0])
+            || (Number(new Date(row.createdAt)) === Number(boundary[0]) && row._id >= boundary[1]));
+          const changedIds = new Set(result.delta.ids);
+          result.manifest = sortIndex([...entry.state.manifest.filter(row => !changedIds.has(row._id)), ...rows]);
+        }
+        if ('indexCursor' in result) {
+          archiveCursor = null;
+          let cursor = result.indexCursor;
+          while (cursor) {
+            const page = await read(`/profile/${entry.id}?paged=1&indexPage=1&cursor=${encodeURIComponent(cursor)}`);
+            if (!current()) return;
+            if (page.notesVersion !== result.notesVersion) { entry.epoch++; entry.dirty = true; return; }
+            result.manifest.push(...page.manifest);
+            cursor = page.indexCursor;
+          }
+        }
+        let refreshedArchive = [];
         let manifest = result.manifest || entry.state.manifest;
         let items = result.items || entry.state.items;
         if (!cached) manifest = result.manifest || result.items.map(metadata);
@@ -111,9 +134,15 @@ export function createProfileNotesStore({ userId, request, storage }) {
           if (!result.manifest) throw new Error('Could not verify the saved notes. Please refresh.');
           const existing = new Map(entry.state.items.map(item => [item._id, item]));
           const wanted = new Set([...existing.keys(), ...manifest.slice(0, 12).map(item => item._id)]);
-          const changed = manifest.filter(item => wanted.has(item._id) && (!existing.has(item._id)
+          const oldRows = new Map(entry.state.manifest.map(row => [row._id, row]));
+          const changed = manifest.filter(item => {
+            const old = oldRows.get(item._id);
+            if (!wanted.has(item._id)) return old && storage?.hasBody?.(old) &&
+              ((old.contentVersion || 0) !== (item.contentVersion || 0) || old.updatedAt !== item.updatedAt);
+            return !existing.has(item._id)
             || (item.contentVersion || 0) !== (existing.get(item._id).contentVersion || 0)
-            || item.updatedAt !== existing.get(item._id).updatedAt)).map(item => item._id);
+            || item.updatedAt !== existing.get(item._id).updatedAt;
+          }).map(item => item._id);
           const downloaded = [];
           for (let offset = 0; offset < changed.length; offset += 50) {
             const batch = await read(`/profile/${entry.id}/notes?ids=${changed.slice(offset, offset + 50).join(',')}`);
@@ -121,7 +150,9 @@ export function createProfileNotesStore({ userId, request, storage }) {
             if (batch.notesVersion !== result.notesVersion) { entry.epoch++; entry.dirty = true; return; }
             downloaded.push(...batch.items);
           }
-          items = [...entry.state.items.filter(item => !changed.includes(item._id)), ...downloaded];
+          const changedSet = new Set(changed);
+          refreshedArchive = downloaded.filter(item => !wanted.has(item._id));
+          items = [...entry.state.items.filter(item => !changedSet.has(item._id)), ...downloaded.filter(item => wanted.has(item._id))];
         }
         const reactions = new Map((result.reactions || []).map(item => [item._id, item]));
         items = items.map(item => ({ ...item, author: result.user || item.author,
@@ -131,9 +162,9 @@ export function createProfileNotesStore({ userId, request, storage }) {
         if (!current()) return;
         entry.checked = currentSession; entry.dirty = false;
         const profile = { ...result };
-        delete profile.reactions; delete profile.unchanged;
-        emit(entry, { ...profile, ...layout(manifest, items), ready: true, loading: false, checking: false, error: '' });
-        save(entry);
+        delete profile.reactions; delete profile.unchanged; delete profile.delta; delete profile.indexCursor;
+        emit(entry, { ...profile, ...layout(manifest, items, archiveCursor), ready: true, loading: false, checking: false, error: '' });
+        save(entry, refreshedArchive);
       } catch (error) {
         if (!current()) return;
         if ([401, 403, 404].includes(error.status)) denied(entry, error);
@@ -204,8 +235,8 @@ export function createProfileNotesStore({ userId, request, storage }) {
       const manifest = sortIndex([...entry.state.manifest.filter(note => note._id !== event.id), ...(item ? [metadata(item)] : [])]);
       const items = [...entry.state.items.filter(note => note._id !== event.id), ...(item ? [item] : [])];
       entry.dirty = false;
-      emit(entry, { ...layout(manifest, items), notesVersion: version, loading: false, checking: false,
-        stats: { ...entry.state.stats, testimonies: manifest.length }, ...(publishing ? { publishing } : {}) });
+      emit(entry, { ...layout(manifest, items, entry.state.archiveCursor), notesVersion: version, loading: false, checking: false,
+        stats: { ...entry.state.stats, testimonies: Math.max(0, (entry.state.stats?.testimonies ?? entry.state.manifest.length) + (event.action === 'created' ? 1 : event.action === 'deleted' ? -1 : 0)) }, ...(publishing ? { publishing } : {}) });
       save(entry);
     } catch (error) {
       if (entry.epoch !== epoch || disposed) return;
@@ -214,6 +245,7 @@ export function createProfileNotesStore({ userId, request, storage }) {
     }
   };
   return {
+    railPosition(id) { const entry = entryFor(id); return entry.railPosition ||= {}; },
     getSnapshot: id => entries.get(String(id))?.state || emptySnapshot,
     subscribe(id, listener) { const entry = entryFor(id); entry.listeners.add(listener); return () => { entry.listeners.delete(listener); pruneFriends(); }; },
     ensure(id, options = {}) { const entry = entryFor(id); visit(entry); return check(entry, options.force); },
@@ -221,25 +253,43 @@ export function createProfileNotesStore({ userId, request, storage }) {
     async loadMore(id) {
       const entry = entryFor(id);
       if (entry.state.loadingMore || !entry.state.nextCursor) return;
-      if (entry.dirty) return check(entry, true);
+      if (entry.dirty && !isOwn(entry)) return check(entry, true);
       const epoch = entry.epoch;
-      const ids = isOwn(entry) ? entry.state.manifest.filter(item => !entry.state.items.some(old => old._id === item._id)).slice(0, 12).map(item => item._id) : [];
+      const loaded = new Set(entry.state.items.map(item => item._id));
+      const wanted = isOwn(entry) ? entry.state.manifest.filter(item => !loaded.has(item._id)).slice(0, 12) : [];
       const controller = new AbortController();
       entry.moreController = controller;
       emit(entry, { loadingMore: true, error: '' });
       try {
-        const path = isOwn(entry) ? `/profile/${id}/notes?ids=${ids.join(',')}` : `/profile/${id}?cursor=${encodeURIComponent(entry.state.nextCursor)}`;
-        const result = await request(path, { signal: controller.signal });
+        const cached = wanted.length ? await storage?.bodies?.(entry.id, wanted) || [] : [];
+        if (disposed || epoch !== entry.epoch) return;
+        if (entry.dirty && cached.length !== wanted.length && !entry.state.error) { return check(entry, true); }
+        const missing = wanted.filter(row => !cached.some(item => item._id === row._id));
+        const path = wanted.length ? `/profile/${id}/notes?ids=${missing.map(row => row._id).join(',')}`
+          : `/profile/${id}?cursor=${encodeURIComponent(entry.state.nextCursor)}${isOwn(entry) ? '&paged=1' : ''}`;
+        const result = wanted.length && !missing.length ? { items: [], notesVersion: entry.state.notesVersion }
+          : await request(path, { signal: controller.signal });
         if (disposed || entries.get(entry.id) !== entry || epoch !== entry.epoch) return;
         if (result.canViewTestimonies === false) { denied(entry); return; }
         if (result.notesVersion !== entry.state.notesVersion) { entry.dirty = true; return check(entry, true); }
-        const items = [...entry.state.items, ...result.items.filter(item => !entry.state.items.some(old => old._id === item._id))];
-        if (isOwn(entry)) { emit(entry, { ...layout(entry.state.manifest, items), loadingMore: false }); save(entry); }
+        const items = [...entry.state.items, ...cached, ...result.items.filter(item => !loaded.has(item._id))];
+        if (isOwn(entry)) {
+          const index = new Map(entry.state.manifest.map(row => [row._id, row]));
+          for (const item of result.items) index.set(item._id, metadata(item));
+          emit(entry, { ...layout(sortIndex([...index.values()]), items, wanted.length ? entry.state.archiveCursor : result.archiveCursor ?? result.nextCursor), loadingMore: false });
+          save(entry);
+        }
         else { entry.limit = Math.max(12, items.length); emit(entry, { items, manifest: [], nextCursor: result.nextCursor || null, loadingMore: false }); }
       } catch (error) {
         if (epoch !== entry.epoch || disposed) return;
         if ([401, 403, 404].includes(error.status)) denied(entry, error);
-        else emit(entry, { error: error.message });
+        else {
+          const missing = entry.state.manifest.filter(row => !loaded.has(row._id));
+          const available = isOwn(entry) && await storage?.bodies?.(id, missing, 12);
+          if (epoch !== entry.epoch || disposed) return;
+          if (available?.length) emit(entry, layout(entry.state.manifest, [...entry.state.items, ...available], entry.state.archiveCursor));
+          emit(entry, { error: error.message });
+        }
       } finally { if (epoch === entry.epoch) emit(entry, { loadingMore: false }); }
     },
     updateReaction(id, reaction) {
@@ -249,7 +299,12 @@ export function createProfileNotesStore({ userId, request, storage }) {
       }
     },
     cachedNote(authorId, id) { return entryFor(authorId).state.items.find(item => item._id === id); },
-    async readCachedNote(authorId, id) { const entry = entryFor(authorId); await hydrate(entry); return entry.state.items.find(item => item._id === id); },
+    async readCachedNote(authorId, id) { const entry = entryFor(authorId); await hydrate(entry);
+      const item = entry.state.items.find(item => item._id === id);
+      const row = entry.state.manifest.find(meta => meta._id === id);
+      if (item || !row || !isOwn(entry)) return item;
+      const body = (await storage?.bodies?.(entry.id, [row]))?.[0];
+      return body && entry.state.manifest.includes(row) ? { ...body, author: entry.state.user || body.author, ...row } : undefined; },
     refresh(id) { const entry = entries.get(String(id)); if (!entry) return; entry.checked = -1; if (entry.listeners.size) void check(entry, true); },
     resume() {
       ++session;

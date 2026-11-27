@@ -435,7 +435,7 @@ test('cached Profile returns without replacing its ready layout with a skeleton'
   await profile.getByText('iOS Tester', { exact: true }).waitFor();
   await page.getByRole('link', { name: 'Pray', exact: true }).click();
   await profile.waitFor({ state: 'detached' });
-  await page.route('**/users/my-profile', route => route.abort());
+  await page.route('**/users/profile-summary', route => route.abort());
   await page.evaluate(() => {
     window.profileFlashes = 0;
     window.profileWatch = new MutationObserver(records => {
@@ -604,7 +604,7 @@ test('a second signed-in account starts with its own Friends view and Profile id
     window.dispatchEvent(new Event('taspe7:logout'));
     for (const [key, value] of Object.entries({ Token: 'second-token', ID: 'second', Username: 'second' })) localStorage.setItem('user_Taspe7_' + key, value);
   });
-  await page.route('**/users/my-profile', route => route.fulfill({ json: { user: { _id: 'second', Name: 'Second tester', username: 'second' } } }));
+  await page.route('**/users/profile-summary', route => route.fulfill({ json: { user: { _id: 'second', Name: 'Second tester', username: 'second' }, counts: { notes: 0, highlights: 0 } } }));
   await page.goto(base + '/friends/');
   await page.getByText(/Incoming requests \(/).first().waitFor();
   await page.locator('nav a[href^="/normal_UserProfile"]').click();

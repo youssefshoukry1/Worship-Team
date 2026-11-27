@@ -30,6 +30,7 @@ export function writeCachedProfile(userId, profile, { fromServer = false } = {})
 }
 
 export function invalidateProfile(apiBase, token) {
+  invalidateTabRead(tabReadKey(`${apiBase}/users/profile-summary`, token));
   invalidateTabRead(tabReadKey(`${apiBase}/users/my-profile`, token));
   invalidateTabRead(tabReadKey(`${apiBase}/users/my-notes`, token));
 }

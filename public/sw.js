@@ -1,3 +1,10 @@
+importScripts('/bible-change-journal.js');
+self.addEventListener('sync', event => {
+  if (event.tag === 'wasla-bible-changes') event.waitUntil(self.waslaBibleJournal.flush().then(done => {
+    if (!done) throw new Error('Bible changes pending');
+  }));
+});
+
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
@@ -58,47 +65,9 @@ function openOfflineDB() {
 
 // Background sync processor
 async function processSyncQueue() {
-  try {
-    const db = await openOfflineDB();
-    const items = await new Promise((resolve, reject) => {
-      const tx = db.transaction('sync-queue', 'readonly');
-      const store = tx.objectStore('sync-queue');
-      const req = store.getAll();
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-
-    if (!items || items.length === 0) return;
-
-    for (const item of items) {
-      try {
-        const response = await fetch(item.url, {
-          method: item.method,
-          headers: {
-            ...item.headers,
-            'Content-Type': 'application/json'
-          },
-          body: item.payload ? JSON.stringify(item.payload) : undefined
-        });
-
-        if (response.ok || response.status >= 400) {
-          await new Promise((resolve, reject) => {
-            const tx = db.transaction('sync-queue', 'readwrite');
-            const store = tx.objectStore('sync-queue');
-            store.delete(item.id);
-            tx.oncomplete = resolve;
-            tx.onerror = reject;
-          });
-        }
-      } catch (err) {
-        console.error('[SW] Sync failed for item', item.id, err);
-        throw err; // Throwing error tells SyncManager to retry later
-      }
-    }
-  } catch (err) {
-    console.error('[SW] processSyncQueue failed', err);
-    throw err;
-  }
+  const db = await openOfflineDB();
+  try { await self.waslaBibleJournal.replayLegacy(db); }
+  finally { db.close(); }
 }
 
 self.addEventListener('sync', (event) => {

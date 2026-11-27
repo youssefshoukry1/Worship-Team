@@ -17,6 +17,7 @@ import { getApiBaseUrl } from '../utils/apiBase';
 import { Capacitor } from '@capacitor/core';
 import { navigateDocumentFallback } from '../utils/appNavigation';
 import { useRouter } from 'next/navigation';
+import { writeBibleChange } from '../utils/bibleChanges';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { showToast } from '../components/ToastContainer';
 import { buildHymnPresentationSlides } from '../utils/hymnSlides';
@@ -927,27 +928,11 @@ export default function WorkSpace() {
         try {
             if (noteModalConfig.type === 'bible') {
                 const verse = noteModalConfig.data;
-                const response = await postUsersWithFallbackFetch('bible-note', {
-                    userid,
-                    verseId: verse._id,
-                    bookName: verse.bookName || 'Unknown',
-                    chapter: verse.chapter || 1,
-                    verseNumber: verse.verseNumber,
-                    text: verse.text,
-                    note: noteText
-                }, token);
-
-                if (!response?.ok) {
-                    const rawText = await response.text();
-                    let message = rawText || response?.statusText || 'Request failed';
-                    try {
-                        const parsed = JSON.parse(rawText);
-                        message = parsed?.message || message;
-                    } catch (_) {
-                        // HTML error bodies are expected on some 404 responses.
-                    }
-                    throw new Error(message);
-                }
+                const synced = await writeBibleChange(API_URL, userid, token, 'notes', false, [{
+                    verseId: String(verse._id), bookName: verse.bookName || 'Unknown', chapter: verse.chapter || 1,
+                    verseNumber: verse.verseNumber, text: verse.text, value: noteText,
+                }]);
+                if (!synced) showToast({ message: 'Saved offline', type: 'offline' });
             } else if (noteModalConfig.type === 'hymn') {
                 const hymn = noteModalConfig.data;
                 const response = await postUsersWithFallbackFetch('hymn-note', {
@@ -974,19 +959,7 @@ export default function WorkSpace() {
         } catch (err) {
             const isNetworkError = !navigator.onLine || err.message.includes('Failed to fetch') || err.message.includes('Network Error') || err.message.includes('Load failed');
 
-            if (isNetworkError) {
-                if (noteModalConfig?.type === 'bible') {
-                    const verse = noteModalConfig.data;
-                    await queueOfflineAction(`${API_URL}/users/bible-note`, 'POST', {
-                        userid,
-                        verseId: verse._id,
-                        bookName: verse.bookName || 'Unknown',
-                        chapter: verse.chapter || 1,
-                        verseNumber: verse.verseNumber,
-                        text: verse.text,
-                        note: noteText
-                    }, { Authorization: `Bearer ${token}` });
-                } else if (noteModalConfig?.type === 'hymn') {
+            if (isNetworkError && noteModalConfig?.type === 'hymn') {
                     const hymn = noteModalConfig.data;
                     await queueOfflineAction(`${API_URL}/users/hymn-note`, 'POST', {
                         userid,
@@ -994,7 +967,6 @@ export default function WorkSpace() {
                         title: hymn.title,
                         note: noteText
                     }, { Authorization: `Bearer ${token}` });
-                }
                 setNoteModalConfig(null);
                 setNoteText('');
                 showToast({ message: '📶 You\'re offline — your note is saved and will sync automatically once you\'re back online.', type: 'offline', duration: 6000 });

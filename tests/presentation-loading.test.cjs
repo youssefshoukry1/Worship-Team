@@ -18,7 +18,12 @@ function setup(session, load) {
     emit(...args) { emitted.push(args); },
     disconnect() { disconnects++; },
   };
-  const io = (url, options) => { connections++; assert.equal(options.transports[0], 'websocket'); return socket; };
+  const io = (url, options) => {
+    connections++;
+    assert.deepEqual(Array.from(options.transports), ['polling', 'websocket']);
+    assert.equal(options.tryAllTransports, true);
+    return socket;
+  };
   const context = {
     getApiBaseUrl: () => 'https://api.test/api', process: { env: {} }, console: { log() {}, error() {} },
     useRef: current => ({ current }), useCallback: fn => fn,

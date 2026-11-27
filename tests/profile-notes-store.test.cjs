@@ -83,7 +83,7 @@ test('valid empty collections are cached; missing device cache downloads again',
   assert.match(restart.requests[0].path, /notesVersion=0/);
   restart.finish(0, { ...result([], 0), unchanged: true }); await load;
   f.disk.clear(); const cleared = fixture(f.disk); load = cleared.store.ensure(A); await flush();
-  assert.equal(cleared.requests[0].path, `/profile/${A}`);
+  assert.equal(cleared.requests[0].path, `/profile/${A}?paged=1`);
   cleared.finish(0, result([note(1)], 1)); await load;
   f.store.dispose(); restart.store.dispose(); cleared.store.dispose();
 });
@@ -193,5 +193,32 @@ test('live friend creation stays within the loaded page and an edit to an unload
   assert.equal(f.requests.length, 1, 'unloaded archived note is not prefetched');
   assert.equal(f.store.getSnapshot(B).items.some(item => item._id === note(1)._id), false);
   assert.deepEqual(f.diskWrites, []);
+  f.store.dispose();
+});
+
+test('a paged owner archive applies an edit and tombstone without losing its remaining cursor', async () => {
+  const f = fixture();
+  const rows = [note(4), note(3), note(2)];
+  const start = f.store.ensure(A); await flush();
+  const cursor = '2000_' + rows.at(-1)._id;
+  f.finish(0, { ...result(rows, 1), manifest: undefined, archiveCursor: cursor, nextCursor: cursor });
+  await start;
+  const changed = f.store.ensure(A, { force: true }); await flush();
+  const edited = note(3, 2);
+  f.finish(1, { ...result([], 3), items: undefined, manifest: undefined, unchanged: false,
+    delta: { ids: [rows[0]._id, edited._id], rows: index([edited]) } });
+  await flush();
+  assert.ok(f.requests[2].path.endsWith('ids=' + edited._id));
+  f.finish(2, { items: [edited], notesVersion: 3 });
+  await changed;
+  assert.equal(f.store.getSnapshot(A).items.length, 2);
+  assert.equal(f.store.getSnapshot(A).items[0].contentVersion, 2);
+  assert.equal(f.store.getSnapshot(A).nextCursor, cursor);
+  const more = f.store.loadMore(A); await flush();
+  assert.match(f.requests[3].path, /cursor=.*&paged=1/);
+  f.finish(3, { items: [note(1)], notesVersion: 3, archiveCursor: null, nextCursor: null });
+  await more;
+  assert.equal(f.store.getSnapshot(A).nextCursor, null);
+  assert.equal(f.store.getSnapshot(A).items.length, 3);
   f.store.dispose();
 });

@@ -3,6 +3,7 @@
 import { useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Loader2, LockKeyhole, Plus, RefreshCw } from 'lucide-react';
 import { UserContext } from '../../context/User_Context';
+import ProfileRailCards from './ProfileRailCards';
 import TestimonyCard from './TestimonyCard';
 import TestimonyComposer from './TestimonyComposer';
 import TestimonyReader from './TestimonyReader';
@@ -77,19 +78,33 @@ function Board({ token, userId, username, profilePhoto, profileUserId, onProfile
       try {
         const cached = await profileStore.readCachedNote(profileUserId, id);
         if (controller.signal.aborted) return;
-        if (cached) { opener.current = null; setModal({ type: 'read', id }); return; }
+        if (cached) {
+          opener.current = null;
+          setModal({ type: 'read', id, linkedItem: cached });
+          return;
+        }
         const result = await testimonyRequest(token, `/own/${id}`, { signal: controller.signal });
         if (!controller.signal.aborted) { opener.current = null; setModal({ type: 'read', id, linkedItem: result.item }); }
       } catch (error) { if (!controller.signal.aborted) setNotice(error.message); }
     };
     openNote(new URLSearchParams(window.location.search).get('note'));
+    const deleted = event => {
+      if (event.detail?.action === 'deleted') setModal(previous => previous?.id === event.detail.id ? null : previous);
+    };
+    window.addEventListener('taspe7:testimony-live', deleted);
+    window.addEventListener('taspe7:testimonies-changed', deleted);
     const fromPush = event => {
       const id = new URL(event.detail?.href || '/', window.location.origin).searchParams.get('note');
       if (!/^[a-f\d]{24}$/i.test(id || '')) return;
       event.preventDefault(); openNote(id);
     };
     window.addEventListener('taspe7:open-testimony', fromPush);
-    return () => { notificationRequest.current?.abort(); window.removeEventListener('taspe7:open-testimony', fromPush); };
+    return () => {
+      notificationRequest.current?.abort();
+      window.removeEventListener('taspe7:open-testimony', fromPush);
+      window.removeEventListener('taspe7:testimony-live', deleted);
+      window.removeEventListener('taspe7:testimonies-changed', deleted);
+    };
   }, [pageActive, ownProfile, token, profileStore, profileUserId]);
 
   useEffect(() => {
@@ -128,22 +143,26 @@ function Board({ token, userId, username, profilePhoto, profileUserId, onProfile
     setNotice(''); setModal({ type: 'compose' });
   };
 
+  const [rail, setRail] = useState(null);
+  const renderCard = (item, index) => <TestimonyCard key={item._id} item={item} index={index} isFeed={isFeed} now={displayNow} unread={isFeed && String(item.author._id) !== String(userId) && !feedStore?.isSeen(item._id)} hideAuthor={!isFeed && ownProfile} onRead={(item, trigger) => {
+            feedStore?.markSeen(item._id, item);
+            opener.current = trigger;
+            trigger.focus({ preventScroll: true });
+            setModal({ type: 'read', id: item._id });
+          }} />;
+
   return <>
     <section className={styles.board} aria-label={isFeed ? 'Friends highlights' : 'Profile testimony highlights'}>
-      {restricted ? <div className={styles.lockedTestimonies}><LockKeyhole size={18} /><div><strong>Shared with friends</strong><p>Become friends to read each other’s testimonies.</p></div></div> : <div className={styles.noteRail} data-testid="testimony-cards">
+      {restricted ? <div className={styles.lockedTestimonies}><LockKeyhole size={18} /><div><strong>Shared with friends</strong><p>Become friends to read each other’s testimonies.</p></div></div> : <div ref={isFeed ? undefined : setRail} data-loaded-notes={visibleItems.length} className={styles.noteRail} data-testid="testimony-cards">
         {(isFeed || ownProfile) && <div className={styles.miniCard}>
           <button type="button" className={styles.createNote} disabled={loading || !publishing} aria-disabled={!canPublish} onClick={create} aria-label={t('shareYourTestimony')} title={canPublish ? t('shareYourTestimony') : publishing?.canPublish === false ? NOTE_ACTIVE_MESSAGE : 'Checking availability…'}><Plus size={24} strokeWidth={1.4} /><span className={styles.noteLines} aria-hidden="true" /></button>
           <span className={styles.createCaption}>{publishing?.canPublish === false && !canPublish ? t('noteActive') : t('shareANote')}</span>
         </div>}
         {loading && !data.items.length ? <div className={styles.loadingNotes} aria-label="Loading testimonies" role="status"><span /><span /></div>
-          : visibleItems.map((item, index) => <TestimonyCard key={item._id} item={item} index={index} isFeed={isFeed} now={displayNow} unread={isFeed && String(item.author._id) !== String(userId) && !feedStore?.isSeen(item._id)} hideAuthor={!isFeed && ownProfile} onRead={(item, trigger) => {
-            feedStore?.markSeen(item._id, item);
-            opener.current = trigger;
-            trigger.focus({ preventScroll: true });
-            setModal({ type: 'read', id: item._id });
-          }} />)}
+          : isFeed ? visibleItems.map(renderCard) : <ProfileRailCards rail={rail} items={visibleItems} leading={ownProfile}
+            position={profileStore.railPosition(profileUserId)} renderCard={renderCard} />}
         {!loading && !error && !visibleItems.length && !isFeed && !ownProfile && <p className={styles.emptyNotes}>No shared testimonies yet.</p>}
-        {!error && data.nextCursor && <button type="button" className={styles.moreNotes} disabled={loading || loadingMore} onClick={() => load(data.nextCursor)}>{loadingMore ? <Loader2 size={17} className={styles.spin} /> : <Plus size={17} />}<span>More</span></button>}
+        {(!error || ownProfile) && data.nextCursor && <button type="button" className={styles.moreNotes} disabled={loading || loadingMore} onClick={() => load(data.nextCursor)}>{loadingMore ? <Loader2 size={17} className={styles.spin} /> : <Plus size={17} />}<span>More</span></button>}
       </div>}
       {notice && <p className={styles.successNotice} role="status">{notice}</p>}
       {error && <div className={styles.boardError} role="alert"><span>{error}</span><button type="button" className={styles.retryButton} aria-label="Try again" onClick={() => load()}><RefreshCw size={13} /></button></div>}

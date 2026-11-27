@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useContext, useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { Suspense, useContext, useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { isProfilePath, openProfileView, profileScrollPosition, profileView, rememberSettingsRoute, returnFromSettings } from '../utils/profileNavigation';
@@ -9,7 +9,7 @@ import 'react-image-crop/dist/ReactCrop.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import Portal from '../Portal/Portal';
 import PageSkeleton from '../components/PageSkeleton';
-import { queueOfflineAction } from '../utils/offlineQueue';
+import { journal, watchBibleChanges, writeBibleChange } from '../utils/bibleChanges';
 import { showToast } from '../components/ToastContainer';
 import { useOfflineAvatar } from '../hooks/useOfflineAvatar';
 import { removeCachedAvatar } from '../utils/avatarStorage';
@@ -55,13 +55,14 @@ import {
 } from 'lucide-react';
 import { UserContext } from '../context/User_Context';
 import { useSwipePreference } from '../utils/swipePreferences';
-import { groupHighlights, groupNotes } from '../utils/bibleProfileGroups';
+import { createProfileBiblePages } from '../components/profile/profileBiblePages';
+import { ProfileBibleFooter, ProfileBibleList } from '../components/profile/ProfileBibleList';
 import { useTabPageActive } from '../components/TabPageActivity';
 import { useTheme } from '../context/ThemeContext';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { useLanguage } from "../context/LanguageContext";
-import { getGuestPrays } from '../utils/prayRecordings';
-import { invalidateProfile, getCachedProfileSnapshot, readCachedProfile, refreshProfile, writeCachedProfile } from '../utils/profileCache';
+import { readProfileSummary, refreshProfileSummary, saveProfileSummary } from '../utils/profileSummary';
+import { invalidateProfile, readCachedProfile, writeCachedProfile } from '../utils/profileCache';
 
 const BIBLE_TRANSLATIONS = [
     { id: 'AVD', name: 'فانديك (AVD)', desc: 'Arabic Van Dyck' },
@@ -243,7 +244,7 @@ function UserProfile({ profileUserId }) {
     const { t, language, setLanguage } = useLanguage();
     const profileNotes = useProfileNotesStore();
     const [initialSocial] = useState(() => profileNotes.getSnapshot(profileUserId));
-    const [profile, setProfile] = useState(() => isOwner ? getCachedProfileSnapshot(user_id) : initialSocial?.ready && initialSocial.user ? { user: initialSocial.user } : null);
+    const [profile, setProfile] = useState(() => isOwner ? readProfileSummary(user_id) : initialSocial?.ready && initialSocial.user ? { user: initialSocial.user } : null);
     const [socialProfile, setSocialProfile] = useState(() => initialSocial?.ready ? initialSocial : null);
     const [refreshingSocial, setRefreshingSocial] = useState(false);
     const [loading, setLoading] = useState(() => !profile);
@@ -273,6 +274,55 @@ function UserProfile({ profileUserId }) {
     }, [profilePhoto, isOwner]);
     const { theme, toggleTheme, isDark } = useTheme?.() || {};
     const [currentView, setCurrentView] = useState('menu');
+
+    const needsDetails = isOwner && (currentView === 'notes' || currentView === 'highlights');
+    const collections = useMemo(() => ({
+        notes: createProfileBiblePages(API_URL, user_id, isLogin, 'notes'),
+        highlights: createProfileBiblePages(API_URL, user_id, isLogin, 'highlights'),
+    }), [user_id, isLogin]);
+    const collection = currentView === 'highlights' ? collections.highlights : collections.notes;
+    const records = useSyncExternalStore(collection.subscribe, collection.snapshot, collection.snapshot);
+    useEffect(() => {
+        if (!pageActive || !needsDetails || !isLogin) return;
+        const open = () => { void collection.load(); };
+        open();
+        window.addEventListener('online', open);
+        return () => { collection.cancel(); window.removeEventListener('online', open); };
+    }, [collection, needsDetails, pageActive, isLogin]);
+
+    const [localCounts, setLocalCounts] = useState({});
+    useEffect(() => {
+        if (!isOwner || !isLogin) return;
+        let live = true;
+        const revisions = {};
+        const check = async kind => {
+            const revision = revisions[kind] = (revisions[kind] || 0) + 1;
+            const value = await journal.summary(journal.scope(API_URL, user_id, kind));
+            if (!live || revision !== revisions[kind]) return;
+            setLocalCounts(previous => ({ ...previous, [kind]: value }));
+        };
+        if (pageActive && currentView === 'menu') {
+            for (const kind of ['notes', 'highlights']) check(kind).catch(console.warn);
+        }
+        const unsubscribe = watchBibleChanges(event => {
+            if (event.owner !== user_id || event.api !== API_URL) return;
+            const store = collections[event.kind];
+            store.invalidate();
+            if (pageActive && currentView === event.kind) void store.load(false, !event.reconcile && !event.rejected && event.version == null);
+            check(event.kind).catch(console.warn);
+            if (pageActive && currentView === 'menu' && (event.version != null || event.reconcile || event.rejected)) {
+                refreshProfileSummary(API_URL, isLogin, user_id).then(data => { if (live) setProfile(data); }).catch(() => {});
+            }
+        });
+        return () => { live = false; unsubscribe(); };
+    }, [user_id, isOwner, isLogin, currentView, pageActive, collections]);
+
+    const menuCount = kind => {
+        const local = localCounts[kind];
+        if (local?.pending) return '…';
+        if (Number.isInteger(local?.count) && local.version >= (profile?.versions?.[kind] || 0)) return local.count;
+        return profile?.counts?.[kind] ?? '—';
+    };
 
     // Clears user session and navigates to sign-in
     const handleLogout = () => {
@@ -340,11 +390,6 @@ function UserProfile({ profileUserId }) {
         }
     };
 
-    // Memoize grouped highlights for performance
-    const groupedBibleHighlights = useMemo(() => {
-        return groupHighlights(profile?.bibleHighlights || []);
-    }, [profile?.bibleHighlights]);
-
     // Notes view mode (vertical vs continuous)
     const [notesViewMode, setNotesViewMode] = useState(() => {
         if (typeof window === 'undefined') return 'list';
@@ -356,11 +401,6 @@ function UserProfile({ profileUserId }) {
             localStorage.setItem('taspe7_notes_view_mode', mode);
         }
     };
-
-    // Memoize grouped notes for performance
-    const groupedBibleNotes = useMemo(() => {
-        return groupNotes(profile?.bibleNotes || []);
-    }, [profile?.bibleNotes]);
 
     const navigateToView = view => {
         if (!isOwner) return;
@@ -387,9 +427,10 @@ function UserProfile({ profileUserId }) {
     useLayoutEffect(() => {
         if (!isOwner || !pageActive || !isProfilePath(location.pathname)
             || currentView !== profileView()) return;
+        if (needsDetails && collection.anchor) return;
         const top = profileScrollPosition();
         if (currentView !== 'menu' || top != null) window.scrollTo({ top: top ?? 0, behavior: 'instant' });
-    }, [currentView, isOwner, pageActive]);
+    }, [currentView, isOwner, pageActive, needsDetails, collection]);
 
     const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
     const isUploadingPhoto = isProcessingPhoto || isUploadingProfilePhoto;
@@ -418,12 +459,6 @@ function UserProfile({ profileUserId }) {
             }
         };
     }, [photoToCrop]);
-
-    const [localPrayCount, setLocalPrayCount] = useState(0);
-    useEffect(() => {
-        if (!isOwner) return;
-        getGuestPrays().then((prays) => setLocalPrayCount(prays.length)).catch(() => {});
-    }, [isOwner]);
 
     const onImageLoad = (e) => {
         const { width, height } = e.currentTarget;
@@ -481,17 +516,16 @@ function UserProfile({ profileUserId }) {
     const [noteText, setNoteText] = useState('');
     const [isSubmittingNote, setIsSubmittingNote] = useState(false);
 
-    // Updates profile state and local cache
-    const updateProfileState = (modifier) => {
-        if (!isOwner) return;
-        setProfile(prev => {
-            const updatedProfile = typeof modifier === 'function' ? modifier(prev) : modifier;
-            if (updatedProfile) {
-                invalidateProfile(API_URL, isLogin);
-                writeCachedProfile(user_id, updatedProfile).catch(console.error);
-            }
-            return updatedProfile;
-        });
+    const updateHeader = modifier => {
+        invalidateProfile(API_URL, isLogin);
+        const updated = modifier(profile);
+        if (updated) {
+            setProfile(updated);
+            saveProfileSummary(user_id, updated);
+        }
+        readCachedProfile(user_id).then(cached => {
+            if (cached) return writeCachedProfile(user_id, modifier(cached));
+        }).catch(console.error);
     };
 
     // Debounced username availability check
@@ -567,7 +601,7 @@ function UserProfile({ profileUserId }) {
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.msg || 'Failed to update name');
 
-                updateProfileState(prev => prev ? {
+                updateHeader(prev => prev ? {
                     ...prev,
                     user: { ...prev.user, Name: trimmed }
                 } : prev);
@@ -616,7 +650,7 @@ function UserProfile({ profileUserId }) {
                     setUsername(data.username);
                 }
 
-                updateProfileState(prev => prev ? {
+                updateHeader(prev => prev ? {
                     ...prev,
                     user: { ...prev.user, username: data.username || lower }
                 } : prev);
@@ -694,7 +728,7 @@ function UserProfile({ profileUserId }) {
             }
             clearProfilePhotoPreview();
             setProfilePhoto(null);
-            updateProfileState(prev => prev ? { ...prev, user: { ...prev.user, profilePhoto: null } } : prev);
+            updateHeader(prev => prev ? { ...prev, user: { ...prev.user, profilePhoto: null } } : prev);
             localStorage.removeItem("user_Taspe7_ProfilePhoto");
             showToast({ message: 'Profile photo removed', type: 'success' });
         } catch (error) {
@@ -726,221 +760,63 @@ function UserProfile({ profileUserId }) {
             return unsubscribe;
         }
 
-        let ignore = false;
-        const loadProfile = async () => {
+        if (!pageActive || currentView !== 'menu' || profileView() !== 'menu') return;
+        let active = true;
+        const refresh = async () => {
             try {
-                // 1. استرجاع البيانات من الكاش أولاً لعرضها فوراً
-                const cachedData = await readCachedProfile(user_id);
-                if (cachedData && !ignore) {
-                    setProfile(cachedData);
-                    setLoading(false);
-                } else if (!ignore) {
-                    setLoading(true);
-                }
-
-                // 2. تحديث البيانات من السيرفر في الخلفية
-                const newProfileData = await refreshProfile(API_URL, isLogin, user_id);
-                if (ignore) return;
-
-                // 3. تحديث الكاش والـ UI بالبيانات الجديدة
-                setProfile(newProfileData);
-                setError(null);
-
-            } catch (fetchError) {
-                if (!ignore) {
-                    console.error('Error fetching profile:', fetchError);
-                    const cachedData = await readCachedProfile(user_id);
-                    if (!cachedData) {
-                        setError(fetchError.message || 'Failed to load profile data');
-                    }
+                const summary = await refreshProfileSummary(API_URL, isLogin, user_id);
+                if (active) { setProfile(summary); setError(null); }
+            } catch (error) {
+                if (!active || error.name === 'AbortError') return;
+                if (!readProfileSummary(user_id)) {
+                    // Upgrade offline users with an older cached header on first use.
+                    const legacy = await readCachedProfile(user_id);
+                    if (!active) return;
+                    if (legacy?.user) {
+                        const { _id, Name, username, role, global_role, profilePhoto } = legacy.user;
+                        const summary = { user: { _id, Name, username, role, global_role, profilePhoto } };
+                        setProfile(summary);
+                        saveProfileSummary(user_id, summary);
+                    } else setError(error.message);
                 }
             } finally {
-                if (!ignore) setLoading(false);
+                if (active) setLoading(false);
             }
         };
-
-        loadProfile();
-
-        return () => { ignore = true; };
-    }, [isLogin, user_id, isOwner, profileUserId, handleSocialProfile, profileNotes]);
-
-    // Activity controls focus refreshes without resetting the displayed profile.
-    useEffect(() => {
-        if (!pageActive || !isOwner || !isLogin || !user_id) return;
-        let ignore = false;
-        const refresh = () => {
-            refreshProfile(API_URL, isLogin, user_id, { force: true }).then(data => {
-                if (!ignore) { setProfile(data); setError(null); }
-            }).catch(() => {});
-        };
+        refresh();
         window.addEventListener('focus', refresh);
-        return () => { ignore = true; window.removeEventListener('focus', refresh); };
-    }, [pageActive, isOwner, isLogin, user_id]);
+        window.addEventListener('online', refresh);
+        return () => {
+            active = false;
+            window.removeEventListener('focus', refresh);
+            window.removeEventListener('online', refresh);
+        };
+    }, [isLogin, user_id, isOwner, profileUserId, handleSocialProfile, profileNotes, pageActive, currentView]);
 
-    const handleDeleteBibleNote = async (noteId) => {
-        if (!isOwner) return;
-        if (!window.confirm('Are you sure you want to delete this bible note?')) return;
-        const idsToDelete = Array.isArray(noteId) ? noteId : [noteId];
-        try {
-            await Promise.all(idsToDelete.map(id =>
-                fetch(`${API_URL}/users/bible-note/${user_id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${isLogin}`
-                    },
-                    body: JSON.stringify({ noteId: id })
-                })
-            ));
+    async function changeAnnotation(kind, remove, record, value) {
+        const entries = record.verses.map(v => ({
+            verseId: String(v.verseId), noteId: kind === 'notes' && v._id ? String(v._id) : undefined,
+            bookName: record.bookName, chapter: record.chapter, verseNumber: v.verseNumber, text: v.text, value,
+        }));
+        const synced = await writeBibleChange(API_URL, user_id, isLogin, kind, remove, entries);
+        if (!synced) showToast({ message: 'Saved on this device. Will sync when online.', type: 'offline' });
+    }
 
-            updateProfileState(prev => ({
-                ...prev,
-                bibleNotes: prev.bibleNotes.filter(n => !idsToDelete.includes(n._id))
-            }));
-        } catch (error) {
-            const isNetworkError = !navigator.onLine || error.message.includes('Failed to fetch') || error.message.includes('Network Error');
-            if (isNetworkError) {
-                for (const id of idsToDelete) {
-                    await queueOfflineAction(`${API_URL}/users/bible-note/${user_id}`, 'DELETE', { noteId: id }, { Authorization: `Bearer ${isLogin}` });
-                }
-                updateProfileState(prev => ({
-                    ...prev,
-                    bibleNotes: prev.bibleNotes.filter(n => !idsToDelete.includes(n._id))
-                }));
-                showToast({ message: '📶 Offline: Note deleted locally. Will sync when online.', type: 'offline', duration: 4000 });
-                return;
-            }
-            console.error('Delete note error:', error);
-            alert('Error deleting note');
-        }
-    };
-
-    const handleDeleteBibleHighlight = async (verseId) => {
-        if (!isOwner) return;
-        if (!window.confirm('Are you sure you want to delete this highlight?')) return;
-        const idsToDelete = Array.isArray(verseId) ? verseId : [verseId];
-
-        // Sync with local storage
-        if (typeof window !== 'undefined') {
-            try {
-                const raw = localStorage.getItem('taspe7_local_bible_highlights');
-                if (raw) {
-                    const current = JSON.parse(raw);
-                    idsToDelete.forEach(id => {
-                        delete current[String(id)];
-                    });
-                    localStorage.setItem('taspe7_local_bible_highlights', JSON.stringify(current));
-                }
-            } catch { }
-        }
-
-        try {
-            const response = await fetch(`${API_URL}/users/bible-highlight/${user_id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${isLogin}`
-                },
-                body: JSON.stringify({ verseId })
-            });
-
-            if (response.ok) {
-                updateProfileState(prev => {
-                    return {
-                        ...prev,
-                        bibleHighlights: prev.bibleHighlights.filter(h => !idsToDelete.includes(h.verseId))
-                    };
-                });
-            } else {
-                const data = await response.json();
-                alert(data.message || 'Failed to delete highlight');
-            }
-        } catch (error) {
-            const isNetworkError = !navigator.onLine || error.message.includes('Failed to fetch') || error.message.includes('Network Error');
-            if (isNetworkError) {
-                await queueOfflineAction(`${API_URL}/users/bible-highlight/${user_id}`, 'DELETE', { verseId }, { Authorization: `Bearer ${isLogin}` });
-                updateProfileState(prev => {
-                    return {
-                        ...prev,
-                        bibleHighlights: prev.bibleHighlights.filter(h => !idsToDelete.includes(h.verseId))
-                    };
-                });
-                showToast({ message: '📶 Offline: Highlight deleted locally. Will sync when online.', type: 'offline', duration: 4000 });
-                return;
-            }
-            console.error('Delete highlight error:', error);
-            alert('Error deleting highlight');
-        }
-    };
+    async function deleteAnnotation(kind, record) {
+        if (!isOwner || !window.confirm(kind === 'notes' ? 'Delete this Bible note?' : 'Delete this highlight?')) return;
+        try { await changeAnnotation(kind, true, record); }
+        catch (error) { showToast({ message: error.message, type: 'error' }); }
+    }
 
     const handleSaveNote = async () => {
-        if (!isOwner) return;
-        if (!noteText.trim() || !noteModalConfig) return;
+        if (!isOwner || !noteText.trim() || !noteModalConfig || isSubmittingNote) return;
         setIsSubmittingNote(true);
-        const noteItem = noteModalConfig.data;
-        const verses = noteItem.verses || [noteItem];
-
         try {
-            await Promise.all(verses.map(v =>
-                fetch(`${API_URL}/users/bible-note`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${isLogin}`
-                    },
-                    body: JSON.stringify({
-                        userid: user_id,
-                        verseId: v.verseId || noteItem.verseId,
-                        bookName: noteItem.bookName,
-                        chapter: noteItem.chapter,
-                        verseNumber: v.verseNumber || noteItem.verseNumber,
-                        text: v.text || noteItem.text,
-                        note: noteText
-                    })
-                })
-            ));
-
-            const verseIds = verses.map(v => v.verseId || noteItem.verseId);
-            updateProfileState(prev => ({
-                ...prev,
-                bibleNotes: prev.bibleNotes.map(n =>
-                    verseIds.includes(n.verseId) ? { ...n, note: noteText, date: new Date() } : n
-                ).sort((a, b) => new Date(b.date) - new Date(a.date))
-            }));
+            await changeAnnotation('notes', false, noteModalConfig.data, noteText);
             setNoteModalConfig(null);
             setNoteText('');
-        } catch (error) {
-            const isNetworkError = !navigator.onLine || error.message.includes('Failed to fetch') || error.message.includes('Network Error');
-            if (isNetworkError) {
-                for (const v of verses) {
-                    const payload = {
-                        userid: user_id,
-                        verseId: v.verseId || noteItem.verseId,
-                        bookName: noteItem.bookName,
-                        chapter: noteItem.chapter,
-                        verseNumber: v.verseNumber || noteItem.verseNumber,
-                        text: v.text || noteItem.text,
-                        note: noteText
-                    };
-                    await queueOfflineAction(`${API_URL}/users/bible-note`, 'POST', payload, { Authorization: `Bearer ${isLogin}` });
-                }
-                const verseIds = verses.map(v => v.verseId || noteItem.verseId);
-                updateProfileState(prev => ({
-                    ...prev,
-                    bibleNotes: prev.bibleNotes.map(n =>
-                        verseIds.includes(n.verseId) ? { ...n, note: noteText, date: new Date() } : n
-                    ).sort((a, b) => new Date(b.date) - new Date(a.date))
-                }));
-                setNoteModalConfig(null);
-                setNoteText('');
-                showToast({ message: '📶 Offline: Note saved locally. Will sync when online.', type: 'offline', duration: 4000 });
-                return;
-            }
-            console.error('Update note error:', error);
-            alert('Error updating note');
-        } finally {
-            setIsSubmittingNote(false);
-        }
+        } catch (error) { showToast({ message: error.message, type: 'error' }); }
+        finally { setIsSubmittingNote(false); }
     };
 
     const handleEditBibleNote = (noteItem) => {
@@ -966,11 +842,11 @@ function UserProfile({ profileUserId }) {
     }, [noteModalConfig, isOwner]);
 
 
-    if (loading && !(isLogin && isOwner && currentView === 'menu')) {
+    if (!isOwner && loading) {
         return <PageSkeleton variant="profile" fullPage />;
     }
 
-    if (error && !profile) {
+    if (!needsDetails && error && !profile) {
         return (
             <div className="app-page min-h-screen flex items-center justify-center p-4 transition-colors duration-150">
                 <div className="bg-red-500/10 border border-red-500/20 rounded-3xl p-8 max-w-md w-full text-center backdrop-blur-xl">
@@ -1075,7 +951,7 @@ function UserProfile({ profileUserId }) {
                                         </div>
                                         <div className="flex items-center gap-1.5 shrink-0">
                                             <span className="text-xs text-slate-400 font-medium">
-                                                {loading ? '—' : groupedBibleHighlights.length} {groupedBibleHighlights.length === 1 ? t('record') : t('records')}
+                                                {menuCount('highlights')} {menuCount('highlights') === 1 ? t('record') : t('records')}
                                             </span>
                                             <ChevronRight className="w-4 h-4 text-slate-600" />
                                         </div>
@@ -1092,7 +968,7 @@ function UserProfile({ profileUserId }) {
                                         </div>
                                         <div className="flex items-center gap-1.5 shrink-0">
                                             <span className="text-xs text-slate-400 font-medium">
-                                                {loading ? '—' : groupedBibleNotes.length} {groupedBibleNotes.length === 1 ? t('record') : t('records')}
+                                                {menuCount('notes')} {menuCount('notes') === 1 ? t('record') : t('records')}
                                             </span>
                                             <ChevronRight className="w-4 h-4 text-slate-600" />
                                         </div>
@@ -1298,7 +1174,7 @@ function UserProfile({ profileUserId }) {
                                                 {t('bibleHighlights')}
                                             </h1>
                                             <p className="text-xs text-slate-400">
-                                                {groupedBibleHighlights.length} {groupedBibleHighlights.length === 1 ? t('record') : t('records')}
+                                                {records.ready ? records.total : '—'} {records.total === 1 ? t('record') : t('records')}
                                             </p>
                                         </div>
                                     </div>
@@ -1335,14 +1211,13 @@ function UserProfile({ profileUserId }) {
                                 </div>
 
                                 {/* Direct Highlights List */}
-                                {groupedBibleHighlights.length === 0 ? (
+                                {records.ready && records.total === 0 && !records.error ? (
                                     <div className="flex flex-col items-center justify-center p-12 text-center text-slate-500 rounded-3xl border border-white/5 bg-white/[0.02]">
                                         <Sparkles className="w-10 h-10 mb-3 opacity-20" />
                                         <p className="text-xs font-semibold">{t('noBibleHighlightsYet')}</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-3">
-                                        {groupedBibleHighlights.map((highlight) => {
+                                    <ProfileBibleList key={currentView} active={pageActive} state={records} store={collection} render={(highlight) => {
                                             const hex = getHighlightHex(highlight.color);
                                             return (
                                                 <div key={highlight._id} className="app-card rounded-2xl border p-4 sm:p-5 hover:bg-white/5 transition-all duration-300 relative overflow-hidden group shadow-xl shadow-black/20">
@@ -1383,7 +1258,7 @@ function UserProfile({ profileUserId }) {
                                                             )}
                                                         </div>
                                                         <button
-                                                            onClick={() => handleDeleteBibleHighlight(highlight.verseIds)}
+                                                            onClick={() => deleteAnnotation('highlights', highlight)}
                                                             className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5 shrink-0 self-start"
                                                             title={t('deleteHighlight')}
                                                         >
@@ -1392,8 +1267,7 @@ function UserProfile({ profileUserId }) {
                                                     </div>
                                                 </div>
                                             );
-                                        })}
-                                    </div>
+                                    }} />
                                 )}
                             </div>
                         )}
@@ -1415,7 +1289,7 @@ function UserProfile({ profileUserId }) {
                                                 {t('bibleNotes')}
                                             </h1>
                                             <p className="text-xs text-slate-400">
-                                                {groupedBibleNotes.length} {groupedBibleNotes.length === 1 ? t('record') : t('records')}
+                                                {records.ready ? records.total : '—'} {records.total === 1 ? t('record') : t('records')}
                                             </p>
                                         </div>
                                     </div>
@@ -1452,14 +1326,13 @@ function UserProfile({ profileUserId }) {
                                 </div>
 
                                 {/* Direct Notes List */}
-                                {groupedBibleNotes.length === 0 ? (
+                                {records.ready && records.total === 0 && !records.error ? (
                                     <div className="flex flex-col items-center justify-center p-12 text-center text-slate-500 rounded-3xl border border-white/5 bg-white/[0.02]">
                                         <Book className="w-10 h-10 mb-3 opacity-20" />
                                         <p className="text-xs font-semibold">{t('noBibleNotesYet')}</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-3">
-                                        {groupedBibleNotes.map((note) => (
+                                    <ProfileBibleList key={currentView} active={pageActive} state={records} store={collection} render={(note) => (
                                             <div key={note._id} className="app-card rounded-2xl border p-4 sm:p-5 hover:bg-white/5 transition-all duration-300 relative overflow-hidden group shadow-xl shadow-black/20">
                                                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                                                     <div className="flex-1 min-w-0">
@@ -1513,7 +1386,7 @@ function UserProfile({ profileUserId }) {
                                                             <Edit3 className="w-4 h-4" />
                                                         </button>
                                                         <button
-                                                            onClick={() => handleDeleteBibleNote(note.noteIds || note._id)}
+                                                            onClick={() => deleteAnnotation('notes', note)}
                                                             className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all border border-white/5"
                                                             title={t('deleteNote')}
                                                         >
@@ -1522,11 +1395,12 @@ function UserProfile({ profileUserId }) {
                                                     </div>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
+                                    )} />
                                 )}
                             </div>
                         )}
+
+                        {needsDetails && <ProfileBibleFooter store={collection} state={records} active={pageActive} language={language} />}
 
                         {currentView === 'bible_settings' && (
                             <div className="space-y-6">
@@ -1734,7 +1608,7 @@ function UserProfile({ profileUserId }) {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center p-0 sm:p-6"
+                            className="fixed inset-0 z-[10001] flex items-end sm:items-center justify-center p-0 sm:p-6"
                             style={{ isolation: 'isolate' }}
                         >
                             <div

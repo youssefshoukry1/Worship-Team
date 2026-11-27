@@ -11,6 +11,7 @@ import { getApiBaseUrl } from '../utils/apiBase';
 import { isRetiredTranslation } from '../utils/platform';
 import { prepareOfflineSearch, scheduleBibleMigration } from '../utils/bibleChapterStorage';
 import { openBibleReader, prepareLocalBible, readLocalChapter, searchLocalBible, isTranslationDownloaded, downloadTranslationToLocal, getKnownDownloadedTranslations, getDownloadedTranslations } from '../utils/bibleSync';
+import { journal, activeTeam, readerKey, readReaderMap, saveReaderMap, applyBibleMap, watchBibleChanges, writeBibleChange } from '../utils/bibleChanges';
 import { queueOfflineAction } from '../utils/offlineQueue';
 import { invalidateProfile, readCachedProfile, refreshProfile } from '../utils/profileCache';
 import { prepareLocalAiOpening, completeLocalAiRequest, cancelLocalAiOpening } from '../utils/aiPersonalization';
@@ -28,7 +29,7 @@ const API_ROOT = getApiBaseUrl();
 
 const BIBLE_API = `${API_ROOT}/bible`;
 
-const LOCAL_BIBLE_NOTES_KEY = 'taspe7_local_bible_notes';
+
 
 const BIBLE_LAST_VERSES_KEY = 'taspe7_bible_last_verses';
 
@@ -83,48 +84,6 @@ function saveLastCachedVerses(bookName, chapter, verses, translation = 'AVD') {
   try {
     localStorage.setItem(BIBLE_LAST_VERSES_KEY, JSON.stringify({ bookName, chapter, verses, translation }));
   } catch { }
-}
-
-function readLocalBibleNotes() {
-  if (typeof window === 'undefined') return {};
-  try {
-    const raw = localStorage.getItem(LOCAL_BIBLE_NOTES_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeLocalBibleNote(verseId, note) {
-  if (typeof window === 'undefined' || !verseId) return;
-  const current = readLocalBibleNotes();
-  current[String(verseId)] = String(note || '');
-  localStorage.setItem(LOCAL_BIBLE_NOTES_KEY, JSON.stringify(current));
-}
-
-const LOCAL_BIBLE_HIGHLIGHTS_KEY = 'taspe7_local_bible_highlights';
-
-function readLocalBibleHighlights() {
-  if (typeof window === 'undefined') return {};
-  try {
-    const raw = localStorage.getItem(LOCAL_BIBLE_HIGHLIGHTS_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeLocalBibleHighlight(verseId, colorId) {
-  if (typeof window === 'undefined' || !verseId) return;
-  const current = readLocalBibleHighlights();
-  if (colorId) {
-    current[String(verseId)] = colorId;
-  } else {
-    delete current[String(verseId)];
-  }
-  localStorage.setItem(LOCAL_BIBLE_HIGHLIGHTS_KEY, JSON.stringify(current));
 }
 
 function getUsersEndpointCandidates(path) {
@@ -347,92 +306,26 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     }
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    if (pageActive && isOpen) {
-      setBibleHighlights(readLocalBibleHighlights());
-      if (user_id) {
-        const token = localStorage.getItem("user_Taspe7_Token");
-        if (token) {
-          refreshProfile(API_ROOT, token, user_id).then(profile => {
-            if (cancelled) return;
-            if (profile.user?.bibleHighlights) {
-              const serverHighlights = {};
-              profile.user.bibleHighlights.forEach(h => {
-                if (h.verseId && h.color) {
-                  serverHighlights[String(h.verseId)] = h.color;
-                }
-              });
-              localStorage.setItem(LOCAL_BIBLE_HIGHLIGHTS_KEY, JSON.stringify(serverHighlights));
-              setBibleHighlights(serverHighlights);
-            }
-          }).catch(() => { });
-        }
-      }
-    }
-    return () => { cancelled = true; };
-  }, [isOpen, user_id, pageActive]);
-
-  const handleApplyHighlight = async (colorId) => {
-    invalidateProfile(API_ROOT, isLogin);
-    const selectedIds = Array.from(bibleSelectedVerseIds);
-    if (!selectedIds.length) return;
-
-    // Toggle off if all selected verses already have this color
-    const isTogglingOff = colorId && selectedIds.every(id => bibleHighlights[id] === colorId);
-    const targetColor = isTogglingOff ? null : colorId;
-
-    const newHighlights = { ...bibleHighlights };
-
-    // Optimistic UI update
-    selectedIds.forEach(id => {
-      if (targetColor) {
-        newHighlights[id] = targetColor;
-        writeLocalBibleHighlight(id, targetColor);
-      } else {
-        delete newHighlights[id];
-        writeLocalBibleHighlight(id, null);
-      }
+  const handleApplyHighlight = async colorId => {
+    const ids = Array.from(bibleSelectedVerseIds);
+    const remove = !colorId || ids.every(id => bibleHighlights[id] === colorId);
+    const entries = ids.flatMap(id => {
+      const v = bibleModalVerses.find(verse => verse._id === id);
+      return v ? [{ verseId: String(id), value: colorId, bookName: v.bookName || bibleModalBook?.name,
+        chapter: v.chapter || bibleModalChapter?.number || 1, verseNumber: v.verseNumber, text: v.text }] : [];
     });
-    setBibleHighlights(newHighlights);
-
-    // Auto close context menu by deselecting
+    if (!entries.length) return;
     setBibleSelectedVerseIds(new Set());
-
-    if (!user_id) return;
-    const token = localStorage.getItem("user_Taspe7_Token");
-    if (!token) return;
-
-    try {
-      const promises = selectedIds.map(async (id) => {
-        const verse = bibleModalVerses.find(v => v._id === id);
-        if (!verse) return;
-
-        if (targetColor) {
-          await axios.post(`${API_ROOT.replace(/\/api$/, '')}/api/users/bible-highlight`, {
-            userid: user_id,
-            verseId: id,
-            bookName: verse.bookName || bibleModalBook?.name || '',
-            chapter: verse.chapter || bibleModalChapter?.number || 1,
-            verseNumber: verse.verseNumber,
-            color: targetColor,
-            text: verse.text
-          }, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-        } else {
-          await axios.delete(`${API_ROOT.replace(/\/api$/, '')}/api/users/bible-highlight/${user_id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-            data: { verseId: id }
-          });
-        }
-      });
-      await Promise.all(promises);
-    } catch (err) {
-      console.error('Failed to sync bible highlights:', err);
-    } finally {
-      invalidateProfile(API_ROOT, token);
+    if (!user_id || !isLogin) {
+      const key = readerKey(API_ROOT, null, '', 'highlights');
+      const map = applyBibleMap(readReaderMap(key), [{ remove, entries }]);
+      saveReaderMap(key, map);
+      setBibleHighlights(map);
+      return;
     }
+    try {
+      await writeBibleChange(API_ROOT, user_id, isLogin, 'highlights', remove, entries);
+    } catch (error) { showToast({ message: error.message, type: 'error' }); }
   };
 
   const handleVerseClick = React.useCallback((verseId) => {
@@ -856,32 +749,17 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       return;
     }
 
-    invalidateProfile(API_ROOT, token);
     setIsSubmittingNote(true);
     try {
       if (noteModalConfig.type === 'bible') {
         const verseOrVerses = noteData;
         const verses = Array.isArray(verseOrVerses) ? verseOrVerses : [verseOrVerses];
-        await Promise.all(verses.map(async (v) => {
-          await postUsersWithFallback('bible-note', {
-            userid,
-            verseId: v._id,
-            bookName: bibleModalBook?.bookName || v.bookName || 'Unknown',
-            chapter: bibleModalChapter || v.chapter || 1,
-            verseNumber: v.verseNumber,
-            text: v.text,
-            note: noteText
-          }, { headers: { Authorization: `Bearer ${token}` } });
-        }));
-        // Update local state immediately for instant feedback
-        setVerseNotes(prev => {
-          const next = { ...prev };
-          verses.forEach(v => {
-            next[v._id] = noteText;
-            writeLocalBibleNote(v._id, noteText);
-          });
-          return next;
-        });
+        const synced = await writeBibleChange(API_ROOT, userid, token, 'notes', false, verses.map(v => ({
+          verseId: String(v._id), bookName: bibleModalBook?.bookName || v.bookName || 'Unknown',
+          chapter: bibleModalChapter?.number || v.chapter || bibleModalChapter || 1,
+          verseNumber: v.verseNumber, text: v.text, value: noteText,
+        })));
+        if (!synced) showToast({ message: 'Saved offline', type: 'offline' });
         setBibleSelectedVerseIds(new Set());
       } else if (noteModalConfig.type === 'hymn') {
         const hymn = noteModalConfig.data;
@@ -897,30 +775,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
     } catch (err) {
       const isNetworkError = !navigator.onLine || err.message === 'Network Error' || err.code === 'ECONNABORTED';
 
-      if (isNetworkError) {
-        if (noteModalConfig?.type === 'bible') {
-          const verseOrVerses = noteData;
-          const verses = Array.isArray(verseOrVerses) ? verseOrVerses : [verseOrVerses];
-          for (const v of verses) {
-            await queueOfflineAction(`${API_ROOT}/users/bible-note`, 'POST', {
-              userid,
-              verseId: v._id,
-              bookName: bibleModalBook?.bookName || v.bookName || 'Unknown',
-              chapter: bibleModalChapter || v.chapter || 1,
-              verseNumber: v.verseNumber,
-              text: v.text,
-              note: noteText
-            }, { Authorization: `Bearer ${token}` });
-
-            writeLocalBibleNote(v?._id, noteText);
-          }
-          setVerseNotes(prev => {
-            const next = { ...prev };
-            verses.forEach(v => { next[v?._id] = noteText; });
-            return next;
-          });
-          setBibleSelectedVerseIds(new Set());
-        } else if (noteModalConfig?.type === 'hymn') {
+      if (isNetworkError && noteModalConfig?.type === 'hymn') {
           const hymn = noteModalConfig.data;
           await queueOfflineAction(`${API_ROOT}/users/hymn-note`, 'POST', {
             userid,
@@ -928,7 +783,6 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
             title: hymn.title,
             note: noteText
           }, { Authorization: `Bearer ${token}` });
-        }
 
         setNoteModalConfig(null);
         setNoteText('');
@@ -936,57 +790,60 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
         return;
       }
 
-      if (err?.response?.status === 404 && noteModalConfig?.type === 'bible') {
-        const verseOrVerses = noteData;
-        const verses = Array.isArray(verseOrVerses) ? verseOrVerses : [verseOrVerses];
-        verses.forEach(v => {
-          writeLocalBibleNote(v?._id, noteText);
-        });
-        setVerseNotes(prev => {
-          const next = { ...prev };
-          verses.forEach(v => { next[v?._id] = noteText; });
-          return next;
-        });
-        setBibleSelectedVerseIds(new Set());
-        setNoteModalConfig(null);
-        setNoteText('');
-        alert('Saved locally on this device. Backend note route is still returning 404.');
-        return;
-      }
       console.error('Failed to save note:', err?.response?.data || err.message);
       alert('Failed to save note: ' + (err?.response?.data?.message || err.message));
     } finally {
-      invalidateProfile(API_ROOT, token);
+      if (noteModalConfig?.type === 'hymn') invalidateProfile(API_ROOT, token);
       setIsSubmittingNote(false);
     }
   };
 
-  // Load user's existing bible notes on login
   useEffect(() => {
-    if (!pageActive) return;
-    if ((!isOpen && !presentationActive) || !isLogin || !user_id) return;
-    let cancelled = false;
-    setVerseNotes(readLocalBibleNotes());
-    const token = typeof window !== 'undefined' ? localStorage.getItem('user_Taspe7_Token') : null;
-    if (!token) return;
-    // Fetch user's notes and index by verseId for O(1) lookup
-    readTabResource(tabReadKey(`${API_ROOT}/users/my-notes`, token), signal =>
-      getUsersWithFallback('my-notes', { headers: { Authorization: `Bearer ${token}` }, signal }).then(response => response.data))
-      .then(data => {
-        if (cancelled) return;
-        const localMap = readLocalBibleNotes();
-        if (Array.isArray(data?.bibleNotes)) {
-          const map = {};
-          data.bibleNotes.forEach(n => { if (n.verseId) map[n.verseId] = n.note; });
-          setVerseNotes({ ...map, ...localMap });
-        } else {
-          setVerseNotes(localMap);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setVerseNotes(readLocalBibleNotes());
-      });
-    return () => { cancelled = true; };
+    if (!pageActive || (!isOpen && !presentationActive)) return;
+    const team = user_id ? activeTeam() : '';
+    let live = true;
+    const revision = { notes: 0, highlights: 0 };
+    const refresh = async (kind, fetchServer) => {
+      const n = ++revision[kind];
+      const valid = () => live && n === revision[kind];
+      const key = readerKey(API_ROOT, user_id, team, kind);
+      const setMap = kind === 'notes' ? setVerseNotes : setBibleHighlights;
+      let cached = readReaderMap(key);
+      if (user_id && !navigator.onLine && !localStorage.getItem(key)) {
+        const legacy = await readCachedProfile(user_id);
+        if (!valid()) return;
+        const rows = kind === 'notes' ? legacy?.bibleNotes : legacy?.bibleHighlights;
+        if (rows) cached = Object.fromEntries(rows.filter(r => String(r.churchId || '') === team)
+          .map(row => [row.verseId, kind === 'notes' ? row.note : row.color]));
+      }
+      if (!user_id || !isLogin) { setMap(cached); return; }
+      const scope = journal.scope(API_ROOT, user_id, kind);
+      const changes = (await journal.list(scope)).filter(e => e.team === team);
+      if (!valid()) return;
+      setMap(applyBibleMap(cached, changes));
+      if (!fetchServer) return;
+      let rows;
+      if (kind === 'notes') {
+        const data = await readTabResource(tabReadKey(`${API_ROOT}/users/my-notes`, isLogin), signal =>
+          getUsersWithFallback('my-notes', { headers: { Authorization: `Bearer ${isLogin}` }, signal }).then(res => res.data));
+        rows = data?.bibleNotes;
+      } else {
+        const profile = await refreshProfile(API_ROOT, isLogin, user_id);
+        rows = profile.bibleHighlights?.filter(row => String(row.churchId || '') === team);
+      }
+      if (!valid() || !Array.isArray(rows)) return;
+      const base = Object.fromEntries(rows.map(row => [row.verseId, kind === 'notes' ? row.note : row.color]));
+      saveReaderMap(key, base);
+      setMap(applyBibleMap(base, changes.filter(e => e.status === 'pending')));
+    };
+    const load = (kind, server) => refresh(kind, server).catch(() => {});
+    load('notes', true);
+    if (isOpen) load('highlights', true);
+    const off = watchBibleChanges(e => {
+      if (e.owner !== user_id || e.api !== API_ROOT || (!e.reconcile && e.team !== team)) return;
+      load(e.kind, e.version != null || e.reconcile || e.rejected);
+    });
+    return () => { live = false; off(); };
   }, [isOpen, presentationActive, pageActive, isLogin, user_id]);
 
   const closeBibleModal = () => {

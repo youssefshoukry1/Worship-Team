@@ -32,7 +32,7 @@ function groupEntries(items, field, includeNoteIds, cache) {
     if (includeNoteIds && item._id) group.noteIds.push(item._id);
     group.verseIds.push(item.verseId);
     group.verseNumbers.push(item.verseNumber);
-    group.verses.push({ verseId: item.verseId, verseNumber: item.verseNumber, text: item.text, _id: item._id });
+    group.verses.push({ verseId: item.verseId, verseNumber: item.verseNumber, text: item.text, _id: item._id, churchId: item.churchId || null, date: item.date });
   }
   for (const { group } of groups) group.verses.sort((a, b) => a.verseNumber - b.verseNumber);
   groups.sort((a, b) => b.time - a.time);

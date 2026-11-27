@@ -1,3 +1,4 @@
+import '../../../public/bible-change-journal';
 /**
  * offlineQueue.js — Ultra-high-performance offline sync queue.
  *
@@ -119,35 +120,7 @@ export async function processOfflineQueue() {
   try {
     const db = await getDB();
 
-    const items = await new Promise((resolve, reject) => {
-      const tx = db.transaction('sync-queue', 'readonly');
-      const req = tx.objectStore('sync-queue').getAll();
-      req.onsuccess = () => resolve(req.result);
-      req.onerror  = () => reject(req.error);
-    });
-
-    if (!items?.length) return;
-
-    // Fire all requests in parallel for maximum throughput
-    await Promise.allSettled(
-      items.map(async (item) => {
-        try {
-          const res = await fetch(item.url, {
-            method : item.method,
-            headers: { ...item.headers, 'Content-Type': 'application/json' },
-            body   : item.payload ? JSON.stringify(item.payload) : undefined,
-          });
-
-          // Remove on success OR on permanent client errors (don't retry 4xx)
-          if (res.ok || (res.status >= 400 && res.status < 500)) {
-            const tx = db.transaction('sync-queue', 'readwrite');
-            tx.objectStore('sync-queue').delete(item.id);
-          }
-        } catch {
-          // Network error — leave in queue and retry on next sync
-        }
-      })
-    );
+    await globalThis.waslaBibleJournal.replayLegacy(db);
   } catch (err) {
     console.warn('[OfflineQueue] processOfflineQueue error:', err);
   } finally {

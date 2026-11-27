@@ -59,6 +59,13 @@ async function setup(t, engine, { href = '/', platform = 'ios', authenticated = 
     if (url.includes('/bible/')) return route.fulfill({ json: [], headers });
     if (url.includes('/my-teams') || url.includes('/hymns')) return route.fulfill({ json: [], headers });
     if (url.includes('/my-profile')) state.profiles++;
+    if (url.includes('/profile-summary')) {
+      state.profiles++;
+      return route.fulfill({ headers, json: {
+        user: { _id: 'tester', Name: 'iOS Tester', username: 'tester', ...profile },
+        counts: { notes: 0, highlights: 0 },
+      } });
+    }
     if (url.includes('/pray-time/inbox')) state.inbox++;
     if (url.includes('/pray-time/sent-updates')) state.sent++;
     return route.fulfill({ headers, json: { user: { _id: 'tester', Name: 'iOS Tester', username: 'tester', prayTime: [], bibleNotes: [], bibleHighlights: [], ...profile }, inbox: [], updates: [], friends: [], incoming: [], outgoing: [], items: [], accounts: [] } });

@@ -1,0 +1,3582 @@
+{
+  "engine": "158.0.8127.37",
+  "version": "2.0.19",
+  "build": "nh1shImsmvJWR0SZH41FX",
+  "trials": [
+    {
+      "sizePerCollection": 0,
+      "n": 1,
+      "requests": [
+        {
+          "phase": "first",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/profile-summary",
+          "bytes": 123
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 299
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/my-profile",
+          "bytes": 138
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "Notes",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        },
+        {
+          "phase": "Notes",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/my-teams",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ping",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/billing/status",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/profile-summary",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 0
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 299
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        }
+      ],
+      "collections": {
+        "Highlights": {
+          "ms": 76,
+          "cards": 0,
+          "maxScrollFrameGapMs": 83
+        },
+        "Notes": {
+          "ms": 128,
+          "cards": 0,
+          "maxScrollFrameGapMs": 17
+        }
+      },
+      "menuMs": 341,
+      "menuLabel": "Highlights\n0 records",
+      "initialRail": 0,
+      "menuReads": {
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/avatar_cache": 1,
+        "taspe7_app/profile_testimony_cache": 1
+      },
+      "loadedRail": 0,
+      "warmMs": 57,
+      "offlineMs": 428,
+      "offlineRail": 0,
+      "previewReads": {
+        "wasla_friend_directory_v1/checkpoints": 1,
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/people_pages_v1": 3,
+        "taspe7_app/bible_store": 3,
+        "taspe7_app/profile_testimony_cache": 1,
+        "taspe7_app/avatar_cache": 1
+      }
+    },
+    {
+      "sizePerCollection": 0,
+      "n": 2,
+      "requests": [
+        {
+          "phase": "first",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/profile-summary",
+          "bytes": 123
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 299
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/my-profile",
+          "bytes": 138
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "Notes",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/my-teams",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ping",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/billing/status",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/profile-summary",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies",
+          "bytes": 0
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 299
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        }
+      ],
+      "collections": {
+        "Highlights": {
+          "ms": 30,
+          "cards": 0,
+          "maxScrollFrameGapMs": 17
+        },
+        "Notes": {
+          "ms": 20,
+          "cards": 0,
+          "maxScrollFrameGapMs": 17
+        }
+      },
+      "menuMs": 287,
+      "menuLabel": "Highlights\n0 records",
+      "initialRail": 0,
+      "menuReads": {
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/avatar_cache": 1,
+        "taspe7_app/profile_testimony_cache": 1
+      },
+      "loadedRail": 0,
+      "warmMs": 56,
+      "offlineMs": 454,
+      "offlineRail": 0,
+      "previewReads": {
+        "wasla_friend_directory_v1/checkpoints": 1,
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/people_pages_v1": 3,
+        "taspe7_app/bible_store": 3,
+        "taspe7_app/profile_testimony_cache": 1,
+        "taspe7_app/avatar_cache": 1
+      }
+    },
+    {
+      "sizePerCollection": 0,
+      "n": 3,
+      "requests": [
+        {
+          "phase": "first",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/profile-summary",
+          "bytes": 123
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 299
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/my-profile",
+          "bytes": 138
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        },
+        {
+          "phase": "Notes",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/my-teams",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ping",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/billing/status",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/profile-summary",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 0
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 299
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        }
+      ],
+      "collections": {
+        "Highlights": {
+          "ms": 19,
+          "cards": 0,
+          "maxScrollFrameGapMs": 17
+        },
+        "Notes": {
+          "ms": 20,
+          "cards": 0,
+          "maxScrollFrameGapMs": 17
+        }
+      },
+      "menuMs": 290,
+      "menuLabel": "Highlights\n0 records",
+      "initialRail": 0,
+      "menuReads": {
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/avatar_cache": 1,
+        "taspe7_app/profile_testimony_cache": 1
+      },
+      "loadedRail": 0,
+      "warmMs": 61,
+      "offlineMs": 453,
+      "offlineRail": 0,
+      "previewReads": {
+        "my_prays/keyvaluepairs": 1,
+        "wasla_friend_directory_v1/checkpoints": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/people_pages_v1": 3,
+        "taspe7_app/bible_store": 3,
+        "taspe7_app/profile_testimony_cache": 1,
+        "taspe7_app/avatar_cache": 1
+      }
+    },
+    {
+      "sizePerCollection": 0,
+      "n": 4,
+      "requests": [
+        {
+          "phase": "first",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/profile-summary",
+          "bytes": 123
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 299
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/my-profile",
+          "bytes": 138
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "Notes",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/my-teams",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ping",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/billing/status",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/profile-summary",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies",
+          "bytes": 0
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 299
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        }
+      ],
+      "collections": {
+        "Highlights": {
+          "ms": 25,
+          "cards": 0,
+          "maxScrollFrameGapMs": 17
+        },
+        "Notes": {
+          "ms": 20,
+          "cards": 0,
+          "maxScrollFrameGapMs": 17
+        }
+      },
+      "menuMs": 299,
+      "menuLabel": "Highlights\n0 records",
+      "initialRail": 0,
+      "menuReads": {
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/avatar_cache": 1,
+        "taspe7_app/profile_testimony_cache": 1
+      },
+      "loadedRail": 0,
+      "warmMs": 63,
+      "offlineMs": 433,
+      "offlineRail": 0,
+      "previewReads": {
+        "wasla_friend_directory_v1/checkpoints": 1,
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/people_pages_v1": 3,
+        "taspe7_app/bible_store": 3,
+        "taspe7_app/profile_testimony_cache": 1,
+        "taspe7_app/avatar_cache": 1
+      }
+    },
+    {
+      "sizePerCollection": 0,
+      "n": 5,
+      "requests": [
+        {
+          "phase": "first",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/profile-summary",
+          "bytes": 123
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 299
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/my-profile",
+          "bytes": 138
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "Notes",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/my-teams",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ping",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/billing/status",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/profile-summary",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies",
+          "bytes": 0
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 299
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        }
+      ],
+      "collections": {
+        "Highlights": {
+          "ms": 24,
+          "cards": 0,
+          "maxScrollFrameGapMs": 17
+        },
+        "Notes": {
+          "ms": 21,
+          "cards": 0,
+          "maxScrollFrameGapMs": 17
+        }
+      },
+      "menuMs": 301,
+      "menuLabel": "Highlights\n0 records",
+      "initialRail": 0,
+      "menuReads": {
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/avatar_cache": 1,
+        "taspe7_app/profile_testimony_cache": 1
+      },
+      "loadedRail": 0,
+      "warmMs": 56,
+      "offlineMs": 436,
+      "offlineRail": 0,
+      "previewReads": {
+        "my_prays/keyvaluepairs": 1,
+        "wasla_friend_directory_v1/checkpoints": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/people_pages_v1": 3,
+        "taspe7_app/bible_store": 3,
+        "taspe7_app/profile_testimony_cache": 1,
+        "taspe7_app/avatar_cache": 1
+      }
+    },
+    {
+      "sizePerCollection": 24,
+      "n": 1,
+      "requests": [
+        {
+          "phase": "first",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/profile-summary",
+          "bytes": 125
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 4289
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 682
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/my-profile",
+          "bytes": 13904
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "Notes",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/my-teams",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ping",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/billing/status",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/profile-summary",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 0
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 4289
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        }
+      ],
+      "collections": {
+        "Highlights": {
+          "ms": 29,
+          "cards": 13,
+          "maxScrollFrameGapMs": 17
+        },
+        "Notes": {
+          "ms": 31,
+          "cards": 13,
+          "maxScrollFrameGapMs": 17
+        }
+      },
+      "menuMs": 286,
+      "menuLabel": "Highlights\n13 records",
+      "initialRail": 12,
+      "menuReads": {
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/avatar_cache": 1,
+        "taspe7_app/profile_testimony_cache": 1
+      },
+      "loadedRail": 15,
+      "warmMs": 58,
+      "offlineMs": 432,
+      "offlineRail": 15,
+      "previewReads": {
+        "my_prays/keyvaluepairs": 1,
+        "wasla_friend_directory_v1/checkpoints": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/people_pages_v1": 3,
+        "taspe7_app/bible_store": 3,
+        "taspe7_app/profile_testimony_cache": 1,
+        "taspe7_app/avatar_cache": 1
+      }
+    },
+    {
+      "sizePerCollection": 24,
+      "n": 2,
+      "requests": [
+        {
+          "phase": "first",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/profile-summary",
+          "bytes": 125
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 4289
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 682
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/my-profile",
+          "bytes": 13904
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "Notes",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/my-teams",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ping",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/billing/status",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/profile-summary",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 0
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 4289
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        }
+      ],
+      "collections": {
+        "Highlights": {
+          "ms": 22,
+          "cards": 0,
+          "maxScrollFrameGapMs": 17
+        },
+        "Notes": {
+          "ms": 27,
+          "cards": 13,
+          "maxScrollFrameGapMs": 17
+        }
+      },
+      "menuMs": 288,
+      "menuLabel": "Highlights\n13 records",
+      "initialRail": 12,
+      "menuReads": {
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/avatar_cache": 1,
+        "taspe7_app/profile_testimony_cache": 1
+      },
+      "loadedRail": 15,
+      "warmMs": 57,
+      "offlineMs": 441,
+      "offlineRail": 15,
+      "previewReads": {
+        "wasla_friend_directory_v1/checkpoints": 1,
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/people_pages_v1": 3,
+        "taspe7_app/bible_store": 3,
+        "taspe7_app/profile_testimony_cache": 1,
+        "taspe7_app/avatar_cache": 1
+      }
+    },
+    {
+      "sizePerCollection": 24,
+      "n": 3,
+      "requests": [
+        {
+          "phase": "first",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/profile-summary",
+          "bytes": 125
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 4289
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 682
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/my-profile",
+          "bytes": 13904
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "Notes",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/my-teams",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ping",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/billing/status",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/profile-summary",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 4289
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        }
+      ],
+      "collections": {
+        "Highlights": {
+          "ms": 42,
+          "cards": 13,
+          "maxScrollFrameGapMs": 17
+        },
+        "Notes": {
+          "ms": 20,
+          "cards": 13,
+          "maxScrollFrameGapMs": 17
+        }
+      },
+      "menuMs": 299,
+      "menuLabel": "Highlights\n13 records",
+      "initialRail": 12,
+      "menuReads": {
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/avatar_cache": 1,
+        "taspe7_app/profile_testimony_cache": 1
+      },
+      "loadedRail": 15,
+      "warmMs": 87,
+      "offlineMs": 451,
+      "offlineRail": 15,
+      "previewReads": {
+        "wasla_friend_directory_v1/checkpoints": 1,
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/people_pages_v1": 3,
+        "taspe7_app/bible_store": 3,
+        "taspe7_app/profile_testimony_cache": 1,
+        "taspe7_app/avatar_cache": 1
+      }
+    },
+    {
+      "sizePerCollection": 24,
+      "n": 4,
+      "requests": [
+        {
+          "phase": "first",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/profile-summary",
+          "bytes": 125
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 4289
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 682
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/my-profile",
+          "bytes": 13904
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "Notes",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/my-teams",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ping",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/billing/status",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/profile-summary",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies",
+          "bytes": 0
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 4289
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        }
+      ],
+      "collections": {
+        "Highlights": {
+          "ms": 31,
+          "cards": 13,
+          "maxScrollFrameGapMs": 17
+        },
+        "Notes": {
+          "ms": 42,
+          "cards": 13,
+          "maxScrollFrameGapMs": 17
+        }
+      },
+      "menuMs": 310,
+      "menuLabel": "Highlights\n13 records",
+      "initialRail": 12,
+      "menuReads": {
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/avatar_cache": 1,
+        "taspe7_app/profile_testimony_cache": 1
+      },
+      "loadedRail": 15,
+      "warmMs": 67,
+      "offlineMs": 451,
+      "offlineRail": 15,
+      "previewReads": {
+        "wasla_friend_directory_v1/checkpoints": 1,
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/people_pages_v1": 3,
+        "taspe7_app/bible_store": 3,
+        "taspe7_app/profile_testimony_cache": 1,
+        "taspe7_app/avatar_cache": 1
+      }
+    },
+    {
+      "sizePerCollection": 24,
+      "n": 5,
+      "requests": [
+        {
+          "phase": "first",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/profile-summary",
+          "bytes": 125
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 4289
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 682
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/my-profile",
+          "bytes": 13904
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "Notes",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/my-teams",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ping",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/billing/status",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/profile-summary",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 4289
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        }
+      ],
+      "collections": {
+        "Highlights": {
+          "ms": 38,
+          "cards": 13,
+          "maxScrollFrameGapMs": 17
+        },
+        "Notes": {
+          "ms": 29,
+          "cards": 13,
+          "maxScrollFrameGapMs": 17
+        }
+      },
+      "menuMs": 295,
+      "menuLabel": "Highlights\n13 records",
+      "initialRail": 12,
+      "menuReads": {
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/avatar_cache": 1,
+        "taspe7_app/profile_testimony_cache": 1
+      },
+      "loadedRail": 15,
+      "warmMs": 60,
+      "offlineMs": 452,
+      "offlineRail": 15,
+      "previewReads": {
+        "wasla_friend_directory_v1/checkpoints": 1,
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/people_pages_v1": 3,
+        "taspe7_app/bible_store": 3,
+        "taspe7_app/profile_testimony_cache": 1,
+        "taspe7_app/avatar_cache": 1
+      }
+    },
+    {
+      "sizePerCollection": 1000,
+      "n": 1,
+      "requests": [
+        {
+          "phase": "first",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/profile-summary",
+          "bytes": 127
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 14055
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2660
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2668
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/my-profile",
+          "bytes": 580702
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "Notes",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/my-teams",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ping",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/billing/status",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/profile-summary",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies",
+          "bytes": 0
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 14055
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        }
+      ],
+      "collections": {
+        "Highlights": {
+          "ms": 69,
+          "cards": 501,
+          "maxScrollFrameGapMs": 17
+        },
+        "Notes": {
+          "ms": 191,
+          "cards": 501,
+          "maxScrollFrameGapMs": 17
+        }
+      },
+      "menuMs": 307,
+      "menuLabel": "Highlights\n501 records",
+      "initialRail": 12,
+      "menuReads": {
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/avatar_cache": 1,
+        "taspe7_app/profile_testimony_cache": 1
+      },
+      "loadedRail": 120,
+      "warmMs": 76,
+      "offlineMs": 494,
+      "offlineRail": 120,
+      "previewReads": {
+        "wasla_friend_directory_v1/checkpoints": 1,
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/people_pages_v1": 3,
+        "taspe7_app/bible_store": 3,
+        "taspe7_app/profile_testimony_cache": 1,
+        "taspe7_app/avatar_cache": 1
+      }
+    },
+    {
+      "sizePerCollection": 1000,
+      "n": 2,
+      "requests": [
+        {
+          "phase": "first",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/profile-summary",
+          "bytes": 127
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 14055
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2660
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2668
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/my-profile",
+          "bytes": 580702
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "Notes",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/my-teams",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ping",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/billing/status",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/profile-summary",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 0
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 14055
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        }
+      ],
+      "collections": {
+        "Highlights": {
+          "ms": 67,
+          "cards": 501,
+          "maxScrollFrameGapMs": 17
+        },
+        "Notes": {
+          "ms": 200,
+          "cards": 501,
+          "maxScrollFrameGapMs": 17
+        }
+      },
+      "menuMs": 285,
+      "menuLabel": "Highlights\n501 records",
+      "initialRail": 12,
+      "menuReads": {
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/avatar_cache": 1,
+        "taspe7_app/profile_testimony_cache": 1
+      },
+      "loadedRail": 120,
+      "warmMs": 84,
+      "offlineMs": 496,
+      "offlineRail": 120,
+      "previewReads": {
+        "wasla_friend_directory_v1/checkpoints": 1,
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/people_pages_v1": 3,
+        "taspe7_app/bible_store": 3,
+        "taspe7_app/profile_testimony_cache": 1,
+        "taspe7_app/avatar_cache": 1
+      }
+    },
+    {
+      "sizePerCollection": 1000,
+      "n": 3,
+      "requests": [
+        {
+          "phase": "first",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/profile-summary",
+          "bytes": 127
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 14055
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2660
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2668
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/my-profile",
+          "bytes": 580702
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "Notes",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/my-teams",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ping",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/billing/status",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/profile-summary",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 14055
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        }
+      ],
+      "collections": {
+        "Highlights": {
+          "ms": 77,
+          "cards": 501,
+          "maxScrollFrameGapMs": 17
+        },
+        "Notes": {
+          "ms": 228,
+          "cards": 501,
+          "maxScrollFrameGapMs": 17
+        }
+      },
+      "menuMs": 332,
+      "menuLabel": "Highlights\n501 records",
+      "initialRail": 12,
+      "menuReads": {
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/avatar_cache": 1,
+        "taspe7_app/profile_testimony_cache": 1
+      },
+      "loadedRail": 120,
+      "warmMs": 96,
+      "offlineMs": 510,
+      "offlineRail": 120,
+      "previewReads": {
+        "wasla_friend_directory_v1/checkpoints": 1,
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/people_pages_v1": 3,
+        "taspe7_app/bible_store": 3,
+        "taspe7_app/profile_testimony_cache": 1,
+        "taspe7_app/avatar_cache": 1
+      }
+    },
+    {
+      "sizePerCollection": 1000,
+      "n": 4,
+      "requests": [
+        {
+          "phase": "first",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/profile-summary",
+          "bytes": 127
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 14055
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2660
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2668
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/my-profile",
+          "bytes": 580702
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "Notes",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/my-teams",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ping",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/billing/status",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/profile-summary",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies",
+          "bytes": 0
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 14055
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        }
+      ],
+      "collections": {
+        "Highlights": {
+          "ms": 71,
+          "cards": 501,
+          "maxScrollFrameGapMs": 17
+        },
+        "Notes": {
+          "ms": 205,
+          "cards": 501,
+          "maxScrollFrameGapMs": 17
+        }
+      },
+      "menuMs": 298,
+      "menuLabel": "Highlights\n501 records",
+      "initialRail": 12,
+      "menuReads": {
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/avatar_cache": 1,
+        "taspe7_app/profile_testimony_cache": 1
+      },
+      "loadedRail": 120,
+      "warmMs": 95,
+      "offlineMs": 522,
+      "offlineRail": 120,
+      "previewReads": {
+        "my_prays/keyvaluepairs": 1,
+        "wasla_friend_directory_v1/checkpoints": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/people_pages_v1": 3,
+        "taspe7_app/bible_store": 3,
+        "taspe7_app/profile_testimony_cache": 1,
+        "taspe7_app/avatar_cache": 1
+      }
+    },
+    {
+      "sizePerCollection": 1000,
+      "n": 5,
+      "requests": [
+        {
+          "phase": "first",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/profile-summary",
+          "bytes": 127
+        },
+        {
+          "phase": "first",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 14055
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2644
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2660
+        },
+        {
+          "phase": "loadMore",
+          "path": "/api/users/testimonies/profile/000000000000000000000001/notes",
+          "bytes": 2668
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/users/my-profile",
+          "bytes": 580702
+        },
+        {
+          "phase": "Highlights",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "Notes",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "warm",
+          "path": "/api/billing/status",
+          "bytes": 189
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/my-teams",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ping",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/ui-controls/requests",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/socket.io/",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/billing/status",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/profile-summary",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 0
+        },
+        {
+          "phase": "offline",
+          "path": "/api/users/testimonies",
+          "bytes": 0
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/my-teams",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ping",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/ui-controls/requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/socket.io/",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-summary",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-requests",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friend-suggestions",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/friends-directory/snapshot",
+          "bytes": 189
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies/profile/000000000000000000000001",
+          "bytes": 14055
+        },
+        {
+          "phase": "preview",
+          "path": "/api/users/testimonies",
+          "bytes": 189
+        }
+      ],
+      "collections": {
+        "Highlights": {
+          "ms": 31,
+          "cards": 0,
+          "maxScrollFrameGapMs": 100
+        },
+        "Notes": {
+          "ms": 257,
+          "cards": 501,
+          "maxScrollFrameGapMs": 17
+        }
+      },
+      "menuMs": 315,
+      "menuLabel": "Highlights\n501 records",
+      "initialRail": 12,
+      "menuReads": {
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/avatar_cache": 1,
+        "taspe7_app/profile_testimony_cache": 1
+      },
+      "loadedRail": 120,
+      "warmMs": 97,
+      "offlineMs": 569,
+      "offlineRail": 120,
+      "previewReads": {
+        "wasla_friend_directory_v1/checkpoints": 1,
+        "my_prays/keyvaluepairs": 1,
+        "taspe7_app/friends_note_cache": 1,
+        "taspe7_app/people_pages_v1": 3,
+        "taspe7_app/bible_store": 3,
+        "taspe7_app/profile_testimony_cache": 1,
+        "taspe7_app/avatar_cache": 1
+      }
+    }
+  ]
+}

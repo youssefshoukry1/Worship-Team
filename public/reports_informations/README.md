@@ -4,6 +4,7 @@ Read the relevant report before changing a feature. These documents describe app
 
 - [Friends, requests, local search and synchronization](./friends-system.md)
 - [Bible offline storage and chapter reading](./bible-offline-storage.md)
+- [Profile loading, Bible settings and social note history](./profile-performance.md)
 - [Splash performance and cold startup](./splash-performance.md)
 - [Swipe navigation across Pray, Bible, Friends and Profile](./swipe-navigation.md)
 
