@@ -1,6 +1,6 @@
 # Profile page performance implementation plan
 
-**Status — Steps 1 through 7 complete locally. Production rollout pending.** The final phone trials found faster detail opening and two regressions to investigate before OTA.
+**Status — Steps 1 through 7 and the A24 rendering follow-up are complete locally. Production rollout pending.**
 
 ## Intended experience
 
@@ -175,3 +175,9 @@ Five trials per history size on each platform used isolated fixture origins in t
 On the A24 long history, warm return saved 131 ms and offline restart saved 176 ms. Initial menu readiness regressed by 87 ms. Both settings opened faster, but the median worst frame in the 12-frame scroll probe increased from 33 to 83 ms. Desktop long-history scroll probes remained near 17 ms. The physical WebView used local fixture assets and simulated API responses. Confirm the phone regressions with a rendering trace before OTA. Inspect per-scroll anchor snapshots, footer geometry reads and virtual card measurement. The probe does not identify which one caused the regression.
 
 All 104 focused frontend checks, 35 backend checks and seven focused browser scenarios passed. Browser coverage included cached Profile return, account switching, settings Back in Chromium and WebKit, and online/offline notification opening. Updated test fixtures for the owner summary and existing Hymns socket transport order. Production build verification, database rollout and physical iOS testing remain outstanding.
+
+### Rendering follow-up
+
+The [five-run A24 comparison](../performance/profile-render-comparison-a24.json) records the directly observed count and each setting's short scroll probe. Rendering ten ordinary cards on the first page avoids virtual row churn. The full list switches to windowed rendering on the second page. Starting the actual Profile entry and its authenticated owner summary earlier moved median count availability from 761 to 658 ms. In these paired workloads, median worst frame gaps fell from 83 to 17 ms in Highlights and from 67 to 17 ms in Notes. The [maintenance report](../public/reports_informations/profile-performance.md) documents the measurements, limitations and loading rules.
+
+The separate final matrix covered 15 [A24 WebView](../performance/profile-render-a24-webview.json) and 15 [desktop](../performance/profile-render-desktop.json) trials. The A24 long-history median count marker was 723 ms in this run. The long-history scroll gap remained 17 ms in both settings. Every first menu made one owner-summary request and every independent Friends preview made zero private Profile requests. Chromium checks crossed the first-page boundary and returned to record 80 in both settings. The production-mode fixture export used the existing type-check workaround. No APK, OTA or backend deployment was performed.

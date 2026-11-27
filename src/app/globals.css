@@ -97,9 +97,9 @@ body {
   box-shadow: var(--app-panel-shadow);
 }
 
-/* This surface grows with the saved journal. Avoid sampling a list-sized
-   backdrop as the WebView compositor scrolls through it. */
-.app-card[data-prayer-list-panel] {
+/* Avoid resampling the backdrop while scrolling saved prayers or Bible records. */
+.app-card[data-prayer-list-panel],
+.profile-bible-list .app-card {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }

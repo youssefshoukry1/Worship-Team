@@ -32,7 +32,7 @@ async function run() {
   if (device && new URL(original).origin !== 'https://localhost') throw Error('Open Wasla before starting');
   const cdp = await context.newCDPSession(page);
   const report = { engine: browser.version(), version, build: fs.readFileSync(path.join(root, 'normal_UserProfile/index.html'), 'utf8').match(/<!--([^>]+)-->/)?.[1], trials: [] };
-  const destination = path.resolve(__dirname, '../performance/profile-step7-' + (device ? 'a24-webview' : 'desktop') + '.json');
+  const destination = path.resolve(__dirname, '../performance/profile-render-' + (device ? 'a24-webview' : 'desktop') + '.json');
   const origins = new Set();
   let phase, offline, data, trial;
   try {
@@ -42,6 +42,16 @@ async function run() {
       for (const key of ['androidBridge','webkit','Capacitor','CapacitorCustomPlatform']) Object.defineProperty(window, key, { configurable: true, writable: true, value: undefined });
       if (navigator.serviceWorker) Object.defineProperty(navigator.serviceWorker, 'controller', { value: { scriptURL: '/sw.js?v=navigation-v2' } });
       window.profileReads = {};
+      if (location.pathname === '/normal_UserProfile/') {
+        const observer = new MutationObserver(() => {
+          const ready = Array.from(document.querySelectorAll('button')).some(button =>
+            /^Highlights\s*\d+\s*records?$/.test(button.textContent.trim()));
+          if (!ready) return;
+          window.profileCountDomMs = Math.round(performance.now());
+          observer.disconnect();
+        });
+        observer.observe(document, { childList: true, subtree: true, characterData: true });
+      }
       const get = IDBObjectStore.prototype.get;
       IDBObjectStore.prototype.get = function(key) {
         const name = this.transaction.db.name + '/' + this.name;
@@ -98,6 +108,7 @@ async function run() {
       await page.goto(origin + '/normal_UserProfile/', { waitUntil: 'domcontentloaded' });
       await waitMenu();
       trial.menuMs = await page.evaluate(() => Math.round(performance.now()));
+      trial.menuCountDomMs = await page.evaluate(() => window.profileCountDomMs);
       trial.menuLabel = await button('Highlights').innerText();
       if (size) await rail.first().waitFor();
       trial.initialRail = await rail.count();

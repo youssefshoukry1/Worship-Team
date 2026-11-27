@@ -21,8 +21,8 @@ const loads = imports.map(load => { let pending; return () => pending || (pendin
 const LazyPrayer = lazy(loads[0]);
 let preparedPrayer;
 
-// Start loading the entry component while React hydrates the auth gate. Other
-// entry routes and guests keep their usual on-demand loading behavior.
+// Start loading the entry component while React hydrates the auth gate.
+// Only the actual entry route qualifies, never a prepared swipe neighbor.
 if (typeof window !== 'undefined' && primaryTabIndex(location.pathname) === 0
     && ('ontouchstart' in window || navigator.maxTouchPoints > 0)) {
   try {
@@ -30,6 +30,13 @@ if (typeof window !== 'undefined' && primaryTabIndex(location.pathname) === 0
       void loads[0]().then(module => { preparedPrayer = module.default; }).catch(() => {});
     }
   } catch { /* Storage may be unavailable. Use the normal route loader. */ }
+}
+if (typeof window !== 'undefined' && primaryTabIndex(location.pathname) === 3) {
+  try {
+    if (localStorage.getItem('user_Taspe7_Token') && localStorage.getItem('user_Taspe7_Username')) {
+      void loads[3]().catch(() => {});
+    }
+  } catch { /* Use the normal route loader when storage is unavailable. */ }
 }
 
 function PrayerEntry() {

@@ -1,0 +1,194 @@
+{
+  "before": {
+    "build": "Rc_JxEh459_8xCzUvSZ4N",
+    "webview": "157.0.8103.52",
+    "trials": [
+      {
+        "trial": 1,
+        "countInDomMs": 722,
+        "automationMenuMs": 1128,
+        "summaryRequestStartMs": 627,
+        "settings": {
+          "Highlights": {
+            "ms": 142,
+            "cards": 4,
+            "maxScrollFrameGapMs": 83
+          },
+          "Notes": {
+            "ms": 92,
+            "cards": 3,
+            "maxScrollFrameGapMs": 67
+          }
+        }
+      },
+      {
+        "trial": 2,
+        "countInDomMs": 737,
+        "automationMenuMs": 1042,
+        "summaryRequestStartMs": 586,
+        "settings": {
+          "Highlights": {
+            "ms": 178,
+            "cards": 4,
+            "maxScrollFrameGapMs": 84
+          },
+          "Notes": {
+            "ms": 235,
+            "cards": 3,
+            "maxScrollFrameGapMs": 83
+          }
+        }
+      },
+      {
+        "trial": 3,
+        "countInDomMs": 761,
+        "automationMenuMs": 933,
+        "summaryRequestStartMs": 579,
+        "settings": {
+          "Highlights": {
+            "ms": 147,
+            "cards": 4,
+            "maxScrollFrameGapMs": 133
+          },
+          "Notes": {
+            "ms": 117,
+            "cards": 3,
+            "maxScrollFrameGapMs": 67
+          }
+        }
+      },
+      {
+        "trial": 4,
+        "countInDomMs": 796,
+        "automationMenuMs": 1242,
+        "summaryRequestStartMs": 701,
+        "settings": {
+          "Highlights": {
+            "ms": 163,
+            "cards": 4,
+            "maxScrollFrameGapMs": 83
+          },
+          "Notes": {
+            "ms": 189,
+            "cards": 3,
+            "maxScrollFrameGapMs": 67
+          }
+        }
+      },
+      {
+        "trial": 5,
+        "countInDomMs": 796,
+        "automationMenuMs": 1068,
+        "summaryRequestStartMs": 630,
+        "settings": {
+          "Highlights": {
+            "ms": 212,
+            "cards": 4,
+            "maxScrollFrameGapMs": 83
+          },
+          "Notes": {
+            "ms": 169,
+            "cards": 3,
+            "maxScrollFrameGapMs": 67
+          }
+        }
+      }
+    ]
+  },
+  "after": {
+    "build": "TQhsqvhR64o5Li7U7QCq2",
+    "webview": "157.0.8103.52",
+    "trials": [
+      {
+        "trial": 1,
+        "countInDomMs": 811,
+        "automationMenuMs": 1151,
+        "summaryRequestStartMs": 568,
+        "settings": {
+          "Highlights": {
+            "ms": 180,
+            "cards": 10,
+            "maxScrollFrameGapMs": 17
+          },
+          "Notes": {
+            "ms": 157,
+            "cards": 10,
+            "maxScrollFrameGapMs": 33
+          }
+        }
+      },
+      {
+        "trial": 2,
+        "countInDomMs": 686,
+        "automationMenuMs": 1044,
+        "summaryRequestStartMs": 474,
+        "settings": {
+          "Highlights": {
+            "ms": 185,
+            "cards": 10,
+            "maxScrollFrameGapMs": 17
+          },
+          "Notes": {
+            "ms": 143,
+            "cards": 10,
+            "maxScrollFrameGapMs": 17
+          }
+        }
+      },
+      {
+        "trial": 3,
+        "countInDomMs": 658,
+        "automationMenuMs": 1031,
+        "summaryRequestStartMs": 469,
+        "settings": {
+          "Highlights": {
+            "ms": 156,
+            "cards": 10,
+            "maxScrollFrameGapMs": 17
+          },
+          "Notes": {
+            "ms": 193,
+            "cards": 10,
+            "maxScrollFrameGapMs": 33
+          }
+        }
+      },
+      {
+        "trial": 4,
+        "countInDomMs": 613,
+        "automationMenuMs": 1017,
+        "summaryRequestStartMs": 421,
+        "settings": {
+          "Highlights": {
+            "ms": 215,
+            "cards": 10,
+            "maxScrollFrameGapMs": 67
+          },
+          "Notes": {
+            "ms": 177,
+            "cards": 10,
+            "maxScrollFrameGapMs": 17
+          }
+        }
+      },
+      {
+        "trial": 5,
+        "countInDomMs": 636,
+        "automationMenuMs": 914,
+        "summaryRequestStartMs": 436,
+        "settings": {
+          "Highlights": {
+            "ms": 212,
+            "cards": 10,
+            "maxScrollFrameGapMs": 50
+          },
+          "Notes": {
+            "ms": 189,
+            "cards": 10,
+            "maxScrollFrameGapMs": 17
+          }
+        }
+      }
+    ]
+  }
+}

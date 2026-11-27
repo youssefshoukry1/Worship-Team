@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 
 const copy = {
@@ -10,16 +10,29 @@ const copy = {
 export function ProfileBibleList({ store, state, render, active }) {
     const list = useRef(null);
     const initial = useRef(store.anchor);
+    const count = state.items.length;
+    const virtual = count > 10;
+    useLayoutEffect(() => {
+        if (!active || !count || virtual || !initial.current) return;
+        window.scrollTo({ top: initial.current.scrollTop, behavior: 'instant' });
+        initial.current = null;
+    }, [active, count, virtual]);
     useEffect(() => {
         if (!active) return;
-        const save = () => list.current?.getState(snapshot => { store.anchor = snapshot; });
+        const save = () => {
+            if (list.current) list.current.getState(snapshot => { store.anchor = snapshot; });
+            else if (count) store.anchor = { scrollTop: window.scrollY };
+        };
         window.addEventListener('scroll', save, { passive: true });
         return () => window.removeEventListener('scroll', save);
-    }, [active, store]);
-    return <Virtuoso ref={list} useWindowScroll data={state.items} computeItemKey={(_, item) => item._id}
-        defaultItemHeight={155} increaseViewportBy={250}
-        restoreStateFrom={initial.current || undefined}
-        itemContent={(_, item) => <div className="pb-3">{render(item)}</div>} />;
+    }, [active, store, count]);
+    const card = item => <div key={item._id} className="pb-3">{render(item)}</div>;
+    return <div className="profile-bible-list">
+        {virtual ? <Virtuoso ref={list} useWindowScroll data={state.items} computeItemKey={(_, item) => item._id}
+            defaultItemHeight={155} increaseViewportBy={250} skipAnimationFrameInResizeObserver
+            initialItemCount={10} restoreStateFrom={initial.current?.ranges ? initial.current : undefined}
+            itemContent={(_, item) => card(item)} /> : state.items.map(card)}
+    </div>;
 }
 
 export function ProfileBibleFooter({ store, state, active, language }) {
@@ -32,12 +45,28 @@ export function ProfileBibleFooter({ store, state, active, language }) {
             const top = window.scrollY;
             const movingDown = top > previous;
             previous = top;
-            if (movingDown && ref.current?.getBoundingClientRect().top < window.innerHeight + 160) {
-                void store.load(true);
-            }
+            if (movingDown) void store.load(true);
         };
-        window.addEventListener('scroll', nearEnd, { passive: true });
-        return () => window.removeEventListener('scroll', nearEnd);
+        if (typeof IntersectionObserver === 'undefined') {
+            const check = () => {
+                if (ref.current?.getBoundingClientRect().top < window.innerHeight + 160) nearEnd();
+                else previous = window.scrollY;
+            };
+            window.addEventListener('scroll', check, { passive: true });
+            return () => window.removeEventListener('scroll', check);
+        }
+        const observer = new IntersectionObserver(([entry]) => {
+            window.removeEventListener('scroll', nearEnd);
+            if (entry.isIntersecting) {
+                nearEnd();
+                window.addEventListener('scroll', nearEnd, { passive: true });
+            } else previous = window.scrollY;
+        }, { rootMargin: '0px 0px 160px' });
+        observer.observe(ref.current);
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('scroll', nearEnd);
+        };
     }, [store, active, state.nextCursor, state.busy, state.error]);
     return <div ref={ref} className="py-3 text-center text-xs text-slate-400">
         <span role="status">{state.busy ? loading : state.error ? (state.offline ? offline : failed) :

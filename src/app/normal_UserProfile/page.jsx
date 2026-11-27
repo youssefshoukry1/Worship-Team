@@ -70,6 +70,18 @@ const BIBLE_TRANSLATIONS = [
 
 const API_URL = getApiBaseUrl();
 
+// On a direct owner-menu launch the summary can travel while React hydrates.
+// The mounted menu joins the same account-scoped request.
+if (typeof window !== 'undefined' && isProfilePath(location.pathname) && !location.hash && !location.search) {
+    try {
+        const owner = localStorage.getItem('user_Taspe7_ID');
+        const token = localStorage.getItem('user_Taspe7_Token');
+        if (owner && token && localStorage.getItem('user_Taspe7_Username') && navigator.onLine) {
+            void refreshProfileSummary(API_URL, token, owner).catch(() => {});
+        }
+    } catch { /* The mounted menu also handles unavailable storage and offline startup. */ }
+}
+
 const titleCase = (value) => {
     if (!value) return 'N/A';
     return value
@@ -81,15 +93,17 @@ const titleCase = (value) => {
         .join(' ');
 };
 
+let recordDateFormatter;
 const formatDate = (value, fallback = 'N/A') => {
     if (!value) return fallback;
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return fallback;
-    return date.toLocaleDateString(undefined, {
+    recordDateFormatter ??= new Intl.DateTimeFormat(undefined, {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
     });
+    return recordDateFormatter.format(date);
 };
 
 /* --- UI COMPONENTS --- */
@@ -299,7 +313,12 @@ function UserProfile({ profileUserId }) {
             const revision = revisions[kind] = (revisions[kind] || 0) + 1;
             const value = await journal.summary(journal.scope(API_URL, user_id, kind));
             if (!live || revision !== revisions[kind]) return;
-            setLocalCounts(previous => ({ ...previous, [kind]: value }));
+            setLocalCounts(previous => {
+                const current = previous[kind];
+                if (current?.count === value?.count && current?.version === value?.version &&
+                    current?.pending === value?.pending) return previous;
+                return { ...previous, [kind]: value };
+            });
         };
         if (pageActive && currentView === 'menu') {
             for (const kind of ['notes', 'highlights']) check(kind).catch(console.warn);
