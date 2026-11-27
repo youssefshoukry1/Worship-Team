@@ -164,6 +164,7 @@ async function setup(t, { startPath = '/friends/', mobile = false, failFirstPubl
         return reply({ item: state.posts.find(item => item._id === id), notesVersion });
       }
     }
+    if (path.endsWith('/profile-summary')) return reply({ user: owner, counts: { notes: 1, highlights: 1 } });
     if (path.endsWith('/my-profile')) {
       state.privateProfileReads++;
       return reply({ user: { ...owner, bibleNotes: [{ _id: 'private-note', verseId: 'verse2', bookName: 'John', chapter: 1, verseNumber: 1, text: 'A private saved verse.', note: 'A private reflection only Alice should see.' }], prayTime: [], bibleHighlights: [{ _id: 'highlight1', verseId: 'verse1', bookName: 'Matthew', chapter: 6, verseNumber: 34, text: 'Do not worry about tomorrow.', color: '#aacc88' }] } });
@@ -845,6 +846,28 @@ test('iPhone opened-note heart supports touch, keyboard activation, and retry af
   assert.deepEqual(errors, []);
 });
 
+for (const [path, authorId] of [['/friends/', A], ['/normal_UserProfile/', A], [`/normal_UserProfile/?user=${B}`, B]]) {
+  test(`touch entry points keep note and loved-by focus borderless on ${path}`, async t => {
+    const { page, state } = await setup(t, { mobile: true });
+    const item = state.posts.find(note => note.author._id === authorId);
+    if (path !== '/friends/') await page.goto(base + path);
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('button', { name: `Read testimony: ${item.title}`, exact: true }).tap();
+    const dialog = page.getByRole('dialog', { name: 'Testimony', exact: true });
+    await page.waitForFunction(() => document.activeElement?.hasAttribute('data-note-surface'));
+    assert.equal(await dialog.getByTestId('expanded-testimony-note').evaluate(el => getComputedStyle(el).outlineStyle), 'none', path);
+    if (authorId === A) {
+      const trigger = dialog.getByRole('button', { name: 'See who loved this note' });
+      await trigger.focus();
+      assert.equal(await trigger.evaluate(el => getComputedStyle(el).outlineStyle), 'none', path);
+      await trigger.tap();
+      const sheet = dialog.getByRole('region', { name: 'People who loved your note' });
+      await sheet.waitFor();
+      assert.equal(await sheet.evaluate(el => getComputedStyle(el).outlineStyle), 'none', path);
+    }
+  });
+}
+
 test('an author push refreshes counts and tapping it can open an archived note', async t => {
   const { page, state, errors } = await setup(t);
   const own = state.posts.find(item => item.author._id === A);
@@ -858,7 +881,17 @@ test('an author push refreshes counts and tapping it can open an archived note',
   const dialog = page.getByRole('dialog', { name: 'Testimony', exact: true });
   await dialog.waitFor();
   await dialog.getByText(own.body, { exact: true }).waitFor();
-  await dialog.getByRole('button', { name: 'See who loved this note' }).waitFor();
+  const lovedBy = dialog.getByRole('button', { name: 'See who loved this note' });
+  const note = dialog.getByTestId('expanded-testimony-note');
+  await page.waitForFunction(() => document.activeElement?.hasAttribute('data-note-surface'));
+  assert.equal(await note.evaluate(el => getComputedStyle(el).outlineStyle), 'none');
+  await lovedBy.click();
+  const sheet = dialog.getByRole('region', { name: 'People who loved your note' });
+  await sheet.waitFor();
+  assert.equal(await sheet.evaluate(el => getComputedStyle(el).outlineStyle), 'none');
+  await dialog.getByRole('button', { name: 'Close loved by list' }).click({ position: { x: 5, y: 5 } });
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'See who loved this note');
+  assert.equal(await lovedBy.evaluate(el => getComputedStyle(el).outlineStyle), 'none');
   await page.keyboard.press('Escape');
   await page.evaluate(id => {
     const event = new CustomEvent('taspe7:open-testimony', { detail: { href: `/friends/?note=${id}` }, cancelable: true });
@@ -990,6 +1023,7 @@ test('own note loved-by sheet opens with swipe up and dismisses without replacin
   const list = reader.getByRole('region', { name: 'People who loved your note', exact: true });
   await list.waitFor();
   const sheetBox = await reader.locator('[data-reactor-sheet]').boundingBox();
+  assert.equal(await list.evaluate(el => getComputedStyle(el).outlineStyle), 'none');
   const noteBox = await note.boundingBox();
   assert.ok(sheetBox.height < noteBox.height * .7, 'list occupies only the lower portion of the note');
   assert.equal(await note.evaluate(element => window.__sheetNote === element), true);
@@ -1014,6 +1048,8 @@ test('own note loved-by sheet opens with swipe up and dismisses without replacin
   await scroller.evaluate(element => { element.scrollTop = 0; });
   await gesture(list, 250, 350);
   await list.waitFor({ state: 'detached' });
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'See who loved this note');
+  assert.equal(await reader.getByRole('button', { name: 'See who loved this note' }).evaluate(el => getComputedStyle(el).outlineStyle), 'none');
   await reader.getByRole('button', { name: 'See who loved this note', exact: true }).click();
   await list.waitFor();
   await page.keyboard.press('Escape');

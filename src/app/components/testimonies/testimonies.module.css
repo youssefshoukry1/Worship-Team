@@ -191,6 +191,8 @@
 .ownerLoves { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 30px; margin-right: auto; padding: 0; border: 0; background: transparent; color: #94a3b8; font-size: 9px; white-space: nowrap; cursor: pointer; }
 .ownerLoves:hover { color: #cbd5e1; }
 .ownerLoves:focus-visible { outline: 2px solid #38a0cd; outline-offset: 3px; border-radius: 5px; }
+.expandedNote:focus, .reactorSheet .reactors:focus,
+.dialog .expandedNote:not([data-keyboard-focus]) .ownerLoves:focus { outline: none; }
 .loveAvatarStack { display: inline-flex; align-items: center; padding-left: 6px; }
 .lovePreviewAvatar { display: flex; align-items: center; justify-content: center; width: 23px; height: 23px; margin-left: -6px; border: 2px solid var(--note-bg, #1a1d20); border-radius: 50%; overflow: hidden; background: #26343e; color: #a6c8db; font-size: 8px; }
 .moreLoveCount { display: inline-flex; align-items: center; justify-content: center; min-width: 23px; height: 23px; padding: 0 4px; border-radius: 50%; background: #8294a516; color: #9fb3c5; font-size: 9px; }

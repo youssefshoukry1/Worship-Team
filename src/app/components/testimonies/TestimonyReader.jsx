@@ -57,7 +57,9 @@ export default function TestimonyReader({ item, userId, token, onReaction, onClo
     finally { setBusy(false); }
   };
   return <TestimonyDialog title="Testimony" card onClose={closeTopLayer}>
-    <article ref={noteSurface} data-note-surface
+    <article ref={noteSurface} data-note-surface data-autofocus tabIndex={-1}
+      onKeyDownCapture={event => { event.currentTarget.dataset.keyboardFocus = 'true'; }}
+      onPointerDownCapture={event => { delete event.currentTarget.dataset.keyboardFocus; }}
       className={`${styles.expandedNote} ${mine ? styles.swipeNote : ''} ${styles[item.style] || styles.olive}`} data-testid="expanded-testimony-note">
       <div inert={showReactors ? true : undefined} className={`${styles.expandedAuthor} ${mine ? styles.authorWithTools : ''}`}>
         <OfflineAvatar userKey={item.author._id} remoteUrl={item.author.profilePhoto} name={item.author.Name || item.author.username || 'Friend'} className={styles.pinnedAvatar} />
