@@ -121,6 +121,34 @@ test('local prayer cache skips reload reads and restores cards across journal an
   } finally { await context.close(); }
 });
 
+test('cached journal remounts with real cards in its first DOM update', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  try {
+    const page = await context.newPage();
+    await context.route('**/*', route => mockPrayerApi(route, base));
+    await seed(page, personalPrayers(40), { controlledNavigation: true });
+    await page.goto(base + '/pray/');
+    const firstCard = page.locator('[data-prayer-id="personal-0"]');
+    await firstCard.waitFor();
+    for (const route of ['/friends', '/normal_UserProfile']) {
+      await page.locator('nav a[href^="' + route + '"]').evaluate(link => link.click());
+      await firstCard.waitFor({ state: 'detached' });
+      const firstUpdate = page.evaluate(() => new Promise(resolve => {
+        const observer = new MutationObserver(() => {
+          const list = document.querySelector('[data-journal-panel] [data-loaded-prayers]');
+          if (!list) return;
+          observer.disconnect();
+          resolve(list.querySelector('[data-prayer-id]')?.dataset.prayerId ?? null);
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        document.querySelector('nav a[href^="/pray"]').click();
+      }));
+      assert.equal(await firstUpdate, 'personal-0');
+      await firstCard.waitFor();
+    }
+  } finally { await context.close(); }
+});
+
 test('Drive restore keeps friend history read and replied across repeat restore, inbox replay and reload', async () => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   let restores = 0; const outboundMutations = [];

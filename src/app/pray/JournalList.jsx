@@ -51,6 +51,8 @@ export default function JournalList({ items, renderItem, targetId, targetKey }) 
     const handled = useRef(saved.handled);
     const [jump, setJump] = useState(null);
     const [buffer, setBuffer] = useState(() => typeof window === 'undefined' ? 800 : window.innerHeight);
+    // Supply real rows while Virtuoso takes its first viewport measurement.
+    const initialCount = Math.min(PRAYER_BATCH, data.length, Math.ceil(buffer / PRAYER_ESTIMATE));
     const latest = useRef(null);
     useLayoutEffect(() => { latest.current = { items, limit }; });
     const [initialSizes] = useState(() => {
@@ -173,6 +175,7 @@ export default function JournalList({ items, renderItem, targetId, targetKey }) 
         <div ref={setRoot} data-prayer-list data-loaded-prayers={data.length}>
             <Virtuoso ref={list} useWindowScroll customScrollParent={active ? undefined : root}
                 data={data} context={context} components={components} computeItemKey={keyFor} itemContent={renderRow}
+                initialItemCount={initialCount}
                 itemsRendered={rememberRange} heightEstimates={initialSizes} defaultItemHeight={PRAYER_ESTIMATE}
                 increaseViewportBy={Math.round(buffer * 0.6)} skipAnimationFrameInResizeObserver />
         </div>
