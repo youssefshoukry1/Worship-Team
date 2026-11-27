@@ -41,7 +41,7 @@ final class NotificationService: UNNotificationServiceExtension, URLSessionDataD
         let testimonyActivity = type == "TESTIMONY_LOVED"
         let noteID = info["testimonyId"] as? String ?? ""
         let validNote = noteID.range(of: "^[a-fA-F0-9]{24}$", options: .regularExpression) != nil
-        content.userInfo["url"] = friendActivity ? "/friends" : testimonyActivity ? (validNote ? "/normal_UserProfile/?note=\(noteID)" : "/normal_UserProfile/") : "/pray"
+        content.userInfo["url"] = friendActivity ? "/friends" : testimonyActivity ? (validNote ? "/friends/?note=\(noteID)" : "/friends/") : "/pray"
         if anonymous { content.userInfo["avatarUrl"] = "" }
         let actorID = info["actorId"] as? String ?? request.identifier
         let targetID = testimonyActivity ? "\(noteID)-\(actorID)" : (info[friendActivity ? "actorId" : "shareId"] as? String ?? request.identifier)

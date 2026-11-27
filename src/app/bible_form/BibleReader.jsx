@@ -1434,19 +1434,17 @@ export function BibleForm({ controller, presenter, isPage = false }) {
                       {t('copy')}
                     </button>
 
-                    {availableTranslations.length > 1 && (
-                      <button
-                        onClick={() => {
-                          const nums = bibleModalVerses
-                            .filter(v => bibleSelectedVerseIds.has(v._id))
-                            .map(v => v.verseNumber);
-                          openCompare(nums);
-                        }}
-                        className="flex-1 min-w-[90px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center active:scale-95"
-                      >
-                        {t('compare')}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => {
+                        const nums = bibleModalVerses
+                          .filter(v => bibleSelectedVerseIds.has(v._id))
+                          .map(v => v.verseNumber);
+                        openCompare(nums);
+                      }}
+                      className="flex-1 min-w-[90px] py-2.5 px-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[11px] font-black tracking-wider transition-all flex items-center justify-center active:scale-95"
+                    >
+                      {t('compare')}
+                    </button>
 
                     <button
                       aria-expanded={!!noteModalConfig?.inline}

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { usePathname } from 'next/navigation';
 import { UserContext } from '../../context/User_Context';
 import { getApiBaseUrl } from '../../utils/apiBase';
@@ -22,7 +22,7 @@ export const useProfileNotesStore = () => useContext(StoresContext)?.profiles;
 function Session({ token, userId, children }) {
   useFriendDirectorySession(token, userId);
   const pathname = usePathname();
-  const isFriendsPage = pathname?.replace(/\/+$/, '') === '/friends';
+  const isFriendsPage = pathname?.replace(/\/(?:index\.html\/?)?$/, '') === '/friends';
   const [store] = useState(() => createTestimonyFeedStore({ userId, cache: feedNotesStorage(userId),
     request: (path, options) => testimonyRequest(token, path, options),
     sendSeen: (opened, signal, keepalive = false) => testimonyRequest(token, '/seen', { method: 'POST', body: JSON.stringify({ opened }), signal, keepalive }),
@@ -114,8 +114,11 @@ function Session({ token, userId, children }) {
     const ownNote = state.items.find(item => String(item.author?._id) === String(userId));
     if (ownNote) reactors.prime(ownNote);
   }, [reactors, state.items, userId]);
-  useEffect(() => {
-    store.setFeedVisible(isFriendsPage && document.visibilityState === 'visible');
+  useLayoutEffect(() => {
+    const update = () => store.setFeedVisible(isFriendsPage && document.visibilityState === 'visible');
+    update();
+    document.addEventListener('visibilitychange', update);
+    return () => document.removeEventListener('visibilitychange', update);
   }, [store, isFriendsPage]);
   const stores = useMemo(() => ({ store, reactors, profiles }), [store, reactors, profiles]);
   const feed = useMemo(() => ({ ...stores, state }), [stores, state]);

@@ -854,13 +854,14 @@ test('an author push refreshes counts and tapping it can open an archived note',
   assert.equal(await page.getByRole('status', { name: '1 love', exact: true }).count(), 0);
   own.createdAt = new Date(Date.now() - 4 * 86400000).toISOString();
   own.feedExpiresAt = new Date(Date.now() - 3 * 86400000).toISOString();
-  await page.goto(`${base}/normal_UserProfile/?note=${own._id}`);
+  await page.goto(`${base}/friends/?note=${own._id}`);
   const dialog = page.getByRole('dialog', { name: 'Testimony', exact: true });
   await dialog.waitFor();
-  await dialog.getByRole('status', { name: '1 love', exact: true }).waitFor();
+  await dialog.getByText(own.body, { exact: true }).waitFor();
+  await dialog.getByRole('button', { name: 'See who loved this note' }).waitFor();
   await page.keyboard.press('Escape');
   await page.evaluate(id => {
-    const event = new CustomEvent('taspe7:open-testimony', { detail: { href: `/normal_UserProfile/?note=${id}` }, cancelable: true });
+    const event = new CustomEvent('taspe7:open-testimony', { detail: { href: `/friends/?note=${id}` }, cancelable: true });
     window.dispatchEvent(event);
   }, own._id);
   await dialog.waitFor();

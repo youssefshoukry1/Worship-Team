@@ -69,14 +69,18 @@ function Board({ token, userId, username, profilePhoto, profileUserId, onProfile
   }, [load, userId, isSharedFeed, pageActive]);
 
   useEffect(() => {
-    if (!pageActive || !ownProfile) return;
+    if (!pageActive || !userId || (!isFeed && !ownProfile)) return;
+    const boardPath = isFeed ? '/friends' : '/normal_UserProfile';
+    const targetsBoard = url => url.pathname.replace(/\/(?:index\.html)?$/, '') === boardPath;
     const openNote = async id => {
       if (!/^[a-f\d]{24}$/i.test(id || '')) return;
       notificationRequest.current?.abort();
       const controller = new AbortController();
       notificationRequest.current = controller;
       try {
-        const cached = await profileStore.readCachedNote(profileUserId, id);
+        const feedNote = isFeed && feedStore?.getSnapshot().items.find(item =>
+          item._id === id && String(item.author._id) === String(userId));
+        const cached = feedNote || await profileStore.readCachedNote(userId, id);
         if (controller.signal.aborted) return;
         if (cached) {
           opener.current = null;
@@ -87,14 +91,17 @@ function Board({ token, userId, username, profilePhoto, profileUserId, onProfile
         if (!controller.signal.aborted) { opener.current = null; setModal({ type: 'read', id, linkedItem: result.item }); }
       } catch (error) { if (!controller.signal.aborted) setNotice(error.message); }
     };
-    openNote(new URLSearchParams(window.location.search).get('note'));
+    const current = new URL(window.location.href);
+    if (targetsBoard(current)) openNote(current.searchParams.get('note'));
     const deleted = event => {
       if (event.detail?.action === 'deleted') setModal(previous => previous?.id === event.detail.id ? null : previous);
     };
     window.addEventListener('taspe7:testimony-live', deleted);
     window.addEventListener('taspe7:testimonies-changed', deleted);
     const fromPush = event => {
-      const id = new URL(event.detail?.href || '/', window.location.origin).searchParams.get('note');
+      const destination = new URL(event.detail?.href || '/', window.location.href);
+      if (!targetsBoard(destination)) return;
+      const id = destination.searchParams.get('note');
       if (!/^[a-f\d]{24}$/i.test(id || '')) return;
       event.preventDefault(); openNote(id);
     };
@@ -105,7 +112,7 @@ function Board({ token, userId, username, profilePhoto, profileUserId, onProfile
       window.removeEventListener('taspe7:testimony-live', deleted);
       window.removeEventListener('taspe7:testimonies-changed', deleted);
     };
-  }, [pageActive, ownProfile, token, profileStore, profileUserId]);
+  }, [pageActive, ownProfile, isFeed, token, profileStore, feedStore, userId]);
 
   useEffect(() => {
     if (isSharedFeed) return;

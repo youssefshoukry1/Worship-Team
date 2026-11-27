@@ -105,12 +105,12 @@ test('visiting Friends keeps notes unread until individually opened, including o
   f.finish(0, [note()], { activeNotes: [note(), note(offscreenId)].map(item => ({ _id: item._id, authorId: B, feedExpiresAt: item.feedExpiresAt })) });
   await sync;
   f.store.setFeedVisible(true);
-  assert.equal(f.store.getSnapshot().hasUnseen, true);
+  assert.equal(f.store.getSnapshot().hasUnseen, false);
   assert.equal(f.store.isSeen(note()._id), false);
   f.store.markSeen(note()._id);
   assert.equal(f.store.isSeen(note()._id), true);
   assert.equal(f.store.isSeen(offscreenId), false);
-  assert.equal(f.store.getSnapshot().hasUnseen, true, 'opening one note cannot acknowledge others');
+  assert.equal(f.store.getSnapshot().hasUnseen, false, 'visiting clears the tab dot even with unopened notes');
   const incoming = f.store.changed({ id: nextId, authorId: B, action: 'created' });
   f.requests[1].resolve({ item: note(nextId) }); await incoming;
   assert.equal(f.store.isSeen(nextId), false, 'arriving on the visible page is not an opening');
@@ -125,13 +125,22 @@ test('visiting Friends keeps notes unread until individually opened, including o
   restored.store.dispose();
 });
 
-test('opening Friends before initial sync does not acknowledge notes when they finish loading', async () => {
+test('visiting before sync clears the dot across restarts and only new activity brings it back', async () => {
   const f = fixture(); f.store.setFeedVisible(true);
   const sync = f.store.sync(); f.finish(0, [note()]); await sync;
   f.store.setFeedVisible(false);
-  assert.equal(f.store.getSnapshot().hasUnseen, true);
+  assert.equal(f.store.getSnapshot().hasUnseen, false);
   assert.equal(f.store.isSeen(note()._id), false);
   f.store.dispose();
+  const reopened = fixture(f.storageMap);
+  const reload = reopened.store.sync(); reopened.finish(0, [note()]); await reload;
+  assert.equal(reopened.store.getSnapshot().hasUnseen, false);
+  assert.equal(reopened.store.isSeen(ID), false);
+  const other = note('333333333333333333333333');
+  const incoming = reopened.store.changed({ id: other._id, action: 'created' });
+  reopened.requests[1].resolve({ item: other }); await incoming;
+  assert.equal(reopened.store.getSnapshot().hasUnseen, true);
+  reopened.store.dispose();
 });
 
 test('pagination uses the shared store and concurrent sync requests are deduplicated', async () => {
@@ -288,6 +297,7 @@ test('reconnect reconciliation rejects an older individual response for a now-mi
 test('unchanged tab visits keep the same feed snapshot and expiry timer until a deadline passes', async () => {
   const f = fixture();
   const loading = f.store.sync(); f.finish(0, [note()]); await loading;
+  f.store.setFeedVisible(true);
   const snapshot = f.store.getSnapshot(), timers = f.timers.length;
   let notifications = 0;
   f.store.subscribe(() => notifications++);

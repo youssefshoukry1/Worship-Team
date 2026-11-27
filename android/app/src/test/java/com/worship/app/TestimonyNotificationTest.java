@@ -71,7 +71,7 @@ public class TestimonyNotificationTest {
         assertTrue(context.getSystemService(ShortcutManager.class).getDynamicShortcuts().stream()
             .anyMatch(shortcut -> shortcut.getId().equals(notification.getShortcutId())));
         Intent tap = Shadows.shadowOf(notification.contentIntent).getSavedIntent();
-        assertEquals("/normal_UserProfile/?note=" + NOTE, tap.getStringExtra("url"));
+        assertEquals("/friends/?note=" + NOTE, tap.getStringExtra("url"));
         assertEquals(NOTE, tap.getStringExtra("testimonyId"));
         assertEquals("youssef", tap.getStringExtra("actorId"));
         assertEquals("TESTIMONY_LOVED", tap.getStringExtra("type"));

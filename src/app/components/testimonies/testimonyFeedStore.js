@@ -2,6 +2,10 @@
 // Seen markers and downloaded note bodies use separate per-account stores.
 export function createTestimonyFeedStore({ userId, request, sendSeen, storage, cache = null, now = Date.now, schedule = setTimeout, cancel = clearTimeout }) {
   const key = `taspe7_notes_seen_v1:${userId}`;
+  const badgeKey = `taspe7_friends_badge_v1:${userId}`;
+  let announced = {}, feedVisible = false;
+  try { announced = JSON.parse(storage?.getItem(badgeKey) || '{}') || {}; } catch { /* Use memory when storage is unavailable. */ }
+  if (typeof announced !== 'object' || Array.isArray(announced)) announced = {};
   let seen = {};
   try { seen = JSON.parse(storage?.getItem(key) || '{}') || {}; } catch { /* Fresh seen state. */ }
   if (typeof seen !== 'object' || Array.isArray(seen)) seen = {};
@@ -72,7 +76,20 @@ export function createTestimonyFeedStore({ userId, request, sendSeen, storage, c
     let seenChanged = false;
     for (const [id, expiry] of Object.entries(seen)) if (expiry <= time) { delete seen[id]; seenChanged = true; }
     if (seenChanged) persistSeen();
-    state.hasUnseen = state.activeNotes.some(item => String(item.authorId) !== String(userId) && !seen[item._id]);
+    let badgeChanged = false;
+    for (const [id, expiry] of Object.entries(announced)) {
+      if (expiry <= time) { delete announced[id]; badgeChanged = true; }
+    }
+    state.hasUnseen = false;
+    for (const item of state.activeNotes) {
+      if (String(item.authorId) === String(userId) || seen[item._id] || announced[item._id]) continue;
+      if (!feedVisible) { state.hasUnseen = true; break; }
+      announced[item._id] = Date.parse(item.feedExpiresAt);
+      badgeChanged = true;
+    }
+    if (badgeChanged) {
+      try { storage?.setItem(badgeKey, JSON.stringify(announced)); } catch { /* Keep acknowledgements in memory. */ }
+    }
     cancel(timer);
     nextDeadline = Infinity;
     const consider = expiry => { if (expiry > time && expiry < nextDeadline) nextDeadline = expiry; };
@@ -171,7 +188,11 @@ export function createTestimonyFeedStore({ userId, request, sendSeen, storage, c
     hydrate,
     tick,
     // Visiting the feed does not mean its notes have been opened.
-    setFeedVisible(visible) { if (visible) tick(); },
+    setFeedVisible(visible) {
+      feedVisible = visible;
+      if (visible && state.hasUnseen) emit({});
+      else if (visible) tick();
+    },
     isSeen(id) { return Boolean(seen[id]); },
     async loadMore() {
       if (!state.nextCursor || state.loadingMore) return;

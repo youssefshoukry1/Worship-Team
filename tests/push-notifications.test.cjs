@@ -230,5 +230,5 @@ test('note avatar support is advertised independently, and data-only reactions r
   assert.equal(received.type, 'taspe7:testimony-push');
   assert.equal(received.detail.title, 'Youssef loved your note');
   s.listeners.pushNotificationActionPerformed({ actionId: 'tap', notification: { data } });
-  assert.equal(s.calls.at(-1), '/normal_UserProfile/?note=aaaaaaaaaaaaaaaaaaaaaaaa');
+  assert.equal(s.calls.at(-1), '/friends/?note=aaaaaaaaaaaaaaaaaaaaaaaa');
 });

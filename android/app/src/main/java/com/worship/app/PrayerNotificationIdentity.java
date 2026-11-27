@@ -16,7 +16,7 @@ final class PrayerNotificationIdentity {
     static String destination(Map<String, String> data) {
         if ("TESTIMONY_LOVED".equals(data.get("type"))) {
             String note = data.getOrDefault("testimonyId", "");
-            return note.matches("[a-fA-F0-9]{24}") ? "/normal_UserProfile/?note=" + note : "/normal_UserProfile/";
+            return note.matches("[a-fA-F0-9]{24}") ? "/friends/?note=" + note : "/friends/";
         }
         return isFriendActivity(data.get("type")) ? "/friends" : "/pray";
     }
