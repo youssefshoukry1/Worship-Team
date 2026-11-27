@@ -529,6 +529,103 @@ export function BibleForm({ controller, presenter, isPage = false }) {
   const isStandalonePage = isPage || pathname?.startsWith('/bible_form');
   const [addVersionMenuOpen, setAddVersionMenuOpen] = useState(false);
   const settingsRef = useRef(null);
+  const matthewButton = useRef(null);
+  const bookGesture = useRef(null);
+  const suppressBookClick = useRef(false);
+  const bookScrollFrame = useRef(0);
+  const cancelBookGlide = () => cancelAnimationFrame(bookScrollFrame.current);
+  useEffect(() => () => cancelAnimationFrame(bookScrollFrame.current), []);
+  const startBookSwipe = event => {
+    cancelBookGlide();
+    suppressBookClick.current = false;
+    if (event.pointerType === 'mouse') return;
+    const pane = event.currentTarget;
+    const row = matthewButton.current;
+    const boundary = row ? pane.scrollTop + row.getBoundingClientRect().top
+      - pane.getBoundingClientRect().top - 8 : Infinity;
+    bookGesture.current = {
+      id: event.pointerId, y: event.clientY, top: pane.scrollTop, lastY: event.clientY,
+      began: event.timeStamp, time: event.timeStamp, speed: 0, limit: pane.scrollTop < boundary - 2 ? boundary : Infinity,
+    };
+  };
+  const moveBookSwipe = event => {
+    const g = bookGesture.current;
+    if (!g || g.id !== event.pointerId) return;
+    const distance = g.y - event.clientY;
+    if (!suppressBookClick.current && Math.abs(distance) < 5) return;
+    const pane = event.currentTarget;
+    suppressBookClick.current = true;
+    pane.setPointerCapture(event.pointerId);
+    g.speed = (g.lastY - event.clientY) / Math.max(1, event.timeStamp - g.time);
+    g.time = event.timeStamp;
+    g.lastY = event.clientY;
+    pane.scrollTop = Math.min(g.limit, g.top + distance);
+  };
+  const finishBookSwipe = event => {
+    const g = bookGesture.current;
+    if (!g || g.id !== event.pointerId) return;
+    bookGesture.current = null;
+    if (!suppressBookClick.current) return;
+    const pane = event.currentTarget;
+    const start = pane.scrollTop;
+    const speed = event.timeStamp - g.time > 100 ? 0 : g.speed;
+    const projected = start + speed * 440;
+    const averageSpeed = (g.y - event.clientY) / Math.max(1, event.timeStamp - g.began);
+    const strongFlick = averageSpeed >= 0.8 && g.y - event.clientY >= pane.clientHeight / 2;
+    const approaching = speed > 0 && (strongFlick || projected >= g.limit - pane.clientHeight / 2) && Number.isFinite(g.limit);
+    const target = Math.max(0, Math.min(approaching ? g.limit : projected, g.limit, pane.scrollHeight - pane.clientHeight));
+    glideBooksTo(pane, start, target);
+  };
+  const glideBooksTo = (pane, start, target) => {
+    cancelBookGlide();
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      pane.scrollTop = target;
+      return;
+    }
+    const began = performance.now();
+    const duration = Math.min(800, Math.max(220, Math.abs(target - start) * 1.4));
+    const glide = now => {
+      const progress = Math.min(1, (now - began) / duration);
+      pane.scrollTop = target + (start - target) * (1 - progress) ** 3;
+      if (progress < 1) bookScrollFrame.current = requestAnimationFrame(glide);
+    };
+    bookScrollFrame.current = requestAnimationFrame(glide);
+  };
+  const wheelStopUntil = useRef(0);
+  const handleBookWheel = event => {
+    const pane = event.currentTarget;
+    const row = matthewButton.current;
+    const now = performance.now();
+    if (event.deltaY > 0 && now < wheelStopUntil.current) {
+      wheelStopUntil.current = now + 180;
+      return;
+    }
+    wheelStopUntil.current = 0;
+    cancelBookGlide();
+    const start = pane.scrollTop;
+    const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? pane.clientHeight : 1);
+    const distance = row && row.getBoundingClientRect().top - pane.getBoundingClientRect().top - 8;
+    if (delta > 0 && distance > 2 && delta >= distance - 16) {
+      wheelStopUntil.current = now + 180;
+      glideBooksTo(pane, start, start + distance);
+    } else {
+      pane.scrollTop += delta;
+    }
+  };
+  const bookWheelHandler = useRef(null);
+  useLayoutEffect(() => { bookWheelHandler.current = handleBookWheel; });
+  const attachBookPane = React.useCallback(node => {
+    if (!node) return;
+    const wheel = event => {
+      if (event.ctrlKey || !event.deltaY) return;
+      if ((event.deltaY < 0 && node.scrollTop <= 0) ||
+          (event.deltaY > 0 && node.scrollTop + node.clientHeight >= node.scrollHeight - 1)) return;
+      event.preventDefault();
+      bookWheelHandler.current?.(event);
+    };
+    node.addEventListener('wheel', wheel, { passive: false });
+    return () => node.removeEventListener('wheel', wheel);
+  }, []);
   const readerSurfaceRef = useRef(null);
 
   const compareY = useMotionValue(0);
@@ -940,12 +1037,23 @@ export function BibleForm({ controller, presenter, isPage = false }) {
                         {/* Books Pane */}
                         <div
                           className="w-1/2 p-4 max-h-[30vh] overflow-y-auto custom-scrollbar"
+                          style={{ touchAction: 'pinch-zoom' }}
+                          onPointerDown={startBookSwipe}
+                          onPointerMove={moveBookSwipe}
+                          onPointerUp={finishBookSwipe}
+                          onPointerCancel={() => { bookGesture.current = null; }}
+                          onClickCapture={event => {
+                            if (suppressBookClick.current && event.detail) event.stopPropagation();
+                          }}
+                          ref={attachBookPane}
+                          onKeyDown={cancelBookGlide}
                           data-lenis-prevent-wheel
                         >
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                             {bibleModalBooks.map((book) => (
                               <button
-                                key={book._id}
+                                key={book.bookNumber}
+                                ref={book.bookNumber === 40 ? matthewButton : undefined}
                                 className={`px-3 py-2 rounded-xl text-right text-[11px] font-medium transition-colors ${bibleModalBook?.bookName === book.bookName ? 'bg-slate-700/80 text-slate-100 border border-slate-500/30 shadow-lg shadow-black/30' : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10 hover:text-white'}`}
                                 onClick={() => { setBibleModalBook(book); setBibleModalChapter(null); setBiblePickerOpen('chapter'); if (typeof window !== 'undefined') localStorage.setItem(BIBLE_LAST_POS_KEY, JSON.stringify({ bookName: book.bookName, chapter: null })); }}
                               >
