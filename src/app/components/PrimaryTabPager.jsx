@@ -213,7 +213,7 @@ export default function PrimaryTabPager({ index }) {
         const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 :
           swipeSettleDuration(completed, active.amount, active.width, velocity);
         root.setAttribute('data-settling', 'true');
-        for (const panel of [active.source, active.incoming]) panel.style.transition = `transform ${duration}ms cubic-bezier(.22,1,.36,1)`;
+        for (const panel of [active.source, active.incoming]) panel.style.transition = `transform ${duration}ms cubic-bezier(.23,.875,.58,1)`;
         move(completed ? active.width : 0);
         timer = setTimeout(completed ? navigate : clear, duration);
       };
@@ -264,7 +264,8 @@ export default function PrimaryTabPager({ index }) {
       update: move,
       finish: (completed, release) => {
         if (!settingsGesture) settle(completed, release);
-        else if (completed) returnFromSettings();
+        else if (release.amount >= 18 && release.velocity > 0.4 ||
+                 release.amount >= release.width * 0.18 && release.velocity > -0.45) returnFromSettings();
         settingsGesture = false;
       },
       cancel: () => { settingsGesture = false; settle(false); },

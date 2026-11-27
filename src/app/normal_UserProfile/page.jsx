@@ -951,7 +951,7 @@ function UserProfile({ profileUserId }) {
                         <TestimonyBoard profileUserId={profileUserId} onProfileLoad={handleSocialProfile} profileAccess={socialProfile?.canViewTestimonies} onLoadingChange={setRefreshingSocial} />
 
                         {/* --- SETTINGS GROUPS (CHATGPT STYLE) --- */}
-                        {isOwner && <div className="space-y-5">
+                        {isOwner && <div className="space-y-5" data-preview-content={loading || !profile?.user?._id ? 'profile-menu' : undefined}>
                             <AiUsageSettings userId={user_id} token={isLogin} active={pageActive} />
                             {/* Bible Group */}
                             <div>

@@ -17,6 +17,25 @@ When adding a glass surface to a tab, check whether the existing rule covers it.
 3. **Move two panels.** The pager measures and clips the source and destination to the visible area, retaining the document height and scroll offsets. Each drag frame updates their `translate3d` transforms. Keep layout reads, React state updates and list processing outside that per-frame path. Memoized page boundaries let preparation updates skip redundant page renders while activity, selection and data updates still reach subscribers.
 4. **Settle and navigate.** An accepted swipe updates the bottom-tab highlight, finishes the slide and then navigates once. A cancellation returns to the current page and preserves its history and draft. Reduced-motion preference skips the settling animation. Cleanup releases deferred work and removes temporary panel styles. Tab taps and Back can interrupt an in-progress swipe.
 
+### Galaxy A24 gesture calibration
+
+On 28 November 2026, a same-phone comparison used Android touch input on WhatsApp's main tabs and a local Wasla export in its installed WebView. The A24 display was 1,080 pixels wide, corresponding to a 384 CSS-pixel viewport. Bottom-tab taps on WhatsApp switched content directly in the recording. Keep Wasla's direct tap navigation separate from the finger-driven slide.
+
+| Leftward touch on the A24 | WhatsApp | Wasla |
+| --- | --- | --- |
+| 80 physical pixels in 45 ms | Advance | Advance |
+| 105 pixels in 60 ms | Advance | Advance |
+| 105 pixels in 150 or 500 ms | Return | Return |
+| 600 pixels in 1,400 ms | Return | Return |
+| 680 pixels in 1,350 ms | Return | Return |
+| 750 pixels in 1,400 ms | Advance | Advance |
+
+Wasla claims horizontal input early enough to receive subsequent WebView touch events. The first 16 CSS pixels of travel absorb initial finger motion. Short flicks require at least 25 CSS pixels of total movement and recent forward velocity above 0.4 CSS pixels/ms. A slow drag must move the page itself through 60% of the viewport. Reverse momentum or an interrupted gesture can cancel it. Profile settings retain their separate Back threshold.
+
+The two moving panels share one decelerating transform. A sampled 105-pixel flick settled in roughly 0.42 seconds on WhatsApp and 0.45 seconds in the instrumented Wasla WebView. These are observed timings on this phone. Recorded video frames and WebView animation callbacks sample different parts of the rendering pipeline. Respect reduced motion in both settling directions.
+
+When the owner's Profile menu has rendered but private header data is pending, the settings rows provide the preview-ready marker. This lets Friends reveal the neighboring Profile during a drag while the private summary still waits for activation.
+
 ### Note text during a swipe
 
 Friends and Profile share `TestimonyCard.jsx`. A neighboring tab can already be on screen while the finger is down, before the route changes. Each mounted card therefore prepares its compact text size during browser layout. Two hidden samples wrap the note at 10 and 9 px in the same width as its visible title. A `ResizeObserver` uses their heights and the button's content height to select the largest size that fits, falling back to 8 px with an ellipsis for long notes. Apply that result in the observer callback before paint. Waiting for tab selection or scheduling another animation frame makes long notes visibly shrink.
