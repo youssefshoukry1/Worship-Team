@@ -72,11 +72,11 @@ export default function PrimaryTabPager({ index }) {
   const [prepared, setPrepared] = useState([index]);
 
   useLayoutEffect(() => {
-    const returnOffset = offsets.current.get(index);
+    const changedTab = indexRef.current !== index;
     visited.add(index);
     indexRef.current = index;
     cancelRef.current?.();
-    if (returnOffset) window.scrollTo({ top: returnOffset, behavior: 'instant' });
+    if (changedTab) window.scrollTo({ top: offsets.current.get(index) ?? 0, behavior: 'instant' });
     const rememberScroll = () => {
       if (!session.current) offsets.current.set(index, window.scrollY);
     };

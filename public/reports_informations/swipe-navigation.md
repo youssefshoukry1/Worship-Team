@@ -30,7 +30,18 @@ On 28 November 2026, a same-phone comparison used Android touch input on WhatsAp
 | 680 pixels in 1,350 ms | Return | Return |
 | 750 pixels in 1,400 ms | Advance | Advance |
 
-Wasla claims horizontal input early enough to receive subsequent WebView touch events. The first 16 CSS pixels of travel absorb initial finger motion. Short flicks require at least 25 CSS pixels of total movement and recent forward velocity above 0.4 CSS pixels/ms. A slow drag must move the page itself through 60% of the viewport. Reverse momentum or an interrupted gesture can cancel it. Profile settings retain their separate Back threshold.
+### How Wasla decides where to land
+
+Wasla uses CSS pixels for gesture calculations. The physical-pixel values above are examples for this A24. For a ready neighbor, the gesture follows these rules in either direction.
+
+| Phase | Rule | What the user sees |
+| --- | --- | --- |
+| Start | Claim the gesture once horizontal travel reaches 8 CSS px and is at least 1.2 times the vertical travel. Subtract the first 16 CSS px from the visible offset. | A slight movement leaves the page still. Once the allowance is crossed, the page follows the finger one-for-one. |
+| Release a flick | Total travel is at least 25 CSS px and recent forward velocity exceeds 0.4 CSS px/ms. | A short, deliberate flick advances one tab. |
+| Release a drag | Visible page displacement reaches 60% of viewport width and release velocity is greater than −0.4 CSS px/ms. | A sufficiently long pull advances even after a pause. A shorter pull or a strong reversal returns to the starting tab. |
+| Settle | Both panels use `cubic-bezier(.23,.875,.58,1)`. Completing a swipe takes 160–420 ms according to remaining distance and velocity. Returning takes 360–460 ms according to displacement. Reduced motion or less than 1 CSS px left to travel sets the duration to zero. | The pages move quickly after release and ease into place. A cancelled swipe keeps the same route. |
+
+On the tested 384 CSS-pixel viewport, a slow swipe needs about 246 CSS px of **finger travel** to move the **page** through 60% of its width. That is about 693 physical pixels on this phone, which explains why the 680-pixel drag returned and the 750-pixel drag advanced. Release velocity uses samples from the last 120 ms. A pause of 80 ms after the last movement clears flick momentum. Inside Profile settings, a rightward swipe still uses the separate Back rule to return to the previous settings view.
 
 The two moving panels share one decelerating transform. A sampled 105-pixel flick settled in roughly 0.42 seconds on WhatsApp and 0.45 seconds in the instrumented Wasla WebView. These are observed timings on this phone. Recorded video frames and WebView animation callbacks sample different parts of the rendering pipeline. Respect reduced motion in both settling directions.
 

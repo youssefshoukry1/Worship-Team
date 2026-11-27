@@ -383,6 +383,33 @@ test('trusted touch on a real settings switch begins a drag without toggling it,
   assert.deepEqual(errors, []);
 });
 
+test('Friends restores its own scroll offset on first visit and after taps and swipes', async t => {
+  const { page } = await setup(t, 'chromium', { href: '/normal_UserProfile/' });
+  await page.addStyleTag({ content: '.primary-tab-content { min-height: 2200px; }' });
+  const scroll = async top => {
+    await page.evaluate(y => window.scrollTo({ top: y, behavior: 'instant' }), top);
+    await frame(page);
+  };
+  const verify = async (route, top) => {
+    await page.waitForURL(base + route + '/');
+    await page.locator('[data-tab-pager][data-swiping]').waitFor({ state: 'detached' });
+    await frame(page);
+    assert.equal(await page.evaluate(() => Math.round(window.scrollY)), top);
+  };
+  const tap = route => page.locator('nav a[href^="' + route + '"]').evaluate(el => el.click());
+  await panel(page, '/normal_UserProfile').locator('[data-preview-content]').first().waitFor();
+  await scroll(400);
+  await tap('/friends');
+  await verify('/friends', 0);
+  for (const saved of [0, 140]) {
+    await scroll(saved);
+    await tap('/normal_UserProfile');
+    await verify('/normal_UserProfile', 400);
+    await drag(page, 50, 345);
+    await verify('/friends', saved);
+  }
+});
+
 test('interior swipes traverse every bottom tab in both directions', async t => {
   const { page, errors } = await setup(t, 'chromium', { waitForPrayReads: false });
   await page.evaluate(() => localStorage.setItem('taspe7_category_hymns_tour_done', '1'));
@@ -645,7 +672,8 @@ for (const engine of ['webkit', 'chromium']) {
     await page.getByRole('link', { name: 'Subscription terms' }).click();
     const terms = page.getByRole('link', { name: 'Back to plans' });
     await terms.waitFor();
-    for (const [type, x] of [['touchstart', 70], ['touchmove', 230], ['touchend', 230]]) {
+    // Use a full Back swipe so this position check is independent of flick timing.
+    for (const [type, x] of [['touchstart', 50], ['touchmove', 345], ['touchend', 345]]) {
       await touch(page, type, x, 350, { selector: '.app-page-transition' });
     }
     await page.waitForURL('**/plans/');
