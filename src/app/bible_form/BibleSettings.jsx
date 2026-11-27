@@ -4,7 +4,6 @@ import { useCallback, useEffect, useId, useImperativeHandle, useRef, useState } 
 import { createPortal } from 'react-dom';
 import { AlignJustify, Check, Download, List, Loader2, SlidersHorizontal, X } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
-import { showToast } from '../components/ToastContainer';
 import styles from './BibleSettings.module.css';
 import { ARABIC_TRANSLATIONS, ENGLISH_TRANSLATIONS } from './translationLanguages';
 import { useTabPageActive } from '../components/TabPageActivity';
@@ -271,11 +270,6 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
                             if (isDownloaded) {
                               setBibleTranslation(tr);
                             } else if (!isDownloading) {
-                              showToast(
-                                language === 'ar'
-                                  ? `جاري تحميل ترجمة ${label}...`
-                                  : `Downloading ${label} translation...`
-                              );
                               toggleDownloadTranslation(tr, true);
                             }
                           }}
@@ -299,11 +293,6 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (!isDownloading) {
-                                  showToast(
-                                    language === 'ar'
-                                      ? `جاري تحميل ترجمة ${label}...`
-                                      : `Downloading ${label} translation...`
-                                  );
                                   toggleDownloadTranslation(tr, true);
                                 }
                               }}

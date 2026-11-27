@@ -6,7 +6,7 @@ import { UserContext } from '../context/User_Context';
 import { HymnsContext } from '../context/Hymns_Context';
 import { useLanguage } from '../context/LanguageContext';
 import { showToast } from '../components/ToastContainer';
-import { displayBookName } from './translationLanguages';
+import { displayBookName, ARABIC_TRANSLATIONS, ENGLISH_TRANSLATIONS } from './translationLanguages';
 import { getApiBaseUrl } from '../utils/apiBase';
 import { isRetiredTranslation } from '../utils/platform';
 import { prepareOfflineSearch, scheduleBibleMigration } from '../utils/bibleChapterStorage';
@@ -352,7 +352,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
   const [bibleTranslation, setBibleTranslationRaw] = useState(getInitialTranslation);
   // Pre-seeded with known translations so all pills appear immediately,
   // even before the /translations endpoint responds.
-  const [availableTranslations, setAvailableTranslations] = useState(['AVD']);
+  const [availableTranslations, setAvailableTranslations] = useState(() => [...ARABIC_TRANSLATIONS, ...ENGLISH_TRANSLATIONS].sort());
   const chapterMatches = loadedChapter?.translation === bibleTranslation &&
     loadedChapter.bookName === bibleModalBook?.bookName && loadedChapter.chapter === bibleModalChapter;
   const bibleModalVerses = chapterMatches ? loadedChapter.verses : EMPTY_VERSES;
@@ -417,6 +417,12 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       }
       return;
     }
+    if (navigator.onLine === false) {
+      showToast({ message: language === 'ar' ? 'لا يوجد اتصال بالإنترنت. اتصل بالإنترنت لتحميل الترجمة.' : 'You are offline. Connect to download this translation.', type: 'offline' });
+      return;
+    }
+    const label = { ARBWBTC: 'ERV-AR', ONAV: 'KEHM' }[tr] ?? tr;
+    showToast(language === 'ar' ? `جاري تحميل ترجمة ${label}...` : `Downloading ${label} translation...`);
     const choice = ++translationChoice.current;
     setIsDownloadingTranslation(tr);
     try {
