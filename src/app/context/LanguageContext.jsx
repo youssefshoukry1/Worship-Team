@@ -1,30 +1,23 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useState, useLayoutEffect, useCallback, useMemo } from "react";
 import { translations } from "../i18n/translations";
 
 const LanguageContext = createContext(undefined);
 
 export function LanguageProvider({ children }) {
-    // Default to English initially to avoid hydration mismatch,
-    // or use a more complex logic if server-side detection is needed.
-    // For now, we'll stick to 'en' and update on mount if needed.
+    // Match the static export during hydration, then adopt the head script's
+    // language before the hydrated screen paints.
     const [language, setLanguage] = useState("ar");
 
-    // Load saved language on mount
-    useEffect(() => {
-        const savedLang = localStorage.getItem("app-language");
-        const activeLang = (savedLang && ["en", "ar", "de"].includes(savedLang)) ? savedLang : "ar";
-        setLanguage(activeLang);
-        if (!savedLang) {
-            localStorage.setItem("app-language", "ar");
-        }
+    useLayoutEffect(() => {
+        setLanguage(document.documentElement.dataset.startupLanguage || "en");
         document.documentElement.dir = "ltr";
-        document.documentElement.lang = activeLang;
     }, []);
 
     const handleSetLanguage = useCallback((lang) => {
         setLanguage(lang);
-        localStorage.setItem("app-language", lang);
+        try { localStorage.setItem("app-language", lang); } catch { /* Storage can be unavailable. */ }
+        document.documentElement.dataset.startupLanguage = lang;
         document.documentElement.dir = "ltr";
         document.documentElement.lang = lang;
     }, []);

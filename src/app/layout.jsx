@@ -70,7 +70,24 @@ export default function RootLayout({
                 <script dangerouslySetInnerHTML={{ __html: otaLaunchScript(getApiBaseUrl()) }} />
                 <script
                     dangerouslySetInnerHTML={{
-                        __html: `(function(){try{var r=document.documentElement,t=localStorage.getItem("taspe7_theme"),l=localStorage.getItem("app-language"),d=t==="dark";r.classList.toggle("dark",d);r.setAttribute("data-theme",d?"dark":"light");document.querySelector('meta[name="theme-color"]').setAttribute("content",d?"#090c0f":"#060b13");r.setAttribute("data-startup-language",["en","ar","de"].includes(l)?l:"ar");r.setAttribute("data-startup-session",localStorage.getItem("user_Taspe7_Token")&&localStorage.getItem("user_Taspe7_Username")?"returning":"guest");}catch(_){}})();`
+                        __html: `(function () {
+                            var root = document.documentElement;
+                            var language = /^ar(?:-|$)/i.test(navigator.language) ? "ar" : "en";
+                            try {
+                                var saved = localStorage.getItem("app-language");
+                                if (["en", "ar", "de"].includes(saved)) language = saved;
+                                else localStorage.setItem("app-language", language);
+                            } catch (_) {}
+                            root.lang = language;
+                            root.dataset.startupLanguage = language;
+                            try {
+                                var dark = localStorage.getItem("taspe7_theme") === "dark";
+                                root.classList.toggle("dark", dark);
+                                root.dataset.theme = dark ? "dark" : "light";
+                                document.querySelector('meta[name="theme-color"]').setAttribute("content", dark ? "#090c0f" : "#060b13");
+                                root.dataset.startupSession = localStorage.getItem("user_Taspe7_Token") && localStorage.getItem("user_Taspe7_Username") ? "returning" : "guest";
+                            } catch (_) {}
+                        })();`
                     }}
                 />
             </head>
