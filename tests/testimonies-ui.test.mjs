@@ -14,8 +14,8 @@ let desktopBrowser, mobileBrowser;
 before(async () => { await mkdir(output, { recursive: true }); desktopBrowser = await chromium.launch({ executablePath: chromium.executablePath() }); mobileBrowser = await webkit.launch(); });
 after(async () => { await desktopBrowser?.close(); await mobileBrowser?.close(); });
 
-async function setup(t, { startPath = '/friends/', mobile = false, failFirstPublish = false, failFirstLove = false, empty = false, expiresSoon = false, programer = false, cooldownSoon = false, relationship = 'friends', failFriendship = false, friendPhoto = false, omitProfileMetadata = false, profileRelationship = null, waitForSocket = false } = {}) {
-  const context = await (mobile ? mobileBrowser : desktopBrowser).newContext({ ...(mobile ? devices['iPhone 13'] : { viewport: { width: 1440, height: 1100 } }), serviceWorkers: 'block' });
+async function setup(t, { startPath = '/friends/', mobile = false, mobileChrome = false, failFirstPublish = false, failFirstLove = false, empty = false, expiresSoon = false, programer = false, cooldownSoon = false, relationship = 'friends', failFriendship = false, friendPhoto = false, omitProfileMetadata = false, profileRelationship = null, waitForSocket = false } = {}) {
+  const context = await (mobile ? mobileBrowser : desktopBrowser).newContext({ ...(mobileChrome ? devices['Pixel 7'] : mobile ? devices['iPhone 13'] : { viewport: { width: 1440, height: 1100 } }), serviceWorkers: 'block' });
   t.after(() => context.close());
   const page = await context.newPage();
   const errors = [];
@@ -867,6 +867,37 @@ for (const [path, authorId] of [['/friends/', A], ['/normal_UserProfile/', A], [
     }
   });
 }
+
+test('profile note rail scrolls older notes and hands an outward touch swipe to Friends', async t => {
+  const { page, state } = await setup(t, { mobileChrome: true });
+  const own = state.posts.find(note => note.author._id === A);
+  for (let i = 0; i < 8; i++) state.posts.push({ ...own, _id: i.toString(16).padStart(24, '0') });
+  state.notesVersions[A]++;
+  await page.goto(base + '/normal_UserProfile/');
+  const rail = page.locator('[data-page-swipe="at-edge"]');
+  await page.locator('[data-page-swipe="at-edge"][data-loaded-notes="9"]').waitFor();
+  await rail.locator('[data-profile-note]').first().waitFor();
+  await rail.scrollIntoViewIfNeeded();
+  const bounds = await rail.boundingBox();
+  const y = bounds.y + bounds.height / 2;
+  const client = await page.context().newCDPSession(page);
+  const drag = async (from, to) => {
+    await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: from, y }] });
+    for (let step = 1; step <= 8; step++) {
+      await client.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from + (to - from) * step / 8, y }] });
+    }
+    await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  };
+  const settled = rail.evaluate(el => new Promise(resolve => el.addEventListener('scrollend', resolve, { once: true })));
+  await drag(320, 60);
+  await page.waitForFunction(() => document.querySelector('[data-page-swipe="at-edge"]').scrollLeft > 5);
+  assert.equal(new URL(page.url()).pathname, '/normal_UserProfile/');
+  await settled;
+  await rail.evaluate(el => el.scrollTo({ left: 0, behavior: 'instant' }));
+  assert.ok(await rail.evaluate(el => el.scrollLeft <= 1));
+  await drag(60, 330);
+  await page.waitForURL(base + '/friends/');
+});
 
 test('an author push refreshes counts and tapping it can open an archived note', async t => {
   const { page, state, errors } = await setup(t);

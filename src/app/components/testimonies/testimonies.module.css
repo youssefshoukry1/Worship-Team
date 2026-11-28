@@ -15,9 +15,10 @@
 .refreshNotes:hover { color: #00c2ff; background: #00c2ff0a; }
 .noteRail { display: flex; gap: 14px; align-items: flex-start; overflow-x: auto; padding: 12px 4px 5px; scrollbar-width: none; scroll-snap-type: x proximity; }
 .noteRail::-webkit-scrollbar { display: none; }
+.noteRail[data-page-swipe="at-edge"] { scroll-padding-inline-start: 4px; }
 .miniCard { width: 88px; flex: 0 0 88px; min-width: 0; scroll-snap-align: start; }
 .miniNote, .createNote { position: relative; display: flex; flex-direction: column; justify-content: space-between; width: 88px; height: 88px; padding: 14px 9px 8px; border: 0; border-radius: 6px 6px 13px 6px; background: var(--note-bg); color: #cbd5e1; box-shadow: 1px 3px 8px #0002; transform: rotate(var(--tilt, -1deg)); transition: transform .16s, border-color .16s, background .16s; text-align: start; }
-.miniNote:hover, .createNote:hover { transform: rotate(0) translateY(-2px); background: rgb(var(--app-raised-rgb)); }
+.miniNote:hover, .createNote:hover { transform: rotate(0) translateY(-2px); }
 .miniNote { padding-top: 28px; }
 .miniNote .unreadPin { color: #38a0cd; }
 .miniNote.withoutAuthor { padding-top: 14px; }
@@ -161,7 +162,6 @@
 .spin { animation: spin 1s linear infinite; }
 @supports (background: color-mix(in srgb, black, white)) {
   .board { --note-bg: color-mix(in srgb, var(--app-bg, #060b13) 93%, #fff); }
-  .miniNote:hover, .createNote:hover { background: color-mix(in srgb, var(--app-bg, #060b13) 89%, #fff); }
   .createNote { background: color-mix(in srgb, var(--app-bg, #060b13) 96%, #00c2ff); }
   .dialog, .dialogTop { background: color-mix(in srgb, var(--app-bg, #060b13) 94%, #fff); }
   .expandedNote { background: color-mix(in srgb, var(--app-bg, #060b13) 93%, #fff); }

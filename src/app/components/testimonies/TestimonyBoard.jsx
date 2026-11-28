@@ -160,7 +160,7 @@ function Board({ token, userId, username, profilePhoto, profileUserId, onProfile
 
   return <>
     <section className={styles.board} aria-label={isFeed ? 'Friends highlights' : 'Profile testimony highlights'}>
-      {restricted ? <div className={styles.lockedTestimonies}><LockKeyhole size={18} /><div><strong>Shared with friends</strong><p>Become friends to read each other’s testimonies.</p></div></div> : <div ref={isFeed ? undefined : setRail} data-loaded-notes={visibleItems.length} className={styles.noteRail} data-testid="testimony-cards">
+      {restricted ? <div className={styles.lockedTestimonies}><LockKeyhole size={18} /><div><strong>Shared with friends</strong><p>Become friends to read each other’s testimonies.</p></div></div> : <div ref={isFeed ? undefined : setRail} data-page-swipe={ownProfile ? 'at-edge' : undefined} data-loaded-notes={visibleItems.length} className={styles.noteRail} data-testid="testimony-cards">
         {(isFeed || ownProfile) && <div className={styles.miniCard}>
           <button type="button" className={styles.createNote} disabled={loading || !publishing} aria-disabled={!canPublish} onClick={create} aria-label={t('shareYourTestimony')} title={canPublish ? t('shareYourTestimony') : publishing?.canPublish === false ? NOTE_ACTIVE_MESSAGE : 'Checking availability…'}><Plus size={24} strokeWidth={1.4} /><span className={styles.noteLines} aria-hidden="true" /></button>
           <span className={styles.createCaption}>{publishing?.canPublish === false && !canPublish ? t('noteActive') : t('shareANote')}</span>

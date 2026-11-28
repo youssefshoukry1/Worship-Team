@@ -54,6 +54,7 @@ export function installInteriorSwipe({ element, begin, update, finish, cancel, w
       // Claim a horizontal gesture on its first cancellable WebView move.
       // The page itself starts moving only after the separate travel allowance.
       if (Math.abs(dx) < 8 || Math.abs(dx) < dy * 1.2) return;
+      if (dx > 0 ? touch.canScrollLeft : touch.canScrollRight) { reset(); return; }
       if (!event.cancelable || !begin(dx < 0 ? 1 : -1)) { reset(); return; }
       touch.locked = true;
       touch.direction = dx < 0 ? 1 : -1;
@@ -98,11 +99,20 @@ export function installInteriorSwipe({ element, begin, update, finish, cancel, w
       || doc.querySelector('[aria-modal="true"],dialog[open]')) return;
     const input = target.closest('input,textarea');
     if (input && input.selectionStart !== null && input.selectionEnd > input.selectionStart) return;
-    // Nested horizontal carousels keep their own gestures.
+    // A profile note rail can hand an outward swipe to the pager. Decide from
+    // its starting offset so browsing older notes never switches tabs mid-drag.
+    let canScrollLeft = false, canScrollRight = false;
     for (let node = target; node && node !== element; node = node.parentElement) {
-      if (node.scrollWidth > node.clientWidth + 1 && /^(auto|scroll)$/.test(win.getComputedStyle(node).overflowX)) return;
+      const max = node.scrollWidth - node.clientWidth;
+      if (max <= 1) continue;
+      const style = win.getComputedStyle(node);
+      if (!/^(auto|scroll)$/.test(style.overflowX)) continue;
+      if (node.dataset.pageSwipe !== 'at-edge') return;
+      const left = style.direction === 'rtl' ? max + node.scrollLeft : node.scrollLeft;
+      canScrollLeft ||= left > 1;
+      canScrollRight ||= left < max - 1;
     }
-    touch = { id: point.identifier, x: point.clientX, y: point.clientY, samples: [{ time: win.performance.now(), amount: 0 }], locked: false };
+    touch = { id: point.identifier, x: point.clientX, y: point.clientY, canScrollLeft, canScrollRight, samples: [{ time: win.performance.now(), amount: 0 }], locked: false };
     doc.addEventListener('touchmove', move, { capture: true, passive: false });
     doc.addEventListener('touchend', end, { capture: true, passive: false });
     doc.addEventListener('touchcancel', abort, { capture: true, passive: true });
