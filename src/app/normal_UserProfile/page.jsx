@@ -881,7 +881,7 @@ function UserProfile({ profileUserId }) {
     }
 
     return (
-        <ProfileLayout>
+        <ProfileLayout menu={isOwner && currentView === 'menu'}>
 
                 {!isOwner || currentView === 'menu' ? (
                     <>

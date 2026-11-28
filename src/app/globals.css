@@ -97,8 +97,9 @@ body {
   box-shadow: var(--app-panel-shadow);
 }
 
-/* Avoid resampling the backdrop while scrolling saved prayers or Bible records. */
+/* Avoid resampling card backdrops while scrolling these screens. */
 .app-card[data-prayer-list-panel],
+[data-profile-menu] .app-card,
 .profile-bible-list .app-card {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
