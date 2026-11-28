@@ -19,7 +19,7 @@ import { aiStudyTextSegments } from '../utils/aiWordStudies';
 import AiJourneyMap from './AiJourneyMap';
 import AiPracticalFlow from './AiPracticalFlow';
 
-function AiResponseText({ text, wordStudies, journey, practicalFlow }) {
+function AiResponseText({ text, analysisType, wordStudies, journey, practicalFlow }) {
   const scrollRef = useRef(null);
   const [thumb, setThumb] = useState({ height: 0, top: 0 });
   const [scrollbarVisible, setScrollbarVisible] = useState(true);
@@ -62,7 +62,7 @@ function AiResponseText({ text, wordStudies, journey, practicalFlow }) {
         data-lenis-prevent-wheel
         className={`${journey || practicalFlow ? 'max-h-[min(44dvh,360px)] touch-auto' : 'max-h-[10em] touch-pan-y'} overflow-y-auto overscroll-y-contain hide-scrollbar`}
       >
-        <p>
+        <p className={analysisType === 'explain' ? 'whitespace-normal' : 'whitespace-pre-line'}>
         {aiStudyTextSegments(text, wordStudies).map((segment, index) => segment.kind === 'word'
           ? <span key={index} data-ai-study-word className="font-semibold text-sky-400">{segment.text}</span>
           : segment.kind === 'original'
@@ -1573,7 +1573,7 @@ export function BibleForm({ controller, presenter, isPage = false }) {
                             {aiAnalysis.isLimit && isLogin && <div className="mt-2 flex justify-center"><button type="button" onClick={() => router.push('/plans')} className="inline-flex min-h-11 items-center justify-center rounded-full bg-sky-500 px-5 py-2 text-xs font-bold text-white hover:bg-sky-400">{language === 'ar' ? 'عرض الخطط' : 'View plans'}</button></div>}
                           </>
                         ) : (
-                          <AiResponseText key={aiAnalysis.text} text={aiAnalysis.text} wordStudies={aiAnalysis.studyMode === 'old_man' ? aiAnalysis.wordStudies : []}
+                          <AiResponseText key={aiAnalysis.text} text={aiAnalysis.text} analysisType={aiAnalysis.type} wordStudies={aiAnalysis.studyMode === 'old_man' ? aiAnalysis.wordStudies : []}
                             journey={aiAnalysis.studyMode === 'old_man' && aiAnalysis.type === 'explain' ? aiAnalysis.journey : null}
                             practicalFlow={aiAnalysis.studyMode === 'old_man' && aiAnalysis.type === 'practical' ? aiAnalysis.practicalFlow : null} />
                         )}
