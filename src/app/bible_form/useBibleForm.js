@@ -24,6 +24,7 @@ import { HIGHLIGHT_COLORS, BIBLE_LAST_POS_KEY } from './bibleShared';
 import { useTabPageActive } from '../components/TabPageActivity';
 import { waitForNavigationIdle } from '../utils/navigationWork';
 import { searchOnlineBible } from '../utils/onlineBibleSearch';
+import { parseBookReference } from './bookReference';
 
 const API_ROOT = getApiBaseUrl();
 
@@ -695,6 +696,19 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       setBibleSearchUnavailable(false);
       let onlineBusy = false;
       try {
+        const reference = parseBookReference(bibleSearchQuery, bibleModalBooks);
+        if (reference) {
+          const { book, chapter, verse } = reference;
+          let rows = await readLocalChapter(bibleTranslation, book.bookName, chapter);
+          if (!rows.length && navigator.onLine !== false) {
+            const response = await axios.get(`${BIBLE_API}/verses/${encodeURIComponent(book.bookName)}/${chapter}`, {
+              params: { translation: bibleTranslation }, signal: controller.signal, timeout: 8000,
+            });
+            rows = response.data;
+          }
+          if (!cancelled) setBibleSearchResults(verse === null ? rows : rows.filter(row => Number(row.verseNumber) === verse));
+          return;
+        }
         // Use the server's ranked search even when this translation is cached.
         // A valid empty response is authoritative; only failures fall back.
         if (typeof navigator === 'undefined' || navigator.onLine !== false) {
@@ -739,7 +753,7 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
       controller.abort();
       clearTimeout(handler);
     };
-  }, [bibleSearchQuery, bibleTranslation, downloadedTranslations, isOpen, presentationActive, pageActive, bibleSearchRetry]);
+  }, [bibleSearchQuery, bibleTranslation, bibleModalBooks, downloadedTranslations, isOpen, presentationActive, pageActive, bibleSearchRetry]);
 
   const handleSaveNote = async () => {
     if (!noteText.trim() || !noteModalConfig) return;

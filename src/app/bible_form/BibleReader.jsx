@@ -765,6 +765,28 @@ export function BibleForm({ controller, presenter, isPage = false }) {
     const element = bibleScrollContainerRef.current;
     if (element && isOpen) element.scrollTo({ top: view?.get('chapter')?.key === chapterKey ? view.get('chapter').offset : 0, behavior: 'instant' });
   }, [view, chapterKey, isOpen, bibleScrollContainerRef]);
+  const pendingSearchVerse = useRef(null);
+  useLayoutEffect(() => {
+    const hit = pendingSearchVerse.current;
+    if (!hit) return;
+    if (!isOpen || bibleSearchQuery || bibleModalBook?.bookName !== hit.bookName ||
+        Number(bibleModalChapter) !== Number(hit.chapter)) {
+      pendingSearchVerse.current = null;
+      return;
+    }
+    const verse = bibleModalVerses.find(v => Number(v.verseNumber) === Number(hit.verseNumber));
+    if (!verse || isSearchingBible) return;
+    const element = bibleScrollContainerRef.current?.querySelector(`[data-bible-verse="${CSS.escape(String(verse._id))}"]`);
+    if (!element) return;
+    pendingSearchVerse.current = null;
+    element.scrollIntoView({ block: 'center', behavior: 'instant' });
+    const backgroundColor = getComputedStyle(element).backgroundColor;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    element.animate([
+      { backgroundColor: 'rgba(14, 165, 233, 0.32)' },
+      { backgroundColor },
+    ], { duration: 600, iterations: reduced ? 1 : 2, easing: 'ease-out' });
+  }, [isOpen, bibleSearchQuery, bibleModalBook, bibleModalChapter, bibleModalVerses, isSearchingBible, bibleScrollContainerRef]);
 
   const actionCardRef = useRef(null);
   useEffect(() => {
@@ -1122,7 +1144,10 @@ export function BibleForm({ controller, presenter, isPage = false }) {
                           {bibleSearchResults.map((hit, idx) => (
                             <button
                               key={idx}
-                              onClick={() => goToChapterFromSearch(hit)}
+                              onClick={() => {
+                                pendingSearchVerse.current = hit;
+                                goToChapterFromSearch(hit);
+                              }}
                               className="group p-4 rounded-2xl bg-white/[0.03] border border-white/0 hover:border-sky-500/30 hover:bg-sky-500/5 transition-all cursor-pointer"
                             >
                               <div className="flex justify-between items-start gap-4 mb-2">
