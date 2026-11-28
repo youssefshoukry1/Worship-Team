@@ -26,6 +26,7 @@ public class MainActivity extends BridgeActivity {
             Trace.endSection();
         }
         if (bridge == null) return;
+        bridge.getWebView().setScrollBarStyle(android.view.View.SCROLLBARS_INSIDE_OVERLAY);
         bridge.getWebView().setVerticalScrollBarEnabled(false);
         bridge.getWebView().setHorizontalScrollBarEnabled(false);
         launchCover = new LaunchCover(this);

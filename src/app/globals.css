@@ -530,27 +530,22 @@ html:not([data-bible-page]) *::-webkit-scrollbar {
   display: none;
 }
 
-html[data-bible-page] {
-  scrollbar-width: thin;
-  scrollbar-color: rgb(128 149 166 / 42%) transparent;
+html[data-bible-page] { scrollbar-width: none; }
+html[data-bible-page]::-webkit-scrollbar { display: none; }
+.bible-scroll-indicator {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 2px;
+  border-radius: 999px;
+  background: rgb(128 149 166 / 52%);
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0;
+  transition: opacity 150ms ease-out;
 }
-
-@supports selector(::-webkit-scrollbar) {
-  html[data-bible-page] {
-    scrollbar-width: auto;
-    scrollbar-color: auto;
-  }
-  html[data-bible-page]::-webkit-scrollbar {
-    width: 2px;
-    height: 2px;
-  }
-  html[data-bible-page]::-webkit-scrollbar-thumb {
-    background: rgb(128 149 166 / 42%);
-    border-radius: 999px;
-  }
-  html[data-bible-page]::-webkit-scrollbar-thumb:hover {
-    background: rgb(128 149 166 / 70%);
-  }
+@media (prefers-reduced-motion: reduce) {
+  .bible-scroll-indicator { transition: none; }
 }
 .hide-scrollbar {
   -ms-overflow-style: none;
