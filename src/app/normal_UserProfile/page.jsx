@@ -387,8 +387,8 @@ function UserProfile({ profileUserId }) {
     };
 
     const [bibleViewMode, setBibleViewMode] = useState(() => {
-        if (typeof window === 'undefined') return 'list';
-        return localStorage.getItem('taspe7_bible_view_mode') || 'list';
+        if (typeof window === 'undefined') return 'paragraph';
+        return localStorage.getItem('taspe7_bible_view_mode') || 'paragraph';
     });
     const handleSetBibleViewMode = (mode) => {
         setBibleViewMode(mode);

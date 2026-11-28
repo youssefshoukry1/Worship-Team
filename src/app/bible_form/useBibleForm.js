@@ -252,8 +252,8 @@ export function useBibleForm({ isOpen, presentationActive, onClose, onPresent })
 
   // View mode: 'list' (under each other) vs 'paragraph' (beside each other)
   const [bibleViewMode, setBibleViewMode] = useState(() => {
-    if (typeof window === 'undefined') return 'list';
-    return localStorage.getItem('taspe7_bible_view_mode') || 'list';
+    if (typeof window === 'undefined') return 'paragraph';
+    return localStorage.getItem('taspe7_bible_view_mode') || 'paragraph';
   });
 
   const handleSetBibleViewMode = (mode) => {
