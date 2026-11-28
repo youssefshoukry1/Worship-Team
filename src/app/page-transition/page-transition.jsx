@@ -15,6 +15,11 @@ export default function PageTransition({ children }) {
     const [enabled] = useSwipePreference();
 
     useLayoutEffect(() => {
+        document.documentElement.toggleAttribute('data-bible-page', index === primaryTabIndex('/bible_form'));
+        return () => document.documentElement.removeAttribute('data-bible-page');
+    }, [index]);
+
+    useLayoutEffect(() => {
         commitSettingsRoute();
         if (index >= 0 || !settingsParent()) return;
         const top = profileScrollPosition();

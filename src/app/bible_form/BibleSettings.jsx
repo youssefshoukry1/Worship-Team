@@ -5,57 +5,13 @@ import { createPortal } from 'react-dom';
 import { AlignJustify, Check, Download, List, Loader2, SlidersHorizontal, X } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import styles from './BibleSettings.module.css';
+import AiStudyModeSettings from '../components/profile/AiStudyModeSettings';
 import { ARABIC_TRANSLATIONS, ENGLISH_TRANSLATIONS } from './translationLanguages';
 import { useTabPageActive } from '../components/TabPageActivity';
 import { waitForNavigationIdle } from '../utils/navigationWork';
 
-function SettingsScrollArea({ open, className, children }) {
-  const viewport = useRef(null);
-  const thumb = useRef(null);
-  useEffect(() => {
-    if (!open) return;
-    const area = viewport.current;
-    const bar = thumb.current;
-    const measure = () => {
-      const height = area.clientHeight;
-      const total = area.scrollHeight;
-      bar.hidden = total <= height;
-      if (bar.hidden) return;
-      bar.style.height = `${height * height / total}px`;
-      bar.style.top = `${area.scrollTop * height / total}px`;
-    };
-    bar.style.opacity = '1';
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(area);
-    for (const child of area.children) observer.observe(child);
-    const contentObserver = new MutationObserver(measure);
-    contentObserver.observe(area, { childList: true, subtree: true });
-    let hideTimer;
-    const onScroll = () => {
-      measure();
-      bar.style.opacity = '1';
-      clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => { bar.style.opacity = '0'; }, 180);
-    };
-    area.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      observer.disconnect();
-      contentObserver.disconnect();
-      clearTimeout(hideTimer);
-      area.removeEventListener('scroll', onScroll);
-    };
-  }, [open]);
-  return (
-    <div className="relative min-h-0">
-      <div ref={viewport} className={`hide-scrollbar ${className}`}>{children}</div>
-      <span ref={thumb} hidden aria-hidden="true" className="pointer-events-none absolute end-0.5 z-10 w-[3px] rounded-full bg-slate-400/70 transition-opacity duration-150 motion-reduce:transition-none" />
-    </div>
-  );
-}
-
 // Opening this surface owns only its own state, never the chapter's render.
-export default function BibleSettings({ ref, controller, containerRef, onDeselectAll, children }) {
+export default function BibleSettings({ ref, controller, containerRef, onDeselectAll, userId, children }) {
   const { t, language } = useLanguage();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [filter, setFilter] = useState('All');
@@ -220,7 +176,7 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
             </div>
 
             {/* Scrollable Settings Content */}
-            <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 custom-scrollbar-thin">
+            <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 hide-scrollbar">
               {children}
               {/* Section 1: Translations */}
               <div className="space-y-1">
@@ -257,7 +213,7 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
                 </div>
                 </div>
                 <div className="p-1.5 rounded-xl border border-transparent bg-black/30 space-y-1">
-                  <SettingsScrollArea open={isSettingsOpen} className="grid auto-rows-[2rem] max-h-[11rem] gap-1 overflow-y-auto overscroll-y-contain">
+                  <div className="hide-scrollbar grid auto-rows-[2rem] max-h-[11rem] gap-1 overflow-y-auto overscroll-y-contain">
                     {visibleTranslations.map((tr) => {
                       const label = { ONAV: 'KEHM', ARBWBTC: 'ERV-AR' }[tr] ?? tr;
                       const isDownloaded = downloadedTranslations.has(tr);
@@ -307,9 +263,11 @@ export default function BibleSettings({ ref, controller, containerRef, onDeselec
                         </div>
                       );
                     })}
-                  </SettingsScrollArea>
+                  </div>
                 </div>
               </div>
+
+              <AiStudyModeSettings userId={userId} compact />
 
               {/* Section 2: Verse Controls */}
               <div className="space-y-1">

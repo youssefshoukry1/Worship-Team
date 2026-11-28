@@ -1,12 +1,13 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { useId, useSyncExternalStore } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { readAiStudyMode, saveAiStudyMode, subscribeAiStudyMode } from '../../utils/aiStudyMode';
 
 const defaultMode = () => 'normal';
 
-export default function AiStudyModeSettings({ userId }) {
+export default function AiStudyModeSettings({ userId, compact = false }) {
+  const groupId = useId();
   const { language } = useLanguage();
   const ar = language === 'ar';
   const mode = useSyncExternalStore(subscribeAiStudyMode, () => readAiStudyMode(userId), defaultMode);
@@ -17,13 +18,27 @@ export default function AiStudyModeSettings({ userId }) {
       description: ar ? 'شرح أعمق مع سياق تاريخي، يستغرق وقتاً أطول ويستهلك رموزاً أكثر.' : 'Deeper explanations with historical context. Takes longer and uses more tokens.' }
   ];
 
-  return <section aria-labelledby="ai-study-mode-title" dir={ar ? 'rtl' : 'ltr'}>
-    <h3 id="ai-study-mode-title" className="mb-2 px-1 text-xs font-medium text-slate-400">{ar ? 'نمط إجابات الذكاء الاصطناعي' : 'AI response mode'}</h3>
+  if (compact) return (
+    <fieldset dir={ar ? 'rtl' : 'ltr'}>
+      <legend className="mb-1 px-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">{ar ? 'نمط إجابات الذكاء الاصطناعي' : 'AI response mode'}</legend>
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/30 p-1.5">
+        {choices.map(({ id, title, description }) => (
+          <label key={id} title={description} className="cursor-pointer">
+            <input type="radio" name={groupId} value={id} checked={mode === id} onChange={() => saveAiStudyMode(userId, id)} className="peer sr-only" />
+            <span className="block rounded-lg bg-black/20 py-1.5 text-center text-[11px] font-bold text-gray-300 peer-checked:bg-sky-500/20 peer-checked:text-sky-400 peer-focus-visible:ring-2 peer-focus-visible:ring-sky-400">{title}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+
+  return <section aria-labelledby={groupId} dir={ar ? 'rtl' : 'ltr'}>
+    <h3 id={groupId} className="mb-2 px-1 text-xs font-medium text-slate-400">{ar ? 'نمط إجابات الذكاء الاصطناعي' : 'AI response mode'}</h3>
     <fieldset className="app-card overflow-hidden rounded-xl border p-3">
       <legend className="sr-only">{ar ? 'اختر نمط الإجابة' : 'Choose an AI response mode'}</legend>
       <div className="grid grid-cols-2 gap-2">
         {choices.map(({ id, title, description }) => <label key={id} className="relative block min-w-0 cursor-pointer">
-          <input className="peer sr-only" type="radio" name="ai-study-mode" value={id} checked={mode === id} onChange={() => saveAiStudyMode(userId, id)} />
+          <input className="peer sr-only" type="radio" name={groupId} value={id} checked={mode === id} onChange={() => saveAiStudyMode(userId, id)} />
           <div className={`h-full rounded-lg border p-3 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-sky-400 ${mode === id ? 'border-transparent bg-[#14232e]' : 'border-white/10 hover:bg-white/5'}`}>
             <div className="flex flex-wrap items-center gap-1.5"><span className="text-sm font-semibold text-white">{title}</span>
               {id === 'normal' && <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-slate-400">{ar ? 'الافتراضي' : 'Default'}</span>}

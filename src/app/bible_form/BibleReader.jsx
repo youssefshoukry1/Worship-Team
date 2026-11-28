@@ -665,7 +665,7 @@ export function BibleForm({ controller, presenter, isPage = false }) {
     compareStartedAtTop.current = false;
   };
 
-  const { isLogin } = useContext(UserContext);
+  const { isLogin, user_id } = useContext(UserContext);
   const { t, language } = useLanguage();
   const {
     isOpen,
@@ -1173,7 +1173,7 @@ export function BibleForm({ controller, presenter, isPage = false }) {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <BibleSettings ref={settingsRef} controller={controller} containerRef={readerSurfaceRef} onDeselectAll={closeSelectionPanel}>
+                        <BibleSettings ref={settingsRef} controller={controller} containerRef={readerSurfaceRef} onDeselectAll={closeSelectionPanel} userId={user_id}>
                           {presenter && <div className="flex items-center"><LiveSessionButton presenter={presenter} /></div>}
                           {presenter && <LiveSessionPanel presenter={presenter} compact />}
                         </BibleSettings>

@@ -520,6 +520,38 @@ html.lenis {
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+html:not([data-bible-page]),
+html:not([data-bible-page]) * {
+  scrollbar-width: none;
+}
+html:not([data-bible-page])::-webkit-scrollbar,
+html:not([data-bible-page]) *::-webkit-scrollbar {
+  display: none;
+}
+
+html[data-bible-page] {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(128 149 166 / 42%) transparent;
+}
+
+@supports selector(::-webkit-scrollbar) {
+  html[data-bible-page] {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  html[data-bible-page]::-webkit-scrollbar {
+    width: 2px;
+    height: 2px;
+  }
+  html[data-bible-page]::-webkit-scrollbar-thumb {
+    background: rgb(128 149 166 / 42%);
+    border-radius: 999px;
+  }
+  html[data-bible-page]::-webkit-scrollbar-thumb:hover {
+    background: rgb(128 149 166 / 70%);
+  }
+}
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
