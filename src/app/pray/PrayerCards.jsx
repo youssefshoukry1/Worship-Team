@@ -243,8 +243,9 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
         const isAnonSent = Boolean(entry.sharedWith?.isAnonymous);
         return (
             <div key={entry._id} data-prayer-id={String(entry._id)} data-prayer-unread={isUnread ? 'true' : 'false'}
-                className="rounded-2xl border transition-colors duration-150 overflow-hidden bg-white/[0.03] border-white/10 hover:border-sky-400/30">
+                className="rounded-2xl overflow-hidden bg-white/[0.03]">
                 <div
+                    data-circle-toggle=""
                     onClick={() => toggleFriendPrayerExpand(entry._id)}
                     className="flex items-center justify-between p-3.5 sm:p-4 cursor-pointer hover:bg-white/[0.04] transition-colors gap-3 select-none"
                 >
@@ -307,7 +308,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
                 </div>
 
                 {isExpanded && (
-                    <div ref={expandedContentRef} className="p-4 sm:p-5 pt-3.5 border-t border-white/5">
+                    <div ref={expandedContentRef} data-circle-detail="" className="p-4 sm:p-5 pt-3.5 border-t border-white/5">
                         <PrayEntryContent entry={entry} recordings={recordings} onRecordingsChanged={refreshRecordings} getPrayTypeLabel={getPrayTypeLabel} />
                         {isConfirmed && (entry.sharedWith?.responseWords || targetInfo.responseWords) && (
                             <div ref={replyContentRef} className="mt-3.5 pt-3 border-t border-white/10 flex flex-col gap-2 text-xs bg-white/[0.02] p-3 rounded-xl border border-white/5">
@@ -335,9 +336,10 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
 
     return (
         <div key={entry._id} data-prayer-id={String(entry._id)} data-prayer-unread={isUnread ? 'true' : 'false'}
-            className="rounded-2xl border transition-colors duration-150 overflow-hidden bg-white/[0.03] border-white/10 hover:border-sky-400/30">
+            className="rounded-2xl overflow-hidden bg-white/[0.03]">
             {isSnapRow && (
                 <div
+                    data-circle-toggle=""
                     onClick={() => toggleFriendPrayerExpand(entry._id)}
                     className="flex items-center justify-between p-3.5 sm:p-4 cursor-pointer hover:bg-white/[0.04] transition-colors gap-3 select-none"
                 >
@@ -398,7 +400,7 @@ const PrayerCard = memo(function PrayerCard({ entry, canDelete, isExpanded, isUn
             )}
 
             {(!isSnapRow || isExpanded) && (
-                <div ref={expandedContentRef} className={isSnapRow ? 'p-4 sm:p-5 pt-3.5 border-t border-white/5' : ''}>
+                <div ref={expandedContentRef} data-circle-detail={isSnapRow ? "" : undefined} className={isSnapRow ? 'p-4 sm:p-5 pt-3.5 border-t border-white/5' : ''}>
                     {!isSnapRow && (
                         <div className="flex items-start justify-between gap-3 mb-2.5">
                             <div className="flex items-center gap-2.5 min-w-0 flex-1">
