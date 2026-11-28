@@ -11,6 +11,8 @@ final class PrayerBridgeViewController: CAPBridgeViewController {
     override func viewDidLoad() {
         os_signpost(.begin, log: launchLog, name: "Bridge setup")
         super.viewDidLoad()
+        webView?.scrollView.showsVerticalScrollIndicator = false
+        webView?.scrollView.showsHorizontalScrollIndicator = false
         os_signpost(.end, log: launchLog, name: "Bridge setup")
         os_signpost(.begin, log: launchLog, name: "Waiting for web screen")
         let cover = UIView(frame: view.bounds)
@@ -52,7 +54,18 @@ final class PrayerBridgeViewController: CAPBridgeViewController {
 final class LaunchScreenPlugin: CAPPlugin, CAPBridgedPlugin {
     let identifier = "LaunchScreenPlugin"
     let jsName = "WaslaLaunch"
-    let pluginMethods = [CAPPluginMethod(name: "ready", returnType: CAPPluginReturnPromise)]
+    let pluginMethods = [
+        CAPPluginMethod(name: "ready", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setScrollIndicator", returnType: CAPPluginReturnPromise)
+    ]
+
+    @objc func setScrollIndicator(_ call: CAPPluginCall) {
+        let visible = call.getBool("visible") ?? false
+        DispatchQueue.main.async {
+            self.bridge?.webView?.scrollView.showsVerticalScrollIndicator = visible
+            call.resolve()
+        }
+    }
 
     @objc func ready(_ call: CAPPluginCall) {
         DispatchQueue.main.async {

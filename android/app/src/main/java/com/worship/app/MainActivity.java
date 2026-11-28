@@ -26,6 +26,8 @@ public class MainActivity extends BridgeActivity {
             Trace.endSection();
         }
         if (bridge == null) return;
+        bridge.getWebView().setVerticalScrollBarEnabled(false);
+        bridge.getWebView().setHorizontalScrollBarEnabled(false);
         launchCover = new LaunchCover(this);
         addContentView(launchCover, new android.view.ViewGroup.LayoutParams(-1, -1));
         // Older OTA bundles and failed WebView loads must still expose their recovery UI.

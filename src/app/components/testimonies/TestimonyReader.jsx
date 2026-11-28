@@ -85,8 +85,8 @@ export default function TestimonyReader({ item, userId, token, onReaction, onClo
         {timeLabel && <time className={`${styles.expandedTime} ${timeLabel === 'Just now' ? styles.justNow : ''}`} dateTime={new Date(item.createdAt).toISOString()} title={new Date(item.createdAt).toLocaleString()}>{timeLabel}</time>}
       </footer>
       {mine && <div ref={reactorLayer} className={styles.reactorSheetLayer} data-sheet-open={showReactors} inert={!showReactors ? true : undefined}>
-        <button type="button" className={styles.reactorSheetScrim} aria-label="Close loved by list" onClick={closeReactors} tabIndex={-1} />
-        <div ref={reactorSheet} className={styles.reactorSheet} data-reactor-sheet data-page-swipe="off" style={{ transform: showReactors ? 'translate3d(0, 0, 0)' : 'translate3d(0, 100%, 0)', animation: 'none' }}>
+        <button type="button" data-reactor-scrim className={styles.reactorSheetScrim} aria-label="Close loved by list" onClick={closeReactors} tabIndex={-1} />
+        <div ref={reactorSheet} className={styles.reactorSheet} data-reactor-sheet data-page-swipe="off" style={{ transform: showReactors ? 'translate3d(0, 0, 0)' : 'translate3d(0, 100%, 0)' }}>
           <NoteReactors item={item} onClose={onClose} onBack={closeReactors} sheet active={showReactors} />
         </div>
       </div>}

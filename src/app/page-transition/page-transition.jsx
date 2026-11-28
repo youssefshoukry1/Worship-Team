@@ -1,11 +1,22 @@
 "use client";
 
 import { useLayoutEffect, useRef } from 'react';
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { usePathname } from "next/navigation";
 import PrimaryTabPager, { primaryTabIndex } from '../components/PrimaryTabPager';
 import { commitSettingsRoute, profileScrollPosition, returnFromSettings, settingsParent } from '../utils/profileNavigation';
 import { installInteriorSwipe } from '../utils/interiorSwipe';
 import { useSwipePreference } from '../utils/swipePreferences';
+
+const nativeView = registerPlugin("WaslaLaunch");
+
+function setBibleScrollbar(visible) {
+    document.documentElement.toggleAttribute("data-bible-page", visible);
+    if (Capacitor.isNativePlatform()) {
+        // Installed builds predating this method still use the CSS rules.
+        void nativeView.setScrollIndicator({ visible }).catch(() => {});
+    }
+}
 
 export default function PageTransition({ children }) {
     const pathname = usePathname();
@@ -15,8 +26,9 @@ export default function PageTransition({ children }) {
     const [enabled] = useSwipePreference();
 
     useLayoutEffect(() => {
-        document.documentElement.toggleAttribute('data-bible-page', index === primaryTabIndex('/bible_form'));
-        return () => document.documentElement.removeAttribute('data-bible-page');
+        const bible = index === primaryTabIndex('/bible_form');
+        setBibleScrollbar(bible);
+        if (bible) return () => setBibleScrollbar(false);
     }, [index]);
 
     useLayoutEffect(() => {

@@ -6,12 +6,13 @@ export default function useNoteSheetOpen(surfaceRef, sheetRef, layerRef, enabled
     useEffect(() => {
         const surface = surfaceRef.current, sheet = sheetRef.current, layer = layerRef.current;
         if (!enabled || !surface || !sheet || !layer) return;
+        const scrim = layer.querySelector('[data-reactor-scrim]');
         let gesture = null, timer, suppressClick = false;
         const duration = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180;
         const resetLayer = () => {
             layer.style.removeProperty('visibility');
             layer.style.removeProperty('pointer-events');
-            layer.style.removeProperty('--sheet-progress');
+            scrim.style.removeProperty('opacity');
         };
         const settle = (open = false) => {
             sheet.style.transition = `transform ${duration()}ms cubic-bezier(0.2, 0.9, 0.3, 1)`;
@@ -29,8 +30,10 @@ export default function useNoteSheetOpen(surfaceRef, sheetRef, layerRef, enabled
                 (control && control.getAttribute('aria-label') !== 'See who loved this note')) {
                 gesture = null; resetLayer(); return;
             }
-            gesture = { x: touch.clientX, y: touch.clientY, distance: 0, dragging: false,
-                threshold: Math.min(100, surface.clientHeight * .25, sheet.offsetHeight) };
+            const height = sheet.offsetHeight;
+            if (!height) { gesture = null; return; }
+            gesture = { height, x: touch.clientX, y: touch.clientY, distance: 0, dragging: false,
+                threshold: Math.min(100, surface.clientHeight * .25, height) };
         };
         const move = event => {
             if (!gesture) return;
@@ -43,10 +46,10 @@ export default function useNoteSheetOpen(surfaceRef, sheetRef, layerRef, enabled
                 layer.style.visibility = 'visible'; layer.style.pointerEvents = 'none';
                 sheet.style.animation = 'none'; sheet.style.transition = 'none';
             }
-            const height = sheet.offsetHeight;
+            const { height } = gesture;
             gesture.distance = Math.max(0, Math.min(height, dy));
             sheet.style.transform = `translate3d(0, ${height - gesture.distance}px, 0)`;
-            layer.style.setProperty('--sheet-progress', String(gesture.distance / height));
+            scrim.style.opacity = String(gesture.distance / height);
             suppressClick = true;
             if (event.cancelable) event.preventDefault();
         };

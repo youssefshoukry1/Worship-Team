@@ -9,6 +9,15 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 @CapacitorPlugin(name = "WaslaLaunch")
 public class LaunchScreenPlugin extends Plugin {
     @PluginMethod
+    public void setScrollIndicator(PluginCall call) {
+        boolean visible = Boolean.TRUE.equals(call.getBoolean("visible"));
+        getActivity().runOnUiThread(() -> {
+            getBridge().getWebView().setVerticalScrollBarEnabled(visible);
+            call.resolve();
+        });
+    }
+
+    @PluginMethod
     public void ready(PluginCall call) {
         getActivity().runOnUiThread(() -> getBridge().getWebView().postVisualStateCallback(0,
             new WebView.VisualStateCallback() {
