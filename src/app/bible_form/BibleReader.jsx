@@ -521,6 +521,29 @@ function BibleReaderWrapper({ isPage, onClose, children }) {
   );
 }
 
+function attachVerseIndicator(thumb) {
+  if (!thumb) return;
+  const reader = thumb.previousElementSibling;
+  let timer;
+  const update = () => {
+    const height = reader.clientHeight;
+    const range = reader.scrollHeight - height;
+    if (range <= 0) { thumb.style.opacity = '0'; return; }
+    const size = Math.min(height, Math.max(20, height * height / reader.scrollHeight));
+    thumb.style.height = size + 'px';
+    const progress = Math.max(0, Math.min(1, reader.scrollTop / range));
+    thumb.style.transform = 'translateY(' + progress * (height - size) + 'px)';
+    thumb.style.opacity = '1';
+    clearTimeout(timer);
+    timer = setTimeout(() => { thumb.style.opacity = '0'; }, 500);
+  };
+  reader.addEventListener('scroll', update, { passive: true });
+  return () => {
+    clearTimeout(timer);
+    reader.removeEventListener('scroll', update);
+  };
+}
+
 export function BibleForm({ controller, presenter, isPage = false }) {
   const router = useRouter();
   const pageActive = useTabPageActive();
@@ -931,6 +954,7 @@ export function BibleForm({ controller, presenter, isPage = false }) {
             {/* --- MAIN SCROLL AREA - FIXED HEIGHT --- */}
             {/* Added 'overscroll-contain' to stop the website from scrolling when this reaches the end */}
             <div
+              data-verse-scroll={isStandalonePage || undefined}
               ref={bibleScrollContainerRef}
               className="flex-1 overflow-y-auto min-h-0 overscroll-contain custom-scrollbar-thin"
               dir="rtl"
@@ -1361,6 +1385,8 @@ export function BibleForm({ controller, presenter, isPage = false }) {
                 ) : null}
               </div>
             </div>
+
+            {isStandalonePage && <span aria-hidden="true" ref={attachVerseIndicator} className="bible-scroll-indicator verse-scroll-indicator" />}
 
             {/* Chapter Navigation Buttons */}
             {bibleSelectedVerseIds.size === 0 && !bibleSearchQuery.trim() && bibleModalVerses.length > 0 && (

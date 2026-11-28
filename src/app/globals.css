@@ -545,6 +545,9 @@ html[data-bible-page]::-webkit-scrollbar { display: none; }
   opacity: 0;
   transition: opacity 150ms ease-out;
 }
+[data-verse-scroll].custom-scrollbar-thin { scrollbar-width: none; }
+[data-verse-scroll]::-webkit-scrollbar { display: none; }
+.verse-scroll-indicator { position: absolute; left: 0; right: auto; z-index: 1; }
 @media (prefers-reduced-motion: reduce) {
   .bible-scroll-indicator { transition: none; }
 }
